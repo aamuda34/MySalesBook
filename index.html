@@ -1,0 +1,711 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#14532d">
+<title>My Sales Book</title>
+<style>
+:root{font-family:Arial,sans-serif;color:#17231c;background:#f3f6f3}
+*{box-sizing:border-box}
+body{margin:0}
+header{background:#14532d;color:white;padding:20px 16px}
+header h1{margin:0;font-size:23px}
+header p{margin:6px 0 0;font-size:13px}
+main{max-width:760px;margin:auto;padding:14px}
+nav{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:15px}
+button{border:0;border-radius:9px;padding:12px 8px;font-weight:bold;cursor:pointer}
+nav button{background:#dce9df;color:#14532d}
+nav button.active,.primary{background:#14532d;color:white}
+.card{background:white;padding:16px;border-radius:12px;margin-bottom:13px;box-shadow:0 2px 8px #0000000a}
+h2{font-size:18px;margin:0 0 14px}
+h3{font-size:15px;margin:0 0 8px}
+.stats{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.stat{background:#f0f7f1;padding:13px;border-radius:9px}
+.stat small{display:block;color:#526358;margin-bottom:7px}
+.stat strong{font-size:19px;overflow-wrap:anywhere}
+label{display:block;font-size:13px;font-weight:bold;margin:12px 0 5px}
+input,select{width:100%;padding:12px;border:1px solid #ccd6ce;border-radius:8px;font-size:16px;background:white}
+form button{width:100%;margin-top:14px}
+.row{display:flex;justify-content:space-between;gap:12px;align-items:center}
+.item{border-bottom:1px solid #e7ece8;padding:12px 0}
+.item:last-child{border-bottom:0}
+.muted{color:#647269;font-size:13px}
+.danger{background:#fff0ef;color:#a32920}
+.hidden{display:none!important}
+.empty{color:#66736a;text-align:center;padding:18px 0}
+footer{text-align:center;color:#66736a;font-size:12px;padding:18px}
+.product-photo{width:76px;height:76px;object-fit:cover;border-radius:10px;background:#edf2ee;border:1px solid #dce5de;flex-shrink:0}
+.photo-preview{width:120px;height:120px;object-fit:cover;border-radius:10px;display:block;margin-top:10px}
+.photo-actions{display:flex;gap:8px;margin-top:8px}
+.photo-actions button{flex:1;background:#e5efe7;color:#14532d}
+.photo-help{font-size:12px;color:#647269;margin-top:6px}
+.item-product{display:flex;gap:12px;align-items:flex-start}
+.item-product-details{flex:1;min-width:0}
+.photo-actions button.danger{background:#fff0ef;color:#a32920}
+input[type=file].file-hidden{display:none}
+</style>
+</head>
+<body>
+<header>
+<h1>My Sales Book</h1>
+<p>Simple business records · Nigerian naira (₦)</p>
+</header>
+<main>
+<section class="card" id="accountCard" aria-live="polite">
+  <h2>My account</h2>
+  <p id="accountStatus" class="muted">Checking sign-in status...</p>
+  <button type="button" class="primary" id="googleSignIn">Sign in with Google</button>
+  <button type="button" id="googleSignOut" class="hidden">Sign out</button>
+  <p id="accountMessage" class="muted"></p>
+</section>
+<nav>
+<button class="active" data-page="home">Home</button>
+<button data-page="products">Products</button>
+<button data-page="sales">Sales</button>
+<button data-page="expenses">Expenses</button>
+</nav>
+
+<section id="home" class="page">
+<div class="card">
+<h2>Business summary</h2>
+<div class="stats">
+<div class="stat"><small>Today's sales</small><strong id="todaySales">₦0</strong></div>
+<div class="stat"><small>Today's expenses</small><strong id="todayExpenses">₦0</strong></div>
+<div class="stat"><small>Today's gross profit</small><strong id="todayGross">₦0</strong></div>
+<div class="stat"><small>Today's net profit</small><strong id="todayNet">₦0</strong></div>
+</div>
+</div>
+<div class="card">
+<h2>All-time summary</h2>
+<div class="stats">
+<div class="stat"><small>Total sales</small><strong id="allSales">₦0</strong></div>
+<div class="stat"><small>Net profit</small><strong id="allNet">₦0</strong></div>
+<div class="stat"><small>Products</small><strong id="productCount">0</strong></div>
+<div class="stat"><small>Units in stock</small><strong id="stockCount">0</strong></div>
+</div>
+</div>
+<div class="card">
+<h2>Recent sales</h2><div id="recentSales" class="empty">No sales recorded yet.</div>
+</div>
+<div class="card">
+<h2>Data backup</h2>
+<p class="muted">Export your records regularly and keep a copy somewhere safe.</p>
+<button class="primary" id="exportBtn">Export backup</button>
+<label for="importFile">Restore from backup</label>
+<input type="file" id="importFile" accept=".json,application/json">
+<p class="muted">Restoring replaces the records currently in this app.</p>
+</div>
+</section>
+
+<section id="products" class="page hidden">
+<div class="card">
+<h2>Add a product</h2>
+<form id="productForm">
+<label for="pname">Product name</label><input id="pname" required maxlength="100">
+<label for="pcost">Cost price per unit (₦)</label><input id="pcost" type="number" min="0" step="0.01" required>
+<label for="pprice">Selling price per unit (₦)</label><input id="pprice" type="number" min="0.01" step="0.01" required>
+<label for="pstock">Opening stock (units)</label><input id="pstock" type="number" min="0" step="1" required>
+<label>Product photo (optional)</label>
+<div class="photo-actions">
+<button type="button" id="takeProductPhoto">Take photo</button>
+<button type="button" id="chooseProductPhoto">Choose from gallery</button>
+</div>
+<input class="file-hidden" type="file" id="productCamera" accept="image/*" capture="environment">
+<input class="file-hidden" type="file" id="productGallery" accept="image/*">
+<img id="productPreview" class="photo-preview hidden" alt="Selected product photo preview">
+<div id="photoStatus" class="photo-help">You can save a product without a photo.</div>
+<button type="button" id="removePendingPhoto" class="danger hidden">Remove selected photo</button>
+<button class="primary">Save product</button>
+</form>
+</div>
+<div class="card"><h2>Your products</h2><div id="productList" class="empty">No products yet.</div></div>
+</section>
+
+<section id="sales" class="page hidden">
+<div class="card">
+<h2>Record a sale</h2>
+<form id="saleForm">
+<label for="saleProduct">Product</label><select id="saleProduct" required></select>
+<label for="saleQty">Quantity sold</label><input id="saleQty" type="number" min="1" step="1" value="1" required>
+<label for="salePrice">Selling price per unit (₦)</label><input id="salePrice" type="number" min="0.01" step="0.01" required>
+<div class="muted" id="saleStock"></div>
+<label for="saleNote">Note (optional)</label><input id="saleNote" maxlength="150" placeholder="Optional details">
+<button class="primary">Record paid sale</button>
+</form>
+<p class="muted">Sales are recorded as paid. Stock is deducted automatically.</p>
+</div>
+<div class="card"><h2>Sales history</h2><div id="salesList" class="empty">No sales recorded yet.</div></div>
+</section>
+
+<section id="expenses" class="page hidden">
+<div class="card">
+<h2>Record an expense</h2>
+<form id="expenseForm">
+<label for="ename">Expense description</label><input id="ename" required maxlength="100" placeholder="e.g. Transport">
+<label for="eamount">Amount (₦)</label><input id="eamount" type="number" min="0.01" step="0.01" required>
+<button class="primary">Save expense</button>
+</form>
+</div>
+<div class="card"><h2>Expense history</h2><div id="expenseList" class="empty">No expenses recorded yet.</div></div>
+</section>
+<footer>Keep regular backups of your business records.</footer>
+</main>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="supabase-config.js"></script>
+<script>
+'use strict';
+
+const SUPABASE_URL = window.MY_SALES_BOOK_SUPABASE?.url;
+const SUPABASE_PUBLISHABLE_KEY = window.MY_SALES_BOOK_SUPABASE?.publishableKey;
+const supabaseClient = window.supabase?.createClient(
+  SUPABASE_URL,
+  SUPABASE_PUBLISHABLE_KEY
+);
+
+if (!supabaseClient) {
+  console.error('My Sales Book: Supabase could not be initialized.');
+}
+const DBKEY='my-sales-book-v1';
+const money=n=>'₦'+Number(n||0).toLocaleString('en-NG',{minimumFractionDigits:2,maximumFractionDigits:2});
+const today=()=>new Date().toLocaleDateString('en-CA');
+const now=()=>new Date().toISOString();
+let db={products:[],sales:[],expenses:[]};
+let storageMode='memory';
+
+function load(){
+  try{
+    const raw=localStorage.getItem(DBKEY);
+    if(raw){const parsed=JSON.parse(raw);if(parsed&&Array.isArray(parsed.products)&&Array.isArray(parsed.sales)&&Array.isArray(parsed.expenses))db=parsed;}
+    storageMode='browser';
+  }catch(e){storageMode='memory';}
+}
+function save(){
+  try{localStorage.setItem(DBKEY,JSON.stringify(db));storageMode='browser';return true;}
+  catch(e){alert('Could not save records permanently. Export a backup and check browser storage permissions.');return false;}
+}
+
+let cloudUser = null;
+let cloudReady = false;
+let cloudBusy = false;
+
+function cloudMessage(text) {
+  const el = document.getElementById('accountMessage');
+  if (el) el.textContent = text;
+}
+
+
+let localSnapshot = null;
+let authTransition = false;
+
+function snapshotLocalRecords() {
+  try {
+    const raw = localStorage.getItem(DBKEY);
+    if (!raw) return null;
+    const value = JSON.parse(raw);
+    if (value && Array.isArray(value.products) &&
+        Array.isArray(value.sales) && Array.isArray(value.expenses)) {
+      return JSON.parse(JSON.stringify(value));
+    }
+  } catch (_) {}
+  return null;
+}
+
+function restoreLocalRecords() {
+  db = localSnapshot || {products: [], sales: [], expenses: []};
+  storageMode = 'browser';
+  cloudReady = false;
+  cloudUser = null;
+  render();
+}
+
+async function handleCloudAuthChange() {
+  if (authTransition) return;
+  authTransition = true;
+  try {
+    const {data, error} = await supabaseClient.auth.getSession();
+    if (error) throw error;
+    const user = data.session?.user || null;
+
+    if (user) {
+      if (storageMode !== 'cloud') localSnapshot = snapshotLocalRecords();
+      cloudUser = user;
+      await cloudLoadAll();
+      cloudMessage('Cloud mode is active for ' + (user.email || 'your account') +
+        '. Local-device records remain separate and unchanged.');
+    } else {
+      restoreLocalRecords();
+      cloudMessage('Local mode is active. Your device records remain available.');
+    }
+    await refreshAccountStatus();
+  } catch (err) {
+    cloudReady = false;
+    cloudMessage('Cloud connection failed: ' + (err.message || String(err)) +
+      '. Your existing local backup has not been intentionally replaced.');
+    console.error('Cloud authentication/load error:', err);
+  } finally {
+    authTransition = false;
+  }
+}
+
+async function cloudAction(action) {
+  if (cloudBusy) {
+    alert('Please wait for the current cloud operation to finish.');
+    return false;
+  }
+  cloudBusy = true;
+  try {
+    await action();
+    return true;
+  } catch (err) {
+    alert('Cloud operation failed: ' + (err.message || String(err)));
+    console.error(err);
+    return false;
+  } finally {
+    cloudBusy = false;
+  }
+}
+
+async function requireCloudUser() {
+  if (!supabaseClient) throw Error('Cloud connection is unavailable.');
+  const {data,error}=await supabaseClient.auth.getUser();
+  if(error) throw error;
+  if(!data.user) throw Error('Sign in with Google before saving cloud records.');
+  cloudUser=data.user;
+  return data.user;
+}
+
+async function cloudLoadAll() {
+  const user=await requireCloudUser();
+  const [pr,sr,er]=await Promise.all([
+    supabaseClient.from('products').select('id,name,cost_price,selling_price,stock,image_path,created_at').eq('user_id',user.id).order('created_at'),
+    supabaseClient.from('sales').select('id,product_id,product_name,quantity,unit_price,unit_cost,total,gross_profit,note,sold_at').eq('user_id',user.id).order('sold_at'),
+    supabaseClient.from('expenses').select('id,description,amount,spent_at').eq('user_id',user.id).order('spent_at')
+  ]);
+  if(pr.error) throw pr.error;
+  if(sr.error) throw sr.error;
+  if(er.error) throw er.error;
+  const products=await Promise.all((pr.data||[]).map(async row=>{
+    let image='';
+    if(row.image_path){
+      const {data,error}=await supabaseClient.storage.from('product-images').createSignedUrl(row.image_path,3600);
+      if(!error&&data?.signedUrl) image=data.signedUrl;
+    }
+    return {id:row.id,name:row.name,cost:Number(row.cost_price),price:Number(row.selling_price),stock:Number(row.stock),image,imagePath:row.image_path||'',createdAt:row.created_at};
+  }));
+  const sales=(sr.data||[]).map(row=>({id:row.id,productId:row.product_id,name:row.product_name,qty:Number(row.quantity),price:Number(row.unit_price),cost:Number(row.unit_cost),total:Number(row.total),profit:Number(row.gross_profit),note:row.note||'',date:row.sold_at}));
+  const expenses=(er.data||[]).map(row=>({id:row.id,name:row.description,amount:Number(row.amount),date:row.spent_at}));
+  db={products,sales,expenses};
+  storageMode='cloud';
+  cloudReady=true;
+  render();
+  cloudMessage('Cloud records loaded. Existing local-device records have not been uploaded or deleted.');
+}
+
+async function cloudUploadProductImage(imageData) {
+  if(!imageData||!imageData.startsWith('data:image/')) return null;
+  const user=await requireCloudUser();
+  const match=imageData.match(/^data:(image\/(?:jpeg|png|webp));base64,([A-Za-z0-9+/=]+)$/);
+  if(!match) throw Error('Choose a JPEG, PNG, or WebP photo.');
+  const mime=match[1];
+  const ext=mime==='image/png'?'png':mime==='image/webp'?'webp':'jpg';
+  const bytes=Uint8Array.from(atob(match[2]),c=>c.charCodeAt(0));
+  const path=user.id+'/'+crypto.randomUUID()+'.'+ext;
+  const {error}=await supabaseClient.storage.from('product-images').upload(path,new Blob([bytes],{type:mime}),{contentType:mime,upsert:false});
+  if(error) throw error;
+  return path;
+}
+
+async function cloudSaveProduct(product,isNew) {
+  const user=await requireCloudUser();
+  let imagePath=product.imagePath||null;
+  if(product.image&&product.image.startsWith('data:image/')) imagePath=await cloudUploadProductImage(product.image);
+  const row={user_id:user.id,name:product.name,cost_price:product.cost,selling_price:product.price,stock:product.stock,image_path:imagePath};
+  const result=isNew
+    ? await supabaseClient.from('products').insert({id:product.id,...row})
+    : await supabaseClient.from('products').update(row).eq('id',product.id).eq('user_id',user.id);
+  if(result.error) throw result.error;
+  if(product.image&&product.image.startsWith('data:image/')){
+    const oldPath=product.imagePath;
+    product.imagePath=imagePath;
+    const {data}=await supabaseClient.storage.from('product-images').createSignedUrl(imagePath,3600);
+    product.image=data?.signedUrl||'';
+    if(oldPath&&oldPath!==imagePath) await supabaseClient.storage.from('product-images').remove([oldPath]);
+  }
+}
+
+async function cloudRemoveProductImage(product) {
+  const user=await requireCloudUser();
+  const oldPath=product.imagePath||null;
+  const {error}=await supabaseClient.from('products').update({image_path:null}).eq('id',product.id).eq('user_id',user.id);
+  if(error) throw error;
+  if(oldPath){
+    const {error:storageError}=await supabaseClient.storage.from('product-images').remove([oldPath]);
+    if(storageError) console.warn('Old image cleanup failed:',storageError.message);
+  }
+  product.image='';
+  product.imagePath='';
+}
+
+async function cloudDeleteProduct(product) {
+  const user=await requireCloudUser();
+  const {error}=await supabaseClient.from('products').delete().eq('id',product.id).eq('user_id',user.id);
+  if(error) throw error;
+  if(product.imagePath){
+    const {error:storageError}=await supabaseClient.storage.from('product-images').remove([product.imagePath]);
+    if(storageError) console.warn('Old image cleanup failed:',storageError.message);
+  }
+}
+
+async function cloudRecordSale(product,quantity,unitPrice,note) {
+  await requireCloudUser();
+  const {error}=await supabaseClient.rpc('record_sale',{p_product_id:product.id,p_quantity:quantity,p_unit_price:unitPrice,p_note:note||null});
+  if(error) throw error;
+  await cloudLoadAll();
+}
+
+async function cloudAddExpense(name,amount,date) {
+  const user=await requireCloudUser();
+  const {error}=await supabaseClient.from('expenses').insert({user_id:user.id,description:name,amount,spent_at:date});
+  if(error) throw error;
+  await cloudLoadAll();
+}
+
+
+function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+function showPage(name){
+  document.querySelectorAll('.page').forEach(x=>x.classList.toggle('hidden',x.id!==name));
+  document.querySelectorAll('nav button').forEach(x=>x.classList.toggle('active',x.dataset.page===name));
+  render();
+}
+document.querySelectorAll('nav button').forEach(b=>b.addEventListener('click',()=>showPage(b.dataset.page)));
+
+function render(){
+  const d=today();
+  const todays=db.sales.filter(x=>x.date.slice(0,10)===d);
+  const expensesToday=db.expenses.filter(x=>x.date.slice(0,10)===d).reduce((s,x)=>s+x.amount,0);
+  const salesToday=todays.reduce((s,x)=>s+x.total,0);
+  const grossToday=todays.reduce((s,x)=>s+x.profit,0);
+  const allSales=db.sales.reduce((s,x)=>s+x.total,0);
+  const allGross=db.sales.reduce((s,x)=>s+x.profit,0);
+  const allExpenses=db.expenses.reduce((s,x)=>s+x.amount,0);
+  document.getElementById('todaySales').textContent=money(salesToday);
+  document.getElementById('todayExpenses').textContent=money(expensesToday);
+  document.getElementById('todayGross').textContent=money(grossToday);
+  document.getElementById('todayNet').textContent=money(grossToday-expensesToday);
+  document.getElementById('allSales').textContent=money(allSales);
+  document.getElementById('allNet').textContent=money(allGross-allExpenses);
+  document.getElementById('productCount').textContent=db.products.length;
+  document.getElementById('stockCount').textContent=db.products.reduce((s,p)=>s+p.stock,0);
+
+  document.getElementById('productList').innerHTML=db.products.length?db.products.map(p=>{
+    const photo=typeof p.image==='string'&&(p.image.startsWith('data:image/')||p.image.startsWith('https://'))?`<img class="product-photo" src="${p.image}" alt="${esc(p.name)} photo">`:'<div class="product-photo" aria-label="No product photo"></div>';
+    return `<div class="item"><div class="item-product">${photo}<div class="item-product-details">
+    <div class="row"><strong>${esc(p.name)}</strong><strong>${money(p.price)}</strong></div>
+    <div class="muted">Cost ${money(p.cost)} · Stock ${p.stock} units</div></div></div>
+    <div class="photo-actions"><button data-edit="${p.id}">Edit details</button><button data-image-camera="${p.id}">Take/replace photo</button></div>
+    <div class="photo-actions"><button data-image-gallery="${p.id}">Choose/replace photo</button>${p.image?`<button class="danger" data-image-remove="${p.id}">Remove photo</button>`:''}<button class="danger" data-delete="${p.id}">Delete product</button></div></div>`;
+  }).join(''):'<div class="empty">No products yet.</div>';
+
+  const sel=document.getElementById('saleProduct'), previous=sel.value;
+  sel.innerHTML='<option value="">Choose a product</option>'+db.products.map(p=>`<option value="${p.id}">${esc(p.name)} (${p.stock} in stock)</option>`).join('');
+  if(db.products.some(p=>p.id===previous))sel.value=previous;
+  updateSalePrice();
+
+  const saleHTML=x=>`<div class="item"><div class="row"><strong>${esc(x.name)} × ${x.qty}</strong><strong>${money(x.total)}</strong></div><div class="muted">${new Date(x.date).toLocaleString()} · Gross profit ${money(x.profit)}${x.note?' · '+esc(x.note):''}</div></div>`;
+  document.getElementById('salesList').innerHTML=db.sales.length?[...db.sales].reverse().map(saleHTML).join(''):'<div class="empty">No sales recorded yet.</div>';
+  document.getElementById('recentSales').innerHTML=db.sales.length?[...db.sales].reverse().slice(0,5).map(saleHTML).join(''):'<div class="empty">No sales recorded yet.</div>';
+  document.getElementById('expenseList').innerHTML=db.expenses.length?[...db.expenses].reverse().map(x=>`<div class="item"><div class="row"><strong>${esc(x.name)}</strong><strong>${money(x.amount)}</strong></div><div class="muted">${new Date(x.date).toLocaleString()}</div></div>`).join(''):'<div class="empty">No expenses recorded yet.</div>';
+}
+function updateSalePrice(){
+ const p=db.products.find(x=>x.id===document.getElementById('saleProduct').value);
+ document.getElementById('salePrice').value=p?p.price:'';
+ document.getElementById('saleStock').textContent=p?'Available stock: '+p.stock+' units':'';
+}
+document.getElementById('saleProduct').addEventListener('change',updateSalePrice);
+
+let pendingProductImage='';
+let imageTargetId=null;
+
+function clearPendingPhoto(){
+ pendingProductImage='';
+ document.getElementById('productPreview').src='';
+ document.getElementById('productPreview').classList.add('hidden');
+ document.getElementById('removePendingPhoto').classList.add('hidden');
+ document.getElementById('photoStatus').textContent='You can save a product without a photo.';
+}
+
+function processProductImage(file){
+ return new Promise((resolve,reject)=>{
+  if(!file||!file.type.startsWith('image/'))return reject(Error('Please select an image.'));
+  if(file.size>10*1024*1024)return reject(Error('This photo is over 10 MB. Choose a smaller photo.'));
+  const reader=new FileReader();
+  reader.onerror=()=>reject(Error('Could not read that photo.'));
+  reader.onload=()=>{
+   const img=new Image();
+   img.onerror=()=>reject(Error('Could not open that image. Try another photo.'));
+   img.onload=()=>{
+    const max=600,scale=Math.min(1,max/Math.max(img.naturalWidth,img.naturalHeight));
+    const canvas=document.createElement('canvas');
+    canvas.width=Math.max(1,Math.round(img.naturalWidth*scale));
+    canvas.height=Math.max(1,Math.round(img.naturalHeight*scale));
+    const ctx=canvas.getContext('2d');
+    if(!ctx)return reject(Error('Your browser could not process the photo.'));
+    ctx.fillStyle='#ffffff';ctx.fillRect(0,0,canvas.width,canvas.height);
+    ctx.drawImage(img,0,0,canvas.width,canvas.height);
+    try{resolve(canvas.toDataURL('image/jpeg',0.68));}
+    catch(err){reject(Error('Could not compress the photo.'));}
+   };
+   img.src=reader.result;
+  };
+  reader.readAsDataURL(file);
+ });
+}
+
+document.getElementById('takeProductPhoto').addEventListener('click',()=>{
+ document.getElementById('productCamera').click();
+});
+document.getElementById('chooseProductPhoto').addEventListener('click',()=>{
+ document.getElementById('productGallery').click();
+});
+
+async function handleImageSelection(event){
+ const input=event.currentTarget,file=input.files&&input.files[0];
+ if(!file){input.value='';return;}
+ try{
+  const image=await processProductImage(file);
+  if(imageTargetId){
+   const p=db.products.find(x=>x.id===imageTargetId);
+   if(!p)return;
+   if(storageMode==='cloud'&&cloudReady){
+    const updated={...p,image};
+    const ok=await cloudAction(async()=>{
+      await cloudSaveProduct(updated,false);
+      await cloudLoadAll();
+    });
+    if(ok)alert('Product photo updated.');
+   }else{
+    const oldImage=p.image,oldPath=p.imagePath;
+    p.image=image;
+    if(save()){render();alert('Product photo updated.');}
+    else{p.image=oldImage;p.imagePath=oldPath;}
+   }
+   imageTargetId=null;
+  }else{
+   pendingProductImage=image;
+   const preview=document.getElementById('productPreview');
+   preview.src=image;
+   preview.classList.remove('hidden');
+   document.getElementById('removePendingPhoto').classList.remove('hidden');
+   document.getElementById('photoStatus').textContent='Photo selected and compressed. It will be saved with the product.';
+  }
+ }catch(err){
+  alert(err.message||'Could not use that photo.');
+  imageTargetId=null;
+ }finally{
+  input.value='';
+ }
+}
+
+document.getElementById('productCamera').addEventListener('change',handleImageSelection);
+document.getElementById('productGallery').addEventListener('change',handleImageSelection);
+document.getElementById('removePendingPhoto').addEventListener('click',clearPendingPhoto);
+
+document.getElementById('productForm').addEventListener('submit',async e=>{
+ e.preventDefault();
+ const name=document.getElementById('pname').value.trim(),cost=Number(document.getElementById('pcost').value),price=Number(document.getElementById('pprice').value),stock=Number(document.getElementById('pstock').value);
+ if(!name||!Number.isFinite(cost)||cost<0||!Number.isFinite(price)||price<=0||!Number.isSafeInteger(stock)||stock<0)return alert('Check the product details.');
+ if(db.products.some(p=>p.name.toLowerCase()===name.toLowerCase()))return alert('A product with this name already exists.');
+ const product={id:crypto.randomUUID(),name,cost,price,stock,image:pendingProductImage,createdAt:now()};
+ if(storageMode==='cloud'&&cloudReady){
+   const ok=await cloudAction(async()=>{await cloudSaveProduct(product,true);await cloudLoadAll();});
+   if(!ok)return;
+ }else{
+   db.products.push(product);
+   if(!save())return;
+   render();
+ }
+ e.target.reset();clearPendingPhoto();alert('Product saved.');
+});
+
+document.getElementById('productList').addEventListener('click',async e=>{
+ const button=e.target.closest('button');
+ if(!button)return;
+ const id=button.dataset.edit||button.dataset.delete||button.dataset.imageCamera||button.dataset.imageGallery||button.dataset.imageRemove;
+ if(!id)return;
+ const p=db.products.find(x=>x.id===id);if(!p)return;
+ if(button.dataset.imageCamera||button.dataset.imageGallery){
+  imageTargetId=id;
+  document.getElementById(button.dataset.imageCamera?'productCamera':'productGallery').click();
+  return;
+ }
+ if(button.dataset.imageRemove){
+  if(!confirm('Remove the photo for '+p.name+'?'))return;
+  if(storageMode==='cloud'&&cloudReady){
+    await cloudAction(async()=>{await cloudRemoveProductImage(p);await cloudLoadAll();});
+  }else{
+    const oldImage=p.image,oldPath=p.imagePath;
+    delete p.image;delete p.imagePath;
+    if(save())render();else{p.image=oldImage;p.imagePath=oldPath;}
+  }
+  return;
+ }
+ if(button.dataset.edit){
+  const name=prompt('Product name:',p.name);if(name===null)return;
+  const cost=prompt('Cost price per unit:',p.cost);if(cost===null)return;
+  const price=prompt('Selling price per unit:',p.price);if(price===null)return;
+  const stock=prompt('Current stock:',p.stock);if(stock===null)return;
+  const c=Number(cost),pr=Number(price),st=Number(stock),n=name.trim();
+  if(!n||c<0||pr<=0||!Number.isFinite(c)||!Number.isFinite(pr)||!Number.isSafeInteger(st)||st<0)return alert('Invalid product details.');
+  if(db.products.some(x=>x.id!==id&&x.name.toLowerCase()===n.toLowerCase()))return alert('Another product already has this name.');
+  if(storageMode==='cloud'&&cloudReady){
+    await cloudAction(async()=>{
+      const updated={...p,name:n,cost:c,price:pr,stock:st};
+      await cloudSaveProduct(updated,false);
+      await cloudLoadAll();
+    });
+  }else{
+    const old={...p};Object.assign(p,{name:n,cost:c,price:pr,stock:st});
+    if(save())render();else Object.assign(p,old);
+  }
+ }else if(button.dataset.delete){
+  if(db.sales.some(s=>s.productId===id))return alert('This product has sales history. Edit it instead of deleting it.');
+  if(confirm('Delete '+p.name+'?')){
+    if(storageMode==='cloud'&&cloudReady){
+      await cloudAction(async()=>{await cloudDeleteProduct(p);await cloudLoadAll();});
+    }else{
+      db.products=db.products.filter(x=>x.id!==id);if(save())render();
+    }
+  }
+ }
+});
+
+document.getElementById('saleForm').addEventListener('submit',async e=>{
+ e.preventDefault();
+ const p=db.products.find(x=>x.id===document.getElementById('saleProduct').value);
+ const qty=Number(document.getElementById('saleQty').value),price=Number(document.getElementById('salePrice').value),note=document.getElementById('saleNote').value.trim();
+ if(!p)return alert('Choose a product.');
+ if(!Number.isSafeInteger(qty)||qty<1||qty>p.stock)return alert('Quantity must be a whole number and cannot exceed available stock.');
+ if(!Number.isFinite(price)||price<=0)return alert('Enter a valid selling price.');
+ if(note.length>150)return alert('Sale note must be 150 characters or fewer.');
+ const total=Math.round(qty*price*100)/100;
+ if(!confirm('Record this paid sale for '+money(total)+'?'))return;
+ if(storageMode==='cloud'&&cloudReady){
+   const ok=await cloudAction(async()=>{await cloudRecordSale(p,qty,price,note);});
+   if(!ok)return;
+ }else{
+   const profit=Math.round(qty*(price-p.cost)*100)/100;
+   p.stock-=qty;
+   db.sales.push({id:crypto.randomUUID(),productId:p.id,name:p.name,qty,price,cost:p.cost,total,profit,note,date:now()});
+   if(!save())return;
+   render();
+ }
+ e.target.reset();document.getElementById('saleQty').value=1;alert('Sale recorded and stock updated.');
+});
+
+document.getElementById('expenseForm').addEventListener('submit',async e=>{
+ e.preventDefault();
+ const name=document.getElementById('ename').value.trim(),amount=Number(document.getElementById('eamount').value);
+ if(!name||!Number.isFinite(amount)||amount<=0)return alert('Enter a description and valid amount.');
+ const rounded=Math.round(amount*100)/100;
+ if(storageMode==='cloud'&&cloudReady){
+   const ok=await cloudAction(async()=>{await cloudAddExpense(name,rounded,now());});
+   if(!ok)return;
+ }else{
+   db.expenses.push({id:crypto.randomUUID(),name,amount:rounded,date:now()});
+   if(!save())return;
+   render();
+ }
+ e.target.reset();alert('Expense saved.');
+});
+
+document.getElementById('exportBtn').addEventListener('click',()=>{
+ const blob=new Blob([JSON.stringify({app:'My Sales Book',version:1,exportedAt:now(),data:db},null,2)],{type:'application/json'});
+ const url=URL.createObjectURL(blob),a=document.createElement('a');
+ a.href=url;a.download='my-sales-book-backup-'+today()+'.json';a.click();
+ setTimeout(()=>URL.revokeObjectURL(url),1000);
+});
+document.getElementById('importFile').addEventListener('change',async e=>{
+ const file=e.target.files[0];if(!file)return;
+ try{
+  const parsed=JSON.parse(await file.text()),d=parsed.data;
+  if(!d||!Array.isArray(d.products)||!Array.isArray(d.sales)||!Array.isArray(d.expenses))throw Error('Invalid backup format.');
+  if(!confirm('Replace all current records with this backup?'))return;
+  db=d;if(save()){render();alert('Backup restored.');}
+ }catch(err){alert('Could not restore backup: '+err.message);}
+ finally{e.target.value='';}
+});
+async function refreshAccountStatus(){
+  const status = document.getElementById('accountStatus');
+  const signIn = document.getElementById('googleSignIn');
+  const signOut = document.getElementById('googleSignOut');
+
+  if (!supabaseClient) {
+    status.textContent = 'Cloud connection unavailable. Check your internet connection and configuration.';
+    signIn.disabled = true;
+    return;
+  }
+
+  const { data, error } = await supabaseClient.auth.getSession();
+  if (error) {
+    status.textContent = 'Could not check sign-in status.';
+    document.getElementById('accountMessage').textContent = error.message;
+    return;
+  }
+
+  const user = data.session?.user;
+  status.textContent = user
+    ? 'Signed in as ' + (user.email || 'Google account') + '.'
+    : 'Not signed in. Your records are still stored on this device.';
+  signIn.classList.toggle('hidden', !!user);
+  signOut.classList.toggle('hidden', !user);
+}
+
+document.getElementById('googleSignIn').addEventListener('click', async () => {
+  const message = document.getElementById('accountMessage');
+  message.textContent = 'Opening Google sign-in...';
+
+  if (!supabaseClient) {
+    message.textContent = 'Cloud connection unavailable. Check your internet connection.';
+    return;
+  }
+
+  const { error } = await supabaseClient.auth.signInWithOAuth({
+    provider: 'google',
+    options: { redirectTo: window.location.href }
+  });
+
+  if (error) message.textContent = 'Sign-in failed: ' + error.message;
+});
+
+document.getElementById('googleSignOut').addEventListener('click', async () => {
+  const message = document.getElementById('accountMessage');
+  if (!supabaseClient) return;
+
+  const { error } = await supabaseClient.auth.signOut();
+  if (error) {
+    message.textContent = 'Could not sign out: ' + error.message;
+    return;
+  }
+
+  message.textContent = 'You have signed out. Your existing local records have not been deleted.';
+  await refreshAccountStatus();
+});
+
+load();
+localSnapshot = snapshotLocalRecords();
+render();
+
+if (supabaseClient) {
+  supabaseClient.auth.onAuthStateChange((event, session) => {
+    if (event === 'SIGNED_IN' || event === 'SIGNED_OUT' || event === 'INITIAL_SESSION' || event === 'TOKEN_REFRESHED') {
+      setTimeout(() => handleCloudAuthChange(), 0);
+    }
+  });
+  handleCloudAuthChange();
+} else {
+  refreshAccountStatus();
+}
+</script>
+</body>
+</html>
