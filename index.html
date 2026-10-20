@@ -45,6 +45,10 @@ footer{text-align:center;color:#66736a;font-size:12px;padding:18px}
 .photo-actions button.danger{background:#fff0ef;color:#a32920}
 input[type=file].file-hidden{display:none}
 </style>
+
+<link rel="manifest" href="./manifest.webmanifest">
+<link rel="icon" href="./icons/icon.svg" type="image/svg+xml">
+
 </head>
 <body>
 <header>
@@ -707,5 +711,17 @@ if (supabaseClient) {
   refreshAccountStatus();
 }
 </script>
+
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', function () {
+    navigator.serviceWorker.register('./sw.js')
+      .catch(function (error) {
+        console.warn('Offline app setup could not start:', error);
+      });
+  });
+}
+</script>
+
 </body>
 </html>
