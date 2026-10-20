@@ -44,6 +44,11 @@ footer{text-align:center;color:#66736a;font-size:12px;padding:18px}
 .item-product-details{flex:1;min-width:0}
 .photo-actions button.danger{background:#fff0ef;color:#a32920}
 input[type=file].file-hidden{display:none}
+dialog{width:min(100% - 24px,560px);max-height:90vh;overflow:auto;border:0;border-radius:14px;padding:20px;box-shadow:0 16px 50px #0003;color:#17231c}
+dialog::backdrop{background:#10201699}
+.dialog-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:16px}
+.dialog-actions button{margin-top:0}
+.edit-photo-preview{width:96px;height:96px;object-fit:cover;border-radius:10px;margin-top:8px;background:#edf2ee;border:1px solid #dce5de}
 </style>
 
 <link rel="manifest" href="./manifest.webmanifest">
@@ -155,6 +160,34 @@ input[type=file].file-hidden{display:none}
 </section>
 <footer>Keep regular backups of your business records.</footer>
 </main>
+<dialog id="editProductDialog" aria-labelledby="editProductHeading">
+  <h2 id="editProductHeading">Edit product details</h2>
+  <form id="editProductForm">
+    <input type="hidden" id="editProductId">
+    <label for="editProductName">Product name</label>
+    <input id="editProductName" required maxlength="100" autocomplete="off">
+    <label for="editProductCost">Cost price per unit (₦)</label>
+    <input id="editProductCost" type="number" min="0" step="0.01" required inputmode="decimal">
+    <label for="editProductPrice">Selling price per unit (₦)</label>
+    <input id="editProductPrice" type="number" min="0.01" step="0.01" required inputmode="decimal">
+    <label for="editProductStock">Current units in stock</label>
+    <input id="editProductStock" type="number" min="0" step="1" required inputmode="numeric">
+    <label>Product photo</label>
+    <img id="editProductPhotoPreview" class="edit-photo-preview hidden" alt="Current product photo">
+    <div id="editProductPhotoStatus" class="photo-help">Keep the current photo, replace it, or remove it.</div>
+    <div class="photo-actions">
+      <button type="button" id="editTakeProductPhoto">Take/replace photo</button>
+      <button type="button" id="editChooseProductPhoto">Choose photo</button>
+    </div>
+    <input class="file-hidden" type="file" id="editProductCamera" accept="image/*" capture="environment">
+    <input class="file-hidden" type="file" id="editProductGallery" accept="image/*">
+    <button type="button" id="editRemoveProductPhoto" class="danger">Remove photo</button>
+    <div class="dialog-actions">
+      <button type="button" id="cancelEditProduct">Cancel</button>
+      <button type="submit" class="primary" id="saveEditProduct">Save changes</button>
+    </div>
+  </form>
+</dialog>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="supabase-config.js"></script>
 <script>
@@ -532,6 +565,110 @@ document.getElementById('productForm').addEventListener('submit',async e=>{
  e.target.reset();clearPendingPhoto();alert('Product saved.');
 });
 
+
+let editPendingProductImage = '';
+let editRemoveProductImage = false;
+
+function updateEditProductPhotoPreview(product) {
+  const preview=document.getElementById('editProductPhotoPreview');
+  const status=document.getElementById('editProductPhotoStatus');
+  const image=editPendingProductImage || (!editRemoveProductImage ? product?.image : '');
+  if(image){preview.src=image;preview.classList.remove('hidden');}
+  else{preview.removeAttribute('src');preview.classList.add('hidden');}
+  status.textContent=editPendingProductImage?'New photo selected. It will be saved with the product.':editRemoveProductImage?'The product photo will be removed when you save.':product?.image?'Current photo will be kept unless you replace or remove it.':'No product photo selected.';
+  document.getElementById('editRemoveProductPhoto').disabled=!image && !product?.image;
+}
+
+function openProductEditor(product) {
+  document.getElementById('editProductId').value=product.id;
+  document.getElementById('editProductName').value=product.name;
+  document.getElementById('editProductCost').value=product.cost;
+  document.getElementById('editProductPrice').value=product.price;
+  document.getElementById('editProductStock').value=product.stock;
+  editPendingProductImage='';
+  editRemoveProductImage=false;
+  updateEditProductPhotoPreview(product);
+  document.getElementById('editProductDialog').showModal();
+}
+
+function closeProductEditor() {
+  document.getElementById('editProductDialog').close();
+  editPendingProductImage='';
+  editRemoveProductImage=false;
+  document.getElementById('editProductForm').reset();
+  document.getElementById('editProductCamera').value='';
+  document.getElementById('editProductGallery').value='';
+}
+
+document.getElementById('cancelEditProduct').addEventListener('click',closeProductEditor);
+document.getElementById('editProductDialog').addEventListener('click',event=>{
+  if(event.target===event.currentTarget)closeProductEditor();
+});
+document.getElementById('editTakeProductPhoto').addEventListener('click',()=>document.getElementById('editProductCamera').click());
+document.getElementById('editChooseProductPhoto').addEventListener('click',()=>document.getElementById('editProductGallery').click());
+async function handleEditProductImageSelection(event){
+  const input=event.currentTarget,file=input.files&&input.files[0];
+  if(!file){input.value='';return;}
+  try{
+    editPendingProductImage=await processProductImage(file);
+    editRemoveProductImage=false;
+    const product=db.products.find(x=>x.id===document.getElementById('editProductId').value);
+    updateEditProductPhotoPreview(product);
+  }catch(err){alert(err.message||'Could not use that photo.');}
+  finally{input.value='';}
+}
+document.getElementById('editProductCamera').addEventListener('change',handleEditProductImageSelection);
+document.getElementById('editProductGallery').addEventListener('change',handleEditProductImageSelection);
+document.getElementById('editRemoveProductPhoto').addEventListener('click',()=>{
+  const product=db.products.find(x=>x.id===document.getElementById('editProductId').value);
+  if(!product)return;
+  editPendingProductImage='';
+  editRemoveProductImage=true;
+  updateEditProductPhotoPreview(product);
+});
+
+document.getElementById('editProductForm').addEventListener('submit',async event=>{
+  event.preventDefault();
+  const id=document.getElementById('editProductId').value;
+  const product=db.products.find(x=>x.id===id);
+  if(!product)return alert('This product could not be found. Close the form and try again.');
+  const name=document.getElementById('editProductName').value.trim();
+  const cost=Number(document.getElementById('editProductCost').value);
+  const price=Number(document.getElementById('editProductPrice').value);
+  const stock=Number(document.getElementById('editProductStock').value);
+  if(!name||name.length>100||!Number.isFinite(cost)||cost<0||!Number.isFinite(price)||price<=0||!Number.isSafeInteger(stock)||stock<0){
+    return alert('Enter a product name, a cost price of zero or more, a selling price above zero, and a whole-number stock quantity of zero or more.');
+  }
+  if(db.products.some(x=>x.id!==id&&x.name.trim().toLowerCase()===name.toLowerCase()))return alert('Another product already has this name.');
+  const updated={...product,name,cost,price,stock};
+  if(editPendingProductImage)updated.image=editPendingProductImage;
+  else if(editRemoveProductImage){updated.image='';updated.imagePath='';}
+
+  document.getElementById('saveEditProduct').disabled=true;
+  try{
+    let saved=false;
+    if(storageMode==='cloud'&&cloudReady){
+      saved=await cloudAction(async()=>{
+        await cloudSaveProduct(updated,false);
+        if(editRemoveProductImage&&product.imagePath)await cloudRemoveProductImage(product);
+        await cloudLoadAll();
+      });
+    }else{
+      const old={...product};
+      Object.assign(product,updated);
+      if(editRemoveProductImage){delete product.image;delete product.imagePath;}
+      if(save()){render();saved=true;}
+      else{
+        for(const key of Object.keys(product))delete product[key];
+        Object.assign(product,old);
+      }
+    }
+    if(saved){closeProductEditor();alert('Product details updated successfully.');}
+  }finally{
+    document.getElementById('saveEditProduct').disabled=false;
+  }
+});
+
 document.getElementById('productList').addEventListener('click',async e=>{
  const button=e.target.closest('button');
  if(!button)return;
@@ -555,23 +692,7 @@ document.getElementById('productList').addEventListener('click',async e=>{
   return;
  }
  if(button.dataset.edit){
-  const name=prompt('Product name:',p.name);if(name===null)return;
-  const cost=prompt('Cost price per unit:',p.cost);if(cost===null)return;
-  const price=prompt('Selling price per unit:',p.price);if(price===null)return;
-  const stock=prompt('Current stock:',p.stock);if(stock===null)return;
-  const c=Number(cost),pr=Number(price),st=Number(stock),n=name.trim();
-  if(!n||c<0||pr<=0||!Number.isFinite(c)||!Number.isFinite(pr)||!Number.isSafeInteger(st)||st<0)return alert('Invalid product details.');
-  if(db.products.some(x=>x.id!==id&&x.name.toLowerCase()===n.toLowerCase()))return alert('Another product already has this name.');
-  if(storageMode==='cloud'&&cloudReady){
-    await cloudAction(async()=>{
-      const updated={...p,name:n,cost:c,price:pr,stock:st};
-      await cloudSaveProduct(updated,false);
-      await cloudLoadAll();
-    });
-  }else{
-    const old={...p};Object.assign(p,{name:n,cost:c,price:pr,stock:st});
-    if(save())render();else Object.assign(p,old);
-  }
+  openProductEditor(p);
  }else if(button.dataset.delete){
   if(db.sales.some(s=>s.productId===id))return alert('This product has sales history. Edit it instead of deleting it.');
   if(confirm('Delete '+p.name+'?')){
