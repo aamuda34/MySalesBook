@@ -416,8 +416,9 @@ async function syncPendingChanges() {
         item.error = '';
         writeQueue(queue, cloudUser.id);
       } catch (error) {
-        item.status = 'pending';
         item.error = error.message || String(error);
+        item.status = /insufficient stock|product not found|belongs to another account|duplicate key|unique constraint|conflict/i.test(item.error)
+          ? 'conflict' : 'pending';
         writeQueue(queue, cloudUser.id);
         break;
       }
@@ -1155,8 +1156,13 @@ document.getElementById('deleteAccountBtn').addEventListener('click', async () =
       const {error:removeError} = await supabaseClient.storage.from('product-images').remove(paths);
       if (removeError) throw removeError;
     }
+    const pendingBeforeDelete = readQueue(user.id).filter(item => item.status !== 'synced');
+    if (pendingBeforeDelete.length && !confirm('There are ' + pendingBeforeDelete.length + ' unsynchronised change(s). Deleting the account will also remove this account\'s local cache and pending queue. Continue?')) return;
     const { error } = await supabaseClient.rpc('delete_my_account');
     if (error) throw error;
+    localStorage.removeItem(cloudCacheKey(user.id));
+    localStorage.removeItem(cloudQueueKey(user.id));
+    localStorage.removeItem('my-sales-book-imported-v1:' + user.id);
     await supabaseClient.auth.signOut({ scope: 'local' });
     cloudUser = null;
     cloudReady = false;
