@@ -312,14 +312,33 @@ function writeQueue(queue, userId=cloudUser?.id) {
   pendingSync = queue;
   updateSyncStatus();
 }
+function slimCloudCache(userId) {
+  const queue=readQueue(userId);
+  const queuedPhotoIds=new Set(queue.filter(item=>item.type==='product_save').map(item=>item.payload?.product?.id).filter(Boolean));
+  return {
+    ...db,
+    products:db.products.map(product=>{
+      const copy={...product};
+      delete copy.offlineImage;
+      if (queuedPhotoIds.has(product.id) && typeof copy.image==='string' && copy.image.startsWith('data:image/')) delete copy.image;
+      return copy;
+    })
+  };
+}
 function cacheCloudData(userId=cloudUser?.id) {
   if (!userId) return false;
   try {
     localStorage.setItem(cloudCacheKey(userId), JSON.stringify(db));
     return true;
   } catch (error) {
-    cloudMessage('Your account is online, but this device could not cache all records for offline use. Export a backup and free browser storage. ' + (error.message || ''));
-    return false;
+    try {
+      localStorage.setItem(cloudCacheKey(userId), JSON.stringify(slimCloudCache(userId)));
+      cloudMessage('Your records are cached for offline use. Some product photos were omitted from the offline copy to fit device storage.');
+      return true;
+    } catch (_) {
+      cloudMessage('This device could not cache all records for offline use. Export a backup and free browser storage.');
+      return false;
+    }
   }
 }
 function restoreCloudCache(userId) {
@@ -369,7 +388,12 @@ function enqueueChange(type, payload) {
   const next = [...previous,{id:crypto.randomUUID(),type,payload:JSON.parse(JSON.stringify(payload)),createdAt:now(),status:'pending',error:''}];
   try {
     localStorage.setItem(key, JSON.stringify(next));
-    localStorage.setItem(cloudCacheKey(cloudUser.id), JSON.stringify(db));
+    try {
+      localStorage.setItem(cloudCacheKey(cloudUser.id), JSON.stringify(db));
+    } catch (cacheError) {
+      localStorage.setItem(cloudCacheKey(cloudUser.id), JSON.stringify(slimCloudCache(cloudUser.id)));
+      cloudMessage('Saved locally. Some product photos may not be available offline because device storage is limited.');
+    }
     pendingSync = next;
     updateSyncStatus();
   } catch (error) {
