@@ -567,6 +567,18 @@ async function requireCloudUser() {
   return data.user;
 }
 
+async function imageUrlToDataUrl(url) {
+  const response = await fetch(url);
+  if (!response.ok) throw Error('Could not cache product photo for offline use.');
+  const blob = await response.blob();
+  return await new Promise((resolve,reject)=>{
+    const reader = new FileReader();
+    reader.onload = ()=>resolve(String(reader.result||''));
+    reader.onerror = ()=>reject(Error('Could not cache product photo.'));
+    reader.readAsDataURL(blob);
+  });
+}
+
 async function cloudLoadAll() {
   const user=await requireCloudUser();
   const [pr,sr,er]=await Promise.all([
@@ -578,12 +590,15 @@ async function cloudLoadAll() {
   if(sr.error) throw sr.error;
   if(er.error) throw er.error;
   const products=await Promise.all((pr.data||[]).map(async row=>{
-    let image='';
+    let image='',offlineImage='';
     if(row.image_path){
       const {data,error}=await supabaseClient.storage.from('product-images').createSignedUrl(row.image_path,3600);
-      if(!error&&data?.signedUrl) image=data.signedUrl;
+      if(!error&&data?.signedUrl){
+        image=data.signedUrl;
+        try { offlineImage=await imageUrlToDataUrl(image); } catch (_) {}
+      }
     }
-    return {id:row.id,name:row.name,category:normalizeCategory(row.category),cost:Number(row.cost_price),price:Number(row.selling_price),stock:Number(row.stock),image,imagePath:row.image_path||'',createdAt:row.created_at};
+    return {id:row.id,name:row.name,category:normalizeCategory(row.category),cost:Number(row.cost_price),price:Number(row.selling_price),stock:Number(row.stock),image,offlineImage,imagePath:row.image_path||'',createdAt:row.created_at};
   }));
   const sales=(sr.data||[]).map(row=>({id:row.id,productId:row.product_id,name:row.product_name,qty:Number(row.quantity),price:Number(row.unit_price),cost:Number(row.unit_cost),total:Number(row.total),profit:Number(row.gross_profit),note:row.note||'',date:row.sold_at}));
   const expenses=(er.data||[]).map(row=>({id:row.id,name:row.description,amount:Number(row.amount),date:row.spent_at}));
@@ -642,6 +657,7 @@ async function cloudRemoveProductImage(product) {
     if(storageError) console.warn('Old image cleanup failed:',storageError.message);
   }
   product.image='';
+  product.offlineImage='';
   product.imagePath='';
 }
 
@@ -711,7 +727,8 @@ function render(){
     (!selectedCategory||normalizeCategory(p.category)===selectedCategory)
   );
   document.getElementById('productList').innerHTML=filteredProducts.length?filteredProducts.map(p=>{
-    const photo=typeof p.image==='string'&&(p.image.startsWith('data:image/')||p.image.startsWith('https://'))?`<img class="product-photo" src="${p.image}" alt="${esc(p.name)} photo">`:'<div class="product-photo" aria-label="No product photo"></div>';
+    const displayImage=typeof p.image==='string'&&p.image.startsWith('data:image/')?p.image:(p.offlineImage||p.image);
+    const photo=typeof displayImage==='string'&&(displayImage.startsWith('data:image/')||displayImage.startsWith('https://'))?`<img class="product-photo" src="${displayImage}" alt="${esc(p.name)} photo">`:'<div class="product-photo" aria-label="No product photo"></div>';
     return `<div class="item"><div class="item-product">${photo}<div class="item-product-details">
     <div class="row"><strong>${esc(p.name)}</strong><strong>${money(p.price)}</strong></div>
     <div class="muted">Category: ${esc(normalizeCategory(p.category))}</div>
@@ -934,7 +951,7 @@ document.getElementById('editProductForm').addEventListener('submit',async event
           await saveCloudChangeLocally('product_remove_image',{product:{...product}});
         }
         Object.assign(product,updated);
-        if(editRemoveProductImage){delete product.image;delete product.imagePath;}
+        if(editRemoveProductImage){delete product.image;delete product.offlineImage;delete product.imagePath;}
         saved=true;
       } catch(err) { alert(err.message || String(err)); }
     }else{
@@ -969,7 +986,7 @@ document.getElementById('productList').addEventListener('click',async e=>{
   if(cloudUser){
     try {
       const old = {...p};
-      p.image=''; p.imagePath='';
+      p.image=''; p.offlineImage=''; p.imagePath='';
       await saveCloudChangeLocally('product_remove_image',{product:old});
     } catch(err){ alert(err.message || String(err)); }
   }else{
