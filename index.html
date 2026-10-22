@@ -79,12 +79,18 @@ dialog::backdrop{background:#10201699}
       <button type="button" id="resetPasswordBtn">Forgot password?</button>
     </div>
   </div>
+  <form id="recoveryPasswordForm" class="hidden">
+    <label for="recoveryPassword">Choose a new password</label>
+    <input id="recoveryPassword" type="password" minlength="8" autocomplete="new-password" required>
+    <button type="submit" class="primary">Save new password</button>
+  </form>
   <div id="accountManagePanel" class="hidden">
     <form id="changeEmailForm">
       <label for="newAccountEmail">Change account email</label>
       <input id="newAccountEmail" type="email" autocomplete="email" required placeholder="New email address">
       <button type="submit">Request email change</button>
     </form>
+    <button type="button" class="danger" id="deleteAccountBtn" style="width:100%;margin-top:12px">Delete my account and cloud records</button>
   </div>
   <p id="accountMessage" class="muted"></p>
 </section>
@@ -840,6 +846,7 @@ async function refreshAccountStatus(){
   signOut.classList.toggle('hidden', !user);
   document.getElementById('emailAuthPanel').classList.toggle('hidden', !!user);
   document.getElementById('accountManagePanel').classList.toggle('hidden', !user);
+  document.getElementById('recoveryPasswordForm').classList.add('hidden');
   document.getElementById('appWorkspace').classList.toggle('hidden', !user);
 }
 
@@ -939,6 +946,13 @@ render();
 
 if (supabaseClient) {
   supabaseClient.auth.onAuthStateChange((event, session) => {
+    if (event === 'PASSWORD_RECOVERY') {
+      document.getElementById('appWorkspace').classList.add('hidden');
+      document.getElementById('recoveryPasswordForm').classList.remove('hidden');
+      document.getElementById('accountManagePanel').classList.add('hidden');
+      document.getElementById('emailAuthPanel').classList.add('hidden');
+      cloudMessage('Choose a new password to finish recovering your account.');
+    }
     if (event === 'SIGNED_IN' || event === 'SIGNED_OUT' || event === 'INITIAL_SESSION' || event === 'TOKEN_REFRESHED') {
       setTimeout(() => handleCloudAuthChange(), 0);
     }
