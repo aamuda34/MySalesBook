@@ -266,6 +266,7 @@ function save(){
 
 let cloudUser = null;
 let cloudReady = false;
+let workspaceReady = false;
 let cloudBusy = false;
 
 async function saveCloudChangeLocally(type, payload) {
@@ -347,6 +348,7 @@ function restoreCloudCache(userId) {
     if (value && Array.isArray(value.products) && Array.isArray(value.sales) && Array.isArray(value.expenses)) {
       db = value;
       storageMode = 'cloud-offline';
+      workspaceReady = true;
       pendingSync = readQueue(userId);
       applyPendingToDb();
       render();
@@ -563,6 +565,7 @@ function restoreLocalRecords() {
   db = localSnapshot || {products: [], sales: [], expenses: []};
   storageMode = 'browser';
   cloudReady = false;
+  workspaceReady = false;
   cloudUser = null;
   render();
 }
@@ -680,6 +683,7 @@ async function cloudLoadAll() {
   db={products,sales,expenses};
   storageMode='cloud';
   cloudReady=true;
+  workspaceReady=true;
   pendingSync=readQueue(user.id);
   applyPendingToDb();
   render();
@@ -1190,7 +1194,7 @@ async function refreshAccountStatus(){
   const importOwner = localStorage.getItem('my-sales-book-legacy-import-owner-v1');
   const alreadyImported = user && (localStorage.getItem('my-sales-book-imported-v1:' + user.id) === 'yes' || (importOwner && importOwner !== user.id));
   importButton.classList.toggle('hidden', !user || !hasLocal || alreadyImported);
-  document.getElementById('appWorkspace').classList.toggle('hidden', !user);
+  document.getElementById('appWorkspace').classList.toggle('hidden', !user || !workspaceReady);
 }
 
 document.getElementById('googleSignIn').addEventListener('click', async () => {
@@ -1295,6 +1299,7 @@ document.getElementById('deleteAccountBtn').addEventListener('click', async () =
     await supabaseClient.auth.signOut({ scope: 'local' });
     cloudUser = null;
     cloudReady = false;
+    workspaceReady = false;
     document.getElementById('appWorkspace').classList.add('hidden');
     await refreshAccountStatus();
     cloudMessage('Account and cloud business records were deleted. Any separate local-device backup was not deleted.');
