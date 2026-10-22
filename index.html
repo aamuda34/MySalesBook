@@ -407,27 +407,59 @@ function applyPendingToDb() {
     }
   }
 }
+async function currentProductVersion(productId) {
+  const user = await requireCloudUser();
+  const {data,error} = await supabaseClient.from('products').select('updated_at').eq('id',productId).eq('user_id',user.id).maybeSingle();
+  if (error) throw error;
+  if (!data) throw Error('Conflict: this product no longer exists in your account.');
+  return data.updated_at;
+}
+function propagateQueuedProductVersion(queue, fromIndex, productId, version) {
+  for (let i=fromIndex+1;i<queue.length;i++) {
+    const later=queue[i], payload=later.payload||{};
+    if (later.type==='product_save' && payload.product?.id===productId && !payload.isNew) {
+      payload.product.updatedAt=version;
+    } else if (later.type==='sale' && payload.sale?.productId===productId) {
+      payload.productUpdatedAt=version;
+    }
+  }
+}
+
 async function syncPendingChanges() {
   if (!cloudUser || !navigator.onLine || syncingQueue || !supabaseClient) return false;
   syncingQueue = true;
   try {
     let queue = readQueue(cloudUser.id);
-    for (const item of queue) {
+    for (let queueIndex=0;queueIndex<queue.length;queueIndex++) {
+      const item=queue[queueIndex];
       if (item.status === 'conflict') continue;
       try {
         const p = item.payload || {};
         if (item.type === 'product_save') {
+          if (!p.isNew && p.product.updatedAt) {
+            const currentVersion=await currentProductVersion(p.product.id);
+            if (currentVersion!==p.product.updatedAt) throw Error('Conflict: this product changed on another phone. Review the product and try again.');
+          }
           await cloudSaveProduct(p.product, p.isNew);
+          const newVersion=await currentProductVersion(p.product.id);
+          p.product.updatedAt=newVersion;
+          propagateQueuedProductVersion(queue,queueIndex,p.product.id,newVersion);
         } else if (item.type === 'product_delete') {
           await cloudDeleteProduct(p.product);
         } else if (item.type === 'product_remove_image') {
           await cloudRemoveProductImage(p.product);
         } else if (item.type === 'sale') {
+          if (p.productUpdatedAt) {
+            const currentVersion=await currentProductVersion(p.sale.productId);
+            if (currentVersion!==p.productUpdatedAt) throw Error('Conflict: this product changed on another phone. Check stock and product details before retrying this sale.');
+          }
           const {error} = await supabaseClient.rpc('record_sale_offline', {
             p_sale_id:p.sale.id,p_product_id:p.sale.productId,p_quantity:p.sale.qty,
             p_unit_price:p.sale.price,p_note:p.sale.note||null,p_sold_at:p.sale.date
           });
           if (error) throw error;
+          const newVersion=await currentProductVersion(p.sale.productId);
+          propagateQueuedProductVersion(queue,queueIndex,p.sale.productId,newVersion);
         } else if (item.type === 'sale_import') {
           const user = await requireCloudUser();
           const sale = p.sale;
@@ -589,7 +621,7 @@ async function imageUrlToDataUrl(url) {
 async function cloudLoadAll() {
   const user=await requireCloudUser();
   const [pr,sr,er]=await Promise.all([
-    supabaseClient.from('products').select('id,name,category,cost_price,selling_price,stock,image_path,created_at').eq('user_id',user.id).order('created_at'),
+    supabaseClient.from('products').select('id,name,category,cost_price,selling_price,stock,image_path,created_at,updated_at').eq('user_id',user.id).order('created_at'),
     supabaseClient.from('sales').select('id,product_id,product_name,quantity,unit_price,unit_cost,total,gross_profit,note,sold_at').eq('user_id',user.id).order('sold_at'),
     supabaseClient.from('expenses').select('id,description,amount,spent_at').eq('user_id',user.id).order('spent_at')
   ]);
@@ -640,7 +672,7 @@ async function cloudSaveProduct(product,isNew) {
   const user=await requireCloudUser();
   let imagePath=product.imagePath||null;
   if(product.image&&product.image.startsWith('data:image/')) imagePath=await cloudUploadProductImage(product.image);
-  const row={user_id:user.id,name:product.name,category:normalizeCategory(product.category),cost_price:product.cost,selling_price:product.price,stock:product.stock,image_path:imagePath};
+  const row={user_id:user.id,name:product.name,category:normalizeCategory(product.category),cost_price:product.cost,selling_price:product.price,stock:product.stock,image_path:imagePath,updated_at:now()};
   const result=isNew
     ? await supabaseClient.from('products').insert({id:product.id,...row})
     : await supabaseClient.from('products').update(row).eq('id',product.id).eq('user_id',user.id);
@@ -1033,9 +1065,10 @@ document.getElementById('saleForm').addEventListener('submit',async e=>{
  if(cloudUser){
    const profit=Math.round(qty*(price-p.cost)*100)/100;
    const sale={id:crypto.randomUUID(),productId:p.id,name:p.name,qty,price,cost:p.cost,total,profit,note,date:now()};
+   const productUpdatedAt=p.updatedAt;
    p.stock-=qty;
    db.sales.push(sale);
-   try { await saveCloudChangeLocally('sale',{sale}); }
+   try { await saveCloudChangeLocally('sale',{sale,productUpdatedAt}); }
    catch(err){ p.stock+=qty; db.sales=db.sales.filter(x=>x.id!==sale.id); render(); return alert(err.message || String(err)); }
  }else{
    const profit=Math.round(qty*(price-p.cost)*100)/100;
