@@ -66,8 +66,29 @@ dialog::backdrop{background:#10201699}
   <p id="accountStatus" class="muted">Checking sign-in status...</p>
   <button type="button" class="primary" id="googleSignIn">Sign in with Google</button>
   <button type="button" id="googleSignOut" class="hidden">Sign out</button>
+  <div id="emailAuthPanel">
+    <form id="emailAuthForm">
+      <label for="authEmail">Email address</label>
+      <input id="authEmail" type="email" autocomplete="email" required>
+      <label for="authPassword">Password</label>
+      <input id="authPassword" type="password" autocomplete="current-password" minlength="8" required>
+      <button type="submit" class="primary" id="emailAuthSubmit">Sign in with email</button>
+    </form>
+    <div class="photo-actions">
+      <button type="button" id="toggleEmailAuth">Create account</button>
+      <button type="button" id="resetPasswordBtn">Forgot password?</button>
+    </div>
+  </div>
+  <div id="accountManagePanel" class="hidden">
+    <form id="changeEmailForm">
+      <label for="newAccountEmail">Change account email</label>
+      <input id="newAccountEmail" type="email" autocomplete="email" required placeholder="New email address">
+      <button type="submit">Request email change</button>
+    </form>
+  </div>
   <p id="accountMessage" class="muted"></p>
 </section>
+<div id="appWorkspace" class="hidden">
 <nav>
 <button class="active" data-page="home">Home</button>
 <button data-page="products">Products</button>
@@ -167,6 +188,7 @@ dialog::backdrop{background:#10201699}
 <div class="card"><h2>Expense history</h2><div id="expenseList" class="empty">No expenses recorded yet.</div></div>
 </section>
 <footer>Keep regular backups of your business records.</footer>
+</div>
 </main>
 <dialog id="editProductDialog" aria-labelledby="editProductHeading">
   <h2 id="editProductHeading">Edit product details</h2>
@@ -282,7 +304,7 @@ async function handleCloudAuthChange() {
         '. Local-device records remain separate and unchanged.');
     } else {
       restoreLocalRecords();
-      cloudMessage('Local mode is active. Your device records remain available.');
+      cloudMessage('Sign in to access your private business records.');
     }
     await refreshAccountStatus();
   } catch (err) {
@@ -806,15 +828,19 @@ async function refreshAccountStatus(){
   if (error) {
     status.textContent = 'Could not check sign-in status.';
     document.getElementById('accountMessage').textContent = error.message;
+    document.getElementById('appWorkspace').classList.add('hidden');
     return;
   }
 
   const user = data.session?.user;
   status.textContent = user
     ? 'Signed in as ' + (user.email || 'Google account') + '.'
-    : 'Not signed in. Your records are still stored on this device.';
+    : 'Sign in or create an account to access your private business records.';
   signIn.classList.toggle('hidden', !!user);
   signOut.classList.toggle('hidden', !user);
+  document.getElementById('emailAuthPanel').classList.toggle('hidden', !!user);
+  document.getElementById('accountManagePanel').classList.toggle('hidden', !user);
+  document.getElementById('appWorkspace').classList.toggle('hidden', !user);
 }
 
 document.getElementById('googleSignIn').addEventListener('click', async () => {
@@ -834,6 +860,65 @@ document.getElementById('googleSignIn').addEventListener('click', async () => {
   if (error) message.textContent = 'Sign-in failed: ' + error.message;
 });
 
+let emailAuthMode = 'signin';
+document.getElementById('toggleEmailAuth').addEventListener('click', () => {
+  emailAuthMode = emailAuthMode === 'signin' ? 'signup' : 'signin';
+  document.getElementById('emailAuthSubmit').textContent = emailAuthMode === 'signup' ? 'Create account' : 'Sign in with email';
+  document.getElementById('toggleEmailAuth').textContent = emailAuthMode === 'signup' ? 'I already have an account' : 'Create account';
+  document.getElementById('authPassword').autocomplete = emailAuthMode === 'signup' ? 'new-password' : 'current-password';
+  cloudMessage(emailAuthMode === 'signup' ? 'Create a new account with your email and a password of at least 8 characters.' : 'Sign in to access your private business records.');
+});
+document.getElementById('emailAuthForm').addEventListener('submit', async event => {
+  event.preventDefault();
+  if (!supabaseClient) return cloudMessage('Account service is unavailable. Check your internet connection.');
+  const email = document.getElementById('authEmail').value.trim();
+  const password = document.getElementById('authPassword').value;
+  const submit = document.getElementById('emailAuthSubmit');
+  submit.disabled = true;
+  try {
+    cloudMessage(emailAuthMode === 'signup' ? 'Creating your account...' : 'Signing in...');
+    const result = emailAuthMode === 'signup'
+      ? await supabaseClient.auth.signUp({ email, password, options: { emailRedirectTo: window.location.href } })
+      : await supabaseClient.auth.signInWithPassword({ email, password });
+    if (result.error) throw result.error;
+    if (emailAuthMode === 'signup' && !result.data.session) {
+      cloudMessage('Account created. Check your email for the verification link, then return here and sign in.');
+    } else {
+      cloudMessage(emailAuthMode === 'signup' ? 'Account created. Loading your private business records...' : 'Signed in. Loading your private business records...');
+      await handleCloudAuthChange();
+    }
+  } catch (error) {
+    cloudMessage('Account action failed: ' + (error.message || String(error)));
+  } finally {
+    submit.disabled = false;
+  }
+});
+document.getElementById('resetPasswordBtn').addEventListener('click', async () => {
+  if (!supabaseClient) return cloudMessage('Account service is unavailable.');
+  const email = document.getElementById('authEmail').value.trim();
+  if (!email) return cloudMessage('Enter your registered email address first.');
+  try {
+    const { error } = await supabaseClient.auth.resetPasswordForEmail(email, { redirectTo: window.location.href });
+    if (error) throw error;
+    cloudMessage('If that email is registered, a password-reset link has been sent. Check your inbox and spam folder.');
+  } catch (error) {
+    cloudMessage('Could not request a password reset: ' + (error.message || String(error)));
+  }
+});
+document.getElementById('changeEmailForm').addEventListener('submit', async event => {
+  event.preventDefault();
+  if (!supabaseClient) return cloudMessage('Account service is unavailable.');
+  const email = document.getElementById('newAccountEmail').value.trim();
+  try {
+    const { error } = await supabaseClient.auth.updateUser({ email });
+    if (error) throw error;
+    cloudMessage('Email change requested. Follow the verification instructions sent by Supabase before using the new address.');
+    document.getElementById('changeEmailForm').reset();
+  } catch (error) {
+    cloudMessage('Could not request an email change: ' + (error.message || String(error)));
+  }
+});
+
 document.getElementById('googleSignOut').addEventListener('click', async () => {
   const message = document.getElementById('accountMessage');
   if (!supabaseClient) return;
@@ -844,7 +929,7 @@ document.getElementById('googleSignOut').addEventListener('click', async () => {
     return;
   }
 
-  message.textContent = 'You have signed out. Your existing local records have not been deleted.';
+  message.textContent = 'You have signed out. Your business workspace is now locked on this device.';
   await refreshAccountStatus();
 });
 
