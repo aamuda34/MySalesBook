@@ -421,6 +421,8 @@ function propagateQueuedProductVersion(queue, fromIndex, productId, version) {
       payload.product.updatedAt=version;
     } else if (later.type==='sale' && payload.sale?.productId===productId) {
       payload.productUpdatedAt=version;
+    } else if (later.type==='product_remove_image' && payload.product?.id===productId) {
+      payload.product.updatedAt=version;
     }
   }
 }
@@ -445,9 +447,19 @@ async function syncPendingChanges() {
           p.product.updatedAt=newVersion;
           propagateQueuedProductVersion(queue,queueIndex,p.product.id,newVersion);
         } else if (item.type === 'product_delete') {
+          if (p.product.updatedAt) {
+            const currentVersion=await currentProductVersion(p.product.id);
+            if (currentVersion!==p.product.updatedAt) throw Error('Conflict: this product changed on another phone. Review it before deleting.');
+          }
           await cloudDeleteProduct(p.product);
         } else if (item.type === 'product_remove_image') {
+          if (p.product.updatedAt) {
+            const currentVersion=await currentProductVersion(p.product.id);
+            if (currentVersion!==p.product.updatedAt) throw Error('Conflict: this product changed on another phone. Review it before removing its photo.');
+          }
           await cloudRemoveProductImage(p.product);
+          const newVersion=await currentProductVersion(p.product.id);
+          propagateQueuedProductVersion(queue,queueIndex,p.product.id,newVersion);
         } else if (item.type === 'sale') {
           if (p.productUpdatedAt) {
             const currentVersion=await currentProductVersion(p.sale.productId);
@@ -689,7 +701,7 @@ async function cloudSaveProduct(product,isNew) {
 async function cloudRemoveProductImage(product) {
   const user=await requireCloudUser();
   const oldPath=product.imagePath||null;
-  const {error}=await supabaseClient.from('products').update({image_path:null}).eq('id',product.id).eq('user_id',user.id);
+  const {error}=await supabaseClient.from('products').update({image_path:null,updated_at:now()}).eq('id',product.id).eq('user_id',user.id);
   if(error) throw error;
   if(oldPath){
     const {error:storageError}=await supabaseClient.storage.from('product-images').remove([oldPath]);
