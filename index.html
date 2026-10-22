@@ -51,14 +51,14 @@ dialog::backdrop{background:#10201699}
 .edit-photo-preview{width:96px;height:96px;object-fit:cover;border-radius:10px;margin-top:8px;background:#edf2ee;border:1px solid #dce5de}
 
 :root{--green:#14532d;--soft:#e5f1e7;--page:#f3f6f3;--ink:#17231c;--muted:#647269;--surface:#fff;--border:#e4ebe5}
-body{background:var(--page);color:var(--ink);padding-bottom:80px}
+body{background:var(--page);color:var(--ink);padding-bottom:112px}
 header{padding:16px}
 .header-brand{display:flex;align-items:center;gap:12px;max-width:980px;margin:auto}
 .brand-logo,.brand-mark{width:46px;height:46px;border-radius:13px;object-fit:cover;flex-shrink:0}
 .brand-logo{display:none}.brand-mark{background:#ffffff20;display:grid;place-items:center;font-weight:800;font-size:20px}
 .brand-copy{min-width:0}#businessTitle{font-size:21px;overflow-wrap:anywhere}#businessSubtitle{opacity:.8}
 main{max-width:980px;padding:14px}#accountCard{max-width:540px;margin:18px auto}
-nav{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;margin:0 0 16px;position:sticky;top:0;z-index:10;background:var(--page);padding:7px 0}
+nav{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;margin:0;position:fixed;left:50%;transform:translateX(-50%);bottom:calc(8px + env(safe-area-inset-bottom));width:min(calc(100% - 20px),760px);z-index:1100;background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:7px;box-shadow:0 8px 28px #10201624}
 nav button{background:transparent;color:#536458;border:1px solid transparent;border-radius:12px;padding:10px 4px;min-height:55px;display:flex;flex-direction:column;align-items:center;gap:4px;font-size:12px}
 .nav-icon{font-size:19px;line-height:1}nav button.active{background:var(--green);color:#fff;box-shadow:0 4px 12px #14532d22}
 .card{background:var(--surface);border:1px solid var(--border);border-radius:15px;padding:16px;box-shadow:0 3px 14px #10201608}
@@ -85,9 +85,9 @@ body.dark{--page:#101713;--ink:#e8f0e9;--muted:#a8b8ac;--surface:#19231d;--borde
 body.dark nav{background:var(--page)}body.dark nav button{color:#b8c9bc}body.dark nav button.active{color:#fff}body.dark input,body.dark select{background:#18221b;color:var(--ink);border-color:#3a4a3e}
 @media(min-width:700px){.dashboard-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}.quick-actions{grid-template-columns:repeat(4,1fr)}.menu-grid{grid-template-columns:repeat(3,1fr)}}
 @media(max-width:420px){main{padding:10px}.card{padding:13px}.stat{padding:10px}.filters{grid-template-columns:1fr}.filter-wide{grid-column:auto}.progress-row{grid-template-columns:75px 1fr auto}}
-  .quick-sale-fab{position:fixed;right:max(18px,env(safe-area-inset-right));bottom:calc(22px + env(safe-area-inset-bottom));z-index:1000;width:68px;height:68px;border:0;border-radius:50%;background:#14532d;color:#fff;box-shadow:0 7px 22px #102f2060;display:none;align-items:center;justify-content:center;font-size:38px;line-height:1;cursor:pointer;touch-action:manipulation}
+  .quick-sale-fab{position:fixed;right:max(18px,env(safe-area-inset-right));bottom:calc(100px + env(safe-area-inset-bottom));z-index:1000;width:68px;height:68px;border:0;border-radius:50%;background:#14532d;color:#fff;box-shadow:0 7px 22px #102f2060;display:none;align-items:center;justify-content:center;font-size:38px;line-height:1;cursor:pointer;touch-action:manipulation}
   .quick-sale-fab:focus-visible{outline:3px solid #86efac;outline-offset:4px}
-  @media(min-width:700px){.quick-sale-fab{right:28px;bottom:28px}}
+  @media(min-width:700px){.quick-sale-fab{right:28px;bottom:100px}}
   body.auth-initializing #accountCard{display:none!important}
   #authLoading{display:none}
   body.auth-initializing #authLoading{display:flex;min-height:45vh;align-items:center;justify-content:center;flex-direction:column;gap:12px;color:#52635a;text-align:center;padding:28px}
@@ -216,7 +216,7 @@ body.dark nav{background:var(--page)}body.dark nav button{color:#b8c9bc}body.dar
 <div class="card"><h2>Account and security</h2><p id="settingsAccountStatus" class="muted">Checking account...</p><div id="accountManagePanel" class="settings-group hidden"><form id="changeEmailForm"><label for="newAccountEmail">Change account email</label><input id="newAccountEmail" type="email" autocomplete="email" required placeholder="New email address"><button type="submit">Request email change</button></form><button type="button" class="danger" id="deleteAccountBtn" style="width:100%;margin-top:12px">Delete my account and cloud records</button></div><button type="button" id="googleSignOut" class="danger" style="width:100%">Sign out</button><p id="settingsAccountMessage" class="muted" aria-live="polite"></p></div>
 <div class="card"><h2>Sync and data</h2><p id="syncStatus" class="muted">Checking sync status...</p><div id="syncDetails" class="muted"></div><div class="photo-actions"><button type="button" id="syncNowBtn" class="primary">Sync now</button><button type="button" id="importLocalRecordsBtn" class="hidden">Import device records</button></div><div class="settings-group"><h3>Backup and restore</h3><p class="muted">Export a copy regularly. Restoring replaces records currently on this device.</p><button type="button" id="exportBtn">Export backup</button><label for="importFile">Restore from backup</label><input type="file" id="importFile" accept=".json,application/json"></div></div>
 <div class="card"><h2>App preferences</h2><div class="settings-group"><label for="themePreference">Appearance</label><select id="themePreference"><option value="light">Light mode</option><option value="dark">Dark mode</option><option value="system">Use device setting</option></select></div><div class="settings-group"><label for="lowStockThreshold">Low-stock alert threshold (units)</label><input id="lowStockThreshold" type="number" min="0" max="100000" step="1" value="5"><button type="button" id="savePreferencesBtn">Save preferences</button></div></div></section>
-<footer>My Sales Book · Keep regular backups of your business records.</footer>
+<footer>My Sales Book · Keep regular backups of your business records.<br><a href="./privacy.html">Privacy</a> · <a href="./terms.html">Terms</a></footer>
 </div>
 </main>
 <div id="productImageLightbox" class="product-image-lightbox hidden" role="dialog" aria-modal="true" aria-label="Product photo viewer"><button type="button" class="lightbox-close" id="closeProductImage" aria-label="Close photo">×</button><img id="largeProductImage" alt="Enlarged product photo"><div id="largeProductImageCaption" class="lightbox-caption"></div></div>
