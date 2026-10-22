@@ -607,10 +607,16 @@ async function handleCloudAuthChange() {
         cloudMessage('Could not reach the cloud. Showing the last saved copy; queued changes remain on this device.');
         await refreshAccountStatus();
       } else {
+        workspaceReady = false;
+        document.getElementById('appWorkspace').classList.add('hidden');
         cloudMessage('Could not reach the cloud and no saved copy exists on this device. Connect to the internet to load your account for the first time.');
+        await refreshAccountStatus();
       }
     } else {
+      workspaceReady = false;
+      document.getElementById('appWorkspace').classList.add('hidden');
       cloudMessage('Cloud connection failed: ' + (err.message || String(err)) + '. Sign in again when internet is available.');
+      await refreshAccountStatus();
     }
     console.error('Cloud authentication/load error:', err);
   } finally {
