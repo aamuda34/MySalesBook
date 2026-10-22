@@ -266,6 +266,23 @@ let cloudUser = null;
 let cloudReady = false;
 let cloudBusy = false;
 
+async function saveCloudChangeLocally(type, payload) {
+  if (!cloudUser) throw Error('Sign in before saving business records.');
+  try {
+    enqueueChange(type, payload);
+    storageMode = 'cloud-offline';
+    cacheCloudData(cloudUser.id);
+    render();
+    updateSyncStatus();
+  } catch (error) {
+    throw Error('Could not save this change on the device. Free up browser storage and export a backup before trying again. ' + (error.message || ''));
+  }
+  if (navigator.onLine) {
+    await syncPendingChanges();
+  }
+  return true;
+}
+
 function cloudMessage(text) {
   const el = document.getElementById('accountMessage');
   if (el) el.textContent = text;
@@ -737,13 +754,10 @@ async function handleImageSelection(event){
   if(imageTargetId){
    const p=db.products.find(x=>x.id===imageTargetId);
    if(!p)return;
-   if(storageMode==='cloud'&&cloudReady){
+   if(cloudUser){
     const updated={...p,image};
-    const ok=await cloudAction(async()=>{
-      await cloudSaveProduct(updated,false);
-      await cloudLoadAll();
-    });
-    if(ok)alert('Product photo updated.');
+    try { await saveCloudChangeLocally('product_save',{product:updated,isNew:false}); alert('Product photo saved on this device and queued for sync.'); }
+    catch(err){ alert(err.message || String(err)); }
    }else{
     const oldImage=p.image,oldPath=p.imagePath;
     p.image=image;
@@ -778,9 +792,9 @@ document.getElementById('productForm').addEventListener('submit',async e=>{
  if(db.products.some(p=>p.name.toLowerCase()===name.toLowerCase()))return alert('A product with this name already exists.');
  const category=normalizeCategory(document.getElementById('pcategory').value);
  const product={id:crypto.randomUUID(),name,category,cost,price,stock,image:pendingProductImage,createdAt:now()};
- if(storageMode==='cloud'&&cloudReady){
-   const ok=await cloudAction(async()=>{await cloudSaveProduct(product,true);await cloudLoadAll();});
-   if(!ok)return;
+ if(cloudUser){
+   try { await saveCloudChangeLocally('product_save',{product,isNew:true}); }
+   catch(err){ return alert(err.message || String(err)); }
  }else{
    db.products.push(product);
    if(!save())return;
@@ -873,12 +887,17 @@ document.getElementById('editProductForm').addEventListener('submit',async event
   document.getElementById('saveEditProduct').disabled=true;
   try{
     let saved=false;
-    if(storageMode==='cloud'&&cloudReady){
-      saved=await cloudAction(async()=>{
-        await cloudSaveProduct(updated,false);
-        if(editRemoveProductImage&&product.imagePath)await cloudRemoveProductImage(product);
-        await cloudLoadAll();
-      });
+    if(cloudUser){
+      try {
+        const cloudUpdated = editRemoveProductImage ? {...updated,imagePath:product.imagePath,image:product.image} : updated;
+        await saveCloudChangeLocally('product_save',{product:cloudUpdated,isNew:false});
+        if(editRemoveProductImage&&product.imagePath) {
+          await saveCloudChangeLocally('product_remove_image',{product:{...product}});
+        }
+        Object.assign(product,updated);
+        if(editRemoveProductImage){delete product.image;delete product.imagePath;}
+        saved=true;
+      } catch(err) { alert(err.message || String(err)); }
     }else{
       const old={...product};
       Object.assign(product,updated);
@@ -908,8 +927,12 @@ document.getElementById('productList').addEventListener('click',async e=>{
  }
  if(button.dataset.imageRemove){
   if(!confirm('Remove the photo for '+p.name+'?'))return;
-  if(storageMode==='cloud'&&cloudReady){
-    await cloudAction(async()=>{await cloudRemoveProductImage(p);await cloudLoadAll();});
+  if(cloudUser){
+    try {
+      const old = {...p};
+      p.image=''; p.imagePath='';
+      await saveCloudChangeLocally('product_remove_image',{product:old});
+    } catch(err){ alert(err.message || String(err)); }
   }else{
     const oldImage=p.image,oldPath=p.imagePath;
     delete p.image;delete p.imagePath;
@@ -922,8 +945,11 @@ document.getElementById('productList').addEventListener('click',async e=>{
  }else if(button.dataset.delete){
   if(db.sales.some(s=>s.productId===id))return alert('This product has sales history. Edit it instead of deleting it.');
   if(confirm('Delete '+p.name+'?')){
-    if(storageMode==='cloud'&&cloudReady){
-      await cloudAction(async()=>{await cloudDeleteProduct(p);await cloudLoadAll();});
+    if(cloudUser){
+      const oldProducts=db.products;
+      db.products=db.products.filter(x=>x.id!==id);
+      try { await saveCloudChangeLocally('product_delete',{product:p}); }
+      catch(err){ db.products=oldProducts; render(); alert(err.message || String(err)); }
     }else{
       db.products=db.products.filter(x=>x.id!==id);if(save())render();
     }
@@ -941,9 +967,13 @@ document.getElementById('saleForm').addEventListener('submit',async e=>{
  if(note.length>150)return alert('Sale note must be 150 characters or fewer.');
  const total=Math.round(qty*price*100)/100;
  if(!confirm('Record this paid sale for '+money(total)+'?'))return;
- if(storageMode==='cloud'&&cloudReady){
-   const ok=await cloudAction(async()=>{await cloudRecordSale(p,qty,price,note);});
-   if(!ok)return;
+ if(cloudUser){
+   const profit=Math.round(qty*(price-p.cost)*100)/100;
+   const sale={id:crypto.randomUUID(),productId:p.id,name:p.name,qty,price,cost:p.cost,total,profit,note,date:now()};
+   p.stock-=qty;
+   db.sales.push(sale);
+   try { await saveCloudChangeLocally('sale',{sale}); }
+   catch(err){ p.stock+=qty; db.sales=db.sales.filter(x=>x.id!==sale.id); render(); return alert(err.message || String(err)); }
  }else{
    const profit=Math.round(qty*(price-p.cost)*100)/100;
    p.stock-=qty;
@@ -959,9 +989,11 @@ document.getElementById('expenseForm').addEventListener('submit',async e=>{
  const name=document.getElementById('ename').value.trim(),amount=Number(document.getElementById('eamount').value);
  if(!name||!Number.isFinite(amount)||amount<=0)return alert('Enter a description and valid amount.');
  const rounded=Math.round(amount*100)/100;
- if(storageMode==='cloud'&&cloudReady){
-   const ok=await cloudAction(async()=>{await cloudAddExpense(name,rounded,now());});
-   if(!ok)return;
+ if(cloudUser){
+   const expense={id:crypto.randomUUID(),name,amount:rounded,date:now()};
+   db.expenses.push(expense);
+   try { await saveCloudChangeLocally('expense',{expense}); }
+   catch(err){ db.expenses=db.expenses.filter(x=>x.id!==expense.id); render(); return alert(err.message || String(err)); }
  }else{
    db.expenses.push({id:crypto.randomUUID(),name,amount:rounded,date:now()});
    if(!save())return;
@@ -1125,11 +1157,30 @@ document.getElementById('changeEmailForm').addEventListener('submit', async even
   }
 });
 
+document.getElementById('syncNowBtn').addEventListener('click', async () => {
+  if (!cloudUser) return;
+  if (!navigator.onLine) return cloudMessage('You are offline. Changes are kept on this device and will sync when internet returns.');
+  cloudMessage('Synchronising changes...');
+  try {
+    const ok = await syncPendingChanges();
+    if (ok) cloudMessage('All changes synchronised.');
+  } catch (error) {
+    cloudMessage('Sync failed. Your pending changes remain on this device: ' + (error.message || String(error)));
+  }
+});
+window.addEventListener('online', () => {
+  updateSyncStatus();
+  if (cloudUser) syncPendingChanges().catch(error => cloudMessage('Automatic sync failed. Pending changes are kept: ' + (error.message || String(error))));
+});
+window.addEventListener('offline', updateSyncStatus);
+
 document.getElementById('googleSignOut').addEventListener('click', async () => {
   const message = document.getElementById('accountMessage');
   if (!supabaseClient) return;
+  const queued = cloudUser ? readQueue(cloudUser.id).filter(item => item.status !== 'synced') : [];
+  if (queued.length && !confirm('You have ' + queued.length + ' unsynchronised change(s). They will remain on this device and cannot be restored to a new phone until they sync. Sign out anyway?')) return;
 
-  const { error } = await supabaseClient.auth.signOut();
+  const { error } = await supabaseClient.auth.signOut({scope:'local'});
   if (error) {
     message.textContent = 'Could not sign out: ' + error.message;
     return;
