@@ -1215,7 +1215,7 @@ document.getElementById('importLocalRecordsBtn').addEventListener('click', async
   try {
     const user = await requireCloudUser();
     const [productsResult,salesResult,expensesResult] = await Promise.all([
-      supabaseClient.from('products').select('id').eq('user_id',user.id),
+      supabaseClient.from('products').select('id,name,category').eq('user_id',user.id),
       supabaseClient.from('sales').select('id').eq('user_id',user.id),
       supabaseClient.from('expenses').select('id').eq('user_id',user.id)
     ]);
@@ -1223,19 +1223,28 @@ document.getElementById('importLocalRecordsBtn').addEventListener('click', async
     if (salesResult.error) throw salesResult.error;
     if (expensesResult.error) throw expensesResult.error;
     const productIds = new Set((productsResult.data||[]).map(x=>x.id));
+    const productNameIds = new Map((productsResult.data||[]).map(x=>[String(x.name||'').trim().toLowerCase(),x.id]));
+    const productIdMap = new Map();
     const saleIds = new Set((salesResult.data||[]).map(x=>x.id));
     const expenseIds = new Set((expensesResult.data||[]).map(x=>x.id));
     let added = 0;
     for (const original of local.products) {
-      if (productIds.has(original.id)) continue;
+      const existingId = productIds.has(original.id) ? original.id : productNameIds.get(String(original.name||'').trim().toLowerCase());
+      if (existingId) {
+        productIdMap.set(original.id,existingId);
+        continue;
+      }
       const product = {...original};
+      productIdMap.set(product.id,product.id);
+      productIds.add(product.id);
+      productNameIds.set(String(product.name||'').trim().toLowerCase(),product.id);
       enqueueChange('product_save',{product,isNew:true});
       db.products.push(product);
       added++;
     }
     for (const original of local.sales) {
       if (saleIds.has(original.id)) continue;
-      const sale = {...original};
+      const sale = {...original,productId:productIdMap.get(original.productId)||original.productId};
       enqueueChange('sale_import',{sale});
       if (!db.sales.some(x=>x.id===sale.id)) db.sales.push(sale);
       added++;
