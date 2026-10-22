@@ -88,18 +88,24 @@ body.dark nav{background:var(--page)}body.dark nav button{color:#b8c9bc}body.dar
   .quick-sale-fab{position:fixed;right:max(18px,env(safe-area-inset-right));bottom:calc(22px + env(safe-area-inset-bottom));z-index:1000;width:68px;height:68px;border:0;border-radius:50%;background:#14532d;color:#fff;box-shadow:0 7px 22px #102f2060;display:none;align-items:center;justify-content:center;font-size:38px;line-height:1;cursor:pointer;touch-action:manipulation}
   .quick-sale-fab:focus-visible{outline:3px solid #86efac;outline-offset:4px}
   @media(min-width:700px){.quick-sale-fab{right:28px;bottom:28px}}
+  body.auth-initializing #accountCard{display:none!important}
+  #authLoading{display:none}
+  body.auth-initializing #authLoading{display:flex;min-height:45vh;align-items:center;justify-content:center;flex-direction:column;gap:12px;color:#52635a;text-align:center;padding:28px}
+  .auth-loading-spinner{width:34px;height:34px;border:4px solid #dbe7df;border-top-color:#14532d;border-radius:50%;animation:auth-spin .8s linear infinite}
+  @keyframes auth-spin{to{transform:rotate(360deg)}}
 </style>
 
 <link rel="manifest" href="./manifest.webmanifest">
 <link rel="icon" href="./icons/icon.svg" type="image/svg+xml">
 
 </head>
-<body>
+<body class="auth-initializing">
 <header><div class="header-brand">
 <img id="headerBusinessLogo" class="brand-logo" alt="Business logo"><div id="brandMark" class="brand-mark">MS</div>
 <div class="brand-copy"><h1 id="businessTitle">My Sales Book</h1><p id="businessSubtitle">Simple business records · Nigerian naira (₦)</p></div>
 </div></header>
 <main>
+<div id="authLoading" role="status" aria-live="polite"><span class="auth-loading-spinner" aria-hidden="true"></span><strong>Opening your business book…</strong><span class="muted">Checking your saved sign-in and records.</span></div>
 <section class="card" id="accountCard" aria-live="polite">
 <h2>Welcome to My Sales Book</h2><p id="accountStatus" class="muted">Checking sign-in status...</p>
 <button type="button" class="primary" id="googleSignIn">Continue with Google</button>
@@ -637,6 +643,8 @@ async function handleCloudAuthChange() {
     console.error('Cloud authentication/load error:', err);
   } finally {
     authTransition = false;
+    document.body.classList.remove('auth-initializing');
+    const loading=document.getElementById('authLoading');if(loading)loading.style.display='none';
   }
 }
 
