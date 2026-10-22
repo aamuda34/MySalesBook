@@ -796,9 +796,10 @@ document.querySelectorAll('nav button').forEach(b=>b.addEventListener('click',()
 document.querySelectorAll('[data-open-page]').forEach(b=>b.addEventListener('click',()=>showPage(b.dataset.openPage)));
 
 function render(){
+  db=normalizeDb(db);renderBrand();
   const d=today();
-  const todays=db.sales.filter(x=>x.date.slice(0,10)===d);
-  const expensesToday=db.expenses.filter(x=>x.date.slice(0,10)===d).reduce((s,x)=>s+x.amount,0);
+  const todays=db.sales.filter(x=>dateKey(x.date)===d);
+  const expensesToday=db.expenses.filter(x=>dateKey(x.date)===d).reduce((s,x)=>s+x.amount,0);
   const salesToday=todays.reduce((s,x)=>s+x.total,0);
   const grossToday=todays.reduce((s,x)=>s+x.profit,0);
   const allSales=db.sales.reduce((s,x)=>s+x.total,0);
@@ -812,7 +813,12 @@ function render(){
   document.getElementById('allNet').textContent=money(allGross-allExpenses);
   document.getElementById('productCount').textContent=db.products.length;
   document.getElementById('stockCount').textContent=db.products.reduce((s,p)=>s+p.stock,0);
-
+  document.getElementById('dashboardGreeting').textContent='A clear view of '+(getProfile().businessName||'your business')+'.';
+  const low=db.products.filter(p=>Number(p.stock)<=lowStockThreshold).sort((a,b)=>a.stock-b.stock);
+  document.getElementById('lowStockPreview').innerHTML=low.length?low.slice(0,5).map(p=>'<div class="item"><div class="row"><strong>'+esc(p.name)+'</strong><span class="low-stock-badge">'+p.stock+' left</span></div></div>').join(''):'<div class="empty">No products at or below '+lowStockThreshold+' units.</div>';
+  document.getElementById('lowStockList').innerHTML=low.length?low.map(p=>'<div class="item"><div class="row"><div><strong>'+esc(p.name)+'</strong><div class="muted">Current stock: '+p.stock+'</div></div><button type="button" data-adjust-from-list="'+p.id+'">Adjust</button></div></div>').join(''):'<div class="empty">No low-stock products.</div>';
+  const adj=document.getElementById('adjustProduct'),prevAdj=adj.value;adj.innerHTML='<option value="">Choose a product</option>'+db.products.map(p=>'<option value="'+p.id+'">'+esc(p.name)+' ('+p.stock+' in stock)</option>').join('');if(db.products.some(p=>p.id===prevAdj))adj.value=prevAdj;
+  updateAdjustmentPreview();renderStockAdjustments();renderReports();document.getElementById('homeSyncPill').textContent=pendingSync.length?pendingSync.length+' pending sync':'● Up to date';
   db.products.forEach(p=>{p.category=normalizeCategory(p.category);});
   const searchTerm=(document.getElementById('productSearch').value||'').trim().toLocaleLowerCase();
   const categoryFilter=document.getElementById('categoryFilter');
@@ -842,13 +848,29 @@ function render(){
   if(db.products.some(p=>p.id===previous))sel.value=previous;
   updateSalePrice();
 
-  const saleHTML=x=>`<div class="item"><div class="row"><strong>${esc(x.name)} × ${x.qty}</strong><strong>${money(x.total)}</strong></div><div class="muted">${new Date(x.date).toLocaleString()} · Gross profit ${money(x.profit)}${x.note?' · '+esc(x.note):''}</div></div>`;
-  document.getElementById('salesList').innerHTML=db.sales.length?[...db.sales].reverse().map(saleHTML).join(''):'<div class="empty">No sales recorded yet.</div>';
-  document.getElementById('recentSales').innerHTML=db.sales.length?[...db.sales].reverse().slice(0,5).map(saleHTML).join(''):'<div class="empty">No sales recorded yet.</div>';
-  document.getElementById('expenseList').innerHTML=db.expenses.length?[...db.expenses].reverse().map(x=>`<div class="item"><div class="row"><strong>${esc(x.name)}</strong><strong>${money(x.amount)}</strong></div><div class="muted">${new Date(x.date).toLocaleString()}</div></div>`).join(''):'<div class="empty">No expenses recorded yet.</div>';
+  const saleHTML=x=>`<div class="item"><div class="row"><strong>${esc(x.name)} × ${x.qty}</strong><strong>${money(x.total)}</strong></div><div class="muted">${safeDate(x.date).toLocaleString()} · Gross profit ${money(x.profit)}${x.note?' · '+esc(x.note):''}</div></div>`;
+  const query=(document.getElementById('salesSearch').value||'').trim().toLocaleLowerCase(),from=document.getElementById('salesFrom').value,to=document.getElementById('salesTo').value;
+  const filtered=[...db.sales].filter(x=>(!query||(String(x.name||'')+' '+String(x.note||'')).toLocaleLowerCase().includes(query))&&(!from||dateKey(x.date)>=from)&&(!to||dateKey(x.date)<=to)).sort((a,b)=>safeDate(b.date)-safeDate(a.date));
+  document.getElementById('salesResultCount').textContent=filtered.length+' shown';
+  document.getElementById('salesList').innerHTML=filtered.length?filtered.map(saleHTML).join(''):db.sales.length?'<div class="empty">No sales match these filters.</div>':'<div class="empty">No sales recorded yet.</div>';
+  document.getElementById('recentSales').innerHTML=db.sales.length?[...db.sales].sort((a,b)=>safeDate(b.date)-safeDate(a.date)).slice(0,5).map(saleHTML).join(''):'<div class="empty">No sales recorded yet.</div>';
+  document.getElementById('expenseList').innerHTML=db.expenses.length?[...db.expenses].sort((a,b)=>safeDate(b.date)-safeDate(a.date)).map(x=>`<div class="item"><div class="row"><strong>${esc(x.name)}</strong><strong>${money(x.amount)}</strong></div><div class="muted">${safeDate(x.date).toLocaleString()}</div></div>`).join(''):'<div class="empty">No expenses recorded yet.</div>';
 }
 document.getElementById('productSearch').addEventListener('input',render);
 document.getElementById('categoryFilter').addEventListener('change',render);
+['salesSearch','salesFrom','salesTo'].forEach(id=>document.getElementById(id).addEventListener('input',render));
+document.getElementById('clearSalesFilters').addEventListener('click',()=>{['salesSearch','salesFrom','salesTo'].forEach(id=>document.getElementById(id).value='');render();});
+function renderBarChart(id,rows,labelFn,valueFn){const target=document.getElementById(id);if(!target)return;if(!rows.length||rows.every(r=>Number(valueFn(r))<=0)){target.innerHTML='<div class="empty">No sales in this period yet.</div>';return;}const max=Math.max(1,...rows.map(r=>Number(valueFn(r))||0));target.innerHTML='<div class="chart-bars" role="img" aria-label="Sales bar chart">'+rows.map(r=>{const v=Math.max(0,Number(valueFn(r))||0);return '<div class="chart-col" title="'+esc(labelFn(r)+': '+money(v))+'"><span class="chart-value">'+(v?esc(money(v).replace('.00','')):'')+'</span><div class="chart-bar" style="height:'+Math.max(2,v/max*100)+'%"></div><span class="chart-label">'+esc(labelFn(r))+'</span></div>';}).join('')+'</div>';}
+function reportRows(){const days=Number(document.getElementById('reportRange')?.value||30),start=new Date();start.setHours(0,0,0,0);start.setDate(start.getDate()-days+1);const size=Math.max(1,Math.ceil(days/14)),rows=[];for(let offset=0;offset<days;offset+=size){const d=new Date(start);d.setDate(start.getDate()+offset);let total=0;for(let i=offset;i<Math.min(days,offset+size);i++){const day=new Date(start);day.setDate(start.getDate()+i);const key=dateKey(day);total+=db.sales.filter(x=>dateKey(x.date)===key).reduce((n,x)=>n+x.total,0);}rows.push({label:d.toLocaleDateString(undefined,{month:'numeric',day:'numeric'}),sales:total});}return {start,rows};}
+function reportRowsFor7(){const rows=[];for(let i=6;i>=0;i--){const d=new Date();d.setHours(0,0,0,0);d.setDate(d.getDate()-i);const key=dateKey(d);rows.push({label:d.toLocaleDateString(undefined,{weekday:'short'}),sales:db.sales.filter(x=>dateKey(x.date)===key).reduce((n,x)=>n+x.total,0)});}return rows;}
+function renderReports(){const {start,rows}=reportRows(),key=dateKey(start),sales=db.sales.filter(x=>dateKey(x.date)>=key),expenses=db.expenses.filter(x=>dateKey(x.date)>=key);const total=sales.reduce((n,x)=>n+x.total,0),gross=sales.reduce((n,x)=>n+x.profit,0),costs=expenses.reduce((n,x)=>n+x.amount,0);document.getElementById('reportSales').textContent=money(total);document.getElementById('reportGross').textContent=money(gross);document.getElementById('reportExpenses').textContent=money(costs);document.getElementById('reportNet').textContent=money(gross-costs);renderBarChart('salesTrendChart',reportRowsFor7(),x=>x.label,x=>x.sales);renderBarChart('reportSalesChart',rows,x=>x.label,x=>x.sales);const sums=new Map();sales.forEach(x=>sums.set(x.name,(sums.get(x.name)||0)+x.qty));const top=[...sums.entries()].map(([name,qty])=>({name,qty})).sort((a,b)=>b.qty-a.qty).slice(0,5),max=top[0]?.qty||1;document.getElementById('topProductsChart').innerHTML=top.length?top.map(x=>'<div class="progress-row"><strong>'+esc(x.name)+'</strong><div class="progress-track"><div class="progress-fill" style="width:'+(x.qty/max*100)+'%"></div></div><span class="muted">'+x.qty+' sold</span></div>').join(''):'<div class="empty">No product sales in this period.</div>';}
+document.getElementById('reportRange').addEventListener('change',renderReports);
+function updateAdjustmentPreview(){const p=db.products.find(x=>x.id===document.getElementById('adjustProduct').value),v=document.getElementById('adjustNewStock').value;document.getElementById('adjustCurrentStock').textContent=p?String(p.stock):'—';const d=p&&v!==''?Number(v)-Number(p.stock):null;document.getElementById('adjustStockChange').textContent=d===null?'—':(d>0?'+':'')+d+' units';}
+document.getElementById('adjustProduct').addEventListener('change',()=>{const p=db.products.find(x=>x.id===document.getElementById('adjustProduct').value);document.getElementById('adjustNewStock').value=p?p.stock:'';updateAdjustmentPreview();});
+document.getElementById('adjustNewStock').addEventListener('input',updateAdjustmentPreview);
+document.getElementById('lowStockList').addEventListener('click',e=>{const b=e.target.closest('[data-adjust-from-list]');if(!b)return;showPage('stock');document.getElementById('adjustProduct').value=b.dataset.adjustFromList;const p=db.products.find(x=>x.id===b.dataset.adjustFromList);document.getElementById('adjustNewStock').value=p?p.stock:'';updateAdjustmentPreview();});
+function renderStockAdjustments(){const target=document.getElementById('stockAdjustmentList');if(!target)return;const rows=[...(db.stockAdjustments||[])].sort((a,b)=>safeDate(b.date)-safeDate(a.date)).slice(0,100);target.innerHTML=rows.length?rows.map(a=>'<div class="item"><div class="row"><strong>'+esc(a.productName)+'</strong><strong>'+(a.quantityChange>0?'+':'')+a.quantityChange+' units</strong></div><div class="muted">'+safeDate(a.date).toLocaleString()+' · '+a.previousStock+' → '+a.newStock+' units'+(a.reason?' · '+esc(a.reason):'')+'</div></div>').join(''):'<div class="empty">No stock adjustments recorded yet.</div>';}
+document.getElementById('stockAdjustmentForm').addEventListener('submit',async e=>{e.preventDefault();const p=db.products.find(x=>x.id===document.getElementById('adjustProduct').value),next=Number(document.getElementById('adjustNewStock').value),reason=document.getElementById('adjustReason').value.trim();if(!p)return alert('Choose a product first.');if(!Number.isSafeInteger(next)||next<0)return alert('Enter a whole-number stock quantity of zero or more.');if(next===p.stock)return alert('The new stock quantity is the same as the current quantity.');if(!confirm('Change '+p.name+' stock from '+p.stock+' to '+next+' units?'))return;const old=p.stock,oldVersion=p.updatedAt,a={id:crypto.randomUUID(),productId:p.id,productName:p.name,previousStock:old,newStock:next,quantityChange:next-old,reason,date:now()};p.stock=next;if(cloudUser){try{await saveCloudChangeLocally('product_save',{product:{...p},isNew:false});enqueueChange('stock_adjustment',{adjustment:a});db.stockAdjustments.push(a);cacheCloudData(cloudUser.id);render();updateSyncStatus();if(navigator.onLine)await syncPendingChanges();}catch(err){p.stock=old;p.updatedAt=oldVersion;db.stockAdjustments=db.stockAdjustments.filter(x=>x.id!==a.id);render();return alert(err.message||String(err));}}else{db.stockAdjustments.push(a);if(!save()){p.stock=old;db.stockAdjustments.pop();return;}render();}document.getElementById('adjustReason').value='';alert('Stock adjustment saved.');});
 
 function updateSalePrice(){
  const p=db.products.find(x=>x.id===document.getElementById('saleProduct').value);
