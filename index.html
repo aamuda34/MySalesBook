@@ -85,6 +85,9 @@ body.dark{--page:#101713;--ink:#e8f0e9;--muted:#a8b8ac;--surface:#19231d;--borde
 body.dark nav{background:var(--page)}body.dark nav button{color:#b8c9bc}body.dark nav button.active{color:#fff}body.dark input,body.dark select{background:#18221b;color:var(--ink);border-color:#3a4a3e}
 @media(min-width:700px){.dashboard-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}.quick-actions{grid-template-columns:repeat(4,1fr)}.menu-grid{grid-template-columns:repeat(3,1fr)}}
 @media(max-width:420px){main{padding:10px}.card{padding:13px}.stat{padding:10px}.filters{grid-template-columns:1fr}.filter-wide{grid-column:auto}.progress-row{grid-template-columns:75px 1fr auto}}
+  .quick-sale-fab{position:fixed;right:max(18px,env(safe-area-inset-right));bottom:calc(22px + env(safe-area-inset-bottom));z-index:1000;width:68px;height:68px;border:0;border-radius:50%;background:#14532d;color:#fff;box-shadow:0 7px 22px #102f2060;display:none;align-items:center;justify-content:center;font-size:38px;line-height:1;cursor:pointer;touch-action:manipulation}
+  .quick-sale-fab:focus-visible{outline:3px solid #86efac;outline-offset:4px}
+  @media(min-width:700px){.quick-sale-fab{right:28px;bottom:28px}}
 </style>
 
 <link rel="manifest" href="./manifest.webmanifest">
@@ -114,6 +117,7 @@ body.dark nav{background:var(--page)}body.dark nav button{color:#b8c9bc}body.dar
 <button data-page="sales"><span class="nav-icon">↗</span>Sales</button>
 <button data-page="more"><span class="nav-icon">☰</span>More</button>
 </nav>
+<button type="button" id="quickSaleFab" class="quick-sale-fab" aria-label="Record a sale" title="Record a sale">+</button>
 
 <section id="home" class="page">
 <div class="section-heading"><div><h2 class="page-title">Overview</h2><p class="page-intro" id="dashboardGreeting">Your business at a glance</p></div><span class="status-pill" id="homeSyncPill">Ready</span></div>
@@ -789,13 +793,15 @@ async function cloudAddExpense(name,amount,date) {
 
 function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 function normalizeCategory(value){const category=String(value??'').trim();return category||'Uncategorized';}
-function showPage(name){
-  document.querySelectorAll('.page').forEach(x=>x.classList.toggle('hidden',x.id!==name));
-  document.querySelectorAll('nav button').forEach(x=>x.classList.toggle('active',x.dataset.page===name||(x.dataset.page==='more'&&['more','expenses','reports','stock','settings'].includes(name))));
-  render();window.scrollTo({top:0,behavior:'smooth'});
-}
+const VALID_PAGES=new Set(['home','products','sales','more','expenses','reports','stock','settings']);
+function currentPage(){return [...document.querySelectorAll('.page')].find(x=>!x.classList.contains('hidden'))?.id||'home';}
+function paintPage(name,scroll){if(!VALID_PAGES.has(name))name='home';document.querySelectorAll('.page').forEach(x=>x.classList.toggle('hidden',x.id!==name));document.querySelectorAll('nav button').forEach(x=>x.classList.toggle('active',x.dataset.page===name||(x.dataset.page==='more'&&['more','expenses','reports','stock','settings'].includes(name))));sessionStorage.setItem('my-sales-book-current-page',name);render();const fab=document.getElementById('quickSaleFab');if(fab)fab.style.display=workspaceReady&&cloudUser?'flex':'none';if(scroll)window.scrollTo({top:0,behavior:'auto'});}
+function showPage(name,options={}){if(!VALID_PAGES.has(name))return;const previous=currentPage();if(!options.fromHistory&&previous!==name)history.pushState({mySalesBookPage:name},'', '#'+name);paintPage(name,options.scroll!==false);}
+function restorePageFromLocation(){const hash=location.hash.slice(1),saved=sessionStorage.getItem('my-sales-book-current-page');paintPage(VALID_PAGES.has(hash)?hash:(VALID_PAGES.has(saved)?saved:'home'),false);}
+window.addEventListener('popstate',()=>{const name=VALID_PAGES.has(location.hash.slice(1))?location.hash.slice(1):(history.state?.mySalesBookPage||'home');paintPage(name,false);});
 document.querySelectorAll('nav button').forEach(b=>b.addEventListener('click',()=>showPage(b.dataset.page)));
 document.querySelectorAll('[data-open-page]').forEach(b=>b.addEventListener('click',()=>showPage(b.dataset.openPage)));
+document.getElementById('quickSaleFab').addEventListener('click',()=>{showPage('sales');setTimeout(()=>{document.getElementById('saleForm')?.scrollIntoView({behavior:'smooth',block:'start'});document.getElementById('saleProduct')?.focus({preventScroll:true});},80);});
 
 function render(){
   db=normalizeDb(db);renderBrand();
@@ -1245,6 +1251,7 @@ async function refreshAccountStatus(){
   const alreadyImported = user && (localStorage.getItem('my-sales-book-imported-v1:' + user.id) === 'yes' || (importOwner && importOwner !== user.id));
   importButton.classList.toggle('hidden', !user || !hasLocal || alreadyImported);
   document.getElementById('appWorkspace').classList.toggle('hidden', !user || !workspaceReady);
+  document.getElementById('quickSaleFab').style.display=user&&workspaceReady&&!recoveryMode?'flex':'none';
   document.getElementById('accountCard').classList.toggle('hidden',!!user&&workspaceReady&&!recoveryMode);
   if(user&&workspaceReady){document.getElementById('settingsAccountStatus').textContent='Signed in as '+(user.email||'Google account')+'.';document.getElementById('settingsAccountMessage').textContent=document.getElementById('accountMessage').textContent||'';}
 }
@@ -1511,6 +1518,7 @@ load();
 applyTheme();
 localSnapshot = snapshotLocalRecords();
 render();
+restorePageFromLocation();
 
 if (supabaseClient) {
   supabaseClient.auth.onAuthStateChange((event, session) => {
