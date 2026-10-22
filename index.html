@@ -1226,6 +1226,9 @@ async function refreshAccountStatus(){
   signOut.classList.toggle('hidden', !user);
   document.getElementById('emailAuthPanel').classList.toggle('hidden', !!user);
   document.getElementById('accountManagePanel').classList.toggle('hidden', !user);
+  document.getElementById('accountCard').classList.toggle('hidden',!!user&&workspaceReady);
+  document.getElementById('settingsAccountStatus').textContent=user?'Signed in as '+(user.email||'Google account')+'.':'Not signed in.';
+  document.getElementById('settingsAccountMessage').textContent=document.getElementById('accountMessage').textContent||'';
   if (recoveryMode) {
     document.getElementById('recoveryPasswordForm').classList.remove('hidden');
     document.getElementById('emailAuthPanel').classList.add('hidden');
@@ -1240,6 +1243,8 @@ async function refreshAccountStatus(){
   const alreadyImported = user && (localStorage.getItem('my-sales-book-imported-v1:' + user.id) === 'yes' || (importOwner && importOwner !== user.id));
   importButton.classList.toggle('hidden', !user || !hasLocal || alreadyImported);
   document.getElementById('appWorkspace').classList.toggle('hidden', !user || !workspaceReady);
+  document.getElementById('accountCard').classList.toggle('hidden',!!user&&workspaceReady);
+  if(user&&workspaceReady){document.getElementById('settingsAccountStatus').textContent='Signed in as '+(user.email||'Google account')+'.';document.getElementById('settingsAccountMessage').textContent=document.getElementById('accountMessage').textContent||'';}
 }
 
 document.getElementById('googleSignIn').addEventListener('click', async () => {
@@ -1358,6 +1363,25 @@ document.getElementById('deleteAccountBtn').addEventListener('click', async () =
   }
 });
 
+document.getElementById('businessProfileForm').addEventListener('submit',async event=>{
+  event.preventDefault();if(!cloudUser)return cloudMessage('Sign in to save your business profile.');
+  const name=document.getElementById('businessNameInput').value.trim();if(!name)return alert('Enter your business name.');
+  const logoPending=document.getElementById('businessProfileForm').dataset.logoPending==='yes';
+  const profile={businessName:name.slice(0,100),businessLogo:logoPending?(pendingBusinessLogo||''):getProfile().businessLogo||''};
+  try{enqueueChange('profile_save',{profile});db.profile=profile;cacheCloudData(cloudUser.id);render();updateSyncStatus();if(navigator.onLine)await syncPendingChanges();document.getElementById('businessProfileForm').dataset.logoPending='';document.getElementById('businessLogoInput').value='';pendingBusinessLogo='';cloudMessage('Business profile saved.');}
+  catch(err){cloudMessage('Could not save business profile: '+(err.message||String(err)));}
+});
+let pendingBusinessLogo='';
+document.getElementById('businessLogoInput').addEventListener('change',async e=>{
+  const file=e.target.files?.[0];if(!file)return;
+  try{const data=await processProductImage(file);if(data.length>150000)throw Error('Logo image is too large. Choose a smaller image.');pendingBusinessLogo=data;document.getElementById('businessLogoPreview').src=data;document.getElementById('businessLogoPreview').style.display='block';document.getElementById('businessLogoHint').textContent='Logo selected. Save your business profile to apply it.';document.getElementById('businessProfileForm').dataset.logoPending='yes';
+  let b=document.getElementById('removeBusinessLogo');if(!b){b=document.createElement('button');b.type='button';b.id='removeBusinessLogo';b.textContent='Remove logo';b.style.marginTop='8px';document.getElementById('businessProfileForm').appendChild(b);b.addEventListener('click',()=>{pendingBusinessLogo='';document.getElementById('businessLogoPreview').removeAttribute('src');document.getElementById('businessLogoPreview').style.display='none';document.getElementById('businessLogoHint').textContent='Logo will be removed when you save.';document.getElementById('businessProfileForm').dataset.logoPending='yes';});}
+  }catch(err){alert(err.message||String(err));e.target.value='';}
+});
+document.getElementById('themePreference').value=themePreference;
+document.getElementById('themePreference').addEventListener('change',()=>{themePreference=document.getElementById('themePreference').value;localStorage.setItem('my-sales-book-theme-v1',themePreference);applyTheme();});
+document.getElementById('lowStockThreshold').value=lowStockThreshold;
+document.getElementById('savePreferencesBtn').addEventListener('click',()=>{const n=Number(document.getElementById('lowStockThreshold').value);if(!Number.isSafeInteger(n)||n<0||n>100000)return alert('Enter a whole-number threshold from 0 to 100000.');lowStockThreshold=n;localStorage.setItem('my-sales-book-low-stock-v1',String(n));render();alert('Preferences saved on this device.');});
 document.getElementById('changeEmailForm').addEventListener('submit', async event => {
   event.preventDefault();
   if (!supabaseClient) return cloudMessage('Account service is unavailable.');
@@ -1482,6 +1506,7 @@ document.getElementById('googleSignOut').addEventListener('click', async () => {
 });
 
 load();
+applyTheme();
 localSnapshot = snapshotLocalRecords();
 render();
 
