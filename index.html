@@ -112,6 +112,7 @@ dialog::backdrop{background:#10201699}
 <h2>Add a product</h2>
 <form id="productForm">
 <label for="pname">Product name</label><input id="pname" required maxlength="100">
+<label for="pcategory">Category</label><input id="pcategory" list="categorySuggestions" maxlength="60" placeholder="e.g. Drinks, Groceries" autocomplete="off"><datalist id="categorySuggestions"></datalist>
 <label for="pcost">Cost price per unit (₦)</label><input id="pcost" type="number" min="0" step="0.01" required>
 <label for="pprice">Selling price per unit (₦)</label><input id="pprice" type="number" min="0.01" step="0.01" required>
 <label for="pstock">Opening stock (units)</label><input id="pstock" type="number" min="0" step="1" required>
@@ -128,7 +129,14 @@ dialog::backdrop{background:#10201699}
 <button class="primary">Save product</button>
 </form>
 </div>
-<div class="card"><h2>Your products</h2><div id="productList" class="empty">No products yet.</div></div>
+<div class="card">
+<h2>Your products</h2>
+<label for="productSearch">Search by product name</label>
+<input id="productSearch" type="search" placeholder="Type a product name..." autocomplete="off">
+<label for="categoryFilter">Filter by category</label>
+<select id="categoryFilter"><option value="">All categories</option></select>
+<div id="productList" class="empty">No products yet.</div>
+</div>
 </section>
 
 <section id="sales" class="page hidden">
@@ -166,6 +174,8 @@ dialog::backdrop{background:#10201699}
     <input type="hidden" id="editProductId">
     <label for="editProductName">Product name</label>
     <input id="editProductName" required maxlength="100" autocomplete="off">
+    <label for="editProductCategory">Category</label>
+    <input id="editProductCategory" list="categorySuggestions" maxlength="60" placeholder="e.g. Drinks, Groceries" autocomplete="off">
     <label for="editProductCost">Cost price per unit (₦)</label>
     <input id="editProductCost" type="number" min="0" step="0.01" required inputmode="decimal">
     <label for="editProductPrice">Selling price per unit (₦)</label>
@@ -315,7 +325,7 @@ async function requireCloudUser() {
 async function cloudLoadAll() {
   const user=await requireCloudUser();
   const [pr,sr,er]=await Promise.all([
-    supabaseClient.from('products').select('id,name,cost_price,selling_price,stock,image_path,created_at').eq('user_id',user.id).order('created_at'),
+    supabaseClient.from('products').select('id,name,category,cost_price,selling_price,stock,image_path,created_at').eq('user_id',user.id).order('created_at'),
     supabaseClient.from('sales').select('id,product_id,product_name,quantity,unit_price,unit_cost,total,gross_profit,note,sold_at').eq('user_id',user.id).order('sold_at'),
     supabaseClient.from('expenses').select('id,description,amount,spent_at').eq('user_id',user.id).order('spent_at')
   ]);
@@ -328,7 +338,7 @@ async function cloudLoadAll() {
       const {data,error}=await supabaseClient.storage.from('product-images').createSignedUrl(row.image_path,3600);
       if(!error&&data?.signedUrl) image=data.signedUrl;
     }
-    return {id:row.id,name:row.name,cost:Number(row.cost_price),price:Number(row.selling_price),stock:Number(row.stock),image,imagePath:row.image_path||'',createdAt:row.created_at};
+    return {id:row.id,name:row.name,category:normalizeCategory(row.category),cost:Number(row.cost_price),price:Number(row.selling_price),stock:Number(row.stock),image,imagePath:row.image_path||'',createdAt:row.created_at};
   }));
   const sales=(sr.data||[]).map(row=>({id:row.id,productId:row.product_id,name:row.product_name,qty:Number(row.quantity),price:Number(row.unit_price),cost:Number(row.unit_cost),total:Number(row.total),profit:Number(row.gross_profit),note:row.note||'',date:row.sold_at}));
   const expenses=(er.data||[]).map(row=>({id:row.id,name:row.description,amount:Number(row.amount),date:row.spent_at}));
@@ -357,7 +367,7 @@ async function cloudSaveProduct(product,isNew) {
   const user=await requireCloudUser();
   let imagePath=product.imagePath||null;
   if(product.image&&product.image.startsWith('data:image/')) imagePath=await cloudUploadProductImage(product.image);
-  const row={user_id:user.id,name:product.name,cost_price:product.cost,selling_price:product.price,stock:product.stock,image_path:imagePath};
+  const row={user_id:user.id,name:product.name,category:normalizeCategory(product.category),cost_price:product.cost,selling_price:product.price,stock:product.stock,image_path:imagePath};
   const result=isNew
     ? await supabaseClient.from('products').insert({id:product.id,...row})
     : await supabaseClient.from('products').update(row).eq('id',product.id).eq('user_id',user.id);
@@ -410,6 +420,7 @@ async function cloudAddExpense(name,amount,date) {
 
 
 function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+function normalizeCategory(value){const category=String(value??'').trim();return category||'Uncategorized';}
 function showPage(name){
   document.querySelectorAll('.page').forEach(x=>x.classList.toggle('hidden',x.id!==name));
   document.querySelectorAll('nav button').forEach(x=>x.classList.toggle('active',x.dataset.page===name));
@@ -435,14 +446,28 @@ function render(){
   document.getElementById('productCount').textContent=db.products.length;
   document.getElementById('stockCount').textContent=db.products.reduce((s,p)=>s+p.stock,0);
 
-  document.getElementById('productList').innerHTML=db.products.length?db.products.map(p=>{
+  db.products.forEach(p=>{p.category=normalizeCategory(p.category);});
+  const searchTerm=(document.getElementById('productSearch').value||'').trim().toLocaleLowerCase();
+  const categoryFilter=document.getElementById('categoryFilter');
+  const previousCategory=categoryFilter.value;
+  const categories=[...new Set(db.products.map(p=>normalizeCategory(p.category)))].sort((a,b)=>a.localeCompare(b));
+  categoryFilter.innerHTML='<option value="">All categories</option>'+categories.map(c=>`<option value="${esc(c)}">${esc(c)}</option>`).join('');
+  if(categories.includes(previousCategory))categoryFilter.value=previousCategory;
+  const selectedCategory=categoryFilter.value;
+  document.getElementById('categorySuggestions').innerHTML=categories.map(c=>`<option value="${esc(c)}"></option>`).join('');
+  const filteredProducts=db.products.filter(p=>
+    p.name.toLocaleLowerCase().includes(searchTerm)&&
+    (!selectedCategory||normalizeCategory(p.category)===selectedCategory)
+  );
+  document.getElementById('productList').innerHTML=filteredProducts.length?filteredProducts.map(p=>{
     const photo=typeof p.image==='string'&&(p.image.startsWith('data:image/')||p.image.startsWith('https://'))?`<img class="product-photo" src="${p.image}" alt="${esc(p.name)} photo">`:'<div class="product-photo" aria-label="No product photo"></div>';
     return `<div class="item"><div class="item-product">${photo}<div class="item-product-details">
     <div class="row"><strong>${esc(p.name)}</strong><strong>${money(p.price)}</strong></div>
+    <div class="muted">Category: ${esc(normalizeCategory(p.category))}</div>
     <div class="muted">Cost ${money(p.cost)} · Stock ${p.stock} units</div></div></div>
     <div class="photo-actions"><button data-edit="${p.id}">Edit details</button><button data-image-camera="${p.id}">Take/replace photo</button></div>
     <div class="photo-actions"><button data-image-gallery="${p.id}">Choose/replace photo</button>${p.image?`<button class="danger" data-image-remove="${p.id}">Remove photo</button>`:''}<button class="danger" data-delete="${p.id}">Delete product</button></div></div>`;
-  }).join(''):'<div class="empty">No products yet.</div>';
+  }).join(''):db.products.length?'<div class="empty">No products match your search or category.</div>':'<div class="empty">No products yet.</div>';
 
   const sel=document.getElementById('saleProduct'), previous=sel.value;
   sel.innerHTML='<option value="">Choose a product</option>'+db.products.map(p=>`<option value="${p.id}">${esc(p.name)} (${p.stock} in stock)</option>`).join('');
@@ -454,6 +479,9 @@ function render(){
   document.getElementById('recentSales').innerHTML=db.sales.length?[...db.sales].reverse().slice(0,5).map(saleHTML).join(''):'<div class="empty">No sales recorded yet.</div>';
   document.getElementById('expenseList').innerHTML=db.expenses.length?[...db.expenses].reverse().map(x=>`<div class="item"><div class="row"><strong>${esc(x.name)}</strong><strong>${money(x.amount)}</strong></div><div class="muted">${new Date(x.date).toLocaleString()}</div></div>`).join(''):'<div class="empty">No expenses recorded yet.</div>';
 }
+document.getElementById('productSearch').addEventListener('input',render);
+document.getElementById('categoryFilter').addEventListener('change',render);
+
 function updateSalePrice(){
  const p=db.products.find(x=>x.id===document.getElementById('saleProduct').value);
  document.getElementById('salePrice').value=p?p.price:'';
@@ -553,7 +581,8 @@ document.getElementById('productForm').addEventListener('submit',async e=>{
  const name=document.getElementById('pname').value.trim(),cost=Number(document.getElementById('pcost').value),price=Number(document.getElementById('pprice').value),stock=Number(document.getElementById('pstock').value);
  if(!name||!Number.isFinite(cost)||cost<0||!Number.isFinite(price)||price<=0||!Number.isSafeInteger(stock)||stock<0)return alert('Check the product details.');
  if(db.products.some(p=>p.name.toLowerCase()===name.toLowerCase()))return alert('A product with this name already exists.');
- const product={id:crypto.randomUUID(),name,cost,price,stock,image:pendingProductImage,createdAt:now()};
+ const category=normalizeCategory(document.getElementById('pcategory').value);
+ const product={id:crypto.randomUUID(),name,category,cost,price,stock,image:pendingProductImage,createdAt:now()};
  if(storageMode==='cloud'&&cloudReady){
    const ok=await cloudAction(async()=>{await cloudSaveProduct(product,true);await cloudLoadAll();});
    if(!ok)return;
@@ -582,6 +611,7 @@ function updateEditProductPhotoPreview(product) {
 function openProductEditor(product) {
   document.getElementById('editProductId').value=product.id;
   document.getElementById('editProductName').value=product.name;
+  document.getElementById('editProductCategory').value=normalizeCategory(product.category);
   document.getElementById('editProductCost').value=product.cost;
   document.getElementById('editProductPrice').value=product.price;
   document.getElementById('editProductStock').value=product.stock;
@@ -633,6 +663,7 @@ document.getElementById('editProductForm').addEventListener('submit',async event
   const product=db.products.find(x=>x.id===id);
   if(!product)return alert('This product could not be found. Close the form and try again.');
   const name=document.getElementById('editProductName').value.trim();
+  const category=normalizeCategory(document.getElementById('editProductCategory').value);
   const cost=Number(document.getElementById('editProductCost').value);
   const price=Number(document.getElementById('editProductPrice').value);
   const stock=Number(document.getElementById('editProductStock').value);
@@ -640,7 +671,7 @@ document.getElementById('editProductForm').addEventListener('submit',async event
     return alert('Enter a product name, a cost price of zero or more, a selling price above zero, and a whole-number stock quantity of zero or more.');
   }
   if(db.products.some(x=>x.id!==id&&x.name.trim().toLowerCase()===name.toLowerCase()))return alert('Another product already has this name.');
-  const updated={...product,name,cost,price,stock};
+  const updated={...product,name,category,cost,price,stock};
   if(editPendingProductImage)updated.image=editPendingProductImage;
   else if(editRemoveProductImage){updated.image='';updated.imagePath='';}
 
