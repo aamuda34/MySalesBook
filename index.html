@@ -94,6 +94,7 @@ dialog::backdrop{background:#10201699}
   </div>
   <p id="accountMessage" class="muted"></p>
   <p id="syncStatus" class="muted">Checking sync status...</p>
+  <div id="syncDetails" class="muted"></div>
   <button type="button" id="syncNowBtn">Sync now</button>
   <button type="button" id="importLocalRecordsBtn" class="hidden">Import this device's existing records</button>
 </section>
@@ -340,6 +341,19 @@ function updateSyncStatus() {
     !navigator.onLine ? (waiting ? waiting + ' change(s) waiting to sync. Offline.' : 'Offline. Showing the last saved cloud records.') :
     waiting ? waiting + ' change(s) waiting to sync.' : 'All changes synchronised.';
   button.disabled = !cloudUser || !navigator.onLine || syncingQueue;
+  const details = document.getElementById('syncDetails');
+  if (details) {
+    details.innerHTML = pendingSync.filter(item=>item.status!=='synced').slice(0,10).map(item=>{
+      const payload=item.payload||{};
+      const label=item.type==='product_save'?'Product: '+(payload.product?.name||'item'):
+        item.type==='product_delete'?'Delete product: '+(payload.product?.name||'item'):
+        item.type==='product_remove_image'?'Product photo: '+(payload.product?.name||'item'):
+        item.type==='sale'?'Sale: '+(payload.sale?.name||'item'):
+        item.type==='sale_import'?'Imported sale: '+(payload.sale?.name||'item'):
+        item.type==='expense'?'Expense: '+(payload.expense?.name||'item'):item.type;
+      return '<div class="item"><strong>'+esc(item.status==='conflict'?'Needs attention':item.error?'Sync failed':'Waiting to sync')+'</strong> · '+esc(label)+(item.error?'<div>'+esc(item.error)+'</div>':'')+'</div>';
+    }).join('');
+  }
 }
 function enqueueChange(type, payload) {
   if (!cloudUser) throw Error('Sign in before saving business records.');
