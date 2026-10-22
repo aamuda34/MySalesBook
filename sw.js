@@ -1,9 +1,10 @@
 'use strict';
 
-const CACHE_NAME = 'my-sales-book-shell-v5';
+const CACHE_NAME = 'my-sales-book-shell-v6';
 const APP_SHELL = [
   './',
   './index.html',
+  './supabase-config.js',
   './manifest.webmanifest',
   './icons/icon.svg'
 ];
@@ -49,13 +50,20 @@ self.addEventListener('fetch', event => {
 
   // App navigation: try the network first, then use the cached app page.
   if (request.mode === 'navigate') {
-    event.respondWith(
-      fetch(request).catch(async () => {
-        const cache = await caches.open(CACHE_NAME);
+    event.respondWith((async () => {
+      const cache = await caches.open(CACHE_NAME);
+      try {
+        const response = await fetch(request);
+        if (response && response.ok) cache.put('./index.html', response.clone()).catch(() => {});
+        return response;
+      } catch (_) {
+        // A previously visited page must still open when offline. Always fall
+        // back to the cached app shell, even for a URL containing a page hash.
         return (await cache.match('./index.html')) ||
-               (await cache.match('./'));
-      })
-    );
+               (await cache.match('./')) ||
+               new Response('My Sales Book is not available offline yet. Connect once to the internet, open the app, and try again.', {status:503,headers:{'Content-Type':'text/plain; charset=utf-8'}});
+      }
+    })());
     return;
   }
 
