@@ -872,7 +872,7 @@ let editRemoveProductImage = false;
 function updateEditProductPhotoPreview(product) {
   const preview=document.getElementById('editProductPhotoPreview');
   const status=document.getElementById('editProductPhotoStatus');
-  const image=editPendingProductImage || (!editRemoveProductImage ? product?.image : '');
+  const image=editPendingProductImage || (!editRemoveProductImage ? (product?.offlineImage || product?.image) : '');
   if(image){preview.src=image;preview.classList.remove('hidden');}
   else{preview.removeAttribute('src');preview.classList.add('hidden');}
   status.textContent=editPendingProductImage?'New photo selected. It will be saved with the product.':editRemoveProductImage?'The product photo will be removed when you save.':product?.image?'Current photo will be kept unless you replace or remove it.':'No product photo selected.';
