@@ -25,12 +25,9 @@ BEGIN
     RAISE EXCEPTION 'You must sign in before deleting your account.';
   END IF;
 
-  -- Remove the user's private product photos first. The business tables
-  -- reference auth.users with ON DELETE CASCADE.
-  DELETE FROM storage.objects
-  WHERE bucket_id = 'product-images'
-    AND (storage.foldername(name))[1] = v_user_id::text;
-
+  -- Business tables reference auth.users with ON DELETE CASCADE.
+  -- Product files are removed through the Storage API before this function
+  -- is called; do not delete storage metadata directly through SQL.
   DELETE FROM auth.users WHERE id = v_user_id;
 END;
 $function$;
