@@ -99,6 +99,10 @@ body.dark nav{background:var(--page)}body.dark nav button{color:#b8c9bc}body.dar
   .product-image-lightbox img{display:block;max-width:100%;max-height:82vh;width:auto;height:auto;object-fit:contain;border-radius:12px;box-shadow:0 12px 40px #0006}
   .product-image-lightbox .lightbox-close{position:absolute;top:max(16px,env(safe-area-inset-top));right:18px;width:48px;height:48px;border:0;border-radius:50%;background:#fff;color:#163d28;font-size:30px;line-height:1}
   .product-image-lightbox .lightbox-caption{position:absolute;bottom:max(18px,env(safe-area-inset-bottom));left:20px;right:20px;color:#fff;text-align:center;font-weight:600}
+  .category-suggestions{display:flex;flex-wrap:wrap;gap:7px;margin:7px 0 3px}
+  .category-suggestions:empty{display:none}
+  .category-suggestions button{width:auto;margin:0;padding:7px 11px;border:1px solid #cbdccf;border-radius:999px;background:#edf5ef;color:#14532d;font-size:13px;font-weight:600}
+  .category-suggestions .suggestion-label{width:100%;font-size:12px;color:#637168}
 </style>
 
 <link rel="manifest" href="./manifest.webmanifest">
@@ -147,7 +151,7 @@ body.dark nav{background:var(--page)}body.dark nav button{color:#b8c9bc}body.dar
 <h2>Add a product</h2>
 <form id="productForm">
 <label for="pname">Product name</label><input id="pname" required maxlength="100">
-<label for="pcategory">Category</label><input id="pcategory" list="categorySuggestions" maxlength="60" placeholder="e.g. Drinks, Groceries" autocomplete="off"><datalist id="categorySuggestions"></datalist>
+<label for="pcategory">Category</label><input id="pcategory" list="categorySuggestions" maxlength="60" placeholder="e.g. Drinks, Groceries" autocomplete="off"><datalist id="categorySuggestions"></datalist><div id="categorySuggestionChips" class="category-suggestions" aria-label="Existing category suggestions"></div>
 <label for="pcost">Cost price per unit (₦)</label><input id="pcost" type="number" min="0" step="0.01" required>
 <label for="pprice">Selling price per unit (₦)</label><input id="pprice" type="number" min="0.01" step="0.01" required>
 <label for="pstock">Opening stock (units)</label><input id="pstock" type="number" min="0" step="1" required>
@@ -223,7 +227,7 @@ body.dark nav{background:var(--page)}body.dark nav button{color:#b8c9bc}body.dar
     <label for="editProductName">Product name</label>
     <input id="editProductName" required maxlength="100" autocomplete="off">
     <label for="editProductCategory">Category</label>
-    <input id="editProductCategory" list="categorySuggestions" maxlength="60" placeholder="e.g. Drinks, Groceries" autocomplete="off">
+    <input id="editProductCategory" list="categorySuggestions" maxlength="60" placeholder="e.g. Drinks, Groceries" autocomplete="off"><div id="editCategorySuggestionChips" class="category-suggestions" aria-label="Existing category suggestions"></div>
     <label for="editProductCost">Cost price per unit (₦)</label>
     <input id="editProductCost" type="number" min="0" step="0.01" required inputmode="decimal">
     <label for="editProductPrice">Selling price per unit (₦)</label>
@@ -835,6 +839,8 @@ document.querySelectorAll('[data-open-page]').forEach(b=>b.addEventListener('cli
 document.getElementById('quickSaleFab').addEventListener('click',()=>{showPage('sales');setTimeout(()=>{document.getElementById('saleForm')?.scrollIntoView({behavior:'smooth',block:'start'});document.getElementById('saleProduct')?.focus({preventScroll:true});},80);});
 function closeProductLightbox(){document.getElementById('productImageLightbox').classList.add('hidden');document.body.style.overflow='';}
 function openProductLightbox(src,caption){const box=document.getElementById('productImageLightbox');document.getElementById('largeProductImage').src=src;document.getElementById('largeProductImage').alt=caption+' photo';document.getElementById('largeProductImageCaption').textContent=caption;box.classList.remove('hidden');document.body.style.overflow='hidden';document.getElementById('closeProductImage').focus();}
+document.getElementById('categorySuggestionChips').addEventListener('click',event=>{const button=event.target.closest('[data-category-suggestion]');if(button)document.getElementById('pcategory').value=button.dataset.categorySuggestion;});
+document.getElementById('editCategorySuggestionChips').addEventListener('click',event=>{const button=event.target.closest('[data-category-suggestion]');if(button)document.getElementById('editProductCategory').value=button.dataset.categorySuggestion;});
 document.getElementById('productList').addEventListener('click',event=>{const img=event.target.closest('img.product-photo');if(!img||!img.src)return;event.preventDefault();openProductLightbox(img.src,img.alt.replace(/ photo$/,''));});
 document.getElementById('closeProductImage').addEventListener('click',closeProductLightbox);
 document.getElementById('productImageLightbox').addEventListener('click',event=>{if(event.target.id==='productImageLightbox')closeProductLightbox();});
@@ -873,6 +879,9 @@ function render(){
   if(categories.includes(previousCategory))categoryFilter.value=previousCategory;
   const selectedCategory=categoryFilter.value;
   document.getElementById('categorySuggestions').innerHTML=categories.map(c=>`<option value="${esc(c)}"></option>`).join('');
+  const categoryChips=categories.map(c=>`<button type="button" data-category-suggestion="${esc(c)}">${esc(c)}</button>`).join('');
+  document.getElementById('categorySuggestionChips').innerHTML=categories.length?'<span class="suggestion-label">Your categories · tap to use</span>'+categoryChips:'';
+  document.getElementById('editCategorySuggestionChips').innerHTML=categories.length?'<span class="suggestion-label">Your categories · tap to use</span>'+categoryChips:'';
   const filteredProducts=db.products.filter(p=>
     p.name.toLocaleLowerCase().includes(searchTerm)&&
     (!selectedCategory||normalizeCategory(p.category)===selectedCategory)
