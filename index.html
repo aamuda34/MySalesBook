@@ -912,6 +912,38 @@ document.getElementById('resetPasswordBtn').addEventListener('click', async () =
     cloudMessage('Could not request a password reset: ' + (error.message || String(error)));
   }
 });
+document.getElementById('recoveryPasswordForm').addEventListener('submit', async event => {
+  event.preventDefault();
+  const password = document.getElementById('recoveryPassword').value;
+  try {
+    const { error } = await supabaseClient.auth.updateUser({ password });
+    if (error) throw error;
+    document.getElementById('recoveryPasswordForm').classList.add('hidden');
+    document.getElementById('recoveryPasswordForm').reset();
+    cloudMessage('Password updated. You can continue using your account.');
+    await handleCloudAuthChange();
+  } catch (error) {
+    cloudMessage('Could not update password: ' + (error.message || String(error)));
+  }
+});
+document.getElementById('deleteAccountBtn').addEventListener('click', async () => {
+  const first = prompt('Deleting your account permanently deletes your cloud products, sales, expenses and product photos. This cannot be undone. Type DELETE to continue.');
+  if (first !== 'DELETE') return;
+  if (!confirm('Final confirmation: permanently delete this account and all its cloud business records?')) return;
+  try {
+    const { error } = await supabaseClient.rpc('delete_my_account');
+    if (error) throw error;
+    await supabaseClient.auth.signOut({ scope: 'local' });
+    cloudUser = null;
+    cloudReady = false;
+    document.getElementById('appWorkspace').classList.add('hidden');
+    await refreshAccountStatus();
+    cloudMessage('Account and cloud business records were deleted. Any separate local-device backup was not deleted.');
+  } catch (error) {
+    cloudMessage('Account deletion failed: ' + (error.message || String(error)) + '. Your records have not been intentionally cleared by this app.');
+  }
+});
+
 document.getElementById('changeEmailForm').addEventListener('submit', async event => {
   event.preventDefault();
   if (!supabaseClient) return cloudMessage('Account service is unavailable.');
