@@ -330,7 +330,7 @@ function enqueueChange(type, payload) {
 }
 function applyPendingToDb() {
   for (const item of pendingSync) {
-    if (item.status === 'conflict') continue;
+    if (item.status === 'conflict' || item.status === 'synced') continue;
     const p = item.payload || {};
     if (item.type === 'product_save') {
       const product = p.product;
@@ -439,17 +439,26 @@ function restoreLocalRecords() {
 async function handleCloudAuthChange() {
   if (authTransition) return;
   authTransition = true;
+  let activeUser = null;
   try {
     const {data, error} = await supabaseClient.auth.getSession();
     if (error) throw error;
     const user = data.session?.user || null;
+    activeUser = user;
 
     if (user) {
       if (storageMode !== 'cloud') localSnapshot = snapshotLocalRecords();
       cloudUser = user;
-      await cloudLoadAll();
-      cloudMessage('Cloud mode is active for ' + (user.email || 'your account') +
-        '. Local-device records remain separate and unchanged.');
+      pendingSync = readQueue(user.id);
+      try {
+        await cloudLoadAll();
+        if (pendingSync.some(item => item.status !== 'conflict')) await syncPendingChanges();
+      } catch (loadError) {
+        if (!restoreCloudCache(user.id)) throw loadError;
+        cloudReady = false;
+        storageMode = 'cloud-offline';
+        cloudMessage('Offline mode: showing the last saved copy for ' + (user.email || 'your account') + '. Changes will be queued when saved.');
+      }
     } else {
       restoreLocalRecords();
       cloudMessage('Sign in to access your private business records.');
@@ -457,8 +466,18 @@ async function handleCloudAuthChange() {
     await refreshAccountStatus();
   } catch (err) {
     cloudReady = false;
-    cloudMessage('Cloud connection failed: ' + (err.message || String(err)) +
-      '. Your existing local backup has not been intentionally replaced.');
+    if (activeUser) {
+      cloudUser = activeUser;
+      const restored = restoreCloudCache(activeUser.id);
+      if (restored) {
+        cloudMessage('Could not reach the cloud. Showing the last saved copy; queued changes remain on this device.');
+        await refreshAccountStatus();
+      } else {
+        cloudMessage('Could not reach the cloud and no saved copy exists on this device. Connect to the internet to load your account for the first time.');
+      }
+    } else {
+      cloudMessage('Cloud connection failed: ' + (err.message || String(err)) + '. Sign in again when internet is available.');
+    }
     console.error('Cloud authentication/load error:', err);
   } finally {
     authTransition = false;
@@ -515,8 +534,14 @@ async function cloudLoadAll() {
   db={products,sales,expenses};
   storageMode='cloud';
   cloudReady=true;
+  pendingSync=readQueue(user.id);
+  applyPendingToDb();
   render();
-  cloudMessage('Cloud records loaded. Existing local-device records have not been uploaded or deleted.');
+  cacheCloudData(user.id);
+  updateSyncStatus();
+  cloudMessage(pendingSync.length
+    ? pendingSync.length + ' change(s) are waiting to sync. Your local copies are preserved.'
+    : 'Cloud records loaded and synchronised.');
 }
 
 async function cloudUploadProductImage(imageData) {
