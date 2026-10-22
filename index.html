@@ -312,8 +312,14 @@ function writeQueue(queue, userId=cloudUser?.id) {
   updateSyncStatus();
 }
 function cacheCloudData(userId=cloudUser?.id) {
-  if (!userId) return;
-  localStorage.setItem(cloudCacheKey(userId), JSON.stringify(db));
+  if (!userId) return false;
+  try {
+    localStorage.setItem(cloudCacheKey(userId), JSON.stringify(db));
+    return true;
+  } catch (error) {
+    cloudMessage('Your account is online, but this device could not cache all records for offline use. Export a backup and free browser storage. ' + (error.message || ''));
+    return false;
+  }
 }
 function restoreCloudCache(userId) {
   try {
@@ -1104,7 +1110,8 @@ async function refreshAccountStatus(){
   document.getElementById('recoveryPasswordForm').classList.add('hidden');
   const importButton = document.getElementById('importLocalRecordsBtn');
   const hasLocal = !!(localSnapshot && (localSnapshot.products.length || localSnapshot.sales.length || localSnapshot.expenses.length));
-  const alreadyImported = user && localStorage.getItem('my-sales-book-imported-v1:' + user.id) === 'yes';
+  const importOwner = localStorage.getItem('my-sales-book-legacy-import-owner-v1');
+  const alreadyImported = user && (localStorage.getItem('my-sales-book-imported-v1:' + user.id) === 'yes' || (importOwner && importOwner !== user.id));
   importButton.classList.toggle('hidden', !user || !hasLocal || alreadyImported);
   document.getElementById('appWorkspace').classList.toggle('hidden', !user);
 }
@@ -1241,6 +1248,8 @@ document.getElementById('importLocalRecordsBtn').addEventListener('click', async
   button.disabled = true;
   try {
     const user = await requireCloudUser();
+    const importOwner = localStorage.getItem('my-sales-book-legacy-import-owner-v1');
+    if (importOwner && importOwner !== user.id) throw Error('These older device records were already assigned to a different account. Export them and do not import them into another account.');
     const [productsResult,salesResult,expensesResult] = await Promise.all([
       supabaseClient.from('products').select('id,name,category').eq('user_id',user.id),
       supabaseClient.from('sales').select('id').eq('user_id',user.id),
@@ -1288,6 +1297,7 @@ document.getElementById('importLocalRecordsBtn').addEventListener('click', async
     cacheCloudData(user.id);
     render();
     localStorage.setItem('my-sales-book-imported-v1:' + user.id,'yes');
+    localStorage.setItem('my-sales-book-legacy-import-owner-v1',user.id);
     button.classList.add('hidden');
     cloudMessage('Queued ' + added + ' record(s) for safe import. Keep this phone available until Sync now reports all changes synchronised.');
     updateSyncStatus();
