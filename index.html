@@ -246,22 +246,21 @@ if (!supabaseClient) {
 }
 const DBKEY='my-sales-book-v1';
 const money=n=>'₦'+Number(n||0).toLocaleString('en-NG',{minimumFractionDigits:2,maximumFractionDigits:2});
-const today=()=>new Date().toLocaleDateString('en-CA');
+const today=()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');};
 const now=()=>new Date().toISOString();
-let db={products:[],sales:[],expenses:[]};
+let db={products:[],sales:[],expenses:[],stockAdjustments:[],profile:{businessName:'',businessLogo:''}};
+function normalizeDb(v){return {products:Array.isArray(v?.products)?v.products:[],sales:Array.isArray(v?.sales)?v.sales:[],expenses:Array.isArray(v?.expenses)?v.expenses:[],stockAdjustments:Array.isArray(v?.stockAdjustments)?v.stockAdjustments:[],profile:v?.profile&&typeof v.profile==='object'?v.profile:{businessName:'',businessLogo:''}};}
+let lowStockThreshold=Number(localStorage.getItem('my-sales-book-low-stock-v1')||5);if(!Number.isSafeInteger(lowStockThreshold)||lowStockThreshold<0)lowStockThreshold=5;
+let themePreference=localStorage.getItem('my-sales-book-theme-v1')||'system';
+function applyTheme(){const dark=themePreference==='dark'||(themePreference==='system'&&window.matchMedia?.('(prefers-color-scheme: dark)').matches);document.body.classList.toggle('dark',!!dark);}
+function safeDate(value){const d=new Date(value);return Number.isNaN(d.getTime())?new Date(0):d;}
+function dateKey(value){const d=safeDate(value);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+function getProfile(){return db.profile||{businessName:'',businessLogo:''};}
+function renderBrand(){const p=getProfile(),name=String(p.businessName||'').trim();document.getElementById('businessTitle').textContent=name||'My Sales Book';document.getElementById('businessSubtitle').textContent=name?'Business records · Nigerian naira (₦)':'Simple business records · Nigerian naira (₦)';const logo=document.getElementById('headerBusinessLogo'),mark=document.getElementById('brandMark');if(p.businessLogo){logo.src=p.businessLogo;logo.style.display='block';mark.style.display='none';}else{logo.removeAttribute('src');logo.style.display='none';mark.style.display='grid';mark.textContent=(name||'My Sales Book').split(/\\s+/).slice(0,2).map(x=>x[0]||'').join('').toUpperCase()||'MS';}const input=document.getElementById('businessNameInput');if(input&&document.activeElement!==input)input.value=name;const preview=document.getElementById('businessLogoPreview');if(preview&&document.activeElement!==preview){if(p.businessLogo){preview.src=p.businessLogo;preview.style.display='block';}else{preview.removeAttribute('src');preview.style.display='none';}}}
 let storageMode='memory';
 
-function load(){
-  try{
-    const raw=localStorage.getItem(DBKEY);
-    if(raw){const parsed=JSON.parse(raw);if(parsed&&Array.isArray(parsed.products)&&Array.isArray(parsed.sales)&&Array.isArray(parsed.expenses))db=parsed;}
-    storageMode='browser';
-  }catch(e){storageMode='memory';}
-}
-function save(){
-  try{localStorage.setItem(DBKEY,JSON.stringify(db));storageMode='browser';return true;}
-  catch(e){alert('Could not save records permanently. Export a backup and check browser storage permissions.');return false;}
-}
+function load(){try{const raw=localStorage.getItem(DBKEY);if(raw)db=normalizeDb(JSON.parse(raw));storageMode='browser';}catch(e){db=normalizeDb(db);storageMode='memory';}}
+function save(){try{db=normalizeDb(db);localStorage.setItem(DBKEY,JSON.stringify(db));storageMode='browser';return true;}catch(e){alert('Could not save records permanently. Export a backup and check browser storage permissions.');return false;}}
 
 let cloudUser = null;
 let cloudReady = false;
@@ -285,10 +284,7 @@ async function saveCloudChangeLocally(type, payload) {
   return true;
 }
 
-function cloudMessage(text) {
-  const el = document.getElementById('accountMessage');
-  if (el) el.textContent = text;
-}
+function cloudMessage(text){const el=document.getElementById('accountMessage'),settings=document.getElementById('settingsAccountMessage');if(el)el.textContent=text;if(settings)settings.textContent=text;}
 
 
 let localSnapshot = null;
@@ -405,6 +401,7 @@ function enqueueChange(type, payload) {
   }
 }
 function applyPendingToDb() {
+  db=normalizeDb(db);
   for (const item of pendingSync) {
     if (item.status === 'synced') continue;
     const p = item.payload || {};
@@ -429,6 +426,10 @@ function applyPendingToDb() {
       if (!db.expenses.some(x => x.id === p.expense.id)) db.expenses.push(p.expense);
     } else if (item.type === 'sale_import') {
       if (!db.sales.some(x => x.id === p.sale.id)) db.sales.push(p.sale);
+    } else if(item.type==='stock_adjustment'){
+      if(p.adjustment&&!db.stockAdjustments.some(x=>x.id===p.adjustment.id))db.stockAdjustments.push(p.adjustment);
+    } else if(item.type==='profile_save'){
+      if(p.profile)db.profile={...getProfile(),...p.profile};
     }
   }
 }
@@ -515,6 +516,14 @@ async function syncPendingChanges() {
             amount:p.expense.amount,spent_at:p.expense.date
           }, {onConflict:'id',ignoreDuplicates:true});
           if (error) throw error;
+        } else if(item.type==='stock_adjustment'){
+          const user=await requireCloudUser(),a=p.adjustment;
+          const {error}=await supabaseClient.from('stock_adjustments').upsert({id:a.id,user_id:user.id,product_id:a.productId,product_name:a.productName,previous_stock:a.previousStock,new_stock:a.newStock,quantity_change:a.quantityChange,reason:a.reason||'',adjusted_at:a.date},{onConflict:'id',ignoreDuplicates:true});
+          if(error)throw error;
+        } else if(item.type==='profile_save'){
+          const user=await requireCloudUser(),profile=p.profile||{};
+          const {error}=await supabaseClient.from('user_profiles').upsert({user_id:user.id,business_name:String(profile.businessName||'').slice(0,100),business_logo:profile.businessLogo||null,updated_at:now()},{onConflict:'user_id'});
+          if(error)throw error;
         }
         item.status = 'synced';
         item.error = '';
@@ -666,14 +675,16 @@ async function imageUrlToDataUrl(url) {
 
 async function cloudLoadAll() {
   const user=await requireCloudUser();
-  const [pr,sr,er]=await Promise.all([
+  const [pr,sr,er,ar,profileResult]=await Promise.all([
     supabaseClient.from('products').select('id,name,category,cost_price,selling_price,stock,image_path,created_at,updated_at').eq('user_id',user.id).order('created_at'),
     supabaseClient.from('sales').select('id,product_id,product_name,quantity,unit_price,unit_cost,total,gross_profit,note,sold_at').eq('user_id',user.id).order('sold_at'),
-    supabaseClient.from('expenses').select('id,description,amount,spent_at').eq('user_id',user.id).order('spent_at')
+    supabaseClient.from('expenses').select('id,description,amount,spent_at').eq('user_id',user.id).order('spent_at'),
+    supabaseClient.from('stock_adjustments').select('id,product_id,product_name,previous_stock,new_stock,quantity_change,reason,adjusted_at').eq('user_id',user.id).order('adjusted_at',{ascending:false}),
+    supabaseClient.from('user_profiles').select('business_name,business_logo').eq('user_id',user.id).maybeSingle()
   ]);
-  if(pr.error) throw pr.error;
-  if(sr.error) throw sr.error;
-  if(er.error) throw er.error;
+  if(pr.error)throw pr.error;if(sr.error)throw sr.error;if(er.error)throw er.error;if(ar.error)throw ar.error;if(profileResult.error)throw profileResult.error;
+  let fallbackProfile={business_name:'',business_logo:null};
+  if(!profileResult.data){const identity=String(user.user_metadata?.business_name||user.user_metadata?.full_name||user.email?.split('@')[0]||'My').trim();fallbackProfile={business_name:(identity.endsWith('Business')?identity:identity+' Business').slice(0,100),business_logo:null};const {error}=await supabaseClient.from('user_profiles').upsert({user_id:user.id,...fallbackProfile,updated_at:now()},{onConflict:'user_id',ignoreDuplicates:true});if(error)throw error;}
   const products=await Promise.all((pr.data||[]).map(async row=>{
     let image='',offlineImage='';
     if(row.image_path){
@@ -687,7 +698,9 @@ async function cloudLoadAll() {
   }));
   const sales=(sr.data||[]).map(row=>({id:row.id,productId:row.product_id,name:row.product_name,qty:Number(row.quantity),price:Number(row.unit_price),cost:Number(row.unit_cost),total:Number(row.total),profit:Number(row.gross_profit),note:row.note||'',date:row.sold_at}));
   const expenses=(er.data||[]).map(row=>({id:row.id,name:row.description,amount:Number(row.amount),date:row.spent_at}));
-  db={products,sales,expenses};
+  const stockAdjustments=(ar.data||[]).map(row=>({id:row.id,productId:row.product_id,productName:row.product_name,previousStock:Number(row.previous_stock),newStock:Number(row.new_stock),quantityChange:Number(row.quantity_change),reason:row.reason||'',date:row.adjusted_at}));
+  const profile=profileResult.data||fallbackProfile;
+  db=normalizeDb({products,sales,expenses,stockAdjustments,profile:{businessName:profile.business_name||'',businessLogo:profile.business_logo||''}});
   storageMode='cloud';
   cloudReady=true;
   workspaceReady=true;
@@ -776,10 +789,11 @@ function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;',
 function normalizeCategory(value){const category=String(value??'').trim();return category||'Uncategorized';}
 function showPage(name){
   document.querySelectorAll('.page').forEach(x=>x.classList.toggle('hidden',x.id!==name));
-  document.querySelectorAll('nav button').forEach(x=>x.classList.toggle('active',x.dataset.page===name));
-  render();
+  document.querySelectorAll('nav button').forEach(x=>x.classList.toggle('active',x.dataset.page===name||(x.dataset.page==='more'&&['more','expenses','reports','stock','settings'].includes(name))));
+  render();window.scrollTo({top:0,behavior:'smooth'});
 }
 document.querySelectorAll('nav button').forEach(b=>b.addEventListener('click',()=>showPage(b.dataset.page)));
+document.querySelectorAll('[data-open-page]').forEach(b=>b.addEventListener('click',()=>showPage(b.dataset.openPage)));
 
 function render(){
   const d=today();
