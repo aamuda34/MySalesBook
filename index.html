@@ -445,6 +445,8 @@ function propagateQueuedProductVersion(queue, fromIndex, productId, version) {
     const later=queue[i], payload=later.payload||{};
     if (later.type==='product_save' && payload.product?.id===productId && !payload.isNew) {
       payload.product.updatedAt=version;
+    } else if (later.type==='product_delete' && payload.product?.id===productId) {
+      payload.product.updatedAt=version;
     } else if (later.type==='sale' && payload.sale?.productId===productId) {
       payload.productUpdatedAt=version;
     } else if (later.type==='product_remove_image' && payload.product?.id===productId) {
