@@ -806,7 +806,23 @@ function currentPage(){return [...document.querySelectorAll('.page')].find(x=>!x
 function paintPage(name,scroll){if(!VALID_PAGES.has(name))name='home';document.querySelectorAll('.page').forEach(x=>x.classList.toggle('hidden',x.id!==name));document.querySelectorAll('nav button').forEach(x=>x.classList.toggle('active',x.dataset.page===name||(x.dataset.page==='more'&&['more','expenses','reports','stock','settings'].includes(name))));sessionStorage.setItem('my-sales-book-current-page',name);render();const fab=document.getElementById('quickSaleFab');if(fab)fab.style.display=workspaceReady&&cloudUser?'flex':'none';if(scroll)window.scrollTo({top:0,behavior:'auto'});}
 function showPage(name,options={}){if(!VALID_PAGES.has(name))return;const previous=currentPage();if(!options.fromHistory&&previous!==name)history.pushState({mySalesBookPage:name},'', '#'+name);paintPage(name,options.scroll!==false);}
 function restorePageFromLocation(){const hash=location.hash.slice(1),saved=sessionStorage.getItem('my-sales-book-current-page');paintPage(VALID_PAGES.has(hash)?hash:(VALID_PAGES.has(saved)?saved:'home'),false);}
-window.addEventListener('popstate',()=>{const name=VALID_PAGES.has(location.hash.slice(1))?location.hash.slice(1):(history.state?.mySalesBookPage||'home');paintPage(name,false);});
+// Keep Android/browser Back inside the app. Page changes have their own
+// history entries; the duplicate root entry prevents the app from closing
+// when the user reaches the first page, including while offline.
+(function installBackNavigationGuard(){
+  const pageFromUrl=()=>VALID_PAGES.has(location.hash.slice(1))?location.hash.slice(1):(sessionStorage.getItem('my-sales-book-current-page')||'home');
+  if(!history.state?.mySalesBookRootGuard){
+    history.replaceState({mySalesBookRootGuard:true,mySalesBookPage:pageFromUrl()},'',location.href);
+    history.pushState({mySalesBookRoot:true,mySalesBookPage:pageFromUrl()},'',location.href);
+  }
+  window.addEventListener('popstate',event=>{
+    const name=pageFromUrl();
+    paintPage(name,false);
+    if(event.state?.mySalesBookRootGuard){
+      history.pushState({mySalesBookRoot:true,mySalesBookPage:name},'',location.href);
+    }
+  });
+})();
 document.querySelectorAll('nav button').forEach(b=>b.addEventListener('click',()=>showPage(b.dataset.page)));
 document.querySelectorAll('[data-open-page]').forEach(b=>b.addEventListener('click',()=>showPage(b.dataset.openPage)));
 document.getElementById('quickSaleFab').addEventListener('click',()=>{showPage('sales');setTimeout(()=>{document.getElementById('saleForm')?.scrollIntoView({behavior:'smooth',block:'start'});document.getElementById('saleProduct')?.focus({preventScroll:true});},80);});
