@@ -334,7 +334,9 @@ function updateSyncStatus() {
   const button = document.getElementById('syncNowBtn');
   if (!el || !button) return;
   const waiting = pendingSync.filter(item => item.status !== 'synced').length;
+  const conflicts = pendingSync.filter(item => item.status === 'conflict').length;
   el.textContent = !cloudUser ? 'Sign in to sync your business records.' :
+    conflicts ? conflicts + ' change(s) need attention. ' + waiting + ' change(s) remain unsynchronised.' :
     !navigator.onLine ? (waiting ? waiting + ' change(s) waiting to sync. Offline.' : 'Offline. Showing the last saved cloud records.') :
     waiting ? waiting + ' change(s) waiting to sync.' : 'All changes synchronised.';
   button.disabled = !cloudUser || !navigator.onLine || syncingQueue;
