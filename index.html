@@ -66,8 +66,39 @@ dialog::backdrop{background:#10201699}
   <p id="accountStatus" class="muted">Checking sign-in status...</p>
   <button type="button" class="primary" id="googleSignIn">Sign in with Google</button>
   <button type="button" id="googleSignOut" class="hidden">Sign out</button>
+  <div id="emailAuthPanel">
+    <form id="emailAuthForm">
+      <label for="authEmail">Email address</label>
+      <input id="authEmail" type="email" autocomplete="email" required>
+      <label for="authPassword">Password</label>
+      <input id="authPassword" type="password" autocomplete="current-password" minlength="8" required>
+      <button type="submit" class="primary" id="emailAuthSubmit">Sign in with email</button>
+    </form>
+    <div class="photo-actions">
+      <button type="button" id="toggleEmailAuth">Create account</button>
+      <button type="button" id="resetPasswordBtn">Forgot password?</button>
+    </div>
+  </div>
+  <form id="recoveryPasswordForm" class="hidden">
+    <label for="recoveryPassword">Choose a new password</label>
+    <input id="recoveryPassword" type="password" minlength="8" autocomplete="new-password" required>
+    <button type="submit" class="primary">Save new password</button>
+  </form>
+  <div id="accountManagePanel" class="hidden">
+    <form id="changeEmailForm">
+      <label for="newAccountEmail">Change account email</label>
+      <input id="newAccountEmail" type="email" autocomplete="email" required placeholder="New email address">
+      <button type="submit">Request email change</button>
+    </form>
+    <button type="button" class="danger" id="deleteAccountBtn" style="width:100%;margin-top:12px">Delete my account and cloud records</button>
+  </div>
   <p id="accountMessage" class="muted"></p>
+  <p id="syncStatus" class="muted">Checking sync status...</p>
+  <div id="syncDetails" class="muted"></div>
+  <button type="button" id="syncNowBtn">Sync now</button>
+  <button type="button" id="importLocalRecordsBtn" class="hidden">Import this device's existing records</button>
 </section>
+<div id="appWorkspace" class="hidden">
 <nav>
 <button class="active" data-page="home">Home</button>
 <button data-page="products">Products</button>
@@ -167,6 +198,7 @@ dialog::backdrop{background:#10201699}
 <div class="card"><h2>Expense history</h2><div id="expenseList" class="empty">No expenses recorded yet.</div></div>
 </section>
 <footer>Keep regular backups of your business records.</footer>
+</div>
 </main>
 <dialog id="editProductDialog" aria-labelledby="editProductHeading">
   <h2 id="editProductHeading">Edit product details</h2>
@@ -234,7 +266,25 @@ function save(){
 
 let cloudUser = null;
 let cloudReady = false;
+let workspaceReady = false;
 let cloudBusy = false;
+
+async function saveCloudChangeLocally(type, payload) {
+  if (!cloudUser) throw Error('Sign in before saving business records.');
+  try {
+    enqueueChange(type, payload);
+    storageMode = 'cloud-offline';
+    cacheCloudData(cloudUser.id);
+    render();
+    updateSyncStatus();
+  } catch (error) {
+    throw Error('Could not save this change on the device. Free up browser storage and export a backup before trying again. ' + (error.message || ''));
+  }
+  if (navigator.onLine) {
+    await syncPendingChanges();
+  }
+  return true;
+}
 
 function cloudMessage(text) {
   const el = document.getElementById('accountMessage');
@@ -244,6 +294,261 @@ function cloudMessage(text) {
 
 let localSnapshot = null;
 let authTransition = false;
+let pendingSync = [];
+let syncingQueue = false;
+let recoveryMode = window.location.hash.includes('type=recovery');
+const cloudCacheKey = userId => 'my-sales-book-cloud-cache-v1:' + userId;
+const cloudQueueKey = userId => 'my-sales-book-sync-queue-v1:' + userId;
+
+function readQueue(userId=cloudUser?.id) {
+  if (!userId) return [];
+  try {
+    const value = JSON.parse(localStorage.getItem(cloudQueueKey(userId)) || '[]');
+    return Array.isArray(value) ? value : [];
+  } catch (_) { return []; }
+}
+function writeQueue(queue, userId=cloudUser?.id) {
+  if (!userId) throw Error('Sign in to keep changes attached to your account.');
+  localStorage.setItem(cloudQueueKey(userId), JSON.stringify(queue));
+  pendingSync = queue;
+  updateSyncStatus();
+}
+function slimCloudCache(userId) {
+  const queue=readQueue(userId);
+  const queuedPhotoIds=new Set(queue.filter(item=>item.type==='product_save').map(item=>item.payload?.product?.id).filter(Boolean));
+  return {
+    ...db,
+    products:db.products.map(product=>{
+      const copy={...product};
+      delete copy.offlineImage;
+      if (queuedPhotoIds.has(product.id) && typeof copy.image==='string' && copy.image.startsWith('data:image/')) delete copy.image;
+      return copy;
+    })
+  };
+}
+function cacheCloudData(userId=cloudUser?.id) {
+  if (!userId) return false;
+  try {
+    localStorage.setItem(cloudCacheKey(userId), JSON.stringify(db));
+    return true;
+  } catch (error) {
+    try {
+      localStorage.setItem(cloudCacheKey(userId), JSON.stringify(slimCloudCache(userId)));
+      cloudMessage('Your records are cached for offline use. Some product photos were omitted from the offline copy to fit device storage.');
+      return true;
+    } catch (_) {
+      cloudMessage('This device could not cache all records for offline use. Export a backup and free browser storage.');
+      return false;
+    }
+  }
+}
+function restoreCloudCache(userId) {
+  try {
+    const value = JSON.parse(localStorage.getItem(cloudCacheKey(userId)) || 'null');
+    if (value && Array.isArray(value.products) && Array.isArray(value.sales) && Array.isArray(value.expenses)) {
+      db = value;
+      storageMode = 'cloud-offline';
+      workspaceReady = true;
+      pendingSync = readQueue(userId);
+      applyPendingToDb();
+      render();
+      updateSyncStatus();
+      return true;
+    }
+  } catch (_) {}
+  return false;
+}
+function updateSyncStatus() {
+  const el = document.getElementById('syncStatus');
+  const button = document.getElementById('syncNowBtn');
+  if (!el || !button) return;
+  const waiting = pendingSync.filter(item => item.status !== 'synced').length;
+  const conflicts = pendingSync.filter(item => item.status === 'conflict').length;
+  el.textContent = !cloudUser ? 'Sign in to sync your business records.' :
+    conflicts ? conflicts + ' change(s) need attention. ' + waiting + ' change(s) remain unsynchronised.' :
+    !navigator.onLine ? (waiting ? waiting + ' change(s) waiting to sync. Offline.' : 'Offline. Showing the last saved cloud records.') :
+    waiting ? waiting + ' change(s) waiting to sync.' : 'All changes synchronised.';
+  button.disabled = !cloudUser || !navigator.onLine || syncingQueue;
+  const details = document.getElementById('syncDetails');
+  if (details) {
+    details.innerHTML = pendingSync.filter(item=>item.status!=='synced').slice(0,10).map(item=>{
+      const payload=item.payload||{};
+      const label=item.type==='product_save'?'Product: '+(payload.product?.name||'item'):
+        item.type==='product_delete'?'Delete product: '+(payload.product?.name||'item'):
+        item.type==='product_remove_image'?'Product photo: '+(payload.product?.name||'item'):
+        item.type==='sale'?'Sale: '+(payload.sale?.name||'item'):
+        item.type==='sale_import'?'Imported sale: '+(payload.sale?.name||'item'):
+        item.type==='expense'?'Expense: '+(payload.expense?.name||'item'):item.type;
+      return '<div class="item"><strong>'+esc(item.status==='conflict'?'Needs attention':item.error?'Sync failed':'Waiting to sync')+'</strong> · '+esc(label)+(item.error?'<div>'+esc(item.error)+'</div>':'')+'</div>';
+    }).join('');
+  }
+}
+function enqueueChange(type, payload) {
+  if (!cloudUser) throw Error('Sign in before saving business records.');
+  const key = cloudQueueKey(cloudUser.id);
+  const previous = readQueue(cloudUser.id);
+  const next = [...previous,{id:crypto.randomUUID(),type,payload:JSON.parse(JSON.stringify(payload)),createdAt:now(),status:'pending',error:''}];
+  try {
+    localStorage.setItem(key, JSON.stringify(next));
+    try {
+      localStorage.setItem(cloudCacheKey(cloudUser.id), JSON.stringify(db));
+    } catch (cacheError) {
+      localStorage.setItem(cloudCacheKey(cloudUser.id), JSON.stringify(slimCloudCache(cloudUser.id)));
+      cloudMessage('Saved locally. Some product photos may not be available offline because device storage is limited.');
+    }
+    pendingSync = next;
+    updateSyncStatus();
+  } catch (error) {
+    try { localStorage.setItem(key, JSON.stringify(previous)); } catch (_) {}
+    pendingSync = previous;
+    updateSyncStatus();
+    throw error;
+  }
+}
+function applyPendingToDb() {
+  for (const item of pendingSync) {
+    if (item.status === 'synced') continue;
+    const p = item.payload || {};
+    if (item.type === 'product_save') {
+      const product = p.product;
+      if (!product) continue;
+      const index = db.products.findIndex(x => x.id === product.id);
+      if (index >= 0) db.products[index] = {...db.products[index], ...product};
+      else db.products.push(product);
+    } else if (item.type === 'product_delete') {
+      db.products = db.products.filter(x => x.id !== p.product.id);
+    } else if (item.type === 'product_remove_image') {
+      const product = db.products.find(x => x.id === p.product.id);
+      if (product) { product.image=''; product.imagePath=''; }
+    } else if (item.type === 'sale') {
+      if (!db.sales.some(x => x.id === p.sale.id)) {
+        const product = db.products.find(x => x.id === p.sale.productId);
+        if (product) product.stock = Math.max(0, product.stock - p.sale.qty);
+        db.sales.push(p.sale);
+      }
+    } else if (item.type === 'expense') {
+      if (!db.expenses.some(x => x.id === p.expense.id)) db.expenses.push(p.expense);
+    } else if (item.type === 'sale_import') {
+      if (!db.sales.some(x => x.id === p.sale.id)) db.sales.push(p.sale);
+    }
+  }
+}
+async function currentProductVersion(productId) {
+  const user = await requireCloudUser();
+  const {data,error} = await supabaseClient.from('products').select('updated_at').eq('id',productId).eq('user_id',user.id).maybeSingle();
+  if (error) throw error;
+  if (!data) throw Error('Conflict: this product no longer exists in your account.');
+  return data.updated_at;
+}
+function propagateQueuedProductVersion(queue, fromIndex, productId, version) {
+  for (let i=fromIndex+1;i<queue.length;i++) {
+    const later=queue[i], payload=later.payload||{};
+    if (later.type==='product_save' && payload.product?.id===productId && !payload.isNew) {
+      payload.product.updatedAt=version;
+    } else if (later.type==='product_delete' && payload.product?.id===productId) {
+      payload.product.updatedAt=version;
+    } else if (later.type==='sale' && payload.sale?.productId===productId) {
+      payload.productUpdatedAt=version;
+    } else if (later.type==='product_remove_image' && payload.product?.id===productId) {
+      payload.product.updatedAt=version;
+    }
+  }
+}
+
+async function syncPendingChanges() {
+  if (!cloudUser || !navigator.onLine || syncingQueue || !supabaseClient) return false;
+  syncingQueue = true;
+  try {
+    let queue = readQueue(cloudUser.id);
+    for (let queueIndex=0;queueIndex<queue.length;queueIndex++) {
+      const item=queue[queueIndex];
+      if (item.status === 'conflict') continue;
+      try {
+        const p = item.payload || {};
+        if (item.type === 'product_save') {
+          if (!p.isNew && p.product.updatedAt) {
+            const currentVersion=await currentProductVersion(p.product.id);
+            if (currentVersion!==p.product.updatedAt) throw Error('Conflict: this product changed on another phone. Review the product and try again.');
+          }
+          await cloudSaveProduct(p.product, p.isNew);
+          const newVersion=await currentProductVersion(p.product.id);
+          p.product.updatedAt=newVersion;
+          propagateQueuedProductVersion(queue,queueIndex,p.product.id,newVersion);
+        } else if (item.type === 'product_delete') {
+          if (p.product.updatedAt) {
+            const currentVersion=await currentProductVersion(p.product.id);
+            if (currentVersion!==p.product.updatedAt) throw Error('Conflict: this product changed on another phone. Review it before deleting.');
+          }
+          await cloudDeleteProduct(p.product);
+        } else if (item.type === 'product_remove_image') {
+          if (p.product.updatedAt) {
+            const currentVersion=await currentProductVersion(p.product.id);
+            if (currentVersion!==p.product.updatedAt) throw Error('Conflict: this product changed on another phone. Review it before removing its photo.');
+          }
+          await cloudRemoveProductImage(p.product);
+          const newVersion=await currentProductVersion(p.product.id);
+          propagateQueuedProductVersion(queue,queueIndex,p.product.id,newVersion);
+        } else if (item.type === 'sale') {
+          if (p.productUpdatedAt) {
+            const currentVersion=await currentProductVersion(p.sale.productId);
+            if (currentVersion!==p.productUpdatedAt) throw Error('Conflict: this product changed on another phone. Check stock and product details before retrying this sale.');
+          }
+          const {error} = await supabaseClient.rpc('record_sale_offline', {
+            p_sale_id:p.sale.id,p_product_id:p.sale.productId,p_quantity:p.sale.qty,
+            p_unit_price:p.sale.price,p_note:p.sale.note||null,p_sold_at:p.sale.date
+          });
+          if (error) throw error;
+          const newVersion=await currentProductVersion(p.sale.productId);
+          propagateQueuedProductVersion(queue,queueIndex,p.sale.productId,newVersion);
+        } else if (item.type === 'sale_import') {
+          const user = await requireCloudUser();
+          const sale = p.sale;
+          const {error} = await supabaseClient.from('sales').upsert({
+            id:sale.id,user_id:user.id,product_id:sale.productId,product_name:sale.name,
+            quantity:sale.qty,unit_price:sale.price,unit_cost:sale.cost,total:sale.total,
+            gross_profit:sale.profit,note:sale.note||null,sold_at:sale.date
+          }, {onConflict:'id',ignoreDuplicates:true});
+          if (error) throw error;
+        } else if (item.type === 'expense') {
+          const user = await requireCloudUser();
+          const {error} = await supabaseClient.from('expenses').upsert({
+            id:p.expense.id,user_id:user.id,description:p.expense.name,
+            amount:p.expense.amount,spent_at:p.expense.date
+          }, {onConflict:'id',ignoreDuplicates:true});
+          if (error) throw error;
+        }
+        item.status = 'synced';
+        item.error = '';
+        writeQueue(queue, cloudUser.id);
+      } catch (error) {
+        item.error = error.message || String(error);
+        item.status = /insufficient stock|product not found|belongs to another account|duplicate key|unique constraint|conflict/i.test(item.error)
+          ? 'conflict' : 'pending';
+        writeQueue(queue, cloudUser.id);
+        break;
+      }
+    }
+    queue = queue.filter(item => item.status !== 'synced');
+    writeQueue(queue, cloudUser.id);
+    if (!queue.length) {
+      await cloudLoadAll();
+    } else {
+      pendingSync = queue;
+      applyPendingToDb();
+      storageMode = 'cloud-offline';
+      render();
+      cacheCloudData(cloudUser.id);
+      const firstError = queue.find(item => item.error)?.error;
+      cloudMessage('Some changes are still waiting to sync. Your local copies are kept.' + (firstError ? ' Problem: ' + firstError : ''));
+    }
+    updateSyncStatus();
+    return queue.length === 0;
+  } finally {
+    syncingQueue = false;
+    updateSyncStatus();
+  }
+}
+
 
 function snapshotLocalRecords() {
   try {
@@ -262,6 +567,7 @@ function restoreLocalRecords() {
   db = localSnapshot || {products: [], sales: [], expenses: []};
   storageMode = 'browser';
   cloudReady = false;
+  workspaceReady = false;
   cloudUser = null;
   render();
 }
@@ -269,26 +575,51 @@ function restoreLocalRecords() {
 async function handleCloudAuthChange() {
   if (authTransition) return;
   authTransition = true;
+  let activeUser = null;
   try {
     const {data, error} = await supabaseClient.auth.getSession();
     if (error) throw error;
     const user = data.session?.user || null;
+    activeUser = user;
 
     if (user) {
       if (storageMode !== 'cloud') localSnapshot = snapshotLocalRecords();
       cloudUser = user;
-      await cloudLoadAll();
-      cloudMessage('Cloud mode is active for ' + (user.email || 'your account') +
-        '. Local-device records remain separate and unchanged.');
+      pendingSync = readQueue(user.id);
+      try {
+        await cloudLoadAll();
+        if (pendingSync.some(item => item.status !== 'conflict')) await syncPendingChanges();
+      } catch (loadError) {
+        if (!restoreCloudCache(user.id)) throw loadError;
+        cloudReady = false;
+        storageMode = 'cloud-offline';
+        cloudMessage('Offline mode: showing the last saved copy for ' + (user.email || 'your account') + '. Changes will be queued when saved.');
+      }
     } else {
       restoreLocalRecords();
-      cloudMessage('Local mode is active. Your device records remain available.');
+      cloudMessage('Sign in to access your private business records.');
     }
     await refreshAccountStatus();
   } catch (err) {
     cloudReady = false;
-    cloudMessage('Cloud connection failed: ' + (err.message || String(err)) +
-      '. Your existing local backup has not been intentionally replaced.');
+    if (activeUser) {
+      cloudUser = activeUser;
+      const restored = restoreCloudCache(activeUser.id);
+      if (restored) {
+        cloudMessage('Could not reach the cloud. Showing the last saved copy; queued changes remain on this device.');
+        await refreshAccountStatus();
+      } else {
+        workspaceReady = false;
+        document.getElementById('appWorkspace').classList.add('hidden');
+        cloudMessage('Could not reach the cloud and no saved copy exists on this device. Connect to the internet to load your account for the first time.');
+        await refreshAccountStatus();
+      }
+    } else {
+      workspaceReady = false;
+      document.getElementById('appWorkspace').classList.add('hidden');
+      cloudMessage('Cloud connection failed: ' + (err.message || String(err)) + '. Sign in again when internet is available.');
+      await refreshAccountStatus();
+    }
     console.error('Cloud authentication/load error:', err);
   } finally {
     authTransition = false;
@@ -322,10 +653,22 @@ async function requireCloudUser() {
   return data.user;
 }
 
+async function imageUrlToDataUrl(url) {
+  const response = await fetch(url);
+  if (!response.ok) throw Error('Could not cache product photo for offline use.');
+  const blob = await response.blob();
+  return await new Promise((resolve,reject)=>{
+    const reader = new FileReader();
+    reader.onload = ()=>resolve(String(reader.result||''));
+    reader.onerror = ()=>reject(Error('Could not cache product photo.'));
+    reader.readAsDataURL(blob);
+  });
+}
+
 async function cloudLoadAll() {
   const user=await requireCloudUser();
   const [pr,sr,er]=await Promise.all([
-    supabaseClient.from('products').select('id,name,category,cost_price,selling_price,stock,image_path,created_at').eq('user_id',user.id).order('created_at'),
+    supabaseClient.from('products').select('id,name,category,cost_price,selling_price,stock,image_path,created_at,updated_at').eq('user_id',user.id).order('created_at'),
     supabaseClient.from('sales').select('id,product_id,product_name,quantity,unit_price,unit_cost,total,gross_profit,note,sold_at').eq('user_id',user.id).order('sold_at'),
     supabaseClient.from('expenses').select('id,description,amount,spent_at').eq('user_id',user.id).order('spent_at')
   ]);
@@ -333,20 +676,30 @@ async function cloudLoadAll() {
   if(sr.error) throw sr.error;
   if(er.error) throw er.error;
   const products=await Promise.all((pr.data||[]).map(async row=>{
-    let image='';
+    let image='',offlineImage='';
     if(row.image_path){
       const {data,error}=await supabaseClient.storage.from('product-images').createSignedUrl(row.image_path,3600);
-      if(!error&&data?.signedUrl) image=data.signedUrl;
+      if(!error&&data?.signedUrl){
+        image=data.signedUrl;
+        try { offlineImage=await imageUrlToDataUrl(image); } catch (_) {}
+      }
     }
-    return {id:row.id,name:row.name,category:normalizeCategory(row.category),cost:Number(row.cost_price),price:Number(row.selling_price),stock:Number(row.stock),image,imagePath:row.image_path||'',createdAt:row.created_at};
+    return {id:row.id,name:row.name,category:normalizeCategory(row.category),cost:Number(row.cost_price),price:Number(row.selling_price),stock:Number(row.stock),image,offlineImage,imagePath:row.image_path||'',createdAt:row.created_at,updatedAt:row.updated_at};
   }));
   const sales=(sr.data||[]).map(row=>({id:row.id,productId:row.product_id,name:row.product_name,qty:Number(row.quantity),price:Number(row.unit_price),cost:Number(row.unit_cost),total:Number(row.total),profit:Number(row.gross_profit),note:row.note||'',date:row.sold_at}));
   const expenses=(er.data||[]).map(row=>({id:row.id,name:row.description,amount:Number(row.amount),date:row.spent_at}));
   db={products,sales,expenses};
   storageMode='cloud';
   cloudReady=true;
+  workspaceReady=true;
+  pendingSync=readQueue(user.id);
+  applyPendingToDb();
   render();
-  cloudMessage('Cloud records loaded. Existing local-device records have not been uploaded or deleted.');
+  cacheCloudData(user.id);
+  updateSyncStatus();
+  cloudMessage(pendingSync.length
+    ? pendingSync.length + ' change(s) are waiting to sync. Your local copies are preserved.'
+    : 'Cloud records loaded and synchronised.');
 }
 
 async function cloudUploadProductImage(imageData) {
@@ -367,7 +720,7 @@ async function cloudSaveProduct(product,isNew) {
   const user=await requireCloudUser();
   let imagePath=product.imagePath||null;
   if(product.image&&product.image.startsWith('data:image/')) imagePath=await cloudUploadProductImage(product.image);
-  const row={user_id:user.id,name:product.name,category:normalizeCategory(product.category),cost_price:product.cost,selling_price:product.price,stock:product.stock,image_path:imagePath};
+  const row={user_id:user.id,name:product.name,category:normalizeCategory(product.category),cost_price:product.cost,selling_price:product.price,stock:product.stock,image_path:imagePath,updated_at:now()};
   const result=isNew
     ? await supabaseClient.from('products').insert({id:product.id,...row})
     : await supabaseClient.from('products').update(row).eq('id',product.id).eq('user_id',user.id);
@@ -384,13 +737,14 @@ async function cloudSaveProduct(product,isNew) {
 async function cloudRemoveProductImage(product) {
   const user=await requireCloudUser();
   const oldPath=product.imagePath||null;
-  const {error}=await supabaseClient.from('products').update({image_path:null}).eq('id',product.id).eq('user_id',user.id);
+  const {error}=await supabaseClient.from('products').update({image_path:null,updated_at:now()}).eq('id',product.id).eq('user_id',user.id);
   if(error) throw error;
   if(oldPath){
     const {error:storageError}=await supabaseClient.storage.from('product-images').remove([oldPath]);
     if(storageError) console.warn('Old image cleanup failed:',storageError.message);
   }
   product.image='';
+  product.offlineImage='';
   product.imagePath='';
 }
 
@@ -460,7 +814,8 @@ function render(){
     (!selectedCategory||normalizeCategory(p.category)===selectedCategory)
   );
   document.getElementById('productList').innerHTML=filteredProducts.length?filteredProducts.map(p=>{
-    const photo=typeof p.image==='string'&&(p.image.startsWith('data:image/')||p.image.startsWith('https://'))?`<img class="product-photo" src="${p.image}" alt="${esc(p.name)} photo">`:'<div class="product-photo" aria-label="No product photo"></div>';
+    const displayImage=typeof p.image==='string'&&p.image.startsWith('data:image/')?p.image:(p.offlineImage||p.image);
+    const photo=typeof displayImage==='string'&&(displayImage.startsWith('data:image/')||displayImage.startsWith('https://'))?`<img class="product-photo" src="${displayImage}" alt="${esc(p.name)} photo">`:'<div class="product-photo" aria-label="No product photo"></div>';
     return `<div class="item"><div class="item-product">${photo}<div class="item-product-details">
     <div class="row"><strong>${esc(p.name)}</strong><strong>${money(p.price)}</strong></div>
     <div class="muted">Category: ${esc(normalizeCategory(p.category))}</div>
@@ -542,13 +897,10 @@ async function handleImageSelection(event){
   if(imageTargetId){
    const p=db.products.find(x=>x.id===imageTargetId);
    if(!p)return;
-   if(storageMode==='cloud'&&cloudReady){
+   if(cloudUser){
     const updated={...p,image};
-    const ok=await cloudAction(async()=>{
-      await cloudSaveProduct(updated,false);
-      await cloudLoadAll();
-    });
-    if(ok)alert('Product photo updated.');
+    try { await saveCloudChangeLocally('product_save',{product:updated,isNew:false}); alert('Product photo saved on this device and queued for sync.'); }
+    catch(err){ alert(err.message || String(err)); }
    }else{
     const oldImage=p.image,oldPath=p.imagePath;
     p.image=image;
@@ -583,9 +935,9 @@ document.getElementById('productForm').addEventListener('submit',async e=>{
  if(db.products.some(p=>p.name.toLowerCase()===name.toLowerCase()))return alert('A product with this name already exists.');
  const category=normalizeCategory(document.getElementById('pcategory').value);
  const product={id:crypto.randomUUID(),name,category,cost,price,stock,image:pendingProductImage,createdAt:now()};
- if(storageMode==='cloud'&&cloudReady){
-   const ok=await cloudAction(async()=>{await cloudSaveProduct(product,true);await cloudLoadAll();});
-   if(!ok)return;
+ if(cloudUser){
+   try { await saveCloudChangeLocally('product_save',{product,isNew:true}); }
+   catch(err){ return alert(err.message || String(err)); }
  }else{
    db.products.push(product);
    if(!save())return;
@@ -601,7 +953,7 @@ let editRemoveProductImage = false;
 function updateEditProductPhotoPreview(product) {
   const preview=document.getElementById('editProductPhotoPreview');
   const status=document.getElementById('editProductPhotoStatus');
-  const image=editPendingProductImage || (!editRemoveProductImage ? product?.image : '');
+  const image=editPendingProductImage || (!editRemoveProductImage ? (product?.offlineImage || product?.image) : '');
   if(image){preview.src=image;preview.classList.remove('hidden');}
   else{preview.removeAttribute('src');preview.classList.add('hidden');}
   status.textContent=editPendingProductImage?'New photo selected. It will be saved with the product.':editRemoveProductImage?'The product photo will be removed when you save.':product?.image?'Current photo will be kept unless you replace or remove it.':'No product photo selected.';
@@ -678,12 +1030,17 @@ document.getElementById('editProductForm').addEventListener('submit',async event
   document.getElementById('saveEditProduct').disabled=true;
   try{
     let saved=false;
-    if(storageMode==='cloud'&&cloudReady){
-      saved=await cloudAction(async()=>{
-        await cloudSaveProduct(updated,false);
-        if(editRemoveProductImage&&product.imagePath)await cloudRemoveProductImage(product);
-        await cloudLoadAll();
-      });
+    if(cloudUser){
+      try {
+        const cloudUpdated = editRemoveProductImage ? {...updated,imagePath:product.imagePath,image:product.image} : updated;
+        await saveCloudChangeLocally('product_save',{product:cloudUpdated,isNew:false});
+        if(editRemoveProductImage&&product.imagePath) {
+          await saveCloudChangeLocally('product_remove_image',{product:{...product}});
+        }
+        Object.assign(product,updated);
+        if(editRemoveProductImage){delete product.image;delete product.offlineImage;delete product.imagePath;}
+        saved=true;
+      } catch(err) { alert(err.message || String(err)); }
     }else{
       const old={...product};
       Object.assign(product,updated);
@@ -713,8 +1070,12 @@ document.getElementById('productList').addEventListener('click',async e=>{
  }
  if(button.dataset.imageRemove){
   if(!confirm('Remove the photo for '+p.name+'?'))return;
-  if(storageMode==='cloud'&&cloudReady){
-    await cloudAction(async()=>{await cloudRemoveProductImage(p);await cloudLoadAll();});
+  if(cloudUser){
+    try {
+      const old = {...p};
+      p.image=''; p.offlineImage=''; p.imagePath='';
+      await saveCloudChangeLocally('product_remove_image',{product:old});
+    } catch(err){ alert(err.message || String(err)); }
   }else{
     const oldImage=p.image,oldPath=p.imagePath;
     delete p.image;delete p.imagePath;
@@ -727,8 +1088,11 @@ document.getElementById('productList').addEventListener('click',async e=>{
  }else if(button.dataset.delete){
   if(db.sales.some(s=>s.productId===id))return alert('This product has sales history. Edit it instead of deleting it.');
   if(confirm('Delete '+p.name+'?')){
-    if(storageMode==='cloud'&&cloudReady){
-      await cloudAction(async()=>{await cloudDeleteProduct(p);await cloudLoadAll();});
+    if(cloudUser){
+      const oldProducts=db.products;
+      db.products=db.products.filter(x=>x.id!==id);
+      try { await saveCloudChangeLocally('product_delete',{product:p}); }
+      catch(err){ db.products=oldProducts; render(); alert(err.message || String(err)); }
     }else{
       db.products=db.products.filter(x=>x.id!==id);if(save())render();
     }
@@ -746,9 +1110,14 @@ document.getElementById('saleForm').addEventListener('submit',async e=>{
  if(note.length>150)return alert('Sale note must be 150 characters or fewer.');
  const total=Math.round(qty*price*100)/100;
  if(!confirm('Record this paid sale for '+money(total)+'?'))return;
- if(storageMode==='cloud'&&cloudReady){
-   const ok=await cloudAction(async()=>{await cloudRecordSale(p,qty,price,note);});
-   if(!ok)return;
+ if(cloudUser){
+   const profit=Math.round(qty*(price-p.cost)*100)/100;
+   const sale={id:crypto.randomUUID(),productId:p.id,name:p.name,qty,price,cost:p.cost,total,profit,note,date:now()};
+   const productUpdatedAt=p.updatedAt;
+   p.stock-=qty;
+   db.sales.push(sale);
+   try { await saveCloudChangeLocally('sale',{sale,productUpdatedAt}); }
+   catch(err){ p.stock+=qty; db.sales=db.sales.filter(x=>x.id!==sale.id); render(); return alert(err.message || String(err)); }
  }else{
    const profit=Math.round(qty*(price-p.cost)*100)/100;
    p.stock-=qty;
@@ -764,9 +1133,11 @@ document.getElementById('expenseForm').addEventListener('submit',async e=>{
  const name=document.getElementById('ename').value.trim(),amount=Number(document.getElementById('eamount').value);
  if(!name||!Number.isFinite(amount)||amount<=0)return alert('Enter a description and valid amount.');
  const rounded=Math.round(amount*100)/100;
- if(storageMode==='cloud'&&cloudReady){
-   const ok=await cloudAction(async()=>{await cloudAddExpense(name,rounded,now());});
-   if(!ok)return;
+ if(cloudUser){
+   const expense={id:crypto.randomUUID(),name,amount:rounded,date:now()};
+   db.expenses.push(expense);
+   try { await saveCloudChangeLocally('expense',{expense}); }
+   catch(err){ db.expenses=db.expenses.filter(x=>x.id!==expense.id); render(); return alert(err.message || String(err)); }
  }else{
    db.expenses.push({id:crypto.randomUUID(),name,amount:rounded,date:now()});
    if(!save())return;
@@ -806,21 +1177,44 @@ async function refreshAccountStatus(){
   if (error) {
     status.textContent = 'Could not check sign-in status.';
     document.getElementById('accountMessage').textContent = error.message;
+    document.getElementById('appWorkspace').classList.add('hidden');
     return;
   }
 
   const user = data.session?.user;
   status.textContent = user
     ? 'Signed in as ' + (user.email || 'Google account') + '.'
-    : 'Not signed in. Your records are still stored on this device.';
+    : (!navigator.onLine
+      ? 'Internet is required for first sign-in or account creation. Connect and try again.'
+      : 'Sign in or create an account to access your private business records.');
   signIn.classList.toggle('hidden', !!user);
   signOut.classList.toggle('hidden', !user);
+  document.getElementById('emailAuthPanel').classList.toggle('hidden', !!user);
+  document.getElementById('accountManagePanel').classList.toggle('hidden', !user);
+  if (recoveryMode) {
+    document.getElementById('recoveryPasswordForm').classList.remove('hidden');
+    document.getElementById('emailAuthPanel').classList.add('hidden');
+    document.getElementById('accountManagePanel').classList.add('hidden');
+    document.getElementById('appWorkspace').classList.add('hidden');
+  } else {
+    document.getElementById('recoveryPasswordForm').classList.add('hidden');
+  }
+  const importButton = document.getElementById('importLocalRecordsBtn');
+  const hasLocal = !!(localSnapshot && (localSnapshot.products.length || localSnapshot.sales.length || localSnapshot.expenses.length));
+  const importOwner = localStorage.getItem('my-sales-book-legacy-import-owner-v1');
+  const alreadyImported = user && (localStorage.getItem('my-sales-book-imported-v1:' + user.id) === 'yes' || (importOwner && importOwner !== user.id));
+  importButton.classList.toggle('hidden', !user || !hasLocal || alreadyImported);
+  document.getElementById('appWorkspace').classList.toggle('hidden', !user || !workspaceReady);
 }
 
 document.getElementById('googleSignIn').addEventListener('click', async () => {
   const message = document.getElementById('accountMessage');
   message.textContent = 'Opening Google sign-in...';
 
+  if (!navigator.onLine) {
+    message.textContent = 'Internet is required for first sign-in. Connect to the internet and try again.';
+    return;
+  }
   if (!supabaseClient) {
     message.textContent = 'Cloud connection unavailable. Check your internet connection.';
     return;
@@ -834,17 +1228,221 @@ document.getElementById('googleSignIn').addEventListener('click', async () => {
   if (error) message.textContent = 'Sign-in failed: ' + error.message;
 });
 
+let emailAuthMode = 'signin';
+document.getElementById('toggleEmailAuth').addEventListener('click', () => {
+  emailAuthMode = emailAuthMode === 'signin' ? 'signup' : 'signin';
+  document.getElementById('emailAuthSubmit').textContent = emailAuthMode === 'signup' ? 'Create account' : 'Sign in with email';
+  document.getElementById('toggleEmailAuth').textContent = emailAuthMode === 'signup' ? 'I already have an account' : 'Create account';
+  document.getElementById('authPassword').autocomplete = emailAuthMode === 'signup' ? 'new-password' : 'current-password';
+  cloudMessage(emailAuthMode === 'signup' ? 'Create a new account with your email and a password of at least 8 characters.' : 'Sign in to access your private business records.');
+});
+document.getElementById('emailAuthForm').addEventListener('submit', async event => {
+  event.preventDefault();
+  if (!supabaseClient) return cloudMessage('Account service is unavailable. Check your internet connection.');
+  const email = document.getElementById('authEmail').value.trim();
+  const password = document.getElementById('authPassword').value;
+  const submit = document.getElementById('emailAuthSubmit');
+  if (!navigator.onLine) return cloudMessage('Internet is required for first sign-in or account creation. Connect and try again.');
+  submit.disabled = true;
+  try {
+    cloudMessage(emailAuthMode === 'signup' ? 'Creating your account...' : 'Signing in...');
+    const result = emailAuthMode === 'signup'
+      ? await supabaseClient.auth.signUp({ email, password, options: { emailRedirectTo: window.location.href } })
+      : await supabaseClient.auth.signInWithPassword({ email, password });
+    if (result.error) throw result.error;
+    if (emailAuthMode === 'signup' && !result.data.session) {
+      cloudMessage('Account created. Check your email for the verification link, then return here and sign in.');
+    } else {
+      cloudMessage(emailAuthMode === 'signup' ? 'Account created. Loading your private business records...' : 'Signed in. Loading your private business records...');
+      await handleCloudAuthChange();
+    }
+  } catch (error) {
+    cloudMessage('Account action failed: ' + (error.message || String(error)));
+  } finally {
+    submit.disabled = false;
+  }
+});
+document.getElementById('resetPasswordBtn').addEventListener('click', async () => {
+  if (!supabaseClient) return cloudMessage('Account service is unavailable.');
+  const email = document.getElementById('authEmail').value.trim();
+  if (!email) return cloudMessage('Enter your registered email address first.');
+  try {
+    const { error } = await supabaseClient.auth.resetPasswordForEmail(email, { redirectTo: window.location.href });
+    if (error) throw error;
+    cloudMessage('If that email is registered, a password-reset link has been sent. Check your inbox and spam folder.');
+  } catch (error) {
+    cloudMessage('Could not request a password reset: ' + (error.message || String(error)));
+  }
+});
+document.getElementById('recoveryPasswordForm').addEventListener('submit', async event => {
+  event.preventDefault();
+  const password = document.getElementById('recoveryPassword').value;
+  try {
+    const { error } = await supabaseClient.auth.updateUser({ password });
+    if (error) throw error;
+    recoveryMode = false;
+    document.getElementById('recoveryPasswordForm').classList.add('hidden');
+    document.getElementById('recoveryPasswordForm').reset();
+    history.replaceState(null, '', window.location.pathname + window.location.search);
+    cloudMessage('Password updated. You can continue using your account.');
+    await handleCloudAuthChange();
+  } catch (error) {
+    cloudMessage('Could not update password: ' + (error.message || String(error)));
+  }
+});
+document.getElementById('deleteAccountBtn').addEventListener('click', async () => {
+  const first = prompt('Deleting your account permanently deletes your cloud products, sales, expenses and product photos. This cannot be undone. Type DELETE to continue.');
+  if (first !== 'DELETE') return;
+  if (!confirm('Final confirmation: permanently delete this account and all its cloud business records?')) return;
+  try {
+    if (!navigator.onLine) throw Error('Connect to the internet before deleting your account.');
+    const user = await requireCloudUser();
+    const pendingBeforeDelete = readQueue(user.id).filter(item => item.status !== 'synced');
+    if (pendingBeforeDelete.length && !confirm('There are ' + pendingBeforeDelete.length + ' unsynchronised change(s). Deleting the account will also remove this account\'s local cache and pending queue. Continue?')) return;
+    const {data:files,error:listError} = await supabaseClient.storage.from('product-images').list(user.id,{limit:1000});
+    if (listError) throw listError;
+    const paths = (files||[]).filter(file=>file.name && !file.id?.endsWith('/')).map(file=>user.id+'/'+file.name);
+    if (paths.length) {
+      const {error:removeError} = await supabaseClient.storage.from('product-images').remove(paths);
+      if (removeError) throw removeError;
+    }
+    const { error } = await supabaseClient.rpc('delete_my_account');
+    if (error) throw error;
+    localStorage.removeItem(cloudCacheKey(user.id));
+    localStorage.removeItem(cloudQueueKey(user.id));
+    localStorage.removeItem('my-sales-book-imported-v1:' + user.id);
+    await supabaseClient.auth.signOut({ scope: 'local' });
+    cloudUser = null;
+    cloudReady = false;
+    workspaceReady = false;
+    document.getElementById('appWorkspace').classList.add('hidden');
+    await refreshAccountStatus();
+    cloudMessage('Account and cloud business records were deleted. Any separate local-device backup was not deleted.');
+  } catch (error) {
+    cloudMessage('Account deletion failed: ' + (error.message || String(error)) + '. Your records have not been intentionally cleared by this app.');
+  }
+});
+
+document.getElementById('changeEmailForm').addEventListener('submit', async event => {
+  event.preventDefault();
+  if (!supabaseClient) return cloudMessage('Account service is unavailable.');
+  const email = document.getElementById('newAccountEmail').value.trim();
+  try {
+    const { error } = await supabaseClient.auth.updateUser({ email });
+    if (error) throw error;
+    cloudMessage('Email change requested. Follow the verification instructions sent by Supabase before using the new address.');
+    document.getElementById('changeEmailForm').reset();
+  } catch (error) {
+    cloudMessage('Could not request an email change: ' + (error.message || String(error)));
+  }
+});
+
+document.getElementById('importLocalRecordsBtn').addEventListener('click', async () => {
+  if (!cloudUser || !localSnapshot) return;
+  const local = JSON.parse(JSON.stringify(localSnapshot));
+  const total = local.products.length + local.sales.length + local.expenses.length;
+  if (!total) return cloudMessage('There are no existing device records to import.');
+  if (!confirm('Import ' + local.products.length + ' product(s), ' + local.sales.length + ' sale(s), and ' + local.expenses.length + ' expense(s) from this device into your signed-in account? Existing cloud records will not be intentionally replaced. Keep this phone until the sync finishes.')) return;
+  const button = document.getElementById('importLocalRecordsBtn');
+  button.disabled = true;
+  try {
+    const user = await requireCloudUser();
+    const importOwner = localStorage.getItem('my-sales-book-legacy-import-owner-v1');
+    if (importOwner && importOwner !== user.id) throw Error('These older device records were already assigned to a different account. Export them and do not import them into another account.');
+    const [productsResult,salesResult,expensesResult] = await Promise.all([
+      supabaseClient.from('products').select('id,name,category').eq('user_id',user.id),
+      supabaseClient.from('sales').select('id').eq('user_id',user.id),
+      supabaseClient.from('expenses').select('id').eq('user_id',user.id)
+    ]);
+    if (productsResult.error) throw productsResult.error;
+    if (salesResult.error) throw salesResult.error;
+    if (expensesResult.error) throw expensesResult.error;
+    const productIds = new Set((productsResult.data||[]).map(x=>x.id));
+    const productNameIds = new Map((productsResult.data||[]).map(x=>[String(x.name||'').trim().toLowerCase(),x.id]));
+    const productIdMap = new Map();
+    const saleIds = new Set((salesResult.data||[]).map(x=>x.id));
+    const expenseIds = new Set((expensesResult.data||[]).map(x=>x.id));
+    let added = 0;
+    for (const original of local.products) {
+      const existingId = productIds.has(original.id) ? original.id : productNameIds.get(String(original.name||'').trim().toLowerCase());
+      if (existingId) {
+        productIdMap.set(original.id,existingId);
+        continue;
+      }
+      const product = {...original};
+      productIdMap.set(product.id,product.id);
+      productIds.add(product.id);
+      productNameIds.set(String(product.name||'').trim().toLowerCase(),product.id);
+      enqueueChange('product_save',{product,isNew:true});
+      db.products.push(product);
+      added++;
+    }
+    for (const original of local.sales) {
+      if (saleIds.has(original.id)) continue;
+      const sale = {...original,productId:productIdMap.get(original.productId)||original.productId};
+      enqueueChange('sale_import',{sale});
+      if (!db.sales.some(x=>x.id===sale.id)) db.sales.push(sale);
+      added++;
+    }
+    for (const original of local.expenses) {
+      if (expenseIds.has(original.id)) continue;
+      const expense = {...original};
+      enqueueChange('expense',{expense});
+      if (!db.expenses.some(x=>x.id===expense.id)) db.expenses.push(expense);
+      added++;
+    }
+    pendingSync = readQueue(user.id);
+    applyPendingToDb();
+    cacheCloudData(user.id);
+    render();
+    localStorage.setItem('my-sales-book-imported-v1:' + user.id,'yes');
+    localStorage.setItem('my-sales-book-legacy-import-owner-v1',user.id);
+    button.classList.add('hidden');
+    cloudMessage('Queued ' + added + ' record(s) for safe import. Keep this phone available until Sync now reports all changes synchronised.');
+    updateSyncStatus();
+    if (navigator.onLine) await syncPendingChanges();
+  } catch (error) {
+    cloudMessage('Import could not be completed: ' + (error.message || String(error)) + '. Your original device records have not been intentionally deleted.');
+  } finally {
+    button.disabled = false;
+  }
+});
+
+document.getElementById('syncNowBtn').addEventListener('click', async () => {
+  if (!cloudUser) return;
+  if (!navigator.onLine) return cloudMessage('You are offline. Changes are kept on this device and will sync when internet returns.');
+  cloudMessage('Synchronising changes...');
+  try {
+    const ok = await syncPendingChanges();
+    if (ok) cloudMessage('All changes synchronised.');
+  } catch (error) {
+    cloudMessage('Sync failed. Your pending changes remain on this device: ' + (error.message || String(error)));
+  }
+});
+window.addEventListener('online', () => {
+  updateSyncStatus();
+  if (cloudUser) syncPendingChanges().catch(error => cloudMessage('Automatic sync failed. Pending changes are kept: ' + (error.message || String(error))));
+});
+window.addEventListener('offline', updateSyncStatus);
+setInterval(() => {
+  if (cloudUser && navigator.onLine && readQueue(cloudUser.id).some(item=>item.status==='pending')) {
+    syncPendingChanges().catch(error=>cloudMessage('Automatic sync retry failed. Pending changes remain on this device: ' + (error.message || String(error))));
+  }
+}, 60000);
+
 document.getElementById('googleSignOut').addEventListener('click', async () => {
   const message = document.getElementById('accountMessage');
   if (!supabaseClient) return;
+  const queued = cloudUser ? readQueue(cloudUser.id).filter(item => item.status !== 'synced') : [];
+  if (queued.length && !confirm('You have ' + queued.length + ' unsynchronised change(s). They will remain on this device and cannot be restored to a new phone until they sync. Sign out anyway?')) return;
 
-  const { error } = await supabaseClient.auth.signOut();
+  const { error } = await supabaseClient.auth.signOut({scope:'local'});
   if (error) {
     message.textContent = 'Could not sign out: ' + error.message;
     return;
   }
 
-  message.textContent = 'You have signed out. Your existing local records have not been deleted.';
+  message.textContent = 'You have signed out. Your business workspace is now locked on this device.';
   await refreshAccountStatus();
 });
 
@@ -854,6 +1452,14 @@ render();
 
 if (supabaseClient) {
   supabaseClient.auth.onAuthStateChange((event, session) => {
+    if (event === 'PASSWORD_RECOVERY') {
+      recoveryMode = true;
+      document.getElementById('appWorkspace').classList.add('hidden');
+      document.getElementById('recoveryPasswordForm').classList.remove('hidden');
+      document.getElementById('accountManagePanel').classList.add('hidden');
+      document.getElementById('emailAuthPanel').classList.add('hidden');
+      cloudMessage('Choose a new password to finish recovering your account.');
+    }
     if (event === 'SIGNED_IN' || event === 'SIGNED_OUT' || event === 'INITIAL_SESSION' || event === 'TOKEN_REFRESHED') {
       setTimeout(() => handleCloudAuthChange(), 0);
     }
