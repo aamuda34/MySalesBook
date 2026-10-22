@@ -1,12 +1,14 @@
 'use strict';
 
-const CACHE_NAME = 'my-sales-book-shell-v6';
+const CACHE_NAME = 'my-sales-book-shell-v7';
 const APP_SHELL = [
   './',
   './index.html',
   './supabase-config.js',
   './manifest.webmanifest',
-  './icons/icon.svg'
+  './icons/icon.svg',
+  './privacy.html',
+  './terms.html'
 ];
 
 self.addEventListener('install', event => {
