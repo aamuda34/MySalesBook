@@ -1146,6 +1146,15 @@ document.getElementById('deleteAccountBtn').addEventListener('click', async () =
   if (first !== 'DELETE') return;
   if (!confirm('Final confirmation: permanently delete this account and all its cloud business records?')) return;
   try {
+    if (!navigator.onLine) throw Error('Connect to the internet before deleting your account.');
+    const user = await requireCloudUser();
+    const {data:files,error:listError} = await supabaseClient.storage.from('product-images').list(user.id,{limit:1000});
+    if (listError) throw listError;
+    const paths = (files||[]).filter(file=>file.name && !file.id?.endsWith('/')).map(file=>user.id+'/'+file.name);
+    if (paths.length) {
+      const {error:removeError} = await supabaseClient.storage.from('product-images').remove(paths);
+      if (removeError) throw removeError;
+    }
     const { error } = await supabaseClient.rpc('delete_my_account');
     if (error) throw error;
     await supabaseClient.auth.signOut({ scope: 'local' });
