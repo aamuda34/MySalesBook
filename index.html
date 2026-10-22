@@ -357,10 +357,20 @@ function updateSyncStatus() {
 }
 function enqueueChange(type, payload) {
   if (!cloudUser) throw Error('Sign in before saving business records.');
-  const queue = readQueue(cloudUser.id);
-  queue.push({id:crypto.randomUUID(),type,payload:JSON.parse(JSON.stringify(payload)),createdAt:now(),status:'pending',error:''});
-  writeQueue(queue, cloudUser.id);
-  cacheCloudData(cloudUser.id);
+  const key = cloudQueueKey(cloudUser.id);
+  const previous = readQueue(cloudUser.id);
+  const next = [...previous,{id:crypto.randomUUID(),type,payload:JSON.parse(JSON.stringify(payload)),createdAt:now(),status:'pending',error:''}];
+  try {
+    localStorage.setItem(key, JSON.stringify(next));
+    localStorage.setItem(cloudCacheKey(cloudUser.id), JSON.stringify(db));
+    pendingSync = next;
+    updateSyncStatus();
+  } catch (error) {
+    try { localStorage.setItem(key, JSON.stringify(previous)); } catch (_) {}
+    pendingSync = previous;
+    updateSyncStatus();
+    throw error;
+  }
 }
 function applyPendingToDb() {
   for (const item of pendingSync) {
@@ -1165,6 +1175,8 @@ document.getElementById('deleteAccountBtn').addEventListener('click', async () =
   try {
     if (!navigator.onLine) throw Error('Connect to the internet before deleting your account.');
     const user = await requireCloudUser();
+    const pendingBeforeDelete = readQueue(user.id).filter(item => item.status !== 'synced');
+    if (pendingBeforeDelete.length && !confirm('There are ' + pendingBeforeDelete.length + ' unsynchronised change(s). Deleting the account will also remove this account\'s local cache and pending queue. Continue?')) return;
     const {data:files,error:listError} = await supabaseClient.storage.from('product-images').list(user.id,{limit:1000});
     if (listError) throw listError;
     const paths = (files||[]).filter(file=>file.name && !file.id?.endsWith('/')).map(file=>user.id+'/'+file.name);
@@ -1172,8 +1184,6 @@ document.getElementById('deleteAccountBtn').addEventListener('click', async () =
       const {error:removeError} = await supabaseClient.storage.from('product-images').remove(paths);
       if (removeError) throw removeError;
     }
-    const pendingBeforeDelete = readQueue(user.id).filter(item => item.status !== 'synced');
-    if (pendingBeforeDelete.length && !confirm('There are ' + pendingBeforeDelete.length + ' unsynchronised change(s). Deleting the account will also remove this account\'s local cache and pending queue. Continue?')) return;
     const { error } = await supabaseClient.rpc('delete_my_account');
     if (error) throw error;
     localStorage.removeItem(cloudCacheKey(user.id));
