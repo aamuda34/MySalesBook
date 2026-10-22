@@ -93,6 +93,8 @@ dialog::backdrop{background:#10201699}
     <button type="button" class="danger" id="deleteAccountBtn" style="width:100%;margin-top:12px">Delete my account and cloud records</button>
   </div>
   <p id="accountMessage" class="muted"></p>
+  <p id="syncStatus" class="muted">Checking sync status...</p>
+  <button type="button" id="syncNowBtn">Sync now</button>
 </section>
 <div id="appWorkspace" class="hidden">
 <nav>
@@ -272,6 +274,146 @@ function cloudMessage(text) {
 
 let localSnapshot = null;
 let authTransition = false;
+let pendingSync = [];
+let syncingQueue = false;
+const cloudCacheKey = userId => 'my-sales-book-cloud-cache-v1:' + userId;
+const cloudQueueKey = userId => 'my-sales-book-sync-queue-v1:' + userId;
+
+function readQueue(userId=cloudUser?.id) {
+  if (!userId) return [];
+  try {
+    const value = JSON.parse(localStorage.getItem(cloudQueueKey(userId)) || '[]');
+    return Array.isArray(value) ? value : [];
+  } catch (_) { return []; }
+}
+function writeQueue(queue, userId=cloudUser?.id) {
+  if (!userId) throw Error('Sign in to keep changes attached to your account.');
+  localStorage.setItem(cloudQueueKey(userId), JSON.stringify(queue));
+  pendingSync = queue;
+  updateSyncStatus();
+}
+function cacheCloudData(userId=cloudUser?.id) {
+  if (!userId) return;
+  localStorage.setItem(cloudCacheKey(userId), JSON.stringify(db));
+}
+function restoreCloudCache(userId) {
+  try {
+    const value = JSON.parse(localStorage.getItem(cloudCacheKey(userId)) || 'null');
+    if (value && Array.isArray(value.products) && Array.isArray(value.sales) && Array.isArray(value.expenses)) {
+      db = value;
+      storageMode = 'cloud-offline';
+      pendingSync = readQueue(userId);
+      applyPendingToDb();
+      render();
+      updateSyncStatus();
+      return true;
+    }
+  } catch (_) {}
+  return false;
+}
+function updateSyncStatus() {
+  const el = document.getElementById('syncStatus');
+  const button = document.getElementById('syncNowBtn');
+  if (!el || !button) return;
+  const waiting = pendingSync.filter(item => item.status !== 'synced').length;
+  el.textContent = !cloudUser ? 'Sign in to sync your business records.' :
+    !navigator.onLine ? (waiting ? waiting + ' change(s) waiting to sync. Offline.' : 'Offline. Showing the last saved cloud records.') :
+    waiting ? waiting + ' change(s) waiting to sync.' : 'All changes synchronised.';
+  button.disabled = !cloudUser || !navigator.onLine || syncingQueue;
+}
+function enqueueChange(type, payload) {
+  if (!cloudUser) throw Error('Sign in before saving business records.');
+  const queue = readQueue(cloudUser.id);
+  queue.push({id:crypto.randomUUID(),type,payload:JSON.parse(JSON.stringify(payload)),createdAt:now(),status:'pending',error:''});
+  writeQueue(queue, cloudUser.id);
+  cacheCloudData(cloudUser.id);
+}
+function applyPendingToDb() {
+  for (const item of pendingSync) {
+    if (item.status === 'conflict') continue;
+    const p = item.payload || {};
+    if (item.type === 'product_save') {
+      const product = p.product;
+      if (!product) continue;
+      const index = db.products.findIndex(x => x.id === product.id);
+      if (index >= 0) db.products[index] = {...db.products[index], ...product};
+      else db.products.push(product);
+    } else if (item.type === 'product_delete') {
+      db.products = db.products.filter(x => x.id !== p.product.id);
+    } else if (item.type === 'product_remove_image') {
+      const product = db.products.find(x => x.id === p.product.id);
+      if (product) { product.image=''; product.imagePath=''; }
+    } else if (item.type === 'sale') {
+      if (!db.sales.some(x => x.id === p.sale.id)) {
+        const product = db.products.find(x => x.id === p.sale.productId);
+        if (product) product.stock = Math.max(0, product.stock - p.sale.qty);
+        db.sales.push(p.sale);
+      }
+    } else if (item.type === 'expense') {
+      if (!db.expenses.some(x => x.id === p.expense.id)) db.expenses.push(p.expense);
+    }
+  }
+}
+async function syncPendingChanges() {
+  if (!cloudUser || !navigator.onLine || syncingQueue || !supabaseClient) return false;
+  syncingQueue = true;
+  try {
+    let queue = readQueue(cloudUser.id);
+    for (const item of queue) {
+      if (item.status === 'conflict') continue;
+      try {
+        const p = item.payload || {};
+        if (item.type === 'product_save') {
+          await cloudSaveProduct(p.product, p.isNew);
+        } else if (item.type === 'product_delete') {
+          await cloudDeleteProduct(p.product);
+        } else if (item.type === 'product_remove_image') {
+          await cloudRemoveProductImage(p.product);
+        } else if (item.type === 'sale') {
+          const {error} = await supabaseClient.rpc('record_sale_offline', {
+            p_sale_id:p.sale.id,p_product_id:p.sale.productId,p_quantity:p.sale.qty,
+            p_unit_price:p.sale.price,p_note:p.sale.note||null,p_sold_at:p.sale.date
+          });
+          if (error) throw error;
+        } else if (item.type === 'expense') {
+          const user = await requireCloudUser();
+          const {error} = await supabaseClient.from('expenses').upsert({
+            id:p.expense.id,user_id:user.id,description:p.expense.name,
+            amount:p.expense.amount,spent_at:p.expense.date
+          }, {onConflict:'id',ignoreDuplicates:true});
+          if (error) throw error;
+        }
+        item.status = 'synced';
+        item.error = '';
+        writeQueue(queue, cloudUser.id);
+      } catch (error) {
+        item.status = 'pending';
+        item.error = error.message || String(error);
+        writeQueue(queue, cloudUser.id);
+        break;
+      }
+    }
+    queue = queue.filter(item => item.status !== 'synced');
+    writeQueue(queue, cloudUser.id);
+    if (!queue.length) {
+      await cloudLoadAll();
+    } else {
+      pendingSync = queue;
+      applyPendingToDb();
+      storageMode = 'cloud-offline';
+      render();
+      cacheCloudData(cloudUser.id);
+      const firstError = queue.find(item => item.error)?.error;
+      cloudMessage('Some changes are still waiting to sync. Your local copies are kept.' + (firstError ? ' Problem: ' + firstError : ''));
+    }
+    updateSyncStatus();
+    return queue.length === 0;
+  } finally {
+    syncingQueue = false;
+    updateSyncStatus();
+  }
+}
+
 
 function snapshotLocalRecords() {
   try {
