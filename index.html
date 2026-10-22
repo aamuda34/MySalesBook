@@ -350,7 +350,7 @@ function enqueueChange(type, payload) {
 }
 function applyPendingToDb() {
   for (const item of pendingSync) {
-    if (item.status === 'conflict' || item.status === 'synced') continue;
+    if (item.status === 'synced') continue;
     const p = item.payload || {};
     if (item.type === 'product_save') {
       const product = p.product;
