@@ -295,6 +295,7 @@ let localSnapshot = null;
 let authTransition = false;
 let pendingSync = [];
 let syncingQueue = false;
+let recoveryMode = window.location.hash.includes('type=recovery');
 const cloudCacheKey = userId => 'my-sales-book-cloud-cache-v1:' + userId;
 const cloudQueueKey = userId => 'my-sales-book-sync-queue-v1:' + userId;
 
@@ -1107,7 +1108,14 @@ async function refreshAccountStatus(){
   signOut.classList.toggle('hidden', !user);
   document.getElementById('emailAuthPanel').classList.toggle('hidden', !!user);
   document.getElementById('accountManagePanel').classList.toggle('hidden', !user);
-  document.getElementById('recoveryPasswordForm').classList.add('hidden');
+  if (recoveryMode) {
+    document.getElementById('recoveryPasswordForm').classList.remove('hidden');
+    document.getElementById('emailAuthPanel').classList.add('hidden');
+    document.getElementById('accountManagePanel').classList.add('hidden');
+    document.getElementById('appWorkspace').classList.add('hidden');
+  } else {
+    document.getElementById('recoveryPasswordForm').classList.add('hidden');
+  }
   const importButton = document.getElementById('importLocalRecordsBtn');
   const hasLocal = !!(localSnapshot && (localSnapshot.products.length || localSnapshot.sales.length || localSnapshot.expenses.length));
   const importOwner = localStorage.getItem('my-sales-book-legacy-import-owner-v1');
@@ -1184,8 +1192,10 @@ document.getElementById('recoveryPasswordForm').addEventListener('submit', async
   try {
     const { error } = await supabaseClient.auth.updateUser({ password });
     if (error) throw error;
+    recoveryMode = false;
     document.getElementById('recoveryPasswordForm').classList.add('hidden');
     document.getElementById('recoveryPasswordForm').reset();
+    history.replaceState(null, '', window.location.pathname + window.location.search);
     cloudMessage('Password updated. You can continue using your account.');
     await handleCloudAuthChange();
   } catch (error) {
@@ -1349,6 +1359,7 @@ render();
 if (supabaseClient) {
   supabaseClient.auth.onAuthStateChange((event, session) => {
     if (event === 'PASSWORD_RECOVERY') {
+      recoveryMode = true;
       document.getElementById('appWorkspace').classList.add('hidden');
       document.getElementById('recoveryPasswordForm').classList.remove('hidden');
       document.getElementById('accountManagePanel').classList.add('hidden');
