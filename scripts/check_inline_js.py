@@ -2,14 +2,19 @@ from html.parser import HTMLParser
 from pathlib import Path
 import subprocess
 import tempfile
+import re
 
 class InlineScripts(HTMLParser):
     def __init__(self):
         super().__init__()
         self.inline = []
+        self.ids = set()
         self.current = None
     def handle_starttag(self, tag, attrs):
-        if tag.lower() == "script" and not dict(attrs).get("src"):
+        attrs = dict(attrs)
+        if attrs.get("id"):
+            self.ids.add(attrs["id"])
+        if tag.lower() == "script" and not attrs.get("src"):
             self.current = []
     def handle_data(self, data):
         if self.current is not None:
@@ -28,4 +33,9 @@ with tempfile.TemporaryDirectory() as tmp:
         path = Path(tmp) / f"inline-{index}.js"
         path.write_text(source, encoding="utf-8")
         subprocess.run(["node", "--check", str(path)], check=True)
-print(f"JavaScript syntax check passed for {len(parser.inline)} inline script(s).")
+combined = "\\n".join(parser.inline)
+referenced = set(re.findall(r"getElementById\\(\\s*['\\\"]([^'\\\"]+)['\\\"]\\s*\\)", combined))
+missing = sorted(referenced - parser.ids)
+if missing:
+    raise SystemExit("Missing HTML IDs referenced by JavaScript: " + ", ".join(missing))
+print(f"JavaScript syntax and DOM ID checks passed for {len(parser.inline)} inline script(s).")
