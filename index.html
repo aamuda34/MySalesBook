@@ -49,6 +49,42 @@ dialog::backdrop{background:#10201699}
 .dialog-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:16px}
 .dialog-actions button{margin-top:0}
 .edit-photo-preview{width:96px;height:96px;object-fit:cover;border-radius:10px;margin-top:8px;background:#edf2ee;border:1px solid #dce5de}
+
+:root{--green:#14532d;--soft:#e5f1e7;--page:#f3f6f3;--ink:#17231c;--muted:#647269;--surface:#fff;--border:#e4ebe5}
+body{background:var(--page);color:var(--ink);padding-bottom:80px}
+header{padding:16px}
+.header-brand{display:flex;align-items:center;gap:12px;max-width:980px;margin:auto}
+.brand-logo,.brand-mark{width:46px;height:46px;border-radius:13px;object-fit:cover;flex-shrink:0}
+.brand-logo{display:none}.brand-mark{background:#ffffff20;display:grid;place-items:center;font-weight:800;font-size:20px}
+.brand-copy{min-width:0}#businessTitle{font-size:21px;overflow-wrap:anywhere}#businessSubtitle{opacity:.8}
+main{max-width:980px;padding:14px}#accountCard{max-width:540px;margin:18px auto}
+nav{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;margin:0 0 16px;position:sticky;top:0;z-index:10;background:var(--page);padding:7px 0}
+nav button{background:transparent;color:#536458;border:1px solid transparent;border-radius:12px;padding:10px 4px;min-height:55px;display:flex;flex-direction:column;align-items:center;gap:4px;font-size:12px}
+.nav-icon{font-size:19px;line-height:1}nav button.active{background:var(--green);color:#fff;box-shadow:0 4px 12px #14532d22}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:15px;padding:16px;box-shadow:0 3px 14px #10201608}
+.stats{gap:9px}.stat{background:var(--soft);border:1px solid var(--border);padding:13px;min-width:0}.stat strong{font-size:clamp(16px,4vw,22px);display:block}.stat small{font-size:12px;line-height:1.4}
+input,select{background:var(--surface);color:var(--ink);border-color:#d4ded6}input:focus,select:focus{outline:2px solid #86b695;outline-offset:1px}
+.item{border-color:var(--border);padding:13px 0}.quick-actions,.menu-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+.quick-actions button,.menu-tile{min-height:72px;text-align:left;padding:13px;border:1px solid var(--border);background:var(--surface);color:var(--ink);border-radius:13px}
+.quick-actions strong,.menu-tile strong{display:block;color:var(--green);font-size:14px;margin-bottom:5px}.quick-actions span,.menu-tile span{display:block;color:var(--muted);font-size:12px;font-weight:400;line-height:1.4}
+.menu-tile{display:flex;flex-direction:column;justify-content:center;gap:5px}.tile-icon{font-size:22px}
+.section-heading{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px}.section-heading h2{margin:0}
+.page-title{font-size:23px;margin:8px 0 4px}.page-intro{font-size:13px;color:var(--muted);margin:0 0 15px}
+.filters{display:grid;grid-template-columns:1fr 1fr;gap:8px}.filter-wide{grid-column:1/-1}
+.chart-bars{height:175px;display:flex;align-items:flex-end;gap:6px;padding:12px 0 0;border-bottom:1px solid var(--border)}
+.chart-col{height:100%;flex:1;min-width:0;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:6px}
+.chart-bar{width:min(28px,70%);min-height:3px;border-radius:6px 6px 2px 2px;background:linear-gradient(180deg,#36945a,#14532d)}
+.chart-label,.chart-value{font-size:10px;color:var(--muted);white-space:nowrap;max-width:100%;overflow:hidden;text-overflow:ellipsis}
+.progress-row{display:grid;grid-template-columns:minmax(65px,1fr) 2fr auto;gap:8px;align-items:center;padding:8px 0}
+.progress-track{height:8px;background:var(--soft);border-radius:99px;overflow:hidden}.progress-fill{height:100%;background:var(--green);border-radius:99px}
+.low-stock-badge{display:inline-block;background:#fff1d8;color:#895200;border-radius:99px;padding:4px 8px;font-size:11px;font-weight:700}
+.status-pill{display:inline-block;padding:6px 9px;border-radius:99px;background:var(--soft);color:var(--green);font-size:12px;font-weight:700}
+.settings-group{padding:14px 0;border-bottom:1px solid var(--border)}.settings-group:last-child{border:0;padding-bottom:0}
+#businessLogoPreview{width:76px;height:76px;border-radius:14px;object-fit:cover;display:none;margin-top:10px}
+body.dark{--page:#101713;--ink:#e8f0e9;--muted:#a8b8ac;--surface:#19231d;--border:#2c3a30;--soft:#23392a;color:var(--ink)}
+body.dark nav{background:var(--page)}body.dark nav button{color:#b8c9bc}body.dark nav button.active{color:#fff}body.dark input,body.dark select{background:#18221b;color:var(--ink);border-color:#3a4a3e}
+@media(min-width:700px){.dashboard-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}.quick-actions{grid-template-columns:repeat(4,1fr)}.menu-grid{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:420px){main{padding:10px}.card{padding:13px}.stat{padding:10px}.filters{grid-template-columns:1fr}.filter-wide{grid-column:auto}.progress-row{grid-template-columns:75px 1fr auto}}
 </style>
 
 <link rel="manifest" href="./manifest.webmanifest">
@@ -56,86 +92,38 @@ dialog::backdrop{background:#10201699}
 
 </head>
 <body>
-<header>
-<h1>My Sales Book</h1>
-<p>Simple business records · Nigerian naira (₦)</p>
-</header>
+<header><div class="header-brand">
+<img id="headerBusinessLogo" class="brand-logo" alt="Business logo"><div id="brandMark" class="brand-mark">MS</div>
+<div class="brand-copy"><h1 id="businessTitle">My Sales Book</h1><p id="businessSubtitle">Simple business records · Nigerian naira (₦)</p></div>
+</div></header>
 <main>
 <section class="card" id="accountCard" aria-live="polite">
-  <h2>My account</h2>
-  <p id="accountStatus" class="muted">Checking sign-in status...</p>
-  <button type="button" class="primary" id="googleSignIn">Sign in with Google</button>
-  <button type="button" id="googleSignOut" class="hidden">Sign out</button>
-  <div id="emailAuthPanel">
-    <form id="emailAuthForm">
-      <label for="authEmail">Email address</label>
-      <input id="authEmail" type="email" autocomplete="email" required>
-      <label for="authPassword">Password</label>
-      <input id="authPassword" type="password" autocomplete="current-password" minlength="8" required>
-      <button type="submit" class="primary" id="emailAuthSubmit">Sign in with email</button>
-    </form>
-    <div class="photo-actions">
-      <button type="button" id="toggleEmailAuth">Create account</button>
-      <button type="button" id="resetPasswordBtn">Forgot password?</button>
-    </div>
-  </div>
-  <form id="recoveryPasswordForm" class="hidden">
-    <label for="recoveryPassword">Choose a new password</label>
-    <input id="recoveryPassword" type="password" minlength="8" autocomplete="new-password" required>
-    <button type="submit" class="primary">Save new password</button>
-  </form>
-  <div id="accountManagePanel" class="hidden">
-    <form id="changeEmailForm">
-      <label for="newAccountEmail">Change account email</label>
-      <input id="newAccountEmail" type="email" autocomplete="email" required placeholder="New email address">
-      <button type="submit">Request email change</button>
-    </form>
-    <button type="button" class="danger" id="deleteAccountBtn" style="width:100%;margin-top:12px">Delete my account and cloud records</button>
-  </div>
-  <p id="accountMessage" class="muted"></p>
-  <p id="syncStatus" class="muted">Checking sync status...</p>
-  <div id="syncDetails" class="muted"></div>
-  <button type="button" id="syncNowBtn">Sync now</button>
-  <button type="button" id="importLocalRecordsBtn" class="hidden">Import this device's existing records</button>
-</section>
+<h2>Welcome to My Sales Book</h2><p id="accountStatus" class="muted">Checking sign-in status...</p>
+<button type="button" class="primary" id="googleSignIn">Continue with Google</button>
+<div id="emailAuthPanel"><form id="emailAuthForm">
+<label for="authEmail">Email address</label><input id="authEmail" type="email" autocomplete="email" required>
+<label for="authPassword">Password</label><input id="authPassword" type="password" autocomplete="current-password" minlength="8" required>
+<button type="submit" class="primary" id="emailAuthSubmit">Sign in with email</button></form>
+<div class="photo-actions"><button type="button" id="toggleEmailAuth">Create account</button><button type="button" id="resetPasswordBtn">Forgot password?</button></div></div>
+<form id="recoveryPasswordForm" class="hidden"><label for="recoveryPassword">Choose a new password</label><input id="recoveryPassword" type="password" minlength="8" autocomplete="new-password" required><button type="submit" class="primary">Save new password</button></form>
+<p id="accountMessage" class="muted" aria-live="polite"></p></section>
 <div id="appWorkspace" class="hidden">
-<nav>
-<button class="active" data-page="home">Home</button>
-<button data-page="products">Products</button>
-<button data-page="sales">Sales</button>
-<button data-page="expenses">Expenses</button>
+<nav aria-label="Main navigation">
+<button class="active" data-page="home"><span class="nav-icon">⌂</span>Home</button>
+<button data-page="products"><span class="nav-icon">▦</span>Products</button>
+<button data-page="sales"><span class="nav-icon">↗</span>Sales</button>
+<button data-page="more"><span class="nav-icon">☰</span>More</button>
 </nav>
 
 <section id="home" class="page">
-<div class="card">
-<h2>Business summary</h2>
-<div class="stats">
-<div class="stat"><small>Today's sales</small><strong id="todaySales">₦0</strong></div>
-<div class="stat"><small>Today's expenses</small><strong id="todayExpenses">₦0</strong></div>
-<div class="stat"><small>Today's gross profit</small><strong id="todayGross">₦0</strong></div>
-<div class="stat"><small>Today's net profit</small><strong id="todayNet">₦0</strong></div>
-</div>
-</div>
-<div class="card">
-<h2>All-time summary</h2>
-<div class="stats">
-<div class="stat"><small>Total sales</small><strong id="allSales">₦0</strong></div>
-<div class="stat"><small>Net profit</small><strong id="allNet">₦0</strong></div>
-<div class="stat"><small>Products</small><strong id="productCount">0</strong></div>
-<div class="stat"><small>Units in stock</small><strong id="stockCount">0</strong></div>
-</div>
-</div>
-<div class="card">
-<h2>Recent sales</h2><div id="recentSales" class="empty">No sales recorded yet.</div>
-</div>
-<div class="card">
-<h2>Data backup</h2>
-<p class="muted">Export your records regularly and keep a copy somewhere safe.</p>
-<button class="primary" id="exportBtn">Export backup</button>
-<label for="importFile">Restore from backup</label>
-<input type="file" id="importFile" accept=".json,application/json">
-<p class="muted">Restoring replaces the records currently in this app.</p>
-</div>
+<div class="section-heading"><div><h2 class="page-title">Overview</h2><p class="page-intro" id="dashboardGreeting">Your business at a glance</p></div><span class="status-pill" id="homeSyncPill">Ready</span></div>
+<div class="card"><h2>Today's performance</h2><div class="stats">
+<div class="stat"><small>Sales</small><strong id="todaySales">₦0</strong></div><div class="stat"><small>Expenses</small><strong id="todayExpenses">₦0</strong></div><div class="stat"><small>Gross profit</small><strong id="todayGross">₦0</strong></div><div class="stat"><small>Net profit</small><strong id="todayNet">₦0</strong></div></div></div>
+<div class="quick-actions"><button type="button" data-open-page="sales"><strong>＋ Record sale</strong><span>Record a paid sale</span></button><button type="button" data-open-page="products"><strong>＋ Add product</strong><span>Update your catalogue</span></button><button type="button" data-open-page="expenses"><strong>＋ Add expense</strong><span>Record business costs</span></button><button type="button" data-open-page="stock"><strong>▤ Adjust stock</strong><span>Correct stock quantity</span></button></div>
+<div class="dashboard-grid" style="margin-top:14px"><div class="card"><h2>Business totals</h2><div class="stats"><div class="stat"><small>Total sales</small><strong id="allSales">₦0</strong></div><div class="stat"><small>Net profit</small><strong id="allNet">₦0</strong></div><div class="stat"><small>Products</small><strong id="productCount">0</strong></div><div class="stat"><small>Units in stock</small><strong id="stockCount">0</strong></div></div></div>
+<div class="card"><div class="section-heading"><h2>Low stock</h2><button type="button" data-open-page="stock">Manage</button></div><div id="lowStockPreview" class="muted">No low-stock products.</div></div></div>
+<div class="card"><div class="section-heading"><h2>Sales trend</h2><button type="button" data-open-page="reports">Reports</button></div><div id="salesTrendChart" class="chart-wrap"><div class="empty">Sales trend appears here.</div></div></div>
+<div class="card"><h2>Recent sales</h2><div id="recentSales" class="empty">No sales recorded yet.</div></div>
 </section>
 
 <section id="products" class="page hidden">
@@ -183,21 +171,32 @@ dialog::backdrop{background:#10201699}
 </form>
 <p class="muted">Sales are recorded as paid. Stock is deducted automatically.</p>
 </div>
-<div class="card"><h2>Sales history</h2><div id="salesList" class="empty">No sales recorded yet.</div></div>
+<div class="card"><div class="section-heading"><h2>Sales history</h2><span id="salesResultCount" class="muted"></span></div>
+<div class="filters"><div class="filter-wide"><label for="salesSearch">Search sales</label><input id="salesSearch" type="search" placeholder="Product or note..." autocomplete="off"></div><div><label for="salesFrom">From date</label><input id="salesFrom" type="date"></div><div><label for="salesTo">To date</label><input id="salesTo" type="date"></div><div class="filter-wide"><button type="button" id="clearSalesFilters">Clear filters</button></div></div>
+<div id="salesList" class="empty">No sales recorded yet.</div></div>
 </section>
 
-<section id="expenses" class="page hidden">
-<div class="card">
-<h2>Record an expense</h2>
-<form id="expenseForm">
-<label for="ename">Expense description</label><input id="ename" required maxlength="100" placeholder="e.g. Transport">
-<label for="eamount">Amount (₦)</label><input id="eamount" type="number" min="0.01" step="0.01" required>
-<button class="primary">Save expense</button>
-</form>
-</div>
-<div class="card"><h2>Expense history</h2><div id="expenseList" class="empty">No expenses recorded yet.</div></div>
-</section>
-<footer>Keep regular backups of your business records.</footer>
+<section id="expenses" class="page hidden"><h2 class="page-title">Expenses</h2><p class="page-intro">Record and review business spending.</p>
+<div class="card"><h2>Record an expense</h2><form id="expenseForm"><label for="ename">Expense description</label><input id="ename" required maxlength="100" placeholder="e.g. Transport"><label for="eamount">Amount (₦)</label><input id="eamount" type="number" min="0.01" step="0.01" required inputmode="decimal"><button class="primary">Save expense</button></form></div>
+<div class="card"><h2>Expense history</h2><div id="expenseList" class="empty">No expenses recorded yet.</div></div></section>
+<section id="more" class="page hidden"><h2 class="page-title">More tools</h2><p class="page-intro">Reports, stock, expenses and app settings.</p><div class="menu-grid">
+<button type="button" class="menu-tile" data-open-page="expenses"><span class="tile-icon">↘</span><strong>Expenses</strong><span>Record and review spending</span></button>
+<button type="button" class="menu-tile" data-open-page="reports"><span class="tile-icon">▥</span><strong>Reports</strong><span>Sales trends and top products</span></button>
+<button type="button" class="menu-tile" data-open-page="stock"><span class="tile-icon">▤</span><strong>Stock management</strong><span>Adjust quantities and review changes</span></button>
+<button type="button" class="menu-tile" data-open-page="settings"><span class="tile-icon">⚙</span><strong>Settings</strong><span>Business profile, account and preferences</span></button>
+</div></section>
+<section id="reports" class="page hidden"><h2 class="page-title">Reports</h2><p class="page-intro">A simple view of business performance.</p>
+<div class="card"><label for="reportRange">Reporting period</label><select id="reportRange"><option value="7">Last 7 days</option><option value="30" selected>Last 30 days</option><option value="90">Last 90 days</option></select><div class="stats" style="margin-top:12px"><div class="stat"><small>Sales</small><strong id="reportSales">₦0</strong></div><div class="stat"><small>Gross profit</small><strong id="reportGross">₦0</strong></div><div class="stat"><small>Expenses</small><strong id="reportExpenses">₦0</strong></div><div class="stat"><small>Net profit</small><strong id="reportNet">₦0</strong></div></div></div>
+<div class="card"><h2>Sales by day</h2><div id="reportSalesChart" class="chart-wrap"><div class="empty">No sales in this period.</div></div></div><div class="card"><h2>Best-selling products</h2><div id="topProductsChart" class="muted">Rankings appear after sales are recorded.</div></div></section>
+<section id="stock" class="page hidden"><h2 class="page-title">Stock management</h2><p class="page-intro">Adjust stock when new items arrive, goods are damaged, or a count needs correction. Each change is recorded.</p>
+<div class="card"><h2>Adjust stock</h2><form id="stockAdjustmentForm"><label for="adjustProduct">Product</label><select id="adjustProduct" required></select><div class="stats" style="margin-top:10px"><div class="stat"><small>Current stock</small><strong id="adjustCurrentStock">—</strong></div><div class="stat"><small>Change</small><strong id="adjustStockChange">—</strong></div></div><label for="adjustNewStock">New stock quantity</label><input id="adjustNewStock" type="number" min="0" step="1" required inputmode="numeric"><label for="adjustReason">Reason (optional)</label><input id="adjustReason" maxlength="120" placeholder="e.g. New stock received"><button class="primary">Save stock adjustment</button></form></div>
+<div class="card"><h2>Low-stock products</h2><div id="lowStockList" class="muted">No low-stock products.</div></div><div class="card"><h2>Stock adjustment history</h2><div id="stockAdjustmentList" class="empty">No stock adjustments recorded yet.</div></div></section>
+<section id="settings" class="page hidden"><h2 class="page-title">Settings</h2><p class="page-intro">Business identity, account, backups and app preferences.</p>
+<div class="card"><h2>Business profile</h2><p class="muted">Your business name and logo belong to your account and appear on your devices.</p><form id="businessProfileForm"><label for="businessNameInput">Business name</label><input id="businessNameInput" required maxlength="100" placeholder="e.g. Amuda Stores"><label for="businessLogoInput">Business logo (optional)</label><input id="businessLogoInput" type="file" accept="image/jpeg,image/png,image/webp"><img id="businessLogoPreview" alt="Business logo preview"><p id="businessLogoHint" class="muted">Choose a small image. It will be resized for the app.</p><button class="primary">Save business profile</button></form></div>
+<div class="card"><h2>Account and security</h2><p id="settingsAccountStatus" class="muted">Checking account...</p><div id="accountManagePanel" class="settings-group hidden"><form id="changeEmailForm"><label for="newAccountEmail">Change account email</label><input id="newAccountEmail" type="email" autocomplete="email" required placeholder="New email address"><button type="submit">Request email change</button></form><button type="button" class="danger" id="deleteAccountBtn" style="width:100%;margin-top:12px">Delete my account and cloud records</button></div><button type="button" id="googleSignOut" class="danger" style="width:100%">Sign out</button><p id="settingsAccountMessage" class="muted" aria-live="polite"></p></div>
+<div class="card"><h2>Sync and data</h2><p id="syncStatus" class="muted">Checking sync status...</p><div id="syncDetails" class="muted"></div><div class="photo-actions"><button type="button" id="syncNowBtn" class="primary">Sync now</button><button type="button" id="importLocalRecordsBtn" class="hidden">Import device records</button></div><div class="settings-group"><h3>Backup and restore</h3><p class="muted">Export a copy regularly. Restoring replaces records currently on this device.</p><button type="button" id="exportBtn">Export backup</button><label for="importFile">Restore from backup</label><input type="file" id="importFile" accept=".json,application/json"></div></div>
+<div class="card"><h2>App preferences</h2><div class="settings-group"><label for="themePreference">Appearance</label><select id="themePreference"><option value="light">Light mode</option><option value="dark">Dark mode</option><option value="system">Use device setting</option></select></div><div class="settings-group"><label for="lowStockThreshold">Low-stock alert threshold (units)</label><input id="lowStockThreshold" type="number" min="0" max="100000" step="1" value="5"><button type="button" id="savePreferencesBtn">Save preferences</button></div></div></section>
+<footer>My Sales Book · Keep regular backups of your business records.</footer>
 </div>
 </main>
 <dialog id="editProductDialog" aria-labelledby="editProductHeading">
