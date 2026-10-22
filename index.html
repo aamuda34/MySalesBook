@@ -637,7 +637,7 @@ async function cloudLoadAll() {
         try { offlineImage=await imageUrlToDataUrl(image); } catch (_) {}
       }
     }
-    return {id:row.id,name:row.name,category:normalizeCategory(row.category),cost:Number(row.cost_price),price:Number(row.selling_price),stock:Number(row.stock),image,offlineImage,imagePath:row.image_path||'',createdAt:row.created_at};
+    return {id:row.id,name:row.name,category:normalizeCategory(row.category),cost:Number(row.cost_price),price:Number(row.selling_price),stock:Number(row.stock),image,offlineImage,imagePath:row.image_path||'',createdAt:row.created_at,updatedAt:row.updated_at};
   }));
   const sales=(sr.data||[]).map(row=>({id:row.id,productId:row.product_id,name:row.product_name,qty:Number(row.quantity),price:Number(row.unit_price),cost:Number(row.unit_cost),total:Number(row.total),profit:Number(row.gross_profit),note:row.note||'',date:row.sold_at}));
   const expenses=(er.data||[]).map(row=>({id:row.id,name:row.description,amount:Number(row.amount),date:row.spent_at}));
