@@ -95,6 +95,7 @@ dialog::backdrop{background:#10201699}
   <p id="accountMessage" class="muted"></p>
   <p id="syncStatus" class="muted">Checking sync status...</p>
   <button type="button" id="syncNowBtn">Sync now</button>
+  <button type="button" id="importLocalRecordsBtn" class="hidden">Import this device's existing records</button>
 </section>
 <div id="appWorkspace" class="hidden">
 <nav>
@@ -368,6 +369,8 @@ function applyPendingToDb() {
       }
     } else if (item.type === 'expense') {
       if (!db.expenses.some(x => x.id === p.expense.id)) db.expenses.push(p.expense);
+    } else if (item.type === 'sale_import') {
+      if (!db.sales.some(x => x.id === p.sale.id)) db.sales.push(p.sale);
     }
   }
 }
@@ -391,6 +394,15 @@ async function syncPendingChanges() {
             p_sale_id:p.sale.id,p_product_id:p.sale.productId,p_quantity:p.sale.qty,
             p_unit_price:p.sale.price,p_note:p.sale.note||null,p_sold_at:p.sale.date
           });
+          if (error) throw error;
+        } else if (item.type === 'sale_import') {
+          const user = await requireCloudUser();
+          const sale = p.sale;
+          const {error} = await supabaseClient.from('sales').upsert({
+            id:sale.id,user_id:user.id,product_id:sale.productId,product_name:sale.name,
+            quantity:sale.qty,unit_price:sale.price,unit_cost:sale.cost,total:sale.total,
+            gross_profit:sale.profit,note:sale.note||null,sold_at:sale.date
+          }, {onConflict:'id',ignoreDuplicates:true});
           if (error) throw error;
         } else if (item.type === 'expense') {
           const user = await requireCloudUser();
@@ -1046,6 +1058,10 @@ async function refreshAccountStatus(){
   document.getElementById('emailAuthPanel').classList.toggle('hidden', !!user);
   document.getElementById('accountManagePanel').classList.toggle('hidden', !user);
   document.getElementById('recoveryPasswordForm').classList.add('hidden');
+  const importButton = document.getElementById('importLocalRecordsBtn');
+  const hasLocal = !!(localSnapshot && (localSnapshot.products.length || localSnapshot.sales.length || localSnapshot.expenses.length));
+  const alreadyImported = user && localStorage.getItem('my-sales-book-imported-v1:' + user.id) === 'yes';
+  importButton.classList.toggle('hidden', !user || !hasLocal || alreadyImported);
   document.getElementById('appWorkspace').classList.toggle('hidden', !user);
 }
 
@@ -1154,6 +1170,65 @@ document.getElementById('changeEmailForm').addEventListener('submit', async even
     document.getElementById('changeEmailForm').reset();
   } catch (error) {
     cloudMessage('Could not request an email change: ' + (error.message || String(error)));
+  }
+});
+
+document.getElementById('importLocalRecordsBtn').addEventListener('click', async () => {
+  if (!cloudUser || !localSnapshot) return;
+  const local = JSON.parse(JSON.stringify(localSnapshot));
+  const total = local.products.length + local.sales.length + local.expenses.length;
+  if (!total) return cloudMessage('There are no existing device records to import.');
+  if (!confirm('Import ' + local.products.length + ' product(s), ' + local.sales.length + ' sale(s), and ' + local.expenses.length + ' expense(s) from this device into your signed-in account? Existing cloud records will not be intentionally replaced. Keep this phone until the sync finishes.')) return;
+  const button = document.getElementById('importLocalRecordsBtn');
+  button.disabled = true;
+  try {
+    const user = await requireCloudUser();
+    const [productsResult,salesResult,expensesResult] = await Promise.all([
+      supabaseClient.from('products').select('id').eq('user_id',user.id),
+      supabaseClient.from('sales').select('id').eq('user_id',user.id),
+      supabaseClient.from('expenses').select('id').eq('user_id',user.id)
+    ]);
+    if (productsResult.error) throw productsResult.error;
+    if (salesResult.error) throw salesResult.error;
+    if (expensesResult.error) throw expensesResult.error;
+    const productIds = new Set((productsResult.data||[]).map(x=>x.id));
+    const saleIds = new Set((salesResult.data||[]).map(x=>x.id));
+    const expenseIds = new Set((expensesResult.data||[]).map(x=>x.id));
+    let added = 0;
+    for (const original of local.products) {
+      if (productIds.has(original.id)) continue;
+      const product = {...original};
+      enqueueChange('product_save',{product,isNew:true});
+      db.products.push(product);
+      added++;
+    }
+    for (const original of local.sales) {
+      if (saleIds.has(original.id)) continue;
+      const sale = {...original};
+      enqueueChange('sale_import',{sale});
+      if (!db.sales.some(x=>x.id===sale.id)) db.sales.push(sale);
+      added++;
+    }
+    for (const original of local.expenses) {
+      if (expenseIds.has(original.id)) continue;
+      const expense = {...original};
+      enqueueChange('expense',{expense});
+      if (!db.expenses.some(x=>x.id===expense.id)) db.expenses.push(expense);
+      added++;
+    }
+    pendingSync = readQueue(user.id);
+    applyPendingToDb();
+    cacheCloudData(user.id);
+    render();
+    localStorage.setItem('my-sales-book-imported-v1:' + user.id,'yes');
+    button.classList.add('hidden');
+    cloudMessage('Queued ' + added + ' record(s) for safe import. Keep this phone available until Sync now reports all changes synchronised.');
+    updateSyncStatus();
+    if (navigator.onLine) await syncPendingChanges();
+  } catch (error) {
+    cloudMessage('Import could not be completed: ' + (error.message || String(error)) + '. Your original device records have not been intentionally deleted.');
+  } finally {
+    button.disabled = false;
   }
 });
 
