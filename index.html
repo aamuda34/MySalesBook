@@ -1709,6 +1709,7 @@ function showAdminPanel(name){
  sessionStorage.setItem('sellbook-admin-panel',name);
  if(name==='traffic')loadAdminTraffic();
  if(name==='users')loadAdminUsers();
+ if(name==='support'){loadAdminUsers();}
  if(name==='feedback')loadAdminFeedback();
  if(name==='notifications')loadAdminNotifications();
 }
@@ -1754,7 +1755,9 @@ async function loadAdminUsers(){
  if(error){target.textContent='Could not load users: '+error.message;return;}
  adminUsersCache=data||[];
  const opts='<option value="">Choose a user</option>'+adminUsersCache.map(u=>'<option value="'+escAdmin(u.user_id)+'">'+escAdmin(u.email||'No email')+'</option>').join('');
- document.getElementById('adminMessageUser').innerHTML=opts;
+ const chatSelect=document.getElementById('adminMessageUser'),previousUser=chatSelect.value;
+ chatSelect.innerHTML=opts;
+ if(previousUser&&adminUsersCache.some(u=>u.user_id===previousUser)){chatSelect.value=previousUser;await loadAdminConversation();}
  document.getElementById('notificationUser').innerHTML=opts;
  target.innerHTML=adminUsersCache.length?adminUsersCache.map(u=>'<div class="item"><strong>'+escAdmin(u.email||'No email')+'</strong><div class="muted">Joined '+escAdmin(u.created_at?new Date(u.created_at).toLocaleDateString():'unknown')+' · Last sign-in '+escAdmin(u.last_sign_in_at?new Date(u.last_sign_in_at).toLocaleDateString():'not available')+'</div></div>').join(''):'<div class="empty">No registered users found.</div>';
 }
@@ -1813,7 +1816,7 @@ document.getElementById('supportMessageForm').addEventListener('submit',async e=
 });
 document.getElementById('refreshSupportChat').addEventListener('click',loadUserSupport);
 document.getElementById('openFeedbackPage').addEventListener('click',()=>showPage('feedback'));
-document.querySelectorAll('[data-open-page="support"]').forEach(b=>b.addEventListener('click',()=>loadUserSupport()));
+document.querySelectorAll('[data-open-page="support"]').forEach(b=>b.addEventListener('click',async()=>{if(sellbookIsAdmin){showPage('admin');showAdminPanel('support');await loadAdminUsers();}else{showPage('support');loadUserSupport();}}));
 const chatInput=document.getElementById('supportMessageBody');chatInput.addEventListener('input',()=>{chatInput.style.height='auto';chatInput.style.height=Math.min(chatInput.scrollHeight,140)+'px';});
 async function loadAdminConversation(){
  const uid=document.getElementById('adminMessageUser').value,target=document.getElementById('adminSupportMessages'),input=document.getElementById('adminReplyBody'),send=document.querySelector('#adminReplyForm button[type="submit"]');
@@ -1835,7 +1838,7 @@ document.getElementById('adminReplyForm').addEventListener('submit',async e=>{
  send.disabled=true;status.textContent='Sending…';
  const {error}=await supabaseClient.from('support_messages').insert({sender_id:cloudUser.id,recipient_id:uid,body});
  if(error){status.textContent='Could not send message: '+error.message;send.disabled=false;return;}
- adminChatInput.value='';adminChatInput.style.height='auto';status.textContent='';await loadAdminConversation();send.disabled=false;
+ adminChatInput.value='';adminChatInput.style.height='auto';status.textContent='Message sent.';await loadAdminConversation();send.disabled=false;
 });
 setInterval(()=>{if(sellbookIsAdmin&&currentPage()==='admin'&&sessionStorage.getItem('sellbook-admin-panel')==='support'&&document.getElementById('adminMessageUser').value)loadAdminConversation();},15000);
 document.getElementById('notificationAudience').addEventListener('change',e=>document.getElementById('notificationUserWrap').classList.toggle('hidden',e.target.value!=='selected'));
