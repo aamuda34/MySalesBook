@@ -1783,7 +1783,7 @@ async function loadAdminNotifications(){
 }
 function updateMePanel(){const name=document.getElementById('businessTitle')?.textContent||'Sellbook';const b=document.getElementById('meBusinessName');if(b)b.textContent=name;const e=document.getElementById('meAccountEmail');if(e)e.textContent=cloudUser?.email||'Sign in to sync your account';const d=document.getElementById('meBusinessDescription');if(d)d.textContent=cloudUser?'Your account is connected.':'Sign in to access cloud sync and account features.';}
 function setUnreadBadge(id,count){const el=document.getElementById(id);if(!el)return;const n=Math.max(0,Number(count)||0);el.textContent=n>99?'99+':String(n);el.classList.toggle('hidden',n===0);}
-async function updateUnreadBadges(){if(!cloudUser||!supabaseClient){setUnreadBadge('notificationBadge',0);setUnreadBadge('messageBadge',0);return;}try{const uid=cloudUser.id;const ns=localStorage.getItem('sellbook-notifications-seen-'+uid)||'1970-01-01T00:00:00.000Z';const ms=localStorage.getItem('sellbook-messages-seen-'+uid)||'1970-01-01T00:00:00.000Z';const [nr,mr]=await Promise.all([supabaseClient.from('app_notifications').select('id,created_at').or('recipient_id.is.null,recipient_id.eq.'+uid).gt('created_at',ns).limit(100),supabaseClient.from('support_messages').select('id,created_at').eq('recipient_id',uid).gt('created_at',ms).limit(100)]);setUnreadBadge('notificationBadge',nr.error?0:(nr.data||[]).length);setUnreadBadge('messageBadge',mr.error?0:(mr.data||[]).length);}catch(_){/* Keep the interface quiet if the device is offline. */}}
+async function updateUnreadBadges(){if(!cloudUser||!supabaseClient){setUnreadBadge('notificationBadge',0);setUnreadBadge('messageBadge',0);return;}try{const uid=cloudUser.id;const ns=localStorage.getItem('sellbook-notifications-seen-'+uid)||'1970-01-01T00:00:00.000Z';const ms=localStorage.getItem('sellbook-messages-seen-'+uid)||'1970-01-01T00:00:00.000Z';const [nr,mr]=await Promise.all([supabaseClient.from('app_notifications').select('id,created_at').or('recipient_id.is.null,recipient_id.eq.'+uid).gt('created_at',ns).limit(100),supabaseClient.from('support_messages').select('id,created_at').eq('recipient_id',uid).is('read_at',null).limit(100)]);setUnreadBadge('notificationBadge',nr.error?0:(nr.data||[]).length);setUnreadBadge('messageBadge',mr.error?0:(mr.data||[]).length);}catch(_){/* Keep the interface quiet if the device is offline. */}}
 async function loadUserNotifications(){
  const target=document.getElementById('userNotificationsList');
  if(!cloudUser){target.textContent='Sign in to view app announcements.';return;}
@@ -1851,11 +1851,11 @@ async function loadAdminConversation(){
 }
 document.getElementById('adminReplyForm').addEventListener('submit',async e=>{
  e.preventDefault();if(!sellbookIsAdmin)return;
- const uid=document.getElementById('adminMessageUser').value,body=adminChatInput.value.trim(),status=document.getElementById('adminReplyStatus'),send=e.target.querySelector('button[type="submit"]');if(!uid){status.textContent='Choose a user first.';return;}if(!body)return;
+ const uid=document.getElementById('adminMessageUser').value,input=document.getElementById('adminReplyBody'),body=input.value.trim(),status=document.getElementById('adminReplyStatus'),send=e.target.querySelector('button[type="submit"]');if(!uid){status.textContent='Choose a user first.';return;}if(!body)return;
  send.disabled=true;status.textContent='Sending…';
  const {data,error}=await supabaseClient.from('support_messages').insert({sender_id:cloudUser.id,recipient_id:uid,body}).select('id,sender_id,recipient_id,body,created_at,delivered_at,read_at').single();
  if(error){status.textContent='Could not send message: '+error.message;send.disabled=false;return;}
- adminChatInput.value='';adminChatInput.style.height='auto';status.textContent='';await loadAdminConversation();send.disabled=false;
+ input.value='';input.style.height='auto';status.textContent='Message sent.';await loadAdminConversation();await loadAdminUsers();send.disabled=false;
 });
 setInterval(()=>{if(sellbookIsAdmin&&currentPage()==='admin'&&sessionStorage.getItem('sellbook-admin-panel')==='support'){if(!document.getElementById('adminChatConversationView').classList.contains('hidden')&&document.getElementById('adminMessageUser').value)loadAdminConversation();else loadAdminUsers();}},7000);
 
