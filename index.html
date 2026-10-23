@@ -125,6 +125,20 @@ body.admin-mode nav,body.admin-mode #quickSaleFab{display:none!important}body.ad
 #adminChatUserList{min-height:0;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
 .admin-chat-contact,.chat-topline,.admin-chat-composer,.chat-composer{flex-shrink:0}
 @media(max-width:600px){.chat-card,.admin-chat-card{height:calc(100dvh - 260px);min-height:300px;max-height:620px}.admin-chat-user-row{padding:12px}.admin-chat-composer,.chat-composer{padding:9px}}
+/* Dedicated full-screen conversation view, similar to Messenger/WhatsApp. */
+body.admin-conversation-open{overflow:hidden}
+body.admin-conversation-open header,body.admin-conversation-open main>nav,body.admin-conversation-open main>.page:not(#admin){visibility:hidden!important}
+body.admin-conversation-open #admin{visibility:visible!important}
+body.admin-conversation-open #admin .admin-panel:not([data-admin-panel-content="support"]){display:none!important}
+body.admin-conversation-open #admin .admin-panel[data-admin-panel-content="support"]{display:block!important}
+body.admin-conversation-open #adminChatUserListView{display:none!important}
+body.admin-conversation-open #adminChatConversationView{position:fixed!important;inset:0!important;z-index:3000!important;display:flex!important;flex-direction:column!important;visibility:visible!important;background:var(--surface);height:100dvh!important;max-height:100dvh!important;min-height:0!important;padding:0!important;border:0!important;border-radius:0!important;overflow:hidden!important}
+body.admin-conversation-open #adminChatConversationView>.section-heading{flex:0 0 auto;padding:10px 14px;background:var(--surface);border-bottom:1px solid var(--border);margin:0}
+body.admin-conversation-open .admin-chat-contact{flex:0 0 auto;padding:12px 14px;border-bottom:1px solid var(--border)}
+body.admin-conversation-open #adminSupportMessages{flex:1 1 auto!important;height:auto!important;min-height:0!important;max-height:none!important;overflow-y:auto!important;padding:16px 12px calc(16px + env(safe-area-inset-bottom))!important}
+body.admin-conversation-open #adminReplyForm{flex:0 0 auto!important;padding:10px 12px calc(10px + env(safe-area-inset-bottom))!important;background:var(--surface);border-top:1px solid var(--border)}
+body.admin-conversation-open #adminReplyStatus{flex:0 0 auto;margin:0;padding:0 12px 6px;background:var(--surface)}
+body.admin-conversation-open #backAdminChatList{font-size:15px}
 </style>
 
 <link rel="manifest" href="./manifest.webmanifest">
@@ -1833,21 +1847,26 @@ function openAdminConversation(uid){
  const select=document.getElementById('adminMessageUser');select.value=uid;
  document.getElementById('adminChatUserListView').classList.add('hidden');
  document.getElementById('adminChatConversationView').classList.remove('hidden');
+ document.body.classList.add('admin-conversation-open');
  loadAdminConversation();
 }
 function backToAdminChatList(){
+ document.body.classList.remove('admin-conversation-open');
  document.getElementById('adminChatConversationView').classList.add('hidden');
  document.getElementById('adminChatUserListView').classList.remove('hidden');
+ loadAdminUsers();
 }
 document.getElementById('backAdminChatList').addEventListener('click',backToAdminChatList);
 document.getElementById('refreshAdminChatConversation').addEventListener('click',loadAdminConversation);
+let adminConversationLoading=false;
 async function loadAdminConversation(){
+ if(adminConversationLoading)return;adminConversationLoading=true;
  const uid=document.getElementById('adminMessageUser').value,target=document.getElementById('adminSupportMessages'),input=document.getElementById('adminReplyBody'),send=document.querySelector('#adminReplyForm button[type="submit"]');
- if(!uid){target.innerHTML='<div class="empty">Choose a user to view messages.</div>';input.disabled=true;send.disabled=true;return;}
+ if(!uid){target.innerHTML='<div class="empty">Choose a user to view messages.</div>';input.disabled=true;send.disabled=true;adminConversationLoading=false;return;}
  const user=adminUsersCache.find(u=>u.user_id===uid);document.getElementById('adminChatContactName').textContent=user?.email||'Sellbook user';document.getElementById('adminChatContactStatus').textContent='Online chat · messages update automatically';input.disabled=false;send.disabled=false;
  target.innerHTML='<div class="empty">Loading conversation…</div>';
  let {data,error}=await supabaseClient.from('support_messages').select('id,sender_id,recipient_id,body,created_at,delivered_at,read_at').or('sender_id.eq.'+uid+',recipient_id.eq.'+uid).order('created_at',{ascending:true}).limit(200);
- if(error){target.innerHTML='<div class="empty">Could not load conversation: '+escAdmin(error.message)+'</div>';return;}
+ if(error){target.innerHTML='<div class="empty">Could not load conversation: '+escAdmin(error.message)+'</div>';adminConversationLoading=false;return;}
  const unread=(data||[]).filter(m=>m.sender_id===uid&&!m.read_at).map(m=>m.id);
  if(unread.length){
   const now=new Date().toISOString();
@@ -1858,6 +1877,7 @@ async function loadAdminConversation(){
  target.innerHTML=messages.length?messages.map(m=>{const mine=m.sender_id===cloudUser.id;const receipt=mine?(m.read_at?'✓✓ Opened':m.delivered_at?'✓✓ Delivered':'✓ Sent'):'';return '<div class="admin-chat-bubble '+(mine?'from-admin':'from-user')+'">'+escAdmin(m.body)+'<span class="chat-time">'+escAdmin(new Date(m.created_at).toLocaleString([], {dateStyle:'medium',timeStyle:'short'}))+(receipt?' · '+receipt:'')+'</span></div>';}).join(''):'<div class="empty">No messages yet. You can send the first message below.</div>';
  target.scrollTop=target.scrollHeight;
  await updateUnreadBadges();
+ adminConversationLoading=false;
 }
 document.getElementById('adminReplyForm').addEventListener('submit',async e=>{
  e.preventDefault();if(!sellbookIsAdmin)return;
