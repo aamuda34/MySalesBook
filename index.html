@@ -1420,7 +1420,7 @@ async function refreshAccountStatus(){
   const alreadyImported = user && (localStorage.getItem('my-sales-book-imported-v1:' + user.id) === 'yes' || (importOwner && importOwner !== user.id));
   importButton.classList.toggle('hidden', !user || !hasLocal || alreadyImported);
   document.getElementById('appWorkspace').classList.toggle('hidden', !user || !workspaceReady);
-  document.getElementById('quickSaleFab').style.display=user&&workspaceReady&&!recoveryMode?'flex':'none';
+  // The current page controls the floating + button; do not force it visible here.
   document.getElementById('accountCard').classList.toggle('hidden',!!user&&workspaceReady&&!recoveryMode);
   if(user&&workspaceReady){document.getElementById('settingsAccountStatus').textContent='Signed in as '+(user.email||'Google account')+'.';document.getElementById('settingsAccountMessage').textContent=document.getElementById('accountMessage').textContent||'';}
 }
