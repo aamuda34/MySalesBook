@@ -126,6 +126,20 @@ body.admin-mode nav,body.admin-mode #quickSaleFab{display:none!important}body.ad
 .admin-chat-contact,.chat-topline,.admin-chat-composer,.chat-composer{flex-shrink:0}
 @media(max-width:600px){.chat-card,.admin-chat-card{height:calc(100dvh - 260px);min-height:300px;max-height:620px}.admin-chat-user-row{padding:12px}.admin-chat-composer,.chat-composer{padding:9px}}
 /* Dedicated full-screen conversation view, similar to Messenger/WhatsApp. */
+/* User support chat occupies the screen; only the message transcript scrolls. */
+body.user-support-open{overflow:hidden!important;height:100%;overscroll-behavior:none}
+body.user-support-open header,body.user-support-open main>nav,body.user-support-open main>.page:not(#support){visibility:hidden!important}
+body.user-support-open main{padding:0!important;margin:0!important;max-width:none!important;overflow:hidden!important}
+body.user-support-open #support{position:fixed!important;inset:0!important;z-index:3000!important;display:flex!important;flex-direction:column!important;gap:0!important;visibility:visible!important;background:var(--page);height:100dvh!important;max-height:100dvh!important;min-height:0!important;margin:0!important;padding:0!important;overflow:hidden!important}
+body.user-support-open #support>.section-heading{flex:0 0 auto;margin:0;padding:calc(10px + env(safe-area-inset-top)) 14px 10px;background:var(--surface);border-bottom:1px solid var(--border)}
+body.user-support-open #support>.section-heading .page-title{margin:0 0 3px;font-size:20px}
+body.user-support-open #support>.section-heading .page-intro{margin:0}
+body.user-support-open #support>.chat-card{flex:1 1 auto;width:100%;height:auto!important;min-height:0!important;max-height:none!important;margin:0!important;border:0!important;border-radius:0!important;box-shadow:none!important;padding:0!important;overflow:hidden!important}
+body.user-support-open #support .chat-topline{flex:0 0 auto;padding:10px 12px}
+body.user-support-open #userSupportMessages{flex:1 1 auto!important;min-height:0!important;height:auto!important;max-height:none!important;overflow-y:auto!important;overscroll-behavior:contain!important;padding:14px 12px!important}
+body.user-support-open #supportMessageForm{flex:0 0 auto!important;padding:10px 12px calc(10px + env(safe-area-inset-bottom))!important;background:var(--surface);border-top:1px solid var(--border)}
+body.user-support-open #supportMessageStatus{flex:0 0 auto;margin:0;padding:0 12px calc(6px + env(safe-area-inset-bottom));background:var(--surface)}
+body.user-support-open #supportMessageBody{font-size:16px;max-height:120px}
 body.admin-conversation-open{overflow:hidden}
 body.admin-conversation-open header,body.admin-conversation-open main>nav,body.admin-conversation-open main>.page:not(#admin){visibility:hidden!important}
 body.admin-conversation-open #admin{visibility:visible!important}
@@ -938,8 +952,8 @@ function normalizeCategory(value){const category=String(value??'').trim();return
 const VALID_PAGES=new Set(['home','products','sales','more','expenses','reports','stock','settings','settings-business','settings-sync','settings-preferences','settings-account','support','feedback','admin','me','notifications']);
 function currentPage(){return [...document.querySelectorAll('.page')].find(x=>!x.classList.contains('hidden'))?.id||'home';}
 function paintPage(name,scroll){if(!VALID_PAGES.has(name))name='home';document.querySelectorAll('.page').forEach(x=>x.classList.toggle('hidden',x.id!==name));document.querySelectorAll('nav button').forEach(x=>x.classList.toggle('active',x.dataset.page===name||(x.dataset.page==='me'&&['me','more','reports','stock','settings','settings-business','settings-sync','settings-preferences','settings-account'].includes(name))));sessionStorage.setItem('my-sales-book-current-page',name);render();const fab=document.getElementById('quickSaleFab');const fabPages={home:{label:'Record a sale',title:'Record a sale'},sales:{label:'Record a sale',title:'Record a sale'},products:{label:'Add a product',title:'Add a product'},expenses:{label:'Add an expense',title:'Add an expense'}};const fabAction=fabPages[name];if(fab){fab.style.display='none';fab.hidden=true;fab.setAttribute('aria-hidden','true');if(workspaceReady&&cloudUser&&fabAction&&!sellbookIsAdmin){fab.hidden=false;fab.style.display='flex';fab.setAttribute('aria-hidden','false');fab.setAttribute('aria-label',fabAction.label);fab.title=fabAction.title;fab.dataset.action=name;}}if(name==='support'&&cloudUser){localStorage.setItem('sellbook-messages-seen-'+cloudUser.id,new Date().toISOString());loadUserSupport();}if(name==='feedback'&&cloudUser){loadUserSupport();}if(name==='notifications'&&cloudUser){localStorage.setItem('sellbook-notifications-seen-'+cloudUser.id,new Date().toISOString());updateUnreadBadges();}if(name==='me')updateMePanel();if(scroll)window.scrollTo({top:0,behavior:'auto'});}
-function showPage(name,options={}){if(!VALID_PAGES.has(name))return;const previous=currentPage();if(!options.fromHistory&&previous!==name)history.pushState({mySalesBookPage:name},'', '#'+name);paintPage(name,options.scroll!==false);}
-function restorePageFromLocation(){const hash=location.hash.slice(1),saved=sessionStorage.getItem('my-sales-book-current-page');paintPage(VALID_PAGES.has(hash)?hash:(VALID_PAGES.has(saved)?saved:'home'),false);}
+function showPage(name,options={}){if(!VALID_PAGES.has(name))return;const previous=currentPage();document.body.classList.toggle('user-support-open',name==='support'&&!sellbookIsAdmin);if(!options.fromHistory&&previous!==name)history.pushState({mySalesBookPage:name},'', '#'+name);paintPage(name,options.scroll!==false);}
+function restorePageFromLocation(){const hash=location.hash.slice(1),saved=sessionStorage.getItem('my-sales-book-current-page'),name=VALID_PAGES.has(hash)?hash:(VALID_PAGES.has(saved)?saved:'home');document.body.classList.toggle('user-support-open',name==='support'&&!sellbookIsAdmin);paintPage(name,false);}
 // Keep Android/browser Back inside the app. Page changes have their own
 // history entries; the duplicate root entry prevents the app from closing
 // when the user reaches the first page, including while offline.
