@@ -44,3 +44,20 @@ missing = sorted(referenced - parser.ids)
 if missing:
     raise SystemExit("Missing HTML IDs referenced by JavaScript: " + ", ".join(missing))
 print(f"JavaScript syntax and DOM ID checks passed for {len(parser.inline)} inline script(s).")
+
+# Guard key offline/sync behaviours against accidental removal.
+required_behaviours = {
+    "stock edits create an audit entry": "Stock quantity changed while editing product",
+    "stock adjustments are queued for cloud sync": "item.type==='stock_adjustment'",
+    "stock adjustments are loaded from the cloud": "from('stock_adjustments').select(",
+    "offline navigation falls back to the cached app": "return (await cache.match('./index.html'))",
+    "reconnection triggers pending sync": "window.addEventListener('online'",
+    "failed sync keeps pending changes": "Your local copies are kept.",
+}
+missing_behaviours = [
+    label for label, marker in required_behaviours.items()
+    if marker not in combined and marker not in Path("sw.js").read_text(encoding="utf-8")
+]
+if missing_behaviours:
+    raise SystemExit("Missing critical behaviours: " + ", ".join(missing_behaviours))
+print(f"Critical offline/sync behaviour checks passed ({len(required_behaviours)} checks).")
