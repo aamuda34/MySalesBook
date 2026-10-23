@@ -204,7 +204,26 @@ body.dark nav{background:var(--page)}body.dark nav button{color:#b8c9bc}body.dar
 <button type="button" class="menu-tile" data-open-page="reports"><span class="tile-icon">▥</span><strong>Reports</strong><span>Sales trends and top products</span></button>
 <button type="button" class="menu-tile" data-open-page="stock"><span class="tile-icon">▤</span><strong>Stock management</strong><span>Adjust quantities and review changes</span></button>
 <button type="button" class="menu-tile" data-open-page="settings"><span class="tile-icon">⚙</span><strong>Settings</strong><span>Business profile, account and preferences</span></button>
-</div></section>
+<button type="button" class="menu-tile" data-open-page="support"><span class="tile-icon">✉</span><strong>Help & feedback</strong><span>Contact Sellbook and send suggestions</span></button>
+<button type="button" class="menu-tile hidden" id="adminMenuTile" data-open-page="admin"><span class="tile-icon">🛡</span><strong>Admin dashboard</strong><span>Manage Sellbook, users and messages</span></button>
+</div>
+<div class="card" id="userNotificationsCard"><div class="section-heading"><h2>Notifications</h2><button type="button" id="refreshUserNotifications">Refresh</button></div><div id="userNotificationsList" class="empty">Sign in to view app announcements.</div></div></section>
+
+<section id="support" class="page hidden">
+<h2 class="page-title">Help & feedback</h2><p class="page-intro">Send a suggestion, report a problem, or contact the Sellbook team.</p>
+<div class="card"><h2>Send feedback</h2><form id="userFeedbackForm"><label for="feedbackCategory">Type</label><select id="feedbackCategory"><option value="suggestion">Suggestion</option><option value="bug">Report a problem</option><option value="complaint">Complaint</option><option value="other">Other</option></select><label for="feedbackSubject">Subject</label><input id="feedbackSubject" required maxlength="120"><label for="feedbackMessage">Details</label><textarea id="feedbackMessage" required maxlength="4000" rows="5" style="width:100%;padding:12px;border:1px solid #ccd6ce;border-radius:8px;font:inherit"></textarea><button class="primary" type="submit">Send feedback</button></form><p id="feedbackFormStatus" class="muted" aria-live="polite"></p></div>
+<div class="card"><div class="section-heading"><h2>Your feedback</h2><button type="button" id="refreshFeedback">Refresh</button></div><div id="userFeedbackList" class="empty">Your submitted feedback will appear here.</div></div>
+<div class="card"><h2>Message Sellbook support</h2><form id="supportMessageForm"><label for="supportMessageBody">Message</label><textarea id="supportMessageBody" required maxlength="4000" rows="4" style="width:100%;padding:12px;border:1px solid #ccd6ce;border-radius:8px;font:inherit"></textarea><button class="primary" type="submit">Send message</button></form><p id="supportMessageStatus" class="muted" aria-live="polite"></p><div id="userSupportMessages" class="empty">Your support conversation will appear here.</div></div>
+</section>
+
+<section id="admin" class="page hidden">
+<h2 class="page-title">Sellbook administration</h2><p class="page-intro">Manage the app, review user feedback, communicate with users, and publish notifications. This area is restricted to the authorised administrator.</p>
+<div class="stats" id="adminStats"><div class="stat"><small>Registered users</small><strong id="adminTotalUsers">—</strong></div><div class="stat"><small>New users · 30 days</small><strong id="adminNewUsers">—</strong></div><div class="stat"><small>Open feedback</small><strong id="adminOpenFeedback">—</strong></div><div class="stat"><small>Unread support</small><strong id="adminUnreadMessages">—</strong></div></div>
+<div class="card"><div class="section-heading"><h2>Registered users</h2><button type="button" id="refreshAdminUsers">Refresh</button></div><div id="adminUsersList" class="empty">Loading user list…</div></div>
+<div class="card"><div class="section-heading"><h2>User feedback</h2><button type="button" id="refreshAdminFeedback">Refresh</button></div><div id="adminFeedbackList" class="empty">Loading feedback…</div></div>
+<div class="card"><h2>Support inbox</h2><div class="filters"><div class="filter-wide"><label for="adminMessageUser">Reply to user</label><select id="adminMessageUser"><option value="">Choose a user</option></select></div></div><div id="adminSupportMessages" class="empty">Choose a user to view messages.</div><form id="adminReplyForm"><label for="adminReplyBody">Reply</label><textarea id="adminReplyBody" rows="3" maxlength="4000" required style="width:100%;padding:12px;border:1px solid #ccd6ce;border-radius:8px;font:inherit"></textarea><button class="primary" type="submit">Send reply</button></form><p id="adminReplyStatus" class="muted" aria-live="polite"></p></div>
+<div class="card"><h2>Send notification</h2><form id="adminNotificationForm"><label for="notificationAudience">Audience</label><select id="notificationAudience"><option value="all">All users</option><option value="selected">One selected user</option></select><div id="notificationUserWrap" class="hidden"><label for="notificationUser">User</label><select id="notificationUser"></select></div><label for="notificationKind">Type</label><select id="notificationKind"><option value="announcement">Announcement</option><option value="update">App update</option><option value="maintenance">Maintenance</option><option value="support">Support</option></select><label for="notificationTitle">Title</label><input id="notificationTitle" required maxlength="120"><label for="notificationBody">Message</label><textarea id="notificationBody" required maxlength="4000" rows="4" style="width:100%;padding:12px;border:1px solid #ccd6ce;border-radius:8px;font:inherit"></textarea><button class="primary" type="submit">Publish notification</button></form><p id="adminNotificationStatus" class="muted" aria-live="polite"></p><div id="adminNotificationsList" class="empty">Your recent notifications will appear here.</div></div>
+</section>
 <section id="reports" class="page hidden"><h2 class="page-title">Reports</h2><p class="page-intro">A simple view of business performance.</p>
 <div class="card"><label for="reportRange">Reporting period</label><select id="reportRange"><option value="7">Last 7 days</option><option value="30" selected>Last 30 days</option><option value="90">Last 90 days</option></select><div class="stats" style="margin-top:12px"><div class="stat"><small>Sales</small><strong id="reportSales">₦0</strong></div><div class="stat"><small>Gross profit</small><strong id="reportGross">₦0</strong></div><div class="stat"><small>Expenses</small><strong id="reportExpenses">₦0</strong></div><div class="stat"><small>Net profit</small><strong id="reportNet">₦0</strong></div></div></div>
 <div class="card"><h2>Sales by day</h2><div id="reportSalesChart" class="chart-wrap"><div class="empty">No sales in this period.</div></div></div><div class="card"><h2>Best-selling products</h2><div id="topProductsChart" class="muted">Rankings appear after sales are recorded.</div></div></section>
@@ -616,6 +635,7 @@ async function handleCloudAuthChange() {
     if (user) {
       if (storageMode !== 'cloud') localSnapshot = snapshotLocalRecords();
       cloudUser = user;
+      await verifyAdminAccess();
       pendingSync = readQueue(user.id);
       try {
         await cloudLoadAll();
@@ -631,6 +651,7 @@ async function handleCloudAuthChange() {
       cloudMessage('Sign in to access your private business records.');
     }
     await refreshAccountStatus();
+    if(cloudUser){await verifyAdminAccess();if(currentPage()==='admin'&&sellbookIsAdmin)await loadAdminDashboard();await loadUserSupport();}
   } catch (err) {
     cloudReady = false;
     if (activeUser) {
@@ -812,9 +833,9 @@ async function cloudAddExpense(name,amount,date) {
 
 function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 function normalizeCategory(value){const category=String(value??'').trim();return category||'Uncategorized';}
-const VALID_PAGES=new Set(['home','products','sales','more','expenses','reports','stock','settings']);
+const VALID_PAGES=new Set(['home','products','sales','more','expenses','reports','stock','settings','support','admin']);
 function currentPage(){return [...document.querySelectorAll('.page')].find(x=>!x.classList.contains('hidden'))?.id||'home';}
-function paintPage(name,scroll){if(!VALID_PAGES.has(name))name='home';document.querySelectorAll('.page').forEach(x=>x.classList.toggle('hidden',x.id!==name));document.querySelectorAll('nav button').forEach(x=>x.classList.toggle('active',x.dataset.page===name||(x.dataset.page==='more'&&['more','expenses','reports','stock','settings'].includes(name))));sessionStorage.setItem('my-sales-book-current-page',name);render();const fab=document.getElementById('quickSaleFab');if(fab)fab.style.display=workspaceReady&&cloudUser?'flex':'none';if(scroll)window.scrollTo({top:0,behavior:'auto'});}
+function paintPage(name,scroll){if(!VALID_PAGES.has(name))name='home';document.querySelectorAll('.page').forEach(x=>x.classList.toggle('hidden',x.id!==name));document.querySelectorAll('nav button').forEach(x=>x.classList.toggle('active',x.dataset.page===name||(x.dataset.page==='more'&&['more','expenses','reports','stock','settings','support','admin'].includes(name))));sessionStorage.setItem('my-sales-book-current-page',name);render();const fab=document.getElementById('quickSaleFab');if(fab)fab.style.display=workspaceReady&&cloudUser?'flex':'none';if(scroll)window.scrollTo({top:0,behavior:'auto'});}
 function showPage(name,options={}){if(!VALID_PAGES.has(name))return;const previous=currentPage();if(!options.fromHistory&&previous!==name)history.pushState({mySalesBookPage:name},'', '#'+name);paintPage(name,options.scroll!==false);}
 function restorePageFromLocation(){const hash=location.hash.slice(1),saved=sessionStorage.getItem('my-sales-book-current-page');paintPage(VALID_PAGES.has(hash)?hash:(VALID_PAGES.has(saved)?saved:'home'),false);}
 // Keep Android/browser Back inside the app. Page changes have their own
@@ -835,7 +856,7 @@ function restorePageFromLocation(){const hash=location.hash.slice(1),saved=sessi
   });
 })();
 document.querySelectorAll('nav button').forEach(b=>b.addEventListener('click',()=>showPage(b.dataset.page)));
-document.querySelectorAll('[data-open-page]').forEach(b=>b.addEventListener('click',()=>showPage(b.dataset.openPage)));
+document.querySelectorAll('[data-open-page]').forEach(b=>b.addEventListener('click',()=>{if(b.dataset.openPage==='admin'&&!sellbookIsAdmin)return cloudMessage('Administrator access is required.');showPage(b.dataset.openPage);if(b.dataset.openPage==='admin')loadAdminDashboard();if(b.dataset.openPage==='support')loadUserSupport();}));
 document.getElementById('quickSaleFab').addEventListener('click',()=>{showPage('sales');setTimeout(()=>{document.getElementById('saleForm')?.scrollIntoView({behavior:'smooth',block:'start'});document.getElementById('saleProduct')?.focus({preventScroll:true});},80);});
 function closeProductLightbox(){document.getElementById('productImageLightbox').classList.add('hidden');document.body.style.overflow='';}
 function openProductLightbox(src,caption){const box=document.getElementById('productImageLightbox');document.getElementById('largeProductImage').src=src;document.getElementById('largeProductImage').alt=caption+' photo';document.getElementById('largeProductImageCaption').textContent=caption;box.classList.remove('hidden');document.body.style.overflow='hidden';document.getElementById('closeProductImage').focus();}
@@ -1559,6 +1580,112 @@ document.getElementById('googleSignOut').addEventListener('click', async () => {
   message.textContent = 'You have signed out. Your business workspace is now locked on this device.';
   await refreshAccountStatus();
 });
+
+
+let sellbookIsAdmin=false;
+let adminUsersCache=[];
+function escAdmin(value){return String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+function setAdminAccess(isAdmin){
+ sellbookIsAdmin=!!isAdmin;
+ document.getElementById('adminMenuTile')?.classList.toggle('hidden',!sellbookIsAdmin);
+ if(!sellbookIsAdmin&&currentPage()==='admin')showPage('home');
+}
+async function verifyAdminAccess(){
+ if(!supabaseClient||!cloudUser){setAdminAccess(false);return false;}
+ try{const {data,error}=await supabaseClient.rpc('is_sellbook_admin');if(error)throw error;setAdminAccess(data===true);return data===true;}
+ catch(e){setAdminAccess(false);return false;}
+}
+async function loadAdminDashboard(){
+ if(!await verifyAdminAccess()){cloudMessage('This account is not authorised for Sellbook administration.');return;}
+ const {data:overview,error}=await supabaseClient.rpc('sellbook_admin_overview');
+ if(error){cloudMessage('Admin dashboard could not load: '+error.message);return;}
+ document.getElementById('adminTotalUsers').textContent=overview.total_users??'—';
+ document.getElementById('adminNewUsers').textContent=overview.new_users_30d??'—';
+ document.getElementById('adminOpenFeedback').textContent=overview.feedback_open??'—';
+ document.getElementById('adminUnreadMessages').textContent=overview.messages_unread??'—';
+ await Promise.all([loadAdminUsers(),loadAdminFeedback(),loadAdminNotifications()]);
+}
+async function loadAdminUsers(){
+ const target=document.getElementById('adminUsersList');target.textContent='Loading users…';
+ const {data,error}=await supabaseClient.rpc('sellbook_admin_users');
+ if(error){target.textContent='Could not load users: '+error.message;return;}
+ adminUsersCache=data||[];
+ const opts='<option value="">Choose a user</option>'+adminUsersCache.map(u=>'<option value="'+escAdmin(u.user_id)+'">'+escAdmin(u.email||'No email')+'</option>').join('');
+ document.getElementById('adminMessageUser').innerHTML=opts;
+ document.getElementById('notificationUser').innerHTML=opts;
+ target.innerHTML=adminUsersCache.length?adminUsersCache.map(u=>'<div class="item"><strong>'+escAdmin(u.email||'No email')+'</strong><div class="muted">Joined '+escAdmin(u.created_at?new Date(u.created_at).toLocaleDateString():'unknown')+' · Last sign-in '+escAdmin(u.last_sign_in_at?new Date(u.last_sign_in_at).toLocaleDateString():'not available')+'</div></div>').join(''):'<div class="empty">No registered users found.</div>';
+}
+async function loadAdminFeedback(){
+ const target=document.getElementById('adminFeedbackList');target.textContent='Loading feedback…';
+ const {data,error}=await supabaseClient.from('user_feedback').select('id,user_id,category,subject,message,status,admin_reply,created_at').order('created_at',{ascending:false}).limit(100);
+ if(error){target.textContent='Could not load feedback: '+error.message;return;}
+ target.innerHTML=(data||[]).length?data.map(f=>'<div class="item"><div class="row"><strong>'+escAdmin(f.subject)+'</strong><span class="status-pill">'+escAdmin(f.status)+'</span></div><div class="muted">'+escAdmin(f.category)+' · '+escAdmin(f.user_id)+' · '+escAdmin(new Date(f.created_at).toLocaleString())+'</div><p>'+escAdmin(f.message)+'</p><label>Status</label><select data-feedback-status="'+escAdmin(f.id)+'"><option value="new" '+(f.status==='new'?'selected':'')+'>New</option><option value="in_review" '+(f.status==='in_review'?'selected':'')+'>In review</option><option value="resolved" '+(f.status==='resolved'?'selected':'')+'>Resolved</option><option value="declined" '+(f.status==='declined'?'selected':'')+'>Declined</option></select><label>Reply to user</label><textarea data-feedback-reply="'+escAdmin(f.id)+'" rows="2" maxlength="4000" style="width:100%;padding:10px;border:1px solid #ccd6ce;border-radius:8px;font:inherit">'+escAdmin(f.admin_reply||'')+'</textarea><button type="button" data-save-feedback="'+escAdmin(f.id)+'" style="margin-top:8px">Save / send reply</button></div>').join(''):'<div class="empty">No feedback has been submitted yet.</div>';
+ target.querySelectorAll('[data-save-feedback]').forEach(b=>b.addEventListener('click',async()=>{
+  const id=b.dataset.saveFeedback,status=target.querySelector('[data-feedback-status="'+id+'"]').value,reply=target.querySelector('[data-feedback-reply="'+id+'"]').value.trim();
+  b.disabled=true;const {error}=await supabaseClient.from('user_feedback').update({status,admin_reply:reply||null,replied_at:reply?new Date().toISOString():null,updated_at:new Date().toISOString()}).eq('id',id);
+  b.disabled=false;if(error){alert('Could not save feedback: '+error.message);return;}await loadAdminFeedback();await loadUserSupport();
+ }));
+}
+async function loadAdminNotifications(){
+ const target=document.getElementById('adminNotificationsList');
+ const {data,error}=await supabaseClient.from('app_notifications').select('id,title,body,kind,recipient_id,created_at').order('created_at',{ascending:false}).limit(20);
+ if(error){target.textContent='Could not load notifications: '+error.message;return;}
+ target.innerHTML=(data||[]).length?data.map(n=>'<div class="item"><strong>'+escAdmin(n.title)+'</strong><div class="muted">'+escAdmin(n.kind)+' · '+(n.recipient_id?'Specific user':'All users')+' · '+escAdmin(new Date(n.created_at).toLocaleString())+'</div><p>'+escAdmin(n.body)+'</p></div>').join(''):'<div class="empty">No notifications published yet.</div>';
+}
+async function loadUserNotifications(){
+ const target=document.getElementById('userNotificationsList');
+ if(!cloudUser){target.textContent='Sign in to view app announcements.';return;}
+ const {data,error}=await supabaseClient.from('app_notifications').select('id,title,body,kind,created_at').or('recipient_id.is.null,recipient_id.eq.'+cloudUser.id).order('created_at',{ascending:false}).limit(30);
+ if(error){target.textContent='Could not load notifications: '+error.message;return;}
+ target.innerHTML=(data||[]).length?data.map(n=>'<div class="item"><strong>'+escAdmin(n.title)+'</strong><div class="muted">'+escAdmin(n.kind)+' · '+escAdmin(new Date(n.created_at).toLocaleString())+'</div><p>'+escAdmin(n.body)+'</p></div>').join(''):'<div class="empty">No notifications yet.</div>';
+}
+async function loadUserSupport(){
+ if(!cloudUser)return;
+ const feedback=document.getElementById('userFeedbackList'),messages=document.getElementById('userSupportMessages');
+ const [fr,mr]=await Promise.all([
+  supabaseClient.from('user_feedback').select('id,category,subject,message,status,admin_reply,created_at').eq('user_id',cloudUser.id).order('created_at',{ascending:false}).limit(50),
+  supabaseClient.from('support_messages').select('id,sender_id,recipient_id,body,created_at').or('sender_id.eq.'+cloudUser.id+',recipient_id.eq.'+cloudUser.id).order('created_at',{ascending:true}).limit(100)
+ ]);
+ feedback.innerHTML=fr.error?'Could not load feedback: '+escAdmin(fr.error.message):(fr.data||[]).length?fr.data.map(f=>'<div class="item"><strong>'+escAdmin(f.subject)+'</strong><span class="status-pill">'+escAdmin(f.status)+'</span><div class="muted">'+escAdmin(f.category)+' · '+escAdmin(new Date(f.created_at).toLocaleString())+'</div><p>'+escAdmin(f.message)+'</p>'+(f.admin_reply?'<p><strong>Sellbook reply:</strong> '+escAdmin(f.admin_reply)+'</p>':'')+'</div>').join(''):'<div class="empty">You have not sent feedback yet.</div>';
+ messages.innerHTML=mr.error?'Could not load messages: '+escAdmin(mr.error.message):(mr.data||[]).length?mr.data.map(m=>'<div class="item"><strong>'+(m.sender_id===cloudUser.id?'You':'Sellbook support')+'</strong><div class="muted">'+escAdmin(new Date(m.created_at).toLocaleString())+'</div><p>'+escAdmin(m.body)+'</p></div>').join(''):'<div class="empty">No support messages yet.</div>';
+ await loadUserNotifications();
+}
+document.getElementById('userFeedbackForm').addEventListener('submit',async e=>{
+ e.preventDefault();if(!cloudUser)return document.getElementById('feedbackFormStatus').textContent='Please sign in first.';
+ const status=document.getElementById('feedbackFormStatus');status.textContent='Sending…';
+ const {error}=await supabaseClient.from('user_feedback').insert({user_id:cloudUser.id,category:document.getElementById('feedbackCategory').value,subject:document.getElementById('feedbackSubject').value.trim(),message:document.getElementById('feedbackMessage').value.trim()});
+ if(error){status.textContent='Could not send feedback: '+error.message;return;}e.target.reset();status.textContent='Feedback sent. Thank you.';await loadUserSupport();
+});
+document.getElementById('supportMessageForm').addEventListener('submit',async e=>{
+ e.preventDefault();if(!cloudUser)return document.getElementById('supportMessageStatus').textContent='Please sign in first.';
+ const status=document.getElementById('supportMessageStatus');status.textContent='Sending…';
+ const {error}=await supabaseClient.from('support_messages').insert({sender_id:cloudUser.id,recipient_id:null,body:document.getElementById('supportMessageBody').value.trim()});
+ if(error){status.textContent='Could not send message: '+error.message;return;}e.target.reset();status.textContent='Message sent to Sellbook support.';await loadUserSupport();
+});
+document.getElementById('adminMessageUser').addEventListener('change',async e=>{
+ const uid=e.target.value,target=document.getElementById('adminSupportMessages');if(!uid){target.textContent='Choose a user to view messages.';return;}
+ const {data,error}=await supabaseClient.from('support_messages').select('id,sender_id,recipient_id,body,created_at').or('sender_id.eq.'+uid+',recipient_id.eq.'+uid).order('created_at',{ascending:true}).limit(100);
+ target.innerHTML=error?'Could not load conversation: '+escAdmin(error.message):(data||[]).length?data.map(m=>'<div class="item"><strong>'+(m.sender_id===uid?'User':'Admin')+'</strong><div class="muted">'+escAdmin(new Date(m.created_at).toLocaleString())+'</div><p>'+escAdmin(m.body)+'</p></div>').join(''):'<div class="empty">No messages from this user yet.</div>';
+});
+document.getElementById('adminReplyForm').addEventListener('submit',async e=>{
+ e.preventDefault();if(!sellbookIsAdmin)return;
+ const uid=document.getElementById('adminMessageUser').value,body=document.getElementById('adminReplyBody').value.trim(),status=document.getElementById('adminReplyStatus');if(!uid){status.textContent='Choose a user first.';return;}
+ const {error}=await supabaseClient.from('support_messages').insert({sender_id:cloudUser.id,recipient_id:uid,body});
+ if(error){status.textContent='Could not send reply: '+error.message;return;}e.target.reset();status.textContent='Reply sent.';document.getElementById('adminMessageUser').dispatchEvent(new Event('change'));await loadAdminDashboard();
+});
+document.getElementById('notificationAudience').addEventListener('change',e=>document.getElementById('notificationUserWrap').classList.toggle('hidden',e.target.value!=='selected'));
+document.getElementById('adminNotificationForm').addEventListener('submit',async e=>{
+ e.preventDefault();if(!sellbookIsAdmin)return;
+ const audience=document.getElementById('notificationAudience').value,uid=document.getElementById('notificationUser').value,status=document.getElementById('adminNotificationStatus');
+ if(audience==='selected'&&!uid){status.textContent='Choose a user.';return;}
+ const payload={created_by:cloudUser.id,recipient_id:audience==='selected'?uid:null,kind:document.getElementById('notificationKind').value,title:document.getElementById('notificationTitle').value.trim(),body:document.getElementById('notificationBody').value.trim()};
+ const {error}=await supabaseClient.from('app_notifications').insert(payload);
+ if(error){status.textContent='Could not publish notification: '+error.message;return;}e.target.reset();document.getElementById('notificationUserWrap').classList.add('hidden');status.textContent='Notification published.';await loadAdminNotifications();
+});
+document.getElementById('refreshUserNotifications').addEventListener('click',loadUserNotifications);
+document.getElementById('refreshFeedback').addEventListener('click',loadUserSupport);
+document.getElementById('refreshAdminUsers').addEventListener('click',loadAdminUsers);
+document.getElementById('refreshAdminFeedback').addEventListener('click',loadAdminFeedback);
 
 load();
 applyTheme();
