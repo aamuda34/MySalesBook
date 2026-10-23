@@ -1,6 +1,6 @@
 'use strict';
 
-const CACHE_NAME = 'sellbook-shell-v1';
+const CACHE_NAME = 'sellbook-shell-v2';
 const APP_SHELL = [
   './',
   './index.html',
@@ -24,7 +24,7 @@ self.addEventListener('activate', event => {
     caches.keys()
       .then(keys => Promise.all(
         keys
-          .filter(key => key.startsWith('my-sales-book-shell-') &&
+          .filter(key => key.startsWith('sellbook-shell-') &&
                          key !== CACHE_NAME)
           .map(key => caches.delete(key))
       ))
