@@ -63,7 +63,7 @@ self.addEventListener('fetch', event => {
         // back to the cached app shell, even for a URL containing a page hash.
         return (await cache.match('./index.html')) ||
                (await cache.match('./')) ||
-               new Response('SellBook is not available offline yet. Connect once to the internet, open the app, and try again.', {status:503,headers:{'Content-Type':'text/plain; charset=utf-8'}});
+               new Response('Sellbook is not available offline yet. Connect once to the internet, open the app, and try again.', {status:503,headers:{'Content-Type':'text/plain; charset=utf-8'}});
       }
     })());
     return;
