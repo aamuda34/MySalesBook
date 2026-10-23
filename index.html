@@ -424,7 +424,7 @@ let cloudReady = false;
 let workspaceReady = false;
 let cloudBusy = false;
 
-async function saveCloudChangeLocally(type, payload) {
+async function saveCloudChangeLocally(type, payload, options = {}) {
   if (!cloudUser) throw Error('Sign in before saving business records.');
   try {
     enqueueChange(type, payload);
@@ -435,7 +435,7 @@ async function saveCloudChangeLocally(type, payload) {
   } catch (error) {
     throw Error('Could not save this change on the device. Free up browser storage and export a backup before trying again. ' + (error.message || ''));
   }
-  if (navigator.onLine) {
+  if (navigator.onLine && options.syncNow !== false) {
     await syncPendingChanges();
   }
   return true;
@@ -1277,6 +1277,8 @@ document.getElementById('editProductForm').addEventListener('submit',async event
   const updated={...product,name,category,cost,price,stock};
   if(editPendingProductImage)updated.image=editPendingProductImage;
   else if(editRemoveProductImage){updated.image='';updated.imagePath='';}
+  const stockChanged=updated.stock!==product.stock;
+  const adjustment=stockChanged?{id:crypto.randomUUID(),productId:product.id,productName:updated.name,previousStock:product.stock,newStock:updated.stock,quantityChange:updated.stock-product.stock,reason:'Stock quantity changed while editing product',date:now()}:null;
 
   document.getElementById('saveEditProduct').disabled=true;
   try{
@@ -1284,25 +1286,37 @@ document.getElementById('editProductForm').addEventListener('submit',async event
     if(cloudUser){
       try {
         const cloudUpdated = editRemoveProductImage ? {...updated,imagePath:product.imagePath,image:product.image} : updated;
-        await saveCloudChangeLocally('product_save',{product:cloudUpdated,isNew:false});
+        await saveCloudChangeLocally('product_save',{product:cloudUpdated,isNew:false},{syncNow:!stockChanged});
         if(editRemoveProductImage&&product.imagePath) {
-          await saveCloudChangeLocally('product_remove_image',{product:{...product}});
+          await saveCloudChangeLocally('product_remove_image',{product:{...product}},{syncNow:!stockChanged});
+        }
+        if(adjustment){
+          enqueueChange('stock_adjustment',{adjustment});
+          db.stockAdjustments.push(adjustment);
         }
         Object.assign(product,updated);
         if(editRemoveProductImage){delete product.image;delete product.offlineImage;delete product.imagePath;}
+        if(adjustment){
+          cacheCloudData(cloudUser.id);
+          render();
+          updateSyncStatus();
+          if(navigator.onLine)await syncPendingChanges();
+        }
         saved=true;
       } catch(err) { alert(err.message || String(err)); }
     }else{
       const old={...product};
       Object.assign(product,updated);
       if(editRemoveProductImage){delete product.image;delete product.imagePath;}
+      if(adjustment)db.stockAdjustments.push(adjustment);
       if(save()){render();saved=true;}
       else{
+        if(adjustment)db.stockAdjustments=db.stockAdjustments.filter(x=>x.id!==adjustment.id);
         for(const key of Object.keys(product))delete product[key];
         Object.assign(product,old);
       }
     }
-    if(saved){closeProductEditor();alert('Product details updated successfully.');}
+    if(saved){closeProductEditor();alert(stockChanged?'Product updated and stock adjustment recorded.':'Product details updated successfully.');}
   }finally{
     document.getElementById('saveEditProduct').disabled=false;
   }
