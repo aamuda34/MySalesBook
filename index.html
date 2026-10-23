@@ -1759,6 +1759,17 @@ document.getElementById('refreshUserNotifications').addEventListener('click',loa
 document.getElementById('refreshFeedback').addEventListener('click',loadUserSupport);
 document.getElementById('refreshAdminUsers').addEventListener('click',loadAdminUsers);
 document.getElementById('refreshAdminFeedback').addEventListener('click',loadAdminFeedback);
+document.getElementById('refreshAdminOverview').addEventListener('click',loadAdminDashboard);
+document.getElementById('refreshAdminTraffic').addEventListener('click',loadAdminTraffic);
+document.getElementById('adminSignOut').addEventListener('click',async()=>{
+ if(!supabaseClient)return;
+ const queued=cloudUser?readQueue(cloudUser.id).filter(item=>item.status!=='synced'):[];
+ if(queued.length&&!confirm('You have '+queued.length+' unsynchronised change(s). They will remain on this device. Sign out anyway?'))return;
+ const {error}=await supabaseClient.auth.signOut({scope:'local'});
+ if(error){cloudMessage('Could not sign out: '+error.message);return;}
+ await refreshAccountStatus();
+});
+recordSellbookVisit();
 
 load();
 applyTheme();
