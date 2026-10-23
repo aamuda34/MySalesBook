@@ -1,8 +1,8 @@
 {
   "id": "./",
-  "name": "SellBook",
-  "short_name": "SellBook",
-  "description": "Record sales, expenses, stock and business profit with SellBook.",
+  "name": "Sellbook",
+  "short_name": "Sellbook",
+  "description": "Record sales, expenses, stock and business profit with Sellbook.",
   "lang": "en",
   "start_url": "./",
   "scope": "./",
