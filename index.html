@@ -113,6 +113,8 @@ body.admin-mode nav,body.admin-mode #quickSaleFab{display:none!important}body.ad
   .category-suggestions .suggestion-label{width:100%;font-size:12px;color:#637168}
 
 .admin-toolbar{display:flex;gap:10px;flex-wrap:wrap;margin:12px 0}.admin-toolbar button{width:auto;margin:0}.admin-panel-nav{display:flex;gap:7px;overflow-x:auto;padding:4px 0 12px;margin-bottom:8px}.admin-panel-tab{flex:0 0 auto;width:auto;margin:0;padding:10px 13px;border:1px solid var(--border);border-radius:999px;background:var(--surface);color:var(--ink);font-weight:700}.admin-panel-tab.active{background:var(--green);color:#fff;border-color:var(--green)}.admin-panel{min-width:0}.admin-panel.hidden{display:none!important}.admin-panel .card{margin-top:12px}body.admin-mode #admin{max-width:100%}
+
+.product-summary-item{display:flex;align-items:center;gap:12px}.product-summary-item .item-product{flex:1;min-width:0}.product-summary-top{align-items:flex-start;gap:8px}.product-summary-top strong:first-child{overflow-wrap:anywhere}.product-edit-icon{width:42px;height:42px;flex:0 0 42px;display:grid;place-items:center;border:1px solid var(--border);border-radius:12px;background:var(--surface);color:var(--green)}.product-edit-icon svg{width:21px;height:21px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}.product-edit-actions{flex-wrap:wrap}.product-edit-actions #deleteEditedProduct{margin-right:auto}@media(max-width:420px){.product-edit-actions #deleteEditedProduct{width:100%;margin-right:0}}
 </style>
 
 <link rel="manifest" href="./manifest.webmanifest">
@@ -325,10 +327,12 @@ body.admin-mode nav,body.admin-mode #quickSaleFab{display:none!important}body.ad
     <input class="file-hidden" type="file" id="editProductCamera" accept="image/*" capture="environment">
     <input class="file-hidden" type="file" id="editProductGallery" accept="image/*">
     <button type="button" id="editRemoveProductPhoto" class="danger">Remove photo</button>
-    <div class="dialog-actions">
+    <div class="dialog-actions product-edit-actions">
+      <button type="button" id="deleteEditedProduct" class="danger">Delete product</button>
       <button type="button" id="cancelEditProduct">Cancel</button>
       <button type="submit" class="primary" id="saveEditProduct">Save changes</button>
     </div>
+    <p id="deleteProductHint" class="muted">Products with sales history cannot be deleted, so your records stay accurate.</p>
   </form>
 </dialog>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -972,12 +976,11 @@ function render(){
   document.getElementById('productList').innerHTML=filteredProducts.length?filteredProducts.map(p=>{
     const displayImage=typeof p.image==='string'&&p.image.startsWith('data:image/')?p.image:(p.offlineImage||p.image);
     const photo=typeof displayImage==='string'&&(displayImage.startsWith('data:image/')||displayImage.startsWith('https://'))?`<img class="product-photo" src="${displayImage}" alt="${esc(p.name)} photo">`:'<div class="product-photo" aria-label="No product photo"></div>';
-    return `<div class="item"><div class="item-product">${photo}<div class="item-product-details">
-    <div class="row"><strong>${esc(p.name)}</strong><strong>${money(p.price)}</strong></div>
-    <div class="muted">Category: ${esc(normalizeCategory(p.category))}</div>
-    <div class="muted">Cost ${money(p.cost)} · Stock ${p.stock} units</div></div></div>
-    <div class="photo-actions"><button data-edit="${p.id}">Edit details</button><button data-image-camera="${p.id}">Take/replace photo</button></div>
-    <div class="photo-actions"><button data-image-gallery="${p.id}">Choose/replace photo</button>${p.image?`<button class="danger" data-image-remove="${p.id}">Remove photo</button>`:''}<button class="danger" data-delete="${p.id}">Delete product</button></div></div>`;
+    const lowStock=Number(p.stock)<=Number(db.preferences?.lowStockThreshold??5);
+    return `<div class="item product-summary-item"><div class="item-product">${photo}<div class="item-product-details">
+    <div class="row product-summary-top"><strong>${esc(p.name)}</strong><strong>${money(p.price)}</strong></div>
+    <div class="muted">Stock: <strong>${p.stock} units</strong>${lowStock?' · Low stock':''}</div>
+    </div></div><button type="button" class="product-edit-icon" data-edit="${p.id}" aria-label="Edit ${esc(p.name)}" title="Edit product"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L8 18l-4 1 1-4Z"/></svg></button></div>`;
   }).join(''):db.products.length?'<div class="empty">No products match your search or category.</div>':'<div class="empty">No products yet.</div>';
 
   const sel=document.getElementById('saleProduct'), previous=sel.value;
@@ -1154,6 +1157,31 @@ function closeProductEditor() {
   document.getElementById('editProductGallery').value='';
 }
 
+document.getElementById('deleteEditedProduct').addEventListener('click',async()=>{
+  const id=document.getElementById('editProductId').value;
+  const product=db.products.find(x=>x.id===id);
+  if(!product)return alert('This product could not be found.');
+  if(db.sales.some(sale=>sale.productId===id))return alert('This product has sales history and cannot be deleted. You can edit its details instead.');
+  if(!confirm('Delete '+product.name+'? This cannot be undone.'))return;
+  const button=document.getElementById('deleteEditedProduct');
+  button.disabled=true;
+  try{
+    if(cloudUser){
+      const oldProducts=db.products;
+      db.products=db.products.filter(x=>x.id!==id);
+      try{await saveCloudChangeLocally('product_delete',{product});}
+      catch(err){db.products=oldProducts;render();throw err;}
+    }else{
+      const oldProducts=db.products;
+      db.products=db.products.filter(x=>x.id!==id);
+      if(!save()){db.products=oldProducts;render();throw new Error('Could not save this change. Please try again.');}
+      render();
+    }
+    closeProductEditor();
+    alert('Product deleted.');
+  }catch(err){alert(err.message||String(err));}
+  finally{button.disabled=false;}
+});
 document.getElementById('cancelEditProduct').addEventListener('click',closeProductEditor);
 document.getElementById('editProductDialog').addEventListener('click',event=>{
   if(event.target===event.currentTarget)closeProductEditor();
