@@ -103,6 +103,8 @@ body.admin-mode nav,body.admin-mode #quickSaleFab{display:none!important}body.ad
   .category-suggestions:empty{display:none}
   .category-suggestions button{width:auto;margin:0;padding:7px 11px;border:1px solid #cbdccf;border-radius:999px;background:#edf5ef;color:#14532d;font-size:13px;font-weight:600}
   .category-suggestions .suggestion-label{width:100%;font-size:12px;color:#637168}
+
+.admin-toolbar{display:flex;gap:10px;flex-wrap:wrap;margin:12px 0}.admin-toolbar button{width:auto;margin:0}.admin-panel-nav{display:flex;gap:7px;overflow-x:auto;padding:4px 0 12px;margin-bottom:8px}.admin-panel-tab{flex:0 0 auto;width:auto;margin:0;padding:10px 13px;border:1px solid var(--border);border-radius:999px;background:var(--surface);color:var(--ink);font-weight:700}.admin-panel-tab.active{background:var(--green);color:#fff;border-color:var(--green)}.admin-panel{min-width:0}.admin-panel.hidden{display:none!important}.admin-panel .card{margin-top:12px}body.admin-mode #admin{max-width:100%}
 </style>
 
 <link rel="manifest" href="./manifest.webmanifest">
@@ -217,12 +219,49 @@ body.admin-mode nav,body.admin-mode #quickSaleFab{display:none!important}body.ad
 </section>
 
 <section id="admin" class="page hidden">
-<h2 class="page-title">Sellbook administration</h2><p class="page-intro">Manage the app, review user feedback, communicate with users, and publish notifications. This area is restricted to the authorised administrator.</p>
-<div class="stats" id="adminStats"><div class="stat"><small>Registered users</small><strong id="adminTotalUsers">—</strong></div><div class="stat"><small>New users · 30 days</small><strong id="adminNewUsers">—</strong></div><div class="stat"><small>Open feedback</small><strong id="adminOpenFeedback">—</strong></div><div class="stat"><small>Unread support</small><strong id="adminUnreadMessages">—</strong></div></div>
+<h2 class="page-title">Sellbook administration</h2>
+<p class="page-intro">Manage Sellbook from separate panels. Platform-wide figures are aggregated; individual users' product and sales records are not displayed.</p>
+<div class="admin-toolbar"><button type="button" id="adminSignOut" class="danger">Sign out</button><button type="button" id="refreshAdminOverview">Refresh overview</button></div>
+<div class="admin-panel-nav" role="tablist" aria-label="Administration panels">
+<button type="button" class="admin-panel-tab active" data-admin-panel="overview" role="tab" aria-selected="true">Overview</button>
+<button type="button" class="admin-panel-tab" data-admin-panel="traffic" role="tab" aria-selected="false">Traffic</button>
+<button type="button" class="admin-panel-tab" data-admin-panel="users" role="tab" aria-selected="false">Users</button>
+<button type="button" class="admin-panel-tab" data-admin-panel="feedback" role="tab" aria-selected="false">Feedback</button>
+<button type="button" class="admin-panel-tab" data-admin-panel="support" role="tab" aria-selected="false">Support</button>
+<button type="button" class="admin-panel-tab" data-admin-panel="notifications" role="tab" aria-selected="false">Notifications</button>
+</div>
+<div class="admin-panel" data-admin-panel-content="overview">
+<div class="stats" id="adminStats">
+<div class="stat"><small>Registered users</small><strong id="adminTotalUsers">—</strong></div>
+<div class="stat"><small>New users · 30 days</small><strong id="adminNewUsers">—</strong></div>
+<div class="stat"><small>Products · all users</small><strong id="adminPlatformProducts">—</strong></div>
+<div class="stat"><small>Sales records · all users</small><strong id="adminPlatformSales">—</strong></div>
+<div class="stat"><small>Total sales value</small><strong id="adminPlatformSalesValue">—</strong></div>
+<div class="stat"><small>Open feedback</small><strong id="adminOpenFeedback">—</strong></div>
+<div class="stat"><small>Unread support</small><strong id="adminUnreadMessages">—</strong></div>
+</div>
+<p class="muted">Only totals are shown here. Individual users' products and sales remain private.</p>
+</div>
+<div class="admin-panel hidden" data-admin-panel-content="traffic">
+<div class="stats">
+<div class="stat"><small>Visits today</small><strong id="adminVisitsToday">—</strong></div>
+<div class="stat"><small>Visits · 7 days</small><strong id="adminVisits7d">—</strong></div>
+<div class="stat"><small>Visits · 30 days</small><strong id="adminVisits30d">—</strong></div>
+</div>
+<div class="card"><div class="section-heading"><h2>Daily visits</h2><button type="button" id="refreshAdminTraffic">Refresh</button></div><div id="adminTrafficChart" class="empty">Loading traffic…</div><p class="muted">Visits are counted once per browser session per UTC day on this device/browser. This tracking starts after this update; older traffic is unavailable.</p></div>
+</div>
+<div class="admin-panel hidden" data-admin-panel-content="users">
 <div class="card"><div class="section-heading"><h2>Registered users</h2><button type="button" id="refreshAdminUsers">Refresh</button></div><div id="adminUsersList" class="empty">Loading user list…</div></div>
+</div>
+<div class="admin-panel hidden" data-admin-panel-content="feedback">
 <div class="card"><div class="section-heading"><h2>User feedback</h2><button type="button" id="refreshAdminFeedback">Refresh</button></div><div id="adminFeedbackList" class="empty">Loading feedback…</div></div>
+</div>
+<div class="admin-panel hidden" data-admin-panel-content="support">
 <div class="card"><h2>Support inbox</h2><div class="filters"><div class="filter-wide"><label for="adminMessageUser">Reply to user</label><select id="adminMessageUser"><option value="">Choose a user</option></select></div></div><div id="adminSupportMessages" class="empty">Choose a user to view messages.</div><form id="adminReplyForm"><label for="adminReplyBody">Reply</label><textarea id="adminReplyBody" rows="3" maxlength="4000" required style="width:100%;padding:12px;border:1px solid #ccd6ce;border-radius:8px;font:inherit"></textarea><button class="primary" type="submit">Send reply</button></form><p id="adminReplyStatus" class="muted" aria-live="polite"></p></div>
+</div>
+<div class="admin-panel hidden" data-admin-panel-content="notifications">
 <div class="card"><h2>Send notification</h2><form id="adminNotificationForm"><label for="notificationAudience">Audience</label><select id="notificationAudience"><option value="all">All users</option><option value="selected">One selected user</option></select><div id="notificationUserWrap" class="hidden"><label for="notificationUser">User</label><select id="notificationUser"></select></div><label for="notificationKind">Type</label><select id="notificationKind"><option value="announcement">Announcement</option><option value="update">App update</option><option value="maintenance">Maintenance</option><option value="support">Support</option></select><label for="notificationTitle">Title</label><input id="notificationTitle" required maxlength="120"><label for="notificationBody">Message</label><textarea id="notificationBody" required maxlength="4000" rows="4" style="width:100%;padding:12px;border:1px solid #ccd6ce;border-radius:8px;font:inherit"></textarea><button class="primary" type="submit">Publish notification</button></form><p id="adminNotificationStatus" class="muted" aria-live="polite"></p><div id="adminNotificationsList" class="empty">Your recent notifications will appear here.</div></div>
+</div>
 </section>
 <section id="reports" class="page hidden"><h2 class="page-title">Reports</h2><p class="page-intro">A simple view of business performance.</p>
 <div class="card"><label for="reportRange">Reporting period</label><select id="reportRange"><option value="7">Last 7 days</option><option value="30" selected>Last 30 days</option><option value="90">Last 90 days</option></select><div class="stats" style="margin-top:12px"><div class="stat"><small>Sales</small><strong id="reportSales">₦0</strong></div><div class="stat"><small>Gross profit</small><strong id="reportGross">₦0</strong></div><div class="stat"><small>Expenses</small><strong id="reportExpenses">₦0</strong></div><div class="stat"><small>Net profit</small><strong id="reportNet">₦0</strong></div></div></div>
@@ -1592,6 +1631,34 @@ function setAdminAccess(isAdmin){
  if(sellbookIsAdmin&&currentPage()!=='admin'&&currentPage()!=='support'&&cloudUser?.email?.toLowerCase()==='aamuda34@gmail.com')showPage('admin');
  if(!sellbookIsAdmin&&currentPage()==='admin')showPage('home');
 }
+function showAdminPanel(name){
+ const allowed=new Set(['overview','traffic','users','feedback','support','notifications']);
+ if(!allowed.has(name))name='overview';
+ document.querySelectorAll('[data-admin-panel-content]').forEach(p=>p.classList.toggle('hidden',p.dataset.adminPanelContent!==name));
+ document.querySelectorAll('[data-admin-panel]').forEach(b=>{const active=b.dataset.adminPanel===name;b.classList.toggle('active',active);b.setAttribute('aria-selected',active?'true':'false');});
+ sessionStorage.setItem('sellbook-admin-panel',name);
+ if(name==='traffic')loadAdminTraffic();
+ if(name==='users')loadAdminUsers();
+ if(name==='feedback')loadAdminFeedback();
+ if(name==='notifications')loadAdminNotifications();
+}
+document.querySelectorAll('[data-admin-panel]').forEach(b=>b.addEventListener('click',()=>showAdminPanel(b.dataset.adminPanel)));
+function formatAdminNaira(value){return new Intl.NumberFormat('en-NG',{style:'currency',currency:'NGN',maximumFractionDigits:0}).format(Number(value)||0);}
+async function loadAdminTraffic(){
+ const chart=document.getElementById('adminTrafficChart');if(chart)chart.textContent='Loading traffic…';
+ const {data,error}=await supabaseClient.rpc('sellbook_admin_platform_metrics');
+ if(error){if(chart)chart.textContent='Traffic metrics unavailable: '+error.message;return;}
+ document.getElementById('adminVisitsToday').textContent=data.visits_today??0;
+ document.getElementById('adminVisits7d').textContent=data.visits_7d??0;
+ document.getElementById('adminVisits30d').textContent=data.visits_30d??0;
+ const rows=data.traffic_daily||[];
+ if(chart)chart.innerHTML=rows.length?'<div class="chart-bars">'+rows.map(r=>{const max=Math.max(1,...rows.map(x=>Number(x.visits)||0));const val=Number(r.visits)||0;return '<div class="chart-col"><span class="chart-value">'+val+'</span><div class="chart-bar" style="height:'+Math.max(3,val/max*100)+'%"></div><span class="chart-label">'+escAdmin(String(r.day).slice(5))+'</span></div>';}).join('')+'</div>':'<div class="empty">No visits recorded yet.</div>';
+}
+async function recordSellbookVisit(){
+ if(!supabaseClient)return;
+ try{let key=sessionStorage.getItem('sellbook-visit-key');if(!key){key='sbv-'+(crypto.randomUUID?crypto.randomUUID():Date.now().toString(36)+Math.random().toString(36).slice(2));sessionStorage.setItem('sellbook-visit-key',key);}
+ await supabaseClient.rpc('record_sellbook_visit',{p_session_key:key});}catch(e){console.warn('Visit tracking unavailable',e);}
+}
 async function verifyAdminAccess(){
  if(!supabaseClient||!cloudUser){setAdminAccess(false);return false;}
  try{const {data,error}=await supabaseClient.rpc('is_sellbook_admin');if(error)throw error;setAdminAccess(data===true);return data===true;}
@@ -1605,7 +1672,11 @@ async function loadAdminDashboard(){
  document.getElementById('adminNewUsers').textContent=overview.new_users_30d??'—';
  document.getElementById('adminOpenFeedback').textContent=overview.feedback_open??'—';
  document.getElementById('adminUnreadMessages').textContent=overview.messages_unread??'—';
- await Promise.all([loadAdminUsers(),loadAdminFeedback(),loadAdminNotifications()]);
+ const {data:metrics,error:metricsError}=await supabaseClient.rpc('sellbook_admin_platform_metrics');
+ if(metricsError){document.getElementById('adminPlatformProducts').textContent='—';document.getElementById('adminPlatformSales').textContent='—';document.getElementById('adminPlatformSalesValue').textContent='Unavailable';}
+ else{document.getElementById('adminPlatformProducts').textContent=metrics.total_products??0;document.getElementById('adminPlatformSales').textContent=metrics.total_sales??0;document.getElementById('adminPlatformSalesValue').textContent=formatAdminNaira(metrics.sales_value);}
+ await recordSellbookVisit();
+ showAdminPanel(sessionStorage.getItem('sellbook-admin-panel')||'overview');
 }
 async function loadAdminUsers(){
  const target=document.getElementById('adminUsersList');target.textContent='Loading users…';
