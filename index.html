@@ -1027,7 +1027,7 @@ function render(){
   document.getElementById('productList').innerHTML=filteredProducts.length?filteredProducts.map(p=>{
     const displayImage=typeof p.image==='string'&&p.image.startsWith('data:image/')?p.image:(p.offlineImage||p.image);
     const photo=typeof displayImage==='string'&&(displayImage.startsWith('data:image/')||displayImage.startsWith('https://'))?`<img class="product-photo" src="${displayImage}" alt="${esc(p.name)} photo">`:'<div class="product-photo" aria-label="No product photo"></div>';
-    const lowStock=Number(p.stock)<=Number(db.preferences?.lowStockThreshold??5);
+    const lowStock=Number(p.stock)<=Number(lowStockThreshold);
     return `<div class="item product-summary-item"><div class="item-product">${photo}<div class="item-product-details">
     <div class="row product-summary-top"><strong>${esc(p.name)}</strong><strong>${money(p.price)}</strong></div>
     <div class="muted">Stock: <strong>${p.stock} units</strong>${lowStock?' · Low stock':''}</div>
