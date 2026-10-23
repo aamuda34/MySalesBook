@@ -1408,6 +1408,7 @@ document.getElementById('importFile').addEventListener('change',async e=>{
  try{
   const parsed=JSON.parse(await file.text()),d=parsed.data;
   if(!d||!Array.isArray(d.products)||!Array.isArray(d.sales)||!Array.isArray(d.expenses))throw Error('Invalid backup format.');
+  if(cloudUser)throw Error('Backup restore is currently available only in local mode. Sign out of your cloud account before restoring a local backup. This prevents a local restore from being mistaken for a cloud restore.');
   if(!confirm('Replace all current records with this backup?'))return;
   db=normalizeDb(d);if(save()){render();alert('Backup restored.');}
  }catch(err){alert('Could not restore backup: '+err.message);}
