@@ -1,11 +1,10 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <rect width="512" height="512" rx="110" fill="#14532d"/>
-  <rect x="112" y="76" width="288" height="360" rx="24" fill="#ffffff"/>
-  <path d="M164 156h184M164 214h184M164 272h100"
-        fill="none" stroke="#14532d" stroke-width="20"
-        stroke-linecap="round"/>
-  <circle cx="330" cy="340" r="48" fill="#22a06b"/>
-  <path d="M330 311v58m-20-43c0-10 40-10 40 5s-40 5-40 20 40 15 40 0"
-        fill="none" stroke="#ffffff" stroke-width="9"
-        stroke-linecap="round"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="SellBook app icon">
+  <defs><linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#087f45"/><stop offset="1" stop-color="#064e2b"/></linearGradient></defs>
+  <rect width="512" height="512" rx="112" fill="url(#bg)"/>
+  <path d="M118 126Q118 108 138 108H374Q394 108 394 128V350Q394 370 374 370H198Q174 370 158 389L118 420Z" fill="#fff"/>
+  <path d="M160 315V190Q160 178 172 178H191V315Z" fill="#22c55e"/>
+  <path d="M211 315V153Q211 141 223 141H242V315Z" fill="#16a34a"/>
+  <path d="M262 315V120Q262 108 274 108H293V315Z" fill="#15803d"/>
+  <path d="M143 342H350" fill="none" stroke="#d1fae5" stroke-width="14" stroke-linecap="round"/>
+  <path d="M118 420Q155 381 198 381H374" fill="none" stroke="#fff" stroke-width="19" stroke-linecap="round" stroke-linejoin="round"/>
 </svg>
