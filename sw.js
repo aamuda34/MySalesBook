@@ -1,6 +1,6 @@
 'use strict';
 
-const CACHE_NAME = 'sellbook-shell-v10';
+const CACHE_NAME = 'sellbook-shell-v11';
 const APP_SHELL = [
   './',
   './index.html',
