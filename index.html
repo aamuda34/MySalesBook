@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="theme-color" content="#14532d">
-<title>My Sales Book</title>
+<title>SellBook</title>
 <style>
 :root{font-family:Arial,sans-serif;color:#17231c;background:#f3f6f3}
 *{box-sizing:border-box}
@@ -112,12 +112,12 @@ body.dark nav{background:var(--page)}body.dark nav button{color:#b8c9bc}body.dar
 <body class="auth-initializing">
 <header><div class="header-brand">
 <img id="headerBusinessLogo" class="brand-logo" alt="Business logo"><div id="brandMark" class="brand-mark">MS</div>
-<div class="brand-copy"><h1 id="businessTitle">My Sales Book</h1><p id="businessSubtitle">Simple business records · Nigerian naira (₦)</p></div>
+<div class="brand-copy"><h1 id="businessTitle">SellBook</h1><p id="businessSubtitle">Simple business records · Nigerian naira (₦)</p></div>
 </div></header>
 <main>
 <div id="authLoading" role="status" aria-live="polite"><span class="auth-loading-spinner" aria-hidden="true"></span><strong>Opening your business book…</strong><span class="muted">Checking your saved sign-in and records.</span></div>
 <section class="card" id="accountCard" aria-live="polite">
-<h2>Welcome to My Sales Book</h2><p id="accountStatus" class="muted">Checking sign-in status...</p>
+<h2>Welcome to SellBook</h2><p id="accountStatus" class="muted">Checking sign-in status...</p>
 <button type="button" class="primary" id="googleSignIn">Continue with Google</button>
 <div id="emailAuthPanel" class="hidden" aria-hidden="true" style="display:none!important"><form id="emailAuthForm">
 <label for="authEmail">Email address</label><input id="authEmail" type="email" autocomplete="email" required>
@@ -216,7 +216,7 @@ body.dark nav{background:var(--page)}body.dark nav button{color:#b8c9bc}body.dar
 <div class="card"><h2>Account and security</h2><p id="settingsAccountStatus" class="muted">Checking account...</p><div id="accountManagePanel" class="settings-group hidden"><form id="changeEmailForm"><label for="newAccountEmail">Change account email</label><input id="newAccountEmail" type="email" autocomplete="email" required placeholder="New email address"><button type="submit">Request email change</button></form><button type="button" class="danger" id="deleteAccountBtn" style="width:100%;margin-top:12px">Delete my account and cloud records</button></div><button type="button" id="googleSignOut" class="danger" style="width:100%">Sign out</button><p id="settingsAccountMessage" class="muted" aria-live="polite"></p></div>
 <div class="card"><h2>Sync and data</h2><p id="syncStatus" class="muted">Checking sync status...</p><div id="syncDetails" class="muted"></div><div class="photo-actions"><button type="button" id="syncNowBtn" class="primary">Sync now</button><button type="button" id="importLocalRecordsBtn" class="hidden">Import device records</button></div><div class="settings-group"><h3>Backup and restore</h3><p class="muted">Export a copy regularly. Restoring replaces records currently on this device.</p><button type="button" id="exportBtn">Export backup</button><label for="importFile">Restore from backup</label><input type="file" id="importFile" accept=".json,application/json"></div></div>
 <div class="card"><h2>App preferences</h2><div class="settings-group"><label for="themePreference">Appearance</label><select id="themePreference"><option value="light">Light mode</option><option value="dark">Dark mode</option><option value="system">Use device setting</option></select></div><div class="settings-group"><label for="lowStockThreshold">Low-stock alert threshold (units)</label><input id="lowStockThreshold" type="number" min="0" max="100000" step="1" value="5"><button type="button" id="savePreferencesBtn">Save preferences</button></div></div></section>
-<footer>My Sales Book · Keep regular backups of your business records.<br><a href="./privacy.html">Privacy</a> · <a href="./terms.html">Terms</a></footer>
+<footer>SellBook · Keep regular backups of your business records.<br><a href="./privacy.html">Privacy</a> · <a href="./terms.html">Terms</a></footer>
 </div>
 </main>
 <div id="productImageLightbox" class="product-image-lightbox hidden" role="dialog" aria-modal="true" aria-label="Product photo viewer"><button type="button" class="lightbox-close" id="closeProductImage" aria-label="Close photo">×</button><img id="largeProductImage" alt="Enlarged product photo"><div id="largeProductImageCaption" class="lightbox-caption"></div></div>
@@ -263,7 +263,7 @@ const supabaseClient = window.supabase?.createClient(
 );
 
 if (!supabaseClient) {
-  console.error('My Sales Book: Supabase could not be initialized.');
+  console.error('SellBook: Supabase could not be initialized.');
 }
 const DBKEY='my-sales-book-v1';
 const money=n=>'₦'+Number(n||0).toLocaleString('en-NG',{minimumFractionDigits:2,maximumFractionDigits:2});
@@ -277,7 +277,7 @@ function applyTheme(){const dark=themePreference==='dark'||(themePreference==='s
 function safeDate(value){const d=new Date(value);return Number.isNaN(d.getTime())?new Date(0):d;}
 function dateKey(value){const d=safeDate(value);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
 function getProfile(){return db.profile||{businessName:'',businessLogo:''};}
-function renderBrand(){const p=getProfile(),name=String(p.businessName||'').trim();document.getElementById('businessTitle').textContent=name||'My Sales Book';document.getElementById('businessSubtitle').textContent=name?'Business records · Nigerian naira (₦)':'Simple business records · Nigerian naira (₦)';const logo=document.getElementById('headerBusinessLogo'),mark=document.getElementById('brandMark');if(p.businessLogo){logo.src=p.businessLogo;logo.style.display='block';mark.style.display='none';}else{logo.removeAttribute('src');logo.style.display='none';mark.style.display='grid';mark.textContent=(name||'My Sales Book').split(/\s+/).slice(0,2).map(x=>x[0]||'').join('').toUpperCase()||'MS';}const input=document.getElementById('businessNameInput');if(input&&document.activeElement!==input)input.value=name;const preview=document.getElementById('businessLogoPreview');if(preview&&document.activeElement!==preview){if(p.businessLogo){preview.src=p.businessLogo;preview.style.display='block';}else{preview.removeAttribute('src');preview.style.display='none';}}}
+function renderBrand(){const p=getProfile(),name=String(p.businessName||'').trim();document.getElementById('businessTitle').textContent=name||'SellBook';document.getElementById('businessSubtitle').textContent=name?'Business records · Nigerian naira (₦)':'Simple business records · Nigerian naira (₦)';const logo=document.getElementById('headerBusinessLogo'),mark=document.getElementById('brandMark');if(p.businessLogo){logo.src=p.businessLogo;logo.style.display='block';mark.style.display='none';}else{logo.removeAttribute('src');logo.style.display='none';mark.style.display='grid';mark.textContent=(name||'SellBook').split(/\s+/).slice(0,2).map(x=>x[0]||'').join('').toUpperCase()||'MS';}const input=document.getElementById('businessNameInput');if(input&&document.activeElement!==input)input.value=name;const preview=document.getElementById('businessLogoPreview');if(preview&&document.activeElement!==preview){if(p.businessLogo){preview.src=p.businessLogo;preview.style.display='block';}else{preview.removeAttribute('src');preview.style.display='none';}}}
 let storageMode='memory';
 
 function load(){try{const raw=localStorage.getItem(DBKEY);if(raw)db=normalizeDb(JSON.parse(raw));storageMode='browser';}catch(e){db=normalizeDb(db);storageMode='memory';}}
@@ -1236,7 +1236,7 @@ document.getElementById('expenseForm').addEventListener('submit',async e=>{
 });
 
 document.getElementById('exportBtn').addEventListener('click',()=>{
- const blob=new Blob([JSON.stringify({app:'My Sales Book',version:1,exportedAt:now(),data:db},null,2)],{type:'application/json'});
+ const blob=new Blob([JSON.stringify({app:'SellBook',version:1,exportedAt:now(),data:db},null,2)],{type:'application/json'});
  const url=URL.createObjectURL(blob),a=document.createElement('a');
  a.href=url;a.download='my-sales-book-backup-'+today()+'.json';a.click();
  setTimeout(()=>URL.revokeObjectURL(url),1000);
