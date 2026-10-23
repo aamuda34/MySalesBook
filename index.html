@@ -1836,7 +1836,7 @@ async function loadAdminConversation(){
  const {data,error}=await supabaseClient.from('support_messages').select('id,sender_id,recipient_id,body,created_at,delivered_at,read_at').or('sender_id.eq.'+uid+',recipient_id.eq.'+uid).order('created_at',{ascending:true}).limit(200);
  if(error){target.innerHTML='<div class="empty">Could not load conversation: '+escAdmin(error.message)+'</div>';return;}
  const messages=data||[];
- const unread=messages.filter(m=>m.sender_id===uid&&m.recipient_id===cloudUser.id&&!m.read_at).map(m=>m.id);
+ const unread=messages.filter(m=>m.sender_id===uid&&!m.read_at).map(m=>m.id);
  if(unread.length){const now=new Date().toISOString();await supabaseClient.from('support_messages').update({delivered_at:now,read_at:now}).in('id',unread);}
  target.innerHTML=messages.length?messages.map(m=>{const mine=m.sender_id===cloudUser.id;const receipt=mine?(m.read_at?'Opened':m.delivered_at?'Delivered':'Sent'):'';return '<div class="admin-chat-bubble '+(mine?'from-admin':'from-user')+'">'+escAdmin(m.body)+'<span class="chat-time">'+escAdmin(new Date(m.created_at).toLocaleString())+(receipt?' · '+receipt:'')+'</span></div>';}).join(''):'<div class="empty">No messages yet. You can send the first message below.</div>';
  target.scrollTop=target.scrollHeight;
