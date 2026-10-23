@@ -904,7 +904,7 @@ function restorePageFromLocation(){const hash=location.hash.slice(1),saved=sessi
   });
 })();
 document.querySelectorAll('nav button').forEach(b=>b.addEventListener('click',()=>showPage(b.dataset.page)));
-document.querySelectorAll('[data-open-page]').forEach(b=>b.addEventListener('click',()=>{if(b.dataset.openPage==='admin'&&!sellbookIsAdmin)return cloudMessage('Administrator access is required.');showPage(b.dataset.openPage);if(b.dataset.openPage==='admin')loadAdminDashboard();if(b.dataset.openPage==='support')loadUserSupport();}));
+document.querySelectorAll('[data-open-page]').forEach(b=>b.addEventListener('click',()=>{if(b.dataset.openPage==='admin'&&!sellbookIsAdmin)return cloudMessage('Administrator access is required.');showPage(b.dataset.openPage);if(b.dataset.openPage==='admin')loadAdminDashboard();if(b.dataset.openPage==='support')loadUserSupport();if(b.dataset.openPage==='notifications')loadUserNotifications();}));
 document.getElementById('quickSaleFab').addEventListener('click',()=>{showPage('sales');setTimeout(()=>{document.getElementById('saleForm')?.scrollIntoView({behavior:'smooth',block:'start'});document.getElementById('saleProduct')?.focus({preventScroll:true});},80);});
 function closeProductLightbox(){document.getElementById('productImageLightbox').classList.add('hidden');document.body.style.overflow='';}
 function openProductLightbox(src,caption){const box=document.getElementById('productImageLightbox');document.getElementById('largeProductImage').src=src;document.getElementById('largeProductImage').alt=caption+' photo';document.getElementById('largeProductImageCaption').textContent=caption;box.classList.remove('hidden');document.body.style.overflow='hidden';document.getElementById('closeProductImage').focus();}
@@ -1768,7 +1768,7 @@ document.getElementById('adminNotificationForm').addEventListener('submit',async
  const {error}=await supabaseClient.from('app_notifications').insert(payload);
  if(error){status.textContent='Could not publish notification: '+error.message;return;}e.target.reset();document.getElementById('notificationUserWrap').classList.add('hidden');status.textContent='Notification published.';await loadAdminNotifications();
 });
-document.getElementById('refreshUserNotifications').addEventListener('click',loadUserNotifications);document.querySelectorAll('[data-open-page="notifications"]').forEach(b=>b.addEventListener('click',()=>{showPage('notifications');loadUserNotifications();}));
+document.getElementById('refreshUserNotifications').addEventListener('click',loadUserNotifications);
 document.getElementById('refreshFeedback').addEventListener('click',loadUserSupport);
 document.getElementById('refreshAdminUsers').addEventListener('click',loadAdminUsers);
 document.getElementById('refreshAdminFeedback').addEventListener('click',loadAdminFeedback);
