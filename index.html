@@ -58,8 +58,8 @@ header{padding:16px}
 .brand-logo{display:none}.brand-mark{background:#ffffff20;display:grid;place-items:center;font-weight:800;font-size:20px}
 .brand-copy{min-width:0}#businessTitle{font-size:21px;overflow-wrap:anywhere}#businessSubtitle{opacity:.8}
 main{max-width:980px;padding:14px}#accountCard{max-width:540px;margin:18px auto}
-nav{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;margin:0;position:fixed;left:50%;transform:translateX(-50%);bottom:calc(8px + env(safe-area-inset-bottom));width:min(calc(100% - 20px),760px);z-index:1100;background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:7px;box-shadow:0 8px 28px #10201624}
-nav button{background:transparent;color:#536458;border:1px solid transparent;border-radius:12px;padding:10px 4px;min-height:55px;display:flex;flex-direction:column;align-items:center;gap:4px;font-size:12px}
+nav{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px;margin:0;position:fixed;left:50%;transform:translateX(-50%);bottom:calc(8px + env(safe-area-inset-bottom));width:min(calc(100% - 20px),760px);z-index:1100;background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:7px;box-shadow:0 8px 28px #10201624}
+nav button{background:transparent;color:#536458;border:1px solid transparent;border-radius:12px;padding:8px 3px;min-height:60px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;font-size:11px}.nav-icon{font-size:0;line-height:1}.nav-icon svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}.header-brand{flex:1}.header-actions{display:flex;gap:7px;align-items:center;margin-left:auto}.header-icon-button{position:relative;width:42px;height:42px;display:grid;place-items:center;padding:8px;border-radius:12px;background:#ffffff18;color:#fff;flex-shrink:0}.header-icon-button svg,.settings-icon-button svg,.tile-icon svg{width:23px;height:23px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}.unread-badge{position:absolute;top:-4px;right:-4px;min-width:19px;height:19px;padding:0 4px;display:flex;align-items:center;justify-content:center;border:2px solid #14532d;border-radius:99px;background:#dc2626;color:white;font-size:10px;line-height:1;font-weight:800}.unread-badge.hidden{display:none!important}.settings-icon-button{width:42px;height:42px;display:grid;place-items:center;background:var(--surface);border:1px solid var(--border);color:var(--green);border-radius:12px;flex-shrink:0}.tile-icon svg{width:26px;height:26px}
 .nav-icon{font-size:19px;line-height:1}nav button.active{background:var(--green);color:#fff;box-shadow:0 4px 12px #14532d22}
 .card{background:var(--surface);border:1px solid var(--border);border-radius:15px;padding:16px;box-shadow:0 3px 14px #10201608}
 .stats{gap:9px}.stat{background:var(--soft);border:1px solid var(--border);padding:13px;min-width:0}.stat strong{font-size:clamp(16px,4vw,22px);display:block}.stat small{font-size:12px;line-height:1.4}
@@ -113,9 +113,12 @@ body.admin-mode nav,body.admin-mode #quickSaleFab{display:none!important}body.ad
 </head>
 <body class="auth-initializing">
 <header><div class="header-brand">
-<img id="headerBusinessLogo" class="brand-logo" alt="Business logo"><div id="brandMark" class="brand-mark">MS</div>
-<div class="brand-copy"><h1 id="businessTitle">Sellbook</h1><p id="businessSubtitle">Simple business records · Nigerian naira (₦)</p></div>
-</div></header>
+<img id="headerBusinessLogo" class="brand-logo" alt="Business logo"><div id="brandMark" class="brand-mark">SB</div>
+<div class="brand-copy"><h1 id="businessTitle">Sellbook</h1><p id="businessSubtitle">Your Business Records, Made Simple.</p></div>
+<div class="header-actions" aria-label="Notifications and messages">
+<button type="button" class="header-icon-button" data-open-page="notifications" aria-label="Notifications" title="Notifications"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 9a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/></svg><span class="unread-badge hidden" id="notificationBadge" aria-label="Unread notifications">0</span></button>
+<button type="button" class="header-icon-button" data-open-page="support" aria-label="Messages" title="Messages"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 11.5a8.4 8.4 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.4 8.4 0 0 1-3.8-.9L3 21l1.9-5.7a8.4 8.4 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.4 8.4 0 0 1 3.8-.9h.5a8.5 8.5 0 0 1 8 8z"/></svg><span class="unread-badge hidden" id="messageBadge" aria-label="Unread messages">0</span></button>
+</div></div></header>
 <main>
 <div id="authLoading" role="status" aria-live="polite"><span class="auth-loading-spinner" aria-hidden="true"></span><strong>Opening your business book…</strong><span class="muted">Checking your saved sign-in and records.</span></div>
 <section class="card" id="accountCard" aria-live="polite">
@@ -130,10 +133,11 @@ body.admin-mode nav,body.admin-mode #quickSaleFab{display:none!important}body.ad
 <p id="accountMessage" class="muted" aria-live="polite"></p></section>
 <div id="appWorkspace" class="hidden">
 <nav aria-label="Main navigation">
-<button class="active" data-page="home"><span class="nav-icon">⌂</span>Home</button>
-<button data-page="products"><span class="nav-icon">▦</span>Products</button>
-<button data-page="sales"><span class="nav-icon">↗</span>Sales</button>
-<button data-page="more"><span class="nav-icon">☰</span>More</button>
+<button class="active" data-page="home"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1z"/></svg></span><span>Home</span></button>
+<button data-page="products"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 4h16v16H4zM4 10h16M10 4v16"/></svg></span><span>Products</span></button>
+<button data-page="sales"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 18 10 12l4 3 6-9M14 6h6v6"/></svg></span><span>Sales</span></button>
+<button data-page="expenses"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3v18M17 7.5c0-2-2-3-5-3S7 6 7 8s2 3 5 4 5 2 5 4-2 3-5 3-5-1-5-3"/></svg></span><span>Expenses</span></button>
+<button data-page="me"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg></span><span>Me</span></button>
 </nav>
 <button type="button" id="quickSaleFab" class="quick-sale-fab" aria-label="Record a sale" title="Record a sale">+</button>
 
@@ -201,15 +205,20 @@ body.admin-mode nav,body.admin-mode #quickSaleFab{display:none!important}body.ad
 <section id="expenses" class="page hidden"><h2 class="page-title">Expenses</h2><p class="page-intro">Record and review business spending.</p>
 <div class="card"><h2>Record an expense</h2><form id="expenseForm"><label for="ename">Expense description</label><input id="ename" required maxlength="100" placeholder="e.g. Transport"><label for="eamount">Amount (₦)</label><input id="eamount" type="number" min="0.01" step="0.01" required inputmode="decimal"><button class="primary">Save expense</button></form></div>
 <div class="card"><h2>Expense history</h2><div id="expenseList" class="empty">No expenses recorded yet.</div></div></section>
-<section id="more" class="page hidden"><h2 class="page-title">More tools</h2><p class="page-intro">Reports, stock, expenses and app settings.</p><div class="menu-grid">
-<button type="button" class="menu-tile" data-open-page="expenses"><span class="tile-icon">↘</span><strong>Expenses</strong><span>Record and review spending</span></button>
+<section id="me" class="page hidden"><div class="section-heading"><div><h2 class="page-title">Me</h2><p class="page-intro">Your account and business information.</p></div><button type="button" class="settings-icon-button" data-open-page="settings" aria-label="Settings" title="Settings"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="m19.4 15 .1.1 1.4 1.1-1.4 2.4-1.7-.6a8 8 0 0 1-1.6.9l-.3 1.8h-2.8l-.3-1.8a8 8 0 0 1-1.6-.9l-1.7.6-1.4-2.4 1.4-1.1a7 7 0 0 1 0-1.9l-1.4-1.1 1.4-2.4 1.7.6a8 8 0 0 1 1.6-.9l.3-1.8h2.8l.3 1.8a8 8 0 0 1 1.6.9l1.7-.6 1.4 2.4-1.4 1.1a7 7 0 0 1-.1 1.8Z"/></svg></button></div>
+<div class="card"><h2 id="meBusinessName">Sellbook</h2><p id="meAccountEmail" class="muted">Checking account...</p><p id="meBusinessDescription" class="muted">Your business profile</p><button type="button" data-open-page="settings">View account and business settings</button></div>
+<div class="menu-grid">
+<button type="button" class="menu-tile" data-open-page="notifications"><span class="tile-icon"><svg viewBox="0 0 24 24"><path d="M18 9a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/></svg></span><strong>Notifications</strong><span>Announcements and updates</span></button>
+<button type="button" class="menu-tile" data-open-page="support"><span class="tile-icon"><svg viewBox="0 0 24 24"><path d="M21 11.5a8.4 8.4 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.4 8.4 0 0 1-3.8-.9L3 21l1.9-5.7a8.4 8.4 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.4 8.4 0 0 1 3.8-.9h.5a8.5 8.5 0 0 1 8 8z"/></svg></span><strong>Messages & help</strong><span>Contact Sellbook and view replies</span></button>
+<button type="button" class="menu-tile" data-open-page="more"><span class="tile-icon"><svg viewBox="0 0 24 24"><path d="M4 5h16M4 12h16M4 19h16"/></svg></span><strong>More tools</strong><span>Reports and stock management</span></button>
+<button type="button" class="menu-tile hidden" id="adminMenuTile" data-open-page="admin"><span class="tile-icon"><svg viewBox="0 0 24 24"><path d="M12 3 20 6v5c0 5-3.5 8-8 10-4.5-2-8-5-8-10V6z"/><path d="m9 12 2 2 4-4"/></svg></span><strong>Admin dashboard</strong><span>Manage Sellbook</span></button>
+</div></section>
+<section id="notifications" class="page hidden"><div class="section-heading"><div><h2 class="page-title">Notifications</h2><p class="page-intro">Announcements and important updates.</p></div><button type="button" id="refreshUserNotifications">Refresh</button></div><div class="card" id="userNotificationsCard"><div id="userNotificationsList" class="empty">Sign in to view app announcements.</div></div></section>
+<section id="more" class="page hidden"><h2 class="page-title">More tools</h2><p class="page-intro">Reports and stock management.</p><div class="menu-grid">
 <button type="button" class="menu-tile" data-open-page="reports"><span class="tile-icon">▥</span><strong>Reports</strong><span>Sales trends and top products</span></button>
 <button type="button" class="menu-tile" data-open-page="stock"><span class="tile-icon">▤</span><strong>Stock management</strong><span>Adjust quantities and review changes</span></button>
-<button type="button" class="menu-tile" data-open-page="settings"><span class="tile-icon">⚙</span><strong>Settings</strong><span>Business profile, account and preferences</span></button>
-<button type="button" class="menu-tile" data-open-page="support"><span class="tile-icon">✉</span><strong>Help & feedback</strong><span>Contact Sellbook and send suggestions</span></button>
-<button type="button" class="menu-tile hidden" id="adminMenuTile" data-open-page="admin"><span class="tile-icon">🛡</span><strong>Admin dashboard</strong><span>Manage Sellbook, users and messages</span></button>
 </div>
-<div class="card" id="userNotificationsCard"><div class="section-heading"><h2>Notifications</h2><button type="button" id="refreshUserNotifications">Refresh</button></div><div id="userNotificationsList" class="empty">Sign in to view app announcements.</div></div></section>
+</section>
 
 <section id="support" class="page hidden">
 <h2 class="page-title">Help & feedback</h2><p class="page-intro">Send a suggestion, report a problem, or contact the Sellbook team.</p>
@@ -872,9 +881,9 @@ async function cloudAddExpense(name,amount,date) {
 
 function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 function normalizeCategory(value){const category=String(value??'').trim();return category||'Uncategorized';}
-const VALID_PAGES=new Set(['home','products','sales','more','expenses','reports','stock','settings','support','admin']);
+const VALID_PAGES=new Set(['home','products','sales','more','expenses','reports','stock','settings','support','admin','me','notifications']);
 function currentPage(){return [...document.querySelectorAll('.page')].find(x=>!x.classList.contains('hidden'))?.id||'home';}
-function paintPage(name,scroll){if(!VALID_PAGES.has(name))name='home';document.querySelectorAll('.page').forEach(x=>x.classList.toggle('hidden',x.id!==name));document.querySelectorAll('nav button').forEach(x=>x.classList.toggle('active',x.dataset.page===name||(x.dataset.page==='more'&&['more','expenses','reports','stock','settings','support','admin'].includes(name))));sessionStorage.setItem('my-sales-book-current-page',name);render();const fab=document.getElementById('quickSaleFab');if(fab)fab.style.display=workspaceReady&&cloudUser?'flex':'none';if(scroll)window.scrollTo({top:0,behavior:'auto'});}
+function paintPage(name,scroll){if(!VALID_PAGES.has(name))name='home';document.querySelectorAll('.page').forEach(x=>x.classList.toggle('hidden',x.id!==name));document.querySelectorAll('nav button').forEach(x=>x.classList.toggle('active',x.dataset.page===name||(x.dataset.page==='me'&&['me','more','reports','stock','settings'].includes(name))));sessionStorage.setItem('my-sales-book-current-page',name);render();const fab=document.getElementById('quickSaleFab');if(fab)fab.style.display=workspaceReady&&cloudUser?'flex':'none';if(name==='support'&&cloudUser){localStorage.setItem('sellbook-messages-seen-'+cloudUser.id,new Date().toISOString());updateUnreadBadges();}if(name==='notifications'&&cloudUser){localStorage.setItem('sellbook-notifications-seen-'+cloudUser.id,new Date().toISOString());updateUnreadBadges();}if(name==='me')updateMePanel();if(scroll)window.scrollTo({top:0,behavior:'auto'});}
 function showPage(name,options={}){if(!VALID_PAGES.has(name))return;const previous=currentPage();if(!options.fromHistory&&previous!==name)history.pushState({mySalesBookPage:name},'', '#'+name);paintPage(name,options.scroll!==false);}
 function restorePageFromLocation(){const hash=location.hash.slice(1),saved=sessionStorage.getItem('my-sales-book-current-page');paintPage(VALID_PAGES.has(hash)?hash:(VALID_PAGES.has(saved)?saved:'home'),false);}
 // Keep Android/browser Back inside the app. Page changes have their own
@@ -1703,8 +1712,12 @@ async function loadAdminNotifications(){
  const target=document.getElementById('adminNotificationsList');
  const {data,error}=await supabaseClient.from('app_notifications').select('id,title,body,kind,recipient_id,created_at').order('created_at',{ascending:false}).limit(20);
  if(error){target.textContent='Could not load notifications: '+error.message;return;}
+ localStorage.setItem('sellbook-notifications-seen-'+cloudUser.id,new Date().toISOString());
  target.innerHTML=(data||[]).length?data.map(n=>'<div class="item"><strong>'+escAdmin(n.title)+'</strong><div class="muted">'+escAdmin(n.kind)+' · '+(n.recipient_id?'Specific user':'All users')+' · '+escAdmin(new Date(n.created_at).toLocaleString())+'</div><p>'+escAdmin(n.body)+'</p></div>').join(''):'<div class="empty">No notifications published yet.</div>';
 }
+function updateMePanel(){const name=document.getElementById('businessTitle')?.textContent||'Sellbook';const b=document.getElementById('meBusinessName');if(b)b.textContent=name;const e=document.getElementById('meAccountEmail');if(e)e.textContent=cloudUser?.email||'Sign in to sync your account';const d=document.getElementById('meBusinessDescription');if(d)d.textContent=cloudUser?'Your account is connected.':'Sign in to access cloud sync and account features.';}
+function setUnreadBadge(id,count){const el=document.getElementById(id);if(!el)return;const n=Math.max(0,Number(count)||0);el.textContent=n>99?'99+':String(n);el.classList.toggle('hidden',n===0);}
+async function updateUnreadBadges(){if(!cloudUser||!supabaseClient){setUnreadBadge('notificationBadge',0);setUnreadBadge('messageBadge',0);return;}try{const uid=cloudUser.id;const ns=localStorage.getItem('sellbook-notifications-seen-'+uid)||'1970-01-01T00:00:00.000Z';const ms=localStorage.getItem('sellbook-messages-seen-'+uid)||'1970-01-01T00:00:00.000Z';const [nr,mr]=await Promise.all([supabaseClient.from('app_notifications').select('id,created_at').or('recipient_id.is.null,recipient_id.eq.'+uid).gt('created_at',ns).limit(100),supabaseClient.from('support_messages').select('id,created_at').eq('recipient_id',uid).gt('created_at',ms).limit(100)]);setUnreadBadge('notificationBadge',nr.error?0:(nr.data||[]).length);setUnreadBadge('messageBadge',mr.error?0:(mr.data||[]).length);}catch(_){/* Keep the interface quiet if the device is offline. */}}
 async function loadUserNotifications(){
  const target=document.getElementById('userNotificationsList');
  if(!cloudUser){target.textContent='Sign in to view app announcements.';return;}
@@ -1721,7 +1734,7 @@ async function loadUserSupport(){
  ]);
  feedback.innerHTML=fr.error?'Could not load feedback: '+escAdmin(fr.error.message):(fr.data||[]).length?fr.data.map(f=>'<div class="item"><strong>'+escAdmin(f.subject)+'</strong><span class="status-pill">'+escAdmin(f.status)+'</span><div class="muted">'+escAdmin(f.category)+' · '+escAdmin(new Date(f.created_at).toLocaleString())+'</div><p>'+escAdmin(f.message)+'</p>'+(f.admin_reply?'<p><strong>Sellbook reply:</strong> '+escAdmin(f.admin_reply)+'</p>':'')+'</div>').join(''):'<div class="empty">You have not sent feedback yet.</div>';
  messages.innerHTML=mr.error?'Could not load messages: '+escAdmin(mr.error.message):(mr.data||[]).length?mr.data.map(m=>'<div class="item"><strong>'+(m.sender_id===cloudUser.id?'You':'Sellbook support')+'</strong><div class="muted">'+escAdmin(new Date(m.created_at).toLocaleString())+'</div><p>'+escAdmin(m.body)+'</p></div>').join(''):'<div class="empty">No support messages yet.</div>';
- await loadUserNotifications();
+ await loadUserNotifications();await updateUnreadBadges();
 }
 document.getElementById('userFeedbackForm').addEventListener('submit',async e=>{
  e.preventDefault();if(!cloudUser)return document.getElementById('feedbackFormStatus').textContent='Please sign in first.';
@@ -1755,7 +1768,7 @@ document.getElementById('adminNotificationForm').addEventListener('submit',async
  const {error}=await supabaseClient.from('app_notifications').insert(payload);
  if(error){status.textContent='Could not publish notification: '+error.message;return;}e.target.reset();document.getElementById('notificationUserWrap').classList.add('hidden');status.textContent='Notification published.';await loadAdminNotifications();
 });
-document.getElementById('refreshUserNotifications').addEventListener('click',loadUserNotifications);
+document.getElementById('refreshUserNotifications').addEventListener('click',loadUserNotifications);document.querySelectorAll('[data-open-page="notifications"]').forEach(b=>b.addEventListener('click',()=>{showPage('notifications');loadUserNotifications();}));
 document.getElementById('refreshFeedback').addEventListener('click',loadUserSupport);
 document.getElementById('refreshAdminUsers').addEventListener('click',loadAdminUsers);
 document.getElementById('refreshAdminFeedback').addEventListener('click',loadAdminFeedback);
