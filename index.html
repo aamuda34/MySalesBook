@@ -1495,7 +1495,9 @@ document.getElementById('googleSignIn').addEventListener('click', async () => {
   const { error } = await supabaseClient.auth.signInWithOAuth({
     provider: 'google',
     options: {
-      redirectTo: window.location.origin + window.location.pathname + window.location.search,
+      redirectTo: new URLSearchParams(window.location.search).get('native') === '1'
+        ? 'sellbook://auth'
+        : window.location.origin + window.location.pathname + window.location.search,
       queryParams: { prompt: 'select_account' }
     }
   });
