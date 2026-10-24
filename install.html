@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#14532d">
+<title>Install Sellbook</title>
+<link rel="manifest" href="./manifest.webmanifest">
+<style>
+:root{color-scheme:light;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+*{box-sizing:border-box}
+body{margin:0;min-height:100vh;display:grid;place-items:center;background:#f3f6f3;color:#173323;padding:24px}
+main{width:min(100%,420px);background:#fff;border-radius:24px;padding:30px 24px;text-align:center;box-shadow:0 12px 40px #163d2518}
+.logo{width:76px;height:76px;margin:0 auto 18px;border-radius:20px;display:grid;place-items:center;background:#14532d;color:#fff;font-size:38px;font-weight:800}
+h1{margin:0 0 10px;font-size:30px}
+p{line-height:1.55;color:#526257;margin:0 0 22px}
+button,a.button{width:100%;display:block;border:0;border-radius:12px;padding:15px 18px;background:#14532d;color:#fff;font-size:16px;font-weight:700;text-decoration:none;cursor:pointer}
+#status{margin-top:16px;font-size:14px}
+.small{font-size:13px;margin-top:18px;margin-bottom:0}
+</style>
+</head>
+<body>
+<main>
+<div class="logo" aria-hidden="true">S</div>
+<h1>Install Sellbook</h1>
+<p>Keep your sales, expenses, stock and business profit records handy on your phone.</p>
+<button id="install" type="button">Install Sellbook</button>
+<p id="status" role="status">Tap the button to install the app.</p>
+<a class="button" id="open" href="./" style="display:none;margin-top:12px">Open Sellbook</a>
+<p class="small">Free to install on supported Android phones using Chrome.</p>
+</main>
+<script>
+let installPrompt;
+const installButton=document.getElementById('install');
+const statusText=document.getElementById('status');
+const openButton=document.getElementById('open');
+window.addEventListener('beforeinstallprompt',event=>{
+ event.preventDefault(); installPrompt=event; installButton.style.display='block';
+ statusText.textContent='Sellbook is ready to install.';
+});
+if(window.matchMedia('(display-mode: standalone)').matches){
+ installButton.style.display='none'; statusText.textContent='Sellbook is already installed on this device.'; openButton.style.display='block';
+}
+installButton.addEventListener('click',async()=>{
+ if(installPrompt){
+  installPrompt.prompt();
+  const choice=await installPrompt.userChoice;
+  statusText.textContent=choice.outcome==='accepted'?'Sellbook installation started.':'Installation was cancelled.';
+  installPrompt=null;
+ }else{
+  statusText.textContent='If the install prompt does not appear, open this page in Chrome, tap ⋮, then choose “Install app” or “Add to Home screen”.';
+ }
+});
+window.addEventListener('appinstalled',()=>{
+ installButton.style.display='none'; statusText.textContent='Sellbook was installed successfully.'; openButton.style.display='block';
+});
+</script>
+</body>
+</html>
