@@ -34,7 +34,7 @@ h1{font-size:clamp(37px,6vw,64px);line-height:1.04;letter-spacing:-2.4px;margin:
 h1 span{color:#b8f5c8}
 .hero-copy{font-size:clamp(15px,2vw,18px);line-height:1.7;color:#e1f1e5;max-width:490px;margin:0 0 26px}
 .actions{display:flex;flex-wrap:wrap;gap:11px}
-.btn{min-height:51px;padding:14px 19px;border:0;border-radius:13px;display:inline-flex;align-items:center;justify-content:center;gap:9px;font:700 15px inherit;text-decoration:none;cursor:pointer;transition:transform .15s ease,background .15s ease}
+.btn{min-height:51px;padding:14px 19px;border:0;border-radius:13px;display:inline-flex;align-items:center;justify-content:center;gap:9px;font:inherit;font-size:15px;font-weight:700;text-decoration:none;cursor:pointer;transition:transform .15s ease,background .15s ease}
 .btn:active{transform:scale(.98)}
 .btn-primary{background:#fff;color:#14532d;box-shadow:0 6px 20px #062d171f}
 .btn-secondary{background:#ffffff12;border:1px solid #ffffff45;color:#fff}
@@ -99,12 +99,12 @@ summary:focus-visible,a:focus-visible,button:focus-visible{outline:3px solid #70
     <button class="btn btn-primary" id="install-top" type="button"><span aria-hidden="true">↓</span> Install Sellbook</button>
     <a class="btn btn-secondary" href="./">Open Sellbook in browser <span aria-hidden="true">↗</span></a>
    </div>
-   <p class="hero-note">Free to install · Made for your phone · Records in Nigerian naira (₦)</p>
+   <p class="hero-note">Free to install · No APK download needed · Records in Nigerian naira (₦)</p>
   </div>
   <div class="phone-wrap" aria-label="Illustration of the Sellbook app on a phone">
    <div class="phone">
     <div class="phone-top"><div class="mini-logo">S</div> Sellbook</div>
-    <div class="phone-caption">BUSINESS SUMMARY</div>
+    <div class="phone-caption">SAMPLE BUSINESS SUMMARY</div>
     <div class="stat"><div class="stat-label">Today's sales</div><div class="stat-value">₦ 85,500</div></div>
     <div class="mini-grid">
      <div class="mini-tile"><span>EXPENSES</span><strong>₦ 8,000</strong></div>
@@ -125,11 +125,11 @@ summary:focus-visible,a:focus-visible,button:focus-visible{outline:3px solid #70
   </div>
  </section>
  <section class="section" aria-labelledby="steps-title">
-  <div class="section-heading"><div class="kicker">Get started in moments</div><h2 id="steps-title">How to install Sellbook</h2><p>No APK file is needed. Install it from your supported mobile browser.</p></div>
+  <div class="section-heading"><div class="kicker">Get started in moments</div><h2 id="steps-title">How to install Sellbook on Android</h2><p>Follow these simple steps on your phone. You do not need to download an APK or install another app.</p></div>
   <div class="steps">
-   <article class="step"><div class="step-num">1</div><div><h3>Tap Install Sellbook</h3><p>Use the install button on this page. If it is not available, open this page in Chrome.</p></div></article>
-   <article class="step"><div class="step-num">2</div><div><h3>Confirm installation</h3><p>Follow the prompt. In Chrome, you can also tap ⋮ and choose “Install app” or “Add to Home screen”.</p></div></article>
-   <article class="step"><div class="step-num">3</div><div><h3>Open and get started</h3><p>Launch Sellbook from your home screen and use the sign-in option if you want your cloud account.</p></div></article>
+   <article class="step"><div class="step-num">1</div><div><h3>Open this page in Chrome</h3><p>For the easiest setup, open this installation page in Google Chrome on your Android phone. If you are viewing it inside WhatsApp or Facebook, open the page in Chrome instead.</p></div></article>
+   <article class="step"><div class="step-num">2</div><div><h3>Tap Install and confirm</h3><p>Tap the Install Sellbook button above. If no install prompt appears, tap Chrome’s three-dot menu (⋮), then choose “Install app” or “Add to Home screen” if shown. Confirm the prompt.</p></div></article>
+   <article class="step"><div class="step-num">3</div><div><h3>Find Sellbook on your phone</h3><p>After installation, look for the Sellbook icon on your home screen or in your app list. Tap that icon to open the installed app. Sign in if you want to use your cloud account.</p></div></article>
   </div>
  </section>
  <section class="section" aria-labelledby="share-title">
@@ -143,19 +143,23 @@ summary:focus-visible,a:focus-visible,button:focus-visible{outline:3px solid #70
  <section class="section" id="faq" aria-labelledby="faq-title">
   <div class="section-heading"><div class="kicker">Helpful answers</div><h2 id="faq-title">Frequently asked questions</h2></div>
   <div style="max-width:760px;margin:auto;display:grid;gap:10px">
-   <details class="feature" style="min-height:0;padding:18px 20px"><summary style="font-weight:750;cursor:pointer">Is Sellbook free to install?</summary><p style="margin:12px 0 0">Yes. You can install the web app from a supported browser without downloading an APK.</p></details>
-   <details class="feature" style="min-height:0;padding:18px 20px"><summary style="font-weight:750;cursor:pointer">How do I open the installed app?</summary><p style="margin:12px 0 0">On Android, return to your home screen or app list and tap the Sellbook icon. A normal link opened in Chrome may stay in Chrome instead of switching to the installed app. The “Open Sellbook in browser” button opens the website; use the home-screen icon to launch the installed version.</p></details>
-   <details class="feature" style="min-height:0;padding:18px 20px"><summary style="font-weight:750;cursor:pointer">Why does Sellbook offer Google sign-in?</summary><p style="margin:12px 0 0">Google sign-in lets you access the cloud account configured for Sellbook. Use the sign-in button inside the app and complete the Google sign-in page in your browser. Do not share your password with anyone.</p></details>
-   <details class="feature" style="min-height:0;padding:18px 20px"><summary style="font-weight:750;cursor:pointer">Will my records work offline?</summary><p style="margin:12px 0 0">Offline behaviour depends on the app version and which features have been cached or saved on the device. Do not assume cloud sign-in, cloud records or synchronisation will work without internet. Reconnect before relying on cloud features.</p></details>
-   <details class="feature" style="min-height:0;padding:18px 20px"><summary style="font-weight:750;cursor:pointer">How do I share the installation page?</summary><p style="margin:12px 0 0">Tap “Share Sellbook” and choose WhatsApp or another app. You can also copy the installation link and send it directly.</p></details>
+   <details class="feature" style="min-height:0;padding:18px 20px"><summary style="font-weight:750;cursor:pointer">Is Sellbook free to install?</summary><p style="margin:12px 0 0">Yes, installing Sellbook from this page is free. It is a web app, so you do not need to download an APK file. Your phone or browser may use mobile data while loading the page or using online features.</p></details>
+   <details class="feature" style="min-height:0;padding:18px 20px"><summary style="font-weight:750;cursor:pointer">How do I install Sellbook on my Android phone?</summary><p style="margin:12px 0 0">Open this page in Google Chrome. Tap “Install Sellbook” and follow the prompt. If the button does not bring up a prompt, open Chrome’s three-dot menu (⋮) and look for “Install app” or “Add to Home screen”. The wording can vary by phone and browser. If neither option appears, update Chrome if possible and try again from the main Chrome browser.</p></details>
+   <details class="feature" style="min-height:0;padding:18px 20px"><summary style="font-weight:750;cursor:pointer">I cannot see “Install app”. What should I do?</summary><p style="margin:12px 0 0">First, make sure you opened the installation page in Chrome rather than inside another app. Then check Chrome’s ⋮ menu for “Install app” or “Add to Home screen”. If the options are still missing, your browser or current page session may not support installation. You can still use Sellbook in your browser.</p></details>
+   <details class="feature" style="min-height:0;padding:18px 20px"><summary style="font-weight:750;cursor:pointer">How do I open Sellbook after installing it?</summary><p style="margin:12px 0 0">Return to your phone’s home screen or app list and tap the Sellbook icon. A normal website link may open in Chrome instead of switching to the installed app. To launch the installed version, use its icon.</p></details>
+   <details class="feature" style="min-height:0;padding:18px 20px"><summary style="font-weight:750;cursor:pointer">Do I need to create an account?</summary><p style="margin:12px 0 0">You can open the app and see the available options. To use the cloud account features, sign in with Google inside Sellbook. Make sure you use the Google account you intend to use for your business records.</p></details>
+   <details class="feature" style="min-height:0;padding:18px 20px"><summary style="font-weight:750;cursor:pointer">Will Sellbook work without internet?</summary><p style="margin:12px 0 0">Some parts of a web app may load if they were saved on your device, but cloud sign-in, cloud records and synchronisation require an internet connection. Do not rely on offline use for important transactions unless you have tested the exact features on your phone. Reconnect to use cloud features.</p></details>
+   <details class="feature" style="min-height:0;padding:18px 20px"><summary style="font-weight:750;cursor:pointer">Will my records appear on every phone?</summary><p style="margin:12px 0 0">Cloud records are associated with the account you sign in with. Records saved only in a browser on one device may remain separate from cloud records and may not automatically appear on another phone. Use the correct account and confirm that a record has saved successfully.</p></details>
+   <details class="feature" style="min-height:0;padding:18px 20px"><summary style="font-weight:750;cursor:pointer">How can I keep my records safe?</summary><p style="margin:12px 0 0">Keep your phone and Google account secure, never share your password, and check that important entries have saved. If the app offers an export or backup option, make a backup regularly and store it somewhere safe. Do not assume installing the app automatically backs up every record.</p></details>
+   <details class="feature" style="min-height:0;padding:18px 20px"><summary style="font-weight:750;cursor:pointer">How do I share Sellbook with someone?</summary><p style="margin:12px 0 0">Tap “Share Sellbook” and choose WhatsApp or another app. Or tap “Copy installation link” and paste the link into a message. The person receiving it can open the page on their own phone and install Sellbook.</p></details>
   </div>
  </section>
  <section class="section" aria-labelledby="privacy-title">
-  <div class="section-heading"><div class="kicker">Use it with confidence</div><h2 id="privacy-title">A simple tool for your business</h2><p>Sellbook is designed to help you record everyday business activity without unnecessary complexity.</p></div>
+  <div class="section-heading"><div class="kicker">Use it with confidence</div><h2 id="privacy-title">A simple tool for your business</h2><p>Sellbook helps you organise everyday records. A few simple habits can help you avoid losing track of important entries.</p></div>
   <div class="steps">
    <article class="step"><div class="step-num" aria-hidden="true">✓</div><div><h3>Made for everyday sales</h3><p>Record sales, expenses and stock in Nigerian naira (₦).</p></div></article>
    <article class="step"><div class="step-num" aria-hidden="true">✓</div><div><h3>Use your own account</h3><p>If you choose Google sign-in, use your own account and keep your sign-in details private.</p></div></article>
-   <article class="step"><div class="step-num" aria-hidden="true">✓</div><div><h3>Know your connection</h3><p>Some cloud features require internet access. Check that your records have saved before closing the app.</p></div></article>
+   <article class="step"><div class="step-num" aria-hidden="true">✓</div><div><h3>Check saved records</h3><p>Confirm that important entries appear in your records. Cloud features need internet access, and local records may not automatically sync to another device.</p></div></article>
   </div>
  </section>
  <section class="final-cta" aria-labelledby="cta-title">
@@ -197,7 +201,7 @@ async function installSellbook(){
  if(deferredInstallPrompt){
   deferredInstallPrompt.prompt();
   const result = await deferredInstallPrompt.userChoice;
-  status.textContent = result.outcome === 'accepted' ? 'Installation accepted. Follow any prompt shown by your phone.' : 'Installation was cancelled. You can try again whenever you are ready.';
+  status.textContent = result.outcome === 'accepted' ? 'Installation accepted. Wait for your phone to finish, then look for the Sellbook icon on your home screen or in your app list.' : 'Installation was cancelled. You can try again whenever you are ready, or use Chrome’s ⋮ menu and look for “Install app” or “Add to Home screen”.';
   deferredInstallPrompt = null;
   return;
  }
