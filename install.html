@@ -2,58 +2,173 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#14532d">
-<title>Install Sellbook</title>
+<meta name="description" content="Install Sellbook — your business records, made simple. Track sales, expenses, products, stock and profit from your phone.">
+<title>Install Sellbook — Your Business Records, Made Simple</title>
 <link rel="manifest" href="./manifest.webmanifest">
+<link rel="icon" href="./icons/icon.svg" type="image/svg+xml">
 <style>
-:root{color-scheme:light;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+:root{font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#153523;background:#f4f7f4;font-synthesis:none;text-rendering:optimizeLegibility;-webkit-font-smoothing:antialiased}
 *{box-sizing:border-box}
-body{margin:0;min-height:100vh;display:grid;place-items:center;background:#f3f6f3;color:#173323;padding:24px}
-main{width:min(100%,420px);background:#fff;border-radius:24px;padding:30px 24px;text-align:center;box-shadow:0 12px 40px #163d2518}
-.logo{width:76px;height:76px;margin:0 auto 18px;border-radius:20px;display:grid;place-items:center;background:#14532d;color:#fff;font-size:38px;font-weight:800}
-h1{margin:0 0 10px;font-size:30px}
-p{line-height:1.55;color:#526257;margin:0 0 22px}
-button,a.button{width:100%;display:block;border:0;border-radius:12px;padding:15px 18px;background:#14532d;color:#fff;font-size:16px;font-weight:700;text-decoration:none;cursor:pointer}
-#status{margin-top:16px;font-size:14px}
-.small{font-size:13px;margin-top:18px;margin-bottom:0}
+body{margin:0;min-height:100vh}
+a{color:inherit}
+.topbar{max-width:1080px;margin:auto;padding:20px 22px;display:flex;align-items:center;gap:12px}
+.brand-icon{width:42px;height:42px;flex:none;border-radius:13px;overflow:hidden;box-shadow:0 5px 14px #14532d20}
+.brand-icon svg{display:block;width:100%;height:100%}
+.brand-name{font-weight:850;font-size:22px;letter-spacing:-.7px}
+.brand-tag{font-size:11px;color:#718075;margin-top:1px}
+main{max-width:1080px;margin:auto;padding:16px 22px 56px}
+.hero{position:relative;overflow:hidden;border-radius:30px;background:linear-gradient(135deg,#0d542e 0%,#176b3d 58%,#20834a 100%);color:#fff;padding:clamp(28px,6vw,68px);display:grid;grid-template-columns:1.15fr .85fr;align-items:center;gap:32px;box-shadow:0 20px 50px #14532d1a}
+.hero:after{content:"";position:absolute;width:340px;height:340px;border:1px solid #ffffff20;border-radius:50%;right:-100px;top:-155px;box-shadow:0 0 0 35px #ffffff08,0 0 0 75px #ffffff06;pointer-events:none}
+.eyebrow{display:inline-flex;align-items:center;gap:8px;background:#ffffff18;border:1px solid #ffffff25;border-radius:999px;padding:8px 12px;font-size:12px;font-weight:700;letter-spacing:.2px}
+.dot{width:7px;height:7px;border-radius:50%;background:#a7f3b9}
+h1{font-size:clamp(37px,6vw,64px);line-height:1.04;letter-spacing:-2.4px;margin:22px 0 17px;max-width:590px}
+h1 span{color:#b8f5c8}
+.hero-copy{font-size:clamp(15px,2vw,18px);line-height:1.7;color:#e1f1e5;max-width:490px;margin:0 0 26px}
+.actions{display:flex;flex-wrap:wrap;gap:11px}
+.btn{min-height:51px;padding:14px 19px;border:0;border-radius:13px;display:inline-flex;align-items:center;justify-content:center;gap:9px;font:700 15px inherit;text-decoration:none;cursor:pointer;transition:transform .15s ease,background .15s ease}
+.btn:active{transform:scale(.98)}
+.btn-primary{background:#fff;color:#14532d;box-shadow:0 6px 20px #062d171f}
+.btn-secondary{background:#ffffff12;border:1px solid #ffffff45;color:#fff}
+.hero-note{font-size:12px;color:#d1e8d7;margin:15px 0 0;line-height:1.5}
+.phone-wrap{display:flex;justify-content:center;align-items:center;min-height:260px;position:relative;z-index:1}
+.phone{width:min(100%,260px);background:#f9fcf9;border:7px solid #163e28;border-radius:34px;padding:17px 15px 18px;color:#173b27;box-shadow:0 24px 50px #032c1745;transform:rotate(3deg)}
+.phone-top{display:flex;align-items:center;gap:8px;font-weight:800;font-size:14px;margin-bottom:19px}
+.mini-logo{width:28px;height:28px;background:#14532d;color:#fff;border-radius:8px;display:grid;place-items:center;font-size:15px}
+.phone-caption{font-size:11px;color:#758478;margin-bottom:9px}
+.stat{background:#eaf4ec;border-radius:13px;padding:13px;margin-bottom:10px}
+.stat-label{font-size:10px;color:#5c7162}
+.stat-value{font-size:22px;font-weight:850;letter-spacing:-.5px;margin-top:3px}
+.mini-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.mini-tile{padding:12px 10px;background:#fff;border:1px solid #e4ece5;border-radius:12px}
+.mini-tile strong{display:block;font-size:14px;margin-top:7px}
+.mini-tile span{font-size:10px;color:#718075}
+.section{padding:48px 0 0}
+.section-heading{text-align:center;max-width:600px;margin:0 auto 25px}
+.kicker{font-size:11px;text-transform:uppercase;letter-spacing:1.5px;font-weight:800;color:#21804a}
+h2{font-size:clamp(25px,4vw,35px);letter-spacing:-1px;margin:9px 0 10px}
+.section-heading p{margin:0;color:#637267;line-height:1.65}
+.features{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+.feature{background:#fff;border:1px solid #e6ece6;border-radius:19px;padding:22px 18px;min-height:166px}
+.feature-icon{width:42px;height:42px;border-radius:13px;background:#e8f5eb;display:grid;place-items:center;font-size:21px;margin-bottom:17px}
+.feature h3{font-size:16px;margin:0 0 7px}
+.feature p{font-size:13px;color:#657367;line-height:1.55;margin:0}
+.steps{display:grid;grid-template-columns:repeat(3,1fr);gap:15px}
+.step{display:flex;gap:13px;background:#fff;border:1px solid #e6ece6;border-radius:17px;padding:18px}
+.step-num{flex:none;width:32px;height:32px;border-radius:10px;background:#14532d;color:white;display:grid;place-items:center;font-weight:800}
+.step h3{font-size:14px;margin:2px 0 6px}
+.step p{font-size:13px;color:#657367;line-height:1.55;margin:0}
+.final-cta{margin-top:45px;background:#e7f3e9;border:1px solid #d8eadb;border-radius:24px;padding:clamp(25px,5vw,42px);text-align:center}
+.final-cta h2{margin-top:0}
+.final-cta p{color:#5e7062;line-height:1.6;margin:0 auto 21px;max-width:520px}
+.final-cta .btn-primary{background:#14532d;color:white}
+.status{min-height:22px;font-size:13px;line-height:1.55;color:#526c59;margin:14px auto 0;max-width:560px}
+footer{max-width:1080px;margin:auto;padding:0 22px 30px;text-align:center;color:#7b897e;font-size:12px;line-height:1.7}
+.footer-links{display:flex;justify-content:center;gap:18px;flex-wrap:wrap;margin-bottom:9px}
+.footer-links a{text-decoration:none}
+.footer-links a:hover{text-decoration:underline}
+@media(max-width:760px){.hero{grid-template-columns:1fr;gap:12px;padding:30px 24px}.hero-copy{max-width:540px}.phone-wrap{min-height:220px;margin-top:10px}.phone{width:225px}.features{grid-template-columns:repeat(2,1fr)}.steps{grid-template-columns:1fr}.section{padding-top:39px}h1{letter-spacing:-1.7px}}
+@media(max-width:390px){main{padding-left:14px;padding-right:14px}.topbar{padding-left:17px;padding-right:17px}.hero{padding:26px 19px;border-radius:24px}.features{gap:9px}.feature{padding:17px 14px}.actions .btn{width:100%}}
+@media(prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 </head>
 <body>
+<header class="topbar">
+ <div class="brand-icon" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><rect width="512" height="512" rx="112" fill="#14532d"/><path d="M118 126Q118 108 138 108H374Q394 108 394 128V350Q394 370 374 370H198Q174 370 158 389L118 420Z" fill="#fff"/><path d="M160 315V190Q160 178 172 178H191V315Z" fill="#22c55e"/><path d="M211 315V153Q211 141 223 141H242V315Z" fill="#16a34a"/><path d="M262 315V120Q262 108 274 108H293V315Z" fill="#15803d"/><path d="M143 342H350" fill="none" stroke="#d1fae5" stroke-width="14" stroke-linecap="round"/><path d="M118 420Q155 381 198 381H374" fill="none" stroke="#fff" stroke-width="19" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+ <div><div class="brand-name">Sellbook</div><div class="brand-tag">YOUR BUSINESS RECORDS, MADE SIMPLE</div></div>
+</header>
 <main>
-<div class="logo" aria-hidden="true">S</div>
-<h1>Install Sellbook</h1>
-<p>Keep your sales, expenses, stock and business profit records handy on your phone.</p>
-<button id="install" type="button">Install Sellbook</button>
-<p id="status" role="status">Tap the button to install the app.</p>
-<a class="button" id="open" href="./" style="display:none;margin-top:12px">Open Sellbook</a>
-<p class="small">Free to install on supported Android phones using Chrome.</p>
+ <section class="hero" aria-labelledby="hero-title">
+  <div>
+   <div class="eyebrow"><span class="dot"></span> SIMPLE BUSINESS RECORDS</div>
+   <h1 id="hero-title">Your business.<br><span>Better organised.</span></h1>
+   <p class="hero-copy">Keep track of sales, expenses, products, stock and profit in one simple app designed for your everyday business.</p>
+   <div class="actions">
+    <button class="btn btn-primary" id="install-top" type="button"><span aria-hidden="true">↓</span> Install Sellbook</button>
+    <a class="btn btn-secondary" href="./">Open the app <span aria-hidden="true">↗</span></a>
+   </div>
+   <p class="hero-note">Free to install · Made for your phone · Records in Nigerian naira (₦)</p>
+  </div>
+  <div class="phone-wrap" aria-label="Illustration of the Sellbook app on a phone">
+   <div class="phone">
+    <div class="phone-top"><div class="mini-logo">S</div> Sellbook</div>
+    <div class="phone-caption">BUSINESS SUMMARY</div>
+    <div class="stat"><div class="stat-label">Today's sales</div><div class="stat-value">₦ 85,500</div></div>
+    <div class="mini-grid">
+     <div class="mini-tile"><span>EXPENSES</span><strong>₦ 8,000</strong></div>
+     <div class="mini-tile"><span>NET PROFIT</span><strong>₦ 12,500</strong></div>
+     <div class="mini-tile"><span>PRODUCTS</span><strong>24 items</strong></div>
+     <div class="mini-tile"><span>STOCK</span><strong>In view</strong></div>
+    </div>
+   </div>
+  </div>
+ </section>
+ <section class="section" aria-labelledby="features-title">
+  <div class="section-heading"><div class="kicker">Everything in one place</div><h2 id="features-title">Run your records with less stress</h2><p>Sellbook helps you keep the important numbers of your business organised without a complicated setup.</p></div>
+  <div class="features">
+   <article class="feature"><div class="feature-icon" aria-hidden="true">🧾</div><h3>Record sales</h3><p>Enter sales and keep a clear record of what you sell.</p></article>
+   <article class="feature"><div class="feature-icon" aria-hidden="true">📦</div><h3>Manage stock</h3><p>Keep your products and stock quantities in view.</p></article>
+   <article class="feature"><div class="feature-icon" aria-hidden="true">💸</div><h3>Track expenses</h3><p>Record business spending and see where money goes.</p></article>
+   <article class="feature"><div class="feature-icon" aria-hidden="true">📈</div><h3>Understand profit</h3><p>View your sales and profit summaries at a glance.</p></article>
+  </div>
+ </section>
+ <section class="section" aria-labelledby="steps-title">
+  <div class="section-heading"><div class="kicker">Get started in moments</div><h2 id="steps-title">How to install Sellbook</h2><p>No APK file is needed. Install it from your supported mobile browser.</p></div>
+  <div class="steps">
+   <article class="step"><div class="step-num">1</div><div><h3>Tap Install Sellbook</h3><p>Use the install button on this page. If it is not available, open this page in Chrome.</p></div></article>
+   <article class="step"><div class="step-num">2</div><div><h3>Confirm installation</h3><p>Follow the prompt. In Chrome, you can also tap ⋮ and choose “Install app” or “Add to Home screen”.</p></div></article>
+   <article class="step"><div class="step-num">3</div><div><h3>Open and get started</h3><p>Launch Sellbook from your home screen and use the sign-in option if you want your cloud account.</p></div></article>
+  </div>
+ </section>
+ <section class="final-cta" aria-labelledby="cta-title">
+  <h2 id="cta-title">Ready to organise your business?</h2>
+  <p>Put your sales, expenses, stock and profit records in one convenient place.</p>
+  <button class="btn btn-primary" id="install-bottom" type="button">Install Sellbook</button>
+  <p class="status" id="status" role="status" aria-live="polite">Choose Install Sellbook to check whether your browser supports direct installation.</p>
+  <a id="open-after-install" href="./" style="display:none;font-weight:700;color:#14532d">Open Sellbook</a>
+ </section>
 </main>
+<footer>
+ <div class="footer-links"><a href="./">Open Sellbook</a><a href="https://my-sales-book.vercel.app/manifest.webmanifest">App details</a></div>
+ <div>Sellbook · Your Business Records, Made Simple.</div>
+</footer>
 <script>
-let installPrompt;
-const installButton=document.getElementById('install');
-const statusText=document.getElementById('status');
-const openButton=document.getElementById('open');
-window.addEventListener('beforeinstallprompt',event=>{
- event.preventDefault(); installPrompt=event; installButton.style.display='block';
- statusText.textContent='Sellbook is ready to install.';
-});
-if(window.matchMedia('(display-mode: standalone)').matches){
- installButton.style.display='none'; statusText.textContent='Sellbook is already installed on this device.'; openButton.style.display='block';
-}
-installButton.addEventListener('click',async()=>{
- if(installPrompt){
-  installPrompt.prompt();
-  const choice=await installPrompt.userChoice;
-  statusText.textContent=choice.outcome==='accepted'?'Sellbook installation started.':'Installation was cancelled.';
-  installPrompt=null;
- }else{
-  statusText.textContent='If the install prompt does not appear, open this page in Chrome, tap ⋮, then choose “Install app” or “Add to Home screen”.';
+let deferredInstallPrompt = null;
+const status = document.getElementById('status');
+const installButtons = [document.getElementById('install-top'), document.getElementById('install-bottom')];
+const openAfterInstall = document.getElementById('open-after-install');
+const isInstalled = () => window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+function showInstalledState(){
+ if(isInstalled()){
+  installButtons.forEach(button => { button.textContent = 'Sellbook is installed'; button.disabled = true; button.style.opacity = '.75'; });
+  status.textContent = 'Sellbook is already installed on this device. You can open it now.';
+  openAfterInstall.style.display = 'inline-block';
  }
+}
+window.addEventListener('beforeinstallprompt', event => {
+ event.preventDefault();
+ deferredInstallPrompt = event;
+ status.textContent = 'Your browser supports direct installation. Tap Install Sellbook to continue.';
 });
-window.addEventListener('appinstalled',()=>{
- installButton.style.display='none'; statusText.textContent='Sellbook was installed successfully.'; openButton.style.display='block';
+async function installSellbook(){
+ if(isInstalled()){ showInstalledState(); return; }
+ if(deferredInstallPrompt){
+  deferredInstallPrompt.prompt();
+  const result = await deferredInstallPrompt.userChoice;
+  status.textContent = result.outcome === 'accepted' ? 'Installation accepted. Follow any prompt shown by your phone.' : 'Installation was cancelled. You can try again whenever you are ready.';
+  deferredInstallPrompt = null;
+  return;
+ }
+ status.textContent = 'To install: open this page in Chrome, tap the three dots (⋮), then choose “Install app” or “Add to Home screen”. If neither option appears, your browser may not currently offer installation.';
+}
+installButtons.forEach(button => button.addEventListener('click', installSellbook));
+window.addEventListener('appinstalled', () => {
+ status.textContent = 'Sellbook was installed successfully. Open it from your home screen.';
+ openAfterInstall.style.display = 'inline-block';
+ installButtons.forEach(button => { button.textContent = 'Sellbook is installed'; button.disabled = true; });
 });
+showInstalledState();
 </script>
 </body>
 </html>
