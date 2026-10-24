@@ -600,7 +600,7 @@ function applyPendingToDb() {
     } else if (item.type === 'sale') {
       if (!db.sales.some(x => x.id === p.sale.id)) {
         const product = db.products.find(x => x.id === p.sale.productId);
-        if (product) product.stock = Math.max(0, product.stock - p.sale.qty);
+        if (product) product.stock = Math.max(0, product.stock - (p.sale.baseQty||p.sale.qty));
         db.sales.push(p.sale);
       }
     } else if (item.type === 'expense') {
@@ -682,7 +682,8 @@ async function syncPendingChanges() {
           }
           const {error} = await supabaseClient.rpc('record_sale_offline', {
             p_sale_id:p.sale.id,p_product_id:p.sale.productId,p_quantity:p.sale.qty,
-            p_unit_price:p.sale.price,p_note:p.sale.note||null,p_sold_at:p.sale.date
+            p_unit_price:p.sale.price,p_note:p.sale.note||null,p_sold_at:p.sale.date,
+            p_units_per_sale:p.sale.unitsPerSale||1,p_sale_unit:p.sale.saleUnit||'unit'
           });
           if (error) throw error;
           const newVersion=await currentProductVersion(p.sale.productId);
@@ -870,7 +871,7 @@ async function cloudLoadAll() {
   const user=await requireCloudUser();
   const [pr,sr,er,ar,profileResult]=await Promise.all([
     supabaseClient.from('products').select('id,name,category,cost_price,selling_price,stock,base_unit,purchase_unit,units_per_purchase,pack_unit,units_per_pack,pack_selling_price,image_path,created_at,updated_at').eq('user_id',user.id).order('created_at'),
-    supabaseClient.from('sales').select('id,product_id,product_name,quantity,unit_price,unit_cost,total,gross_profit,note,sold_at').eq('user_id',user.id).order('sold_at'),
+    supabaseClient.from('sales').select('id,product_id,product_name,quantity,unit_price,unit_cost,total,gross_profit,note,sold_at,base_quantity,sale_unit,units_per_sale').eq('user_id',user.id).order('sold_at'),
     supabaseClient.from('expenses').select('id,description,amount,spent_at').eq('user_id',user.id).order('spent_at'),
     supabaseClient.from('stock_adjustments').select('id,product_id,product_name,previous_stock,new_stock,quantity_change,reason,adjusted_at').eq('user_id',user.id).order('adjusted_at',{ascending:false}),
     supabaseClient.from('user_profiles').select('business_name,business_logo').eq('user_id',user.id).maybeSingle()
@@ -889,7 +890,7 @@ async function cloudLoadAll() {
     }
     return {id:row.id,name:row.name,category:normalizeCategory(row.category),cost:Number(row.cost_price),price:Number(row.selling_price),stock:Number(row.stock),baseUnit:row.base_unit||'unit',purchaseUnit:row.purchase_unit||'unit',unitsPerPurchase:Number(row.units_per_purchase||1),packUnit:row.pack_unit||'',unitsPerPack:Number(row.units_per_pack||1),packPrice:row.pack_selling_price==null?null:Number(row.pack_selling_price),image,offlineImage,imagePath:row.image_path||'',createdAt:row.created_at,updatedAt:row.updated_at};
   }));
-  const sales=(sr.data||[]).map(row=>({id:row.id,productId:row.product_id,name:row.product_name,qty:Number(row.quantity),price:Number(row.unit_price),cost:Number(row.unit_cost),total:Number(row.total),profit:Number(row.gross_profit),note:row.note||'',date:row.sold_at}));
+  const sales=(sr.data||[]).map(row=>({id:row.id,productId:row.product_id,name:row.product_name,qty:Number(row.quantity),price:Number(row.unit_price),cost:Number(row.unit_cost),total:Number(row.total),profit:Number(row.gross_profit),note:row.note||'',date:row.sold_at,baseQty:Number(row.base_quantity||row.quantity),saleUnit:row.sale_unit||'unit',unitsPerSale:Number(row.units_per_sale||1)}));
   const expenses=(er.data||[]).map(row=>({id:row.id,name:row.description,amount:Number(row.amount),date:row.spent_at}));
   const stockAdjustments=(ar.data||[]).map(row=>({id:row.id,productId:row.product_id,productName:row.product_name,previousStock:Number(row.previous_stock),newStock:Number(row.new_stock),quantityChange:Number(row.quantity_change),reason:row.reason||'',date:row.adjusted_at}));
   const profile=profileResult.data||fallbackProfile;
@@ -1130,7 +1131,7 @@ function render(){
 
   const sel=document.getElementById('saleProduct'), previous=sel.value;
   sel.innerHTML='<option value="">Choose a product</option>'+db.products.map(p=>`<option value="${p.id}">${esc(p.name)} (${p.stock} in stock)</option>`).join('');
-  if(db.products.some(p=>p.id===previous))sel.value=previous;
+  if(db.products.some(p=>p.id===previous))sel.value=previous;refreshSaleUnitOptions();
   updateSalePrice();
 
   const saleHTML=x=>`<div class="item"><div class="row"><strong>${esc(x.name)} × ${x.qty}</strong><strong>${money(x.total)}</strong></div><div class="muted">${safeDate(x.date).toLocaleString()} · Gross profit ${money(x.profit)}${x.note?' · '+esc(x.note):''}</div></div>`;
