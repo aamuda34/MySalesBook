@@ -86,7 +86,7 @@ footer{max-width:1080px;margin:auto;padding:0 22px 30px;text-align:center;color:
    <p class="hero-copy">Keep track of sales, expenses, products, stock and profit in one simple app designed for your everyday business.</p>
    <div class="actions">
     <button class="btn btn-primary" id="install-top" type="button"><span aria-hidden="true">↓</span> Install Sellbook</button>
-    <a class="btn btn-secondary" href="./">Open the app <span aria-hidden="true">↗</span></a>
+    <a class="btn btn-secondary" href="./">Open Sellbook in browser <span aria-hidden="true">↗</span></a>
    </div>
    <p class="hero-note">Free to install · Made for your phone · Records in Nigerian naira (₦)</p>
   </div>
@@ -121,6 +121,24 @@ footer{max-width:1080px;margin:auto;padding:0 22px 30px;text-align:center;color:
    <article class="step"><div class="step-num">3</div><div><h3>Open and get started</h3><p>Launch Sellbook from your home screen and use the sign-in option if you want your cloud account.</p></div></article>
   </div>
  </section>
+ <section class="section" aria-labelledby="share-title">
+  <div class="section-heading"><div class="kicker">Pass it on</div><h2 id="share-title">Share Sellbook with a business owner</h2><p>Help another business owner keep sales, expenses, stock and profit records organised.</p></div>
+  <div class="actions" style="justify-content:center">
+   <button class="btn btn-primary" id="share-sellbook" type="button" style="background:#14532d;color:white">Share Sellbook ↗</button>
+   <button class="btn" id="copy-link" type="button" style="background:#fff;color:#14532d;border:1px solid #d9e6db">Copy installation link</button>
+  </div>
+  <p class="status" id="share-status" role="status" aria-live="polite"></p>
+ </section>
+ <section class="section" id="faq" aria-labelledby="faq-title">
+  <div class="section-heading"><div class="kicker">Helpful answers</div><h2 id="faq-title">Frequently asked questions</h2></div>
+  <div style="max-width:760px;margin:auto;display:grid;gap:10px">
+   <details class="feature" style="min-height:0;padding:18px 20px"><summary style="font-weight:750;cursor:pointer">Is Sellbook free to install?</summary><p style="margin:12px 0 0">Yes. You can install the web app from a supported browser without downloading an APK.</p></details>
+   <details class="feature" style="min-height:0;padding:18px 20px"><summary style="font-weight:750;cursor:pointer">How do I open the installed app?</summary><p style="margin:12px 0 0">On Android, return to your home screen or app list and tap the Sellbook icon. A normal link opened in Chrome may stay in Chrome instead of switching to the installed app. The “Open Sellbook in browser” button opens the website; use the home-screen icon to launch the installed version.</p></details>
+   <details class="feature" style="min-height:0;padding:18px 20px"><summary style="font-weight:750;cursor:pointer">Why does Sellbook offer Google sign-in?</summary><p style="margin:12px 0 0">Google sign-in lets you access the cloud account configured for Sellbook. Use the sign-in button inside the app and complete the Google sign-in page in your browser. Do not share your password with anyone.</p></details>
+   <details class="feature" style="min-height:0;padding:18px 20px"><summary style="font-weight:750;cursor:pointer">Will my records work offline?</summary><p style="margin:12px 0 0">Offline behaviour depends on the app version and which features have been cached or saved on the device. Do not assume cloud sign-in, cloud records or synchronisation will work without internet. Reconnect before relying on cloud features.</p></details>
+   <details class="feature" style="min-height:0;padding:18px 20px"><summary style="font-weight:750;cursor:pointer">How do I share the installation page?</summary><p style="margin:12px 0 0">Tap “Share Sellbook” and choose WhatsApp or another app. You can also copy the installation link and send it directly.</p></details>
+  </div>
+ </section>
  <section class="final-cta" aria-labelledby="cta-title">
   <h2 id="cta-title">Ready to organise your business?</h2>
   <p>Put your sales, expenses, stock and profit records in one convenient place.</p>
@@ -130,7 +148,7 @@ footer{max-width:1080px;margin:auto;padding:0 22px 30px;text-align:center;color:
  </section>
 </main>
 <footer>
- <div class="footer-links"><a href="./">Open Sellbook</a><a href="https://my-sales-book.vercel.app/manifest.webmanifest">App details</a></div>
+ <div class="footer-links"><a href="./">Open Sellbook in browser</a><a href="#faq">Installation help</a><a href="https://my-sales-book.vercel.app/manifest.webmanifest">App details</a></div>
  <div>Sellbook · Your Business Records, Made Simple.</div>
 </footer>
 <script>
@@ -169,6 +187,22 @@ window.addEventListener('appinstalled', () => {
  installButtons.forEach(button => { button.textContent = 'Sellbook is installed'; button.disabled = true; });
 });
 showInstalledState();
+
+const installPageUrl = 'https://my-sales-book.vercel.app/install.html';
+const shareStatus = document.getElementById('share-status');
+document.getElementById('share-sellbook').addEventListener('click', async () => {
+ const shareData = {title:'Sellbook', text:'Install Sellbook — a simple app for recording sales, expenses, stock and business profit.', url:installPageUrl};
+ try {
+  if (navigator.share) { await navigator.share(shareData); shareStatus.textContent='Choose an app or contact to share Sellbook.'; }
+  else { await navigator.clipboard.writeText(installPageUrl); shareStatus.textContent='Installation link copied. Paste it into WhatsApp or any message.'; }
+ } catch (error) {
+  if (error && error.name !== 'AbortError') shareStatus.textContent='You can copy the link below and send it to anyone: ' + installPageUrl;
+ }
+});
+document.getElementById('copy-link').addEventListener('click', async () => {
+ try { await navigator.clipboard.writeText(installPageUrl); shareStatus.textContent='Installation link copied. Paste it into WhatsApp, Facebook or a message.'; }
+ catch (error) { shareStatus.textContent='Copy this link: ' + installPageUrl; }
+});
 </script>
 </body>
 </html>
