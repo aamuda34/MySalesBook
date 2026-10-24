@@ -207,13 +207,6 @@ body.admin-conversation-open #backAdminChatList{font-size:15px}
 <div class="card hidden" id="productFormCard">
 <div class="section-heading"><h2>Add a product</h2><button type="button" data-close-entry="product" aria-label="Close product form">Close</button></div>
 <form id="productForm">
-<label for="pname">Product name</label><input id="pname" required maxlength="100">
-<label for="pcategory">Category</label><input id="pcategory" list="categorySuggestions" maxlength="60" placeholder="e.g. Drinks, Groceries" autocomplete="off"><datalist id="categorySuggestions"></datalist><div id="categorySuggestionChips" class="category-suggestions" aria-label="Existing category suggestions"></div>
-<label for="pcost">Cost price per unit (₦)</label><input id="pcost" type="number" min="0" step="0.01" required>
-<div class="price-calculator"><strong>Suggested markup</strong><div class="markup-options category-suggestions" role="group" aria-label="Choose markup percentage"><button type="button" data-markup="10" aria-pressed="false">10%</button><button type="button" data-markup="20" aria-pressed="false">20%</button><button type="button" data-markup="30" class="selected" aria-pressed="true">30%</button><button type="button" data-markup="40" aria-pressed="false">40%</button><button type="button" data-markup="50" aria-pressed="false">50%</button></div><p id="priceSuggestion" class="price-suggestion">Enter a cost price to calculate a suggested price.</p></div>
-<label for="pprice">Selling price per unit (₦)</label><input id="pprice" type="number" min="0.01" step="0.01" required>
-<label for="pstock">Opening stock (individual units)</label><input id="pstock" type="number" min="0" step="1" required>
-<label for="pbaseunit">Individual unit name</label><input id="pbaseunit" maxlength="30" value="unit" placeholder="e.g. bottle, piece">
 <div class="product-type-picker" role="group" aria-label="Product selling type">
 <p><strong>Choose product type</strong></p>
 <div class="product-type-options">
@@ -222,6 +215,12 @@ body.admin-conversation-open #backAdminChatList{font-size:15px}
 </div>
 <p id="productTypeHelp" class="muted">Choose an option above to open its product form.</p>
 </div>
+<label for="pname">Product name</label><input id="pname" required maxlength="100">
+<label for="pcategory">Category</label><input id="pcategory" list="categorySuggestions" maxlength="60" placeholder="e.g. Drinks, Groceries" autocomplete="off"><datalist id="categorySuggestions"></datalist><div id="categorySuggestionChips" class="category-suggestions" aria-label="Existing category suggestions"></div>
+<label for="pcost">Cost price per unit (₦)</label><input id="pcost" type="number" min="0" step="0.01" required>
+<div class="price-calculator"><strong>Suggested markup</strong><div class="markup-options category-suggestions" role="group" aria-label="Choose markup percentage"><button type="button" data-markup="10" aria-pressed="false">10%</button><button type="button" data-markup="20" aria-pressed="false">20%</button><button type="button" data-markup="30" class="selected" aria-pressed="true">30%</button><button type="button" data-markup="40" aria-pressed="false">40%</button><button type="button" data-markup="50" aria-pressed="false">50%</button></div><p id="priceSuggestion" class="price-suggestion">Enter a cost price to calculate a suggested price.</p></div>
+<label for="pprice">Selling price per unit (₦)</label><input id="pprice" type="number" min="0.01" step="0.01" required>
+<label for="pstock">Opening stock (individual units)</label><input id="pstock" type="number" min="0" step="1" required>
 <div id="unitProductPanel">
 <h3>Individual-unit product</h3>
 <label for="pbaseunit">Unit name</label><input id="pbaseunit" maxlength="30" value="unit" placeholder="e.g. bottle, piece">
