@@ -212,6 +212,12 @@ body.admin-conversation-open #backAdminChatList{font-size:15px}
 <div class="price-calculator"><strong>Suggested markup</strong><div class="markup-options category-suggestions" role="group" aria-label="Choose markup percentage"><button type="button" data-markup="10" aria-pressed="false">10%</button><button type="button" data-markup="20" aria-pressed="false">20%</button><button type="button" data-markup="30" class="selected" aria-pressed="true">30%</button><button type="button" data-markup="40" aria-pressed="false">40%</button><button type="button" data-markup="50" aria-pressed="false">50%</button></div><p id="priceSuggestion" class="price-suggestion">Enter a cost price to calculate a suggested price.</p></div>
 <label for="pprice">Selling price per unit (₦)</label><input id="pprice" type="number" min="0.01" step="0.01" required>
 <label for="pstock">Opening stock (units)</label><input id="pstock" type="number" min="0" step="1" required>
+<details class="card" style="padding:12px;margin-top:12px"><summary><strong>Optional pack-selling setup</strong></summary><p class="muted">For ordinary products, leave this section unchanged. For products sold as packs and individual items, enter the details below.</p>
+<label for="pbaseunit">Smallest selling unit</label><input id="pbaseunit" maxlength="30" value="unit" placeholder="e.g. bottle, piece">
+<label for="ppackunit">Pack name (optional)</label><input id="ppackunit" maxlength="30" placeholder="e.g. carton, dozen, pack">
+<label for="punitsperpack">Smallest units in one pack</label><input id="punitsperpack" type="number" min="1" step="1" value="1">
+<label for="ppackprice">Selling price for one full pack (₦)</label><input id="ppackprice" type="number" min="0.01" step="0.01" placeholder="Leave blank if not sold as a pack">
+</details>
 <label>Product photo (optional)</label>
 <div class="photo-actions">
 <button type="button" id="takeProductPhoto">Take photo</button>
@@ -240,6 +246,7 @@ body.admin-conversation-open #backAdminChatList{font-size:15px}
 <div class="section-heading"><h2>Record a sale</h2><button type="button" data-close-entry="sale" aria-label="Close sale form">Close</button></div>
 <form id="saleForm">
 <label for="saleProduct">Product</label><select id="saleProduct" required></select>
+<label for="saleUnit">Sell as</label><select id="saleUnit"><option value="base">Individual unit</option></select>
 <label for="saleQty">Quantity sold</label><input id="saleQty" type="number" min="1" step="1" value="1" required>
 <label for="salePrice">Selling price per unit (₦)</label><input id="salePrice" type="number" min="0.01" step="0.01" required>
 <div class="muted" id="saleStock"></div>
@@ -862,7 +869,7 @@ async function imageUrlToDataUrl(url) {
 async function cloudLoadAll() {
   const user=await requireCloudUser();
   const [pr,sr,er,ar,profileResult]=await Promise.all([
-    supabaseClient.from('products').select('id,name,category,cost_price,selling_price,stock,image_path,created_at,updated_at').eq('user_id',user.id).order('created_at'),
+    supabaseClient.from('products').select('id,name,category,cost_price,selling_price,stock,base_unit,purchase_unit,units_per_purchase,pack_unit,units_per_pack,pack_selling_price,image_path,created_at,updated_at').eq('user_id',user.id).order('created_at'),
     supabaseClient.from('sales').select('id,product_id,product_name,quantity,unit_price,unit_cost,total,gross_profit,note,sold_at').eq('user_id',user.id).order('sold_at'),
     supabaseClient.from('expenses').select('id,description,amount,spent_at').eq('user_id',user.id).order('spent_at'),
     supabaseClient.from('stock_adjustments').select('id,product_id,product_name,previous_stock,new_stock,quantity_change,reason,adjusted_at').eq('user_id',user.id).order('adjusted_at',{ascending:false}),
@@ -880,7 +887,7 @@ async function cloudLoadAll() {
         try { offlineImage=await imageUrlToDataUrl(image); } catch (_) {}
       }
     }
-    return {id:row.id,name:row.name,category:normalizeCategory(row.category),cost:Number(row.cost_price),price:Number(row.selling_price),stock:Number(row.stock),image,offlineImage,imagePath:row.image_path||'',createdAt:row.created_at,updatedAt:row.updated_at};
+    return {id:row.id,name:row.name,category:normalizeCategory(row.category),cost:Number(row.cost_price),price:Number(row.selling_price),stock:Number(row.stock),baseUnit:row.base_unit||'unit',purchaseUnit:row.purchase_unit||'unit',unitsPerPurchase:Number(row.units_per_purchase||1),packUnit:row.pack_unit||'',unitsPerPack:Number(row.units_per_pack||1),packPrice:row.pack_selling_price==null?null:Number(row.pack_selling_price),image,offlineImage,imagePath:row.image_path||'',createdAt:row.created_at,updatedAt:row.updated_at};
   }));
   const sales=(sr.data||[]).map(row=>({id:row.id,productId:row.product_id,name:row.product_name,qty:Number(row.quantity),price:Number(row.unit_price),cost:Number(row.unit_cost),total:Number(row.total),profit:Number(row.gross_profit),note:row.note||'',date:row.sold_at}));
   const expenses=(er.data||[]).map(row=>({id:row.id,name:row.description,amount:Number(row.amount),date:row.spent_at}));
@@ -918,7 +925,7 @@ async function cloudSaveProduct(product,isNew) {
   const user=await requireCloudUser();
   let imagePath=product.imagePath||null;
   if(product.image&&product.image.startsWith('data:image/')) imagePath=await cloudUploadProductImage(product.image);
-  const row={user_id:user.id,name:product.name,category:normalizeCategory(product.category),cost_price:product.cost,selling_price:product.price,stock:product.stock,image_path:imagePath,updated_at:now()};
+  const row={user_id:user.id,name:product.name,category:normalizeCategory(product.category),cost_price:product.cost,selling_price:product.price,stock:product.stock,base_unit:product.baseUnit||'unit',purchase_unit:product.purchaseUnit||'unit',units_per_purchase:product.unitsPerPurchase||1,pack_unit:product.packUnit||null,units_per_pack:product.packUnit?(product.unitsPerPack||1):null,pack_selling_price:product.packUnit&&product.packPrice?product.packPrice:null,image_path:imagePath,updated_at:now()};
   const result=isNew
     ? await supabaseClient.from('products').insert({id:product.id,...row})
     : await supabaseClient.from('products').update(row).eq('id',product.id).eq('user_id',user.id);
@@ -1018,9 +1025,9 @@ async function cloudDeleteProduct(product) {
   }
 }
 
-async function cloudRecordSale(product,quantity,unitPrice,note) {
+async function cloudRecordSale(product,quantity,unitPrice,note,unitsPerSale=1,saleUnit='unit') {
   await requireCloudUser();
-  const {error}=await supabaseClient.rpc('record_sale',{p_product_id:product.id,p_quantity:quantity,p_unit_price:unitPrice,p_note:note||null});
+  const {error}=await supabaseClient.rpc('record_sale',{p_product_id:product.id,p_quantity:quantity,p_unit_price:unitPrice,p_note:note||null,p_units_per_sale:unitsPerSale,p_sale_unit:saleUnit});
   if(error) throw error;
   await cloudLoadAll();
 }
@@ -1290,7 +1297,13 @@ document.getElementById('productForm').addEventListener('submit',async e=>{
  if(!name||!Number.isFinite(cost)||cost<0||!Number.isFinite(price)||price<=0||!Number.isSafeInteger(stock)||stock<0)return alert('Check the product details.');
  if(db.products.some(p=>p.name.toLowerCase()===name.toLowerCase()))return alert('A product with this name already exists.');
  const category=normalizeCategory(document.getElementById('pcategory').value);
- const product={id:crypto.randomUUID(),name,category,cost,price,stock,image:pendingProductImage,createdAt:now()};
+ const baseUnit=(document.getElementById('pbaseunit').value.trim()||'unit');
+ const packUnit=document.getElementById('ppackunit').value.trim();
+ const unitsPerPack=Number(document.getElementById('punitsperpack').value||1);
+ const packPriceRaw=document.getElementById('ppackprice').value.trim();
+ const packPrice=packPriceRaw===''?null:Number(packPriceRaw);
+ if(!Number.isSafeInteger(unitsPerPack)||unitsPerPack<1||(packUnit&&(!Number.isFinite(packPrice)||packPrice<=0))||(!packUnit&&packPrice!==null))return alert('Enter a valid pack name, pack size, and pack selling price, or leave the pack fields empty.');
+ const product={id:crypto.randomUUID(),name,category,cost,price,stock,baseUnit,packUnit,unitsPerPack,packPrice,image:pendingProductImage,createdAt:now()};
  if(cloudUser){
    try { await saveCloudChangeLocally('product_save',{product,isNew:true}); }
    catch(err){ return alert(err.message || String(err)); }
@@ -1520,28 +1533,41 @@ document.getElementById('productList').addEventListener('click',async e=>{
  }
 });
 
+function refreshSaleUnitOptions(){
+ const p=db.products.find(x=>x.id===document.getElementById('saleProduct').value),sel=document.getElementById('saleUnit');
+ if(!sel)return;
+ const previous=sel.value;sel.innerHTML='<option value="base">Individual '+esc(p?.baseUnit||'unit')+'</option>';
+ if(p?.packUnit&&Number(p.unitsPerPack)>1&&Number(p.packPrice)>0)sel.insertAdjacentHTML('beforeend','<option value="pack">Full '+esc(p.packUnit)+'</option>');
+ if(previous==='pack'&&p?.packUnit)sel.value='pack';
+ const isPack=sel.value==='pack';document.getElementById('salePrice').value=p?(isPack?Number(p.packPrice):Number(p.price)).toFixed(2):'';
+ document.getElementById('saleStock').textContent=p?'Available: '+p.stock+' '+(p.baseUnit||'units')+(p.packUnit?' · '+Math.floor(p.stock/Math.max(1,p.unitsPerPack))+' '+p.packUnit+' possible':''):'';
+}
+document.getElementById('saleProduct').addEventListener('change',refreshSaleUnitOptions);
+document.getElementById('saleUnit').addEventListener('change',refreshSaleUnitOptions);
 document.getElementById('saleForm').addEventListener('submit',async e=>{
  e.preventDefault();
  const p=db.products.find(x=>x.id===document.getElementById('saleProduct').value);
- const qty=Number(document.getElementById('saleQty').value),price=Number(document.getElementById('salePrice').value),note=document.getElementById('saleNote').value.trim();
+ const qty=Number(document.getElementById('saleQty').value),price=Number(document.getElementById('salePrice').value),note=document.getElementById('saleNote').value.trim(),saleAsPack=document.getElementById('saleUnit').value==='pack',unitsPerSale=saleAsPack?Number(p?.unitsPerPack||1):1,baseQty=qty*unitsPerSale,saleUnit=saleAsPack?p?.packUnit:(p?.baseUnit||'unit');
  if(!p)return alert('Choose a product.');
- if(!Number.isSafeInteger(qty)||qty<1||qty>p.stock)return alert('Quantity must be a whole number and cannot exceed available stock.');
+ if(!Number.isSafeInteger(qty)||qty<1||!Number.isSafeInteger(baseQty)||baseQty>p.stock)return alert('Quantity must be a whole number and cannot exceed available stock.');
  if(!Number.isFinite(price)||price<=0)return alert('Enter a valid selling price.');
  if(note.length>150)return alert('Sale note must be 150 characters or fewer.');
  const total=Math.round(qty*price*100)/100;
  if(!confirm('Record this paid sale for '+money(total)+'?'))return;
  if(cloudUser){
-   const profit=Math.round(qty*(price-p.cost)*100)/100;
-   const sale={id:crypto.randomUUID(),productId:p.id,name:p.name,qty,price,cost:p.cost,total,profit,note,date:now()};
+   const saleCost=p.cost*unitsPerSale;
+   const profit=Math.round(qty*(price-saleCost)*100)/100;
+   const sale={id:crypto.randomUUID(),productId:p.id,name:p.name,qty,price,cost:saleCost,total,profit,note,date:now(),baseQty,saleUnit,unitsPerSale};
    const productUpdatedAt=p.updatedAt;
-   p.stock-=qty;
+   p.stock-=baseQty;
    db.sales.push(sale);
    try { await saveCloudChangeLocally('sale',{sale,productUpdatedAt}); }
-   catch(err){ p.stock+=qty; db.sales=db.sales.filter(x=>x.id!==sale.id); render(); return alert(err.message || String(err)); }
+   catch(err){ p.stock+=baseQty; db.sales=db.sales.filter(x=>x.id!==sale.id); render(); return alert(err.message || String(err)); }
  }else{
-   const profit=Math.round(qty*(price-p.cost)*100)/100;
-   p.stock-=qty;
-   db.sales.push({id:crypto.randomUUID(),productId:p.id,name:p.name,qty,price,cost:p.cost,total,profit,note,date:now()});
+   const saleCost=p.cost*unitsPerSale;
+   const profit=Math.round(qty*(price-saleCost)*100)/100;
+   p.stock-=baseQty;
+   db.sales.push({id:crypto.randomUUID(),productId:p.id,name:p.name,qty,price,cost:saleCost,total,profit,note,date:now(),baseQty,saleUnit,unitsPerSale});
    if(!save())return;
    render();
  }
