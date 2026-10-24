@@ -263,7 +263,7 @@ body.admin-conversation-open #backAdminChatList{font-size:15px}
 <label for="saleProduct">Product</label><select id="saleProduct" required></select>
 <label for="saleUnit">Sell as</label><select id="saleUnit"><option value="base">Individual unit</option></select>
 <label for="saleQty">Quantity sold</label><input id="saleQty" type="number" min="1" step="1" value="1" required>
-<label for="salePrice">Selling price per unit (₦)</label><input id="salePrice" type="number" min="0.01" step="0.01" required>
+<label for="salePrice" id="salePriceLabel">Selling price per individual unit (₦)</label><input id="salePrice" type="number" min="0.01" step="0.01" required>
 <div class="muted" id="saleStock"></div>
 <label for="saleNote">Note (optional)</label><input id="saleNote" maxlength="150" placeholder="Optional details">
 <button class="primary">Record paid sale</button>
@@ -1588,7 +1588,7 @@ function refreshSaleUnitOptions(){
  const previous=sel.value;sel.innerHTML='<option value="base">Individual '+esc(p?.baseUnit||'unit')+'</option>';
  if(p?.packUnit&&Number(p.unitsPerPack)>1&&Number(p.packPrice)>0)sel.insertAdjacentHTML('beforeend','<option value="pack">Full '+esc(p.packUnit)+'</option>');
  if(previous==='pack'&&p?.packUnit)sel.value='pack';
- const isPack=sel.value==='pack';document.getElementById('salePrice').value=p?(isPack?Number(p.packPrice):Number(p.price)).toFixed(2):'';
+ const isPack=sel.value==='pack';document.getElementById('salePriceLabel').textContent=isPack?'Selling price per full pack (₦)':'Selling price per individual unit (₦)';document.getElementById('salePrice').value=p?(isPack?Number(p.packPrice):Number(p.price)).toFixed(2):'';
  document.getElementById('saleStock').textContent=p?'Available: '+p.stock+' '+(p.baseUnit||'units')+(p.packUnit?' · '+Math.floor(p.stock/Math.max(1,p.unitsPerPack))+' '+p.packUnit+' possible':''):'';
 }
 document.getElementById('saleProduct').addEventListener('change',refreshSaleUnitOptions);
@@ -1604,8 +1604,8 @@ document.getElementById('saleForm').addEventListener('submit',async e=>{
  const total=Math.round(qty*price*100)/100;
  if(!confirm('Record this paid sale for '+money(total)+'?'))return;
  if(cloudUser){
-   const saleCost=p.cost*unitsPerSale;
-   const profit=Math.round(qty*(price-saleCost)*100)/100;
+   const saleCost=Math.round((p.cost*unitsPerSale+Number.EPSILON)*100)/100;
+   const profit=Math.round((total-Math.round(qty*saleCost*100)/100+Number.EPSILON)*100)/100;
    const sale={id:crypto.randomUUID(),productId:p.id,name:p.name,qty,price,cost:saleCost,total,profit,note,date:now(),baseQty,saleUnit,unitsPerSale};
    const productUpdatedAt=p.updatedAt;
    p.stock-=baseQty;
@@ -1613,8 +1613,8 @@ document.getElementById('saleForm').addEventListener('submit',async e=>{
    try { await saveCloudChangeLocally('sale',{sale,productUpdatedAt}); }
    catch(err){ p.stock+=baseQty; db.sales=db.sales.filter(x=>x.id!==sale.id); render(); return alert(err.message || String(err)); }
  }else{
-   const saleCost=p.cost*unitsPerSale;
-   const profit=Math.round(qty*(price-saleCost)*100)/100;
+   const saleCost=Math.round((p.cost*unitsPerSale+Number.EPSILON)*100)/100;
+   const profit=Math.round((total-Math.round(qty*saleCost*100)/100+Number.EPSILON)*100)/100;
    p.stock-=baseQty;
    db.sales.push({id:crypto.randomUUID(),productId:p.id,name:p.name,qty,price,cost:saleCost,total,profit,note,date:now(),baseQty,saleUnit,unitsPerSale});
    if(!save())return;
