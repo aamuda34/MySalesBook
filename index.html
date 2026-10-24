@@ -860,6 +860,7 @@ document.getElementById('buybookConnectionForm')?.addEventListener('submit',asyn
  try{const user=await requireCloudUser();const shop={owner_id:user.id,name:document.getElementById('buybookShopName').value.trim(),description:document.getElementById('buybookDescription').value.trim()||null,phone:document.getElementById('buybookPhone').value.trim()||null,address:document.getElementById('buybookAddress').value.trim(),city:document.getElementById('buybookCity').value.trim(),state:document.getElementById('buybookState').value.trim(),country:'Nigeria',is_connected:true,is_active:true};
  const {error}=await supabaseClient.from('marketplace_shops').upsert(shop,{onConflict:'owner_id'});if(error)throw error;
  const sync=await supabaseClient.rpc('sync_owner_marketplace_listings',{p_owner_id:user.id});if(sync.error)throw sync.error;
+ for(const product of (db.products||[])){if(product.imagePath){try{await cloudPublishMarketplaceImage(product,user,null,product.imagePath);}catch(imageError){console.warn('Buybook image sync skipped for product:',product.id,imageError);}}}
  message.textContent='Connected successfully. Your products will appear automatically on Buybook. Only marketplace product details and shop information are shared.';document.getElementById('buybookConnectionStatus').textContent='Your shop is connected. Product listings sync automatically when product details or stock change.';
  }catch(err){message.textContent='Could not connect: '+(err.message||'Please try again when online.');console.error('Buybook connection error:',err);}finally{button.disabled=false;}
 });
@@ -978,8 +979,8 @@ async function cloudPublishMarketplaceImage(product, user, imageData, existingPa
     ext=mime==='image/png'?'png':mime==='image/webp'?'webp':'jpg';
   }
   if(!blob) return;
-  const path=user.id+'/'+product.id+'.'+ext;
-  const {error:uploadError}=await supabaseClient.storage.from('marketplace-product-images').upload(path,blob,{contentType:mime,upsert:true});
+  const path=user.id+'/'+product.id+'-'+crypto.randomUUID()+'.'+ext;
+  const {error:uploadError}=await supabaseClient.storage.from('marketplace-product-images').upload(path,blob,{contentType:mime,upsert:false});
   if(uploadError) throw uploadError;
   const {data:publicData}=supabaseClient.storage.from('marketplace-product-images').getPublicUrl(path);
   const publicUrl=publicData?.publicUrl;
