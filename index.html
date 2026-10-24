@@ -961,6 +961,33 @@ async function cloudUploadProductImage(imageData) {
   return path;
 }
 
+async function cloudPublishMarketplaceImage(product, user, imageData, existingPath) {
+  if (!product || !user) return;
+  let blob = null, mime = 'image/jpeg', ext = 'jpg';
+  if (imageData && imageData.startsWith('data:image/')) {
+    const match=imageData.match(/^data:(image\/(?:jpeg|png|webp));base64,([A-Za-z0-9+/=]+)$/);
+    if(!match) throw Error('Choose a JPEG, PNG, or WebP photo.');
+    mime=match[1]; ext=mime==='image/png'?'png':mime==='image/webp'?'webp':'jpg';
+    blob=new Blob([Uint8Array.from(atob(match[2]),c=>c.charCodeAt(0))],{type:mime});
+  } else if (existingPath) {
+    const signed=await supabaseClient.storage.from('product-images').createSignedUrl(existingPath,300);
+    if(signed.error||!signed.data?.signedUrl) throw (signed.error||Error('Could not read the existing product image.'));
+    const response=await fetch(signed.data.signedUrl);
+    if(!response.ok) throw Error('Could not copy the existing product image.');
+    blob=await response.blob(); mime=blob.type||mime;
+    ext=mime==='image/png'?'png':mime==='image/webp'?'webp':'jpg';
+  }
+  if(!blob) return;
+  const path=user.id+'/'+product.id+'.'+ext;
+  const {error:uploadError}=await supabaseClient.storage.from('marketplace-product-images').upload(path,blob,{contentType:mime,upsert:true});
+  if(uploadError) throw uploadError;
+  const {data:publicData}=supabaseClient.storage.from('marketplace-product-images').getPublicUrl(path);
+  const publicUrl=publicData?.publicUrl;
+  if(!publicUrl) throw Error('Could not create the marketplace image URL.');
+  const {error:updateError}=await supabaseClient.from('marketplace_listings').update({image_url:publicUrl}).eq('product_id',product.id).eq('owner_id',user.id);
+  if(updateError) throw updateError;
+}
+
 async function cloudSaveProduct(product,isNew) {
   const user=await requireCloudUser();
   let imagePath=product.imagePath||null;
@@ -977,6 +1004,8 @@ async function cloudSaveProduct(product,isNew) {
     product.image=data?.signedUrl||'';
     if(oldPath&&oldPath!==imagePath) await supabaseClient.storage.from('product-images').remove([oldPath]);
   }
+  // Marketplace images are copied into a dedicated public bucket; private Sellbook images remain private.
+  if(imagePath) await cloudPublishMarketplaceImage(product,user,product.image&&product.image.startsWith('data:image/')?product.image:null,imagePath);
 }
 
 async function resolveQueuedProductConflict(queueItem,choice) {
