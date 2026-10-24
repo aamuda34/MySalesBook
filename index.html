@@ -111,7 +111,7 @@ body.admin-mode nav,body.admin-mode #quickSaleFab{display:none!important}body.ad
   .category-suggestions:empty{display:none}
   .category-suggestions button{width:auto;margin:0;padding:7px 11px;border:1px solid #cbdccf;border-radius:999px;background:#edf5ef;color:#14532d;font-size:13px;font-weight:600}
   .category-suggestions .suggestion-label{width:100%;font-size:12px;color:#637168}
-.price-calculator{margin-top:12px;padding:12px;border:1px solid var(--border);border-radius:10px;background:var(--page)}.price-calculator>strong{display:block;font-size:13px;margin-bottom:8px}.markup-options{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px}.markup-options button{margin:0;padding:10px 3px;background:var(--surface);color:var(--green);border:1px solid #cbdccf;font-size:13px}.markup-options button.selected{background:var(--green);color:#fff;border-color:var(--green)}.price-suggestion{font-size:13px;color:var(--muted);line-height:1.45;margin:9px 0 0}
+.price-calculator{margin-top:12px;padding:12px;border:1px solid var(--border);border-radius:10px;background:var(--page)}.price-calculator>strong{display:block;font-size:13px;margin-bottom:8px}.markup-options{display:flex;flex-wrap:wrap;gap:7px;margin:7px 0 3px}.markup-options button{width:auto;margin:0;padding:7px 11px;border:1px solid #cbdccf;border-radius:999px;background:#edf5ef;color:#14532d;font-size:13px;font-weight:600}.markup-options button.selected{background:var(--green);color:#fff;border-color:var(--green)}.price-suggestion{font-size:13px;color:var(--muted);line-height:1.45;margin:9px 0 0}
 
 .admin-toolbar{display:flex;gap:10px;flex-wrap:wrap;margin:12px 0}.admin-toolbar button{width:auto;margin:0}.admin-panel-nav{display:flex;gap:7px;overflow-x:auto;padding:4px 0 12px;margin-bottom:8px}.admin-panel-tab{flex:0 0 auto;width:auto;margin:0;padding:10px 13px;border:1px solid var(--border);border-radius:999px;background:var(--surface);color:var(--ink);font-weight:700}.admin-panel-tab.active{background:var(--green);color:#fff;border-color:var(--green)}.admin-panel{min-width:0}.admin-panel.hidden{display:none!important}.admin-panel .card{margin-top:12px}body.admin-mode #admin{max-width:100%}
 
@@ -209,7 +209,7 @@ body.admin-conversation-open #backAdminChatList{font-size:15px}
 <label for="pname">Product name</label><input id="pname" required maxlength="100">
 <label for="pcategory">Category</label><input id="pcategory" list="categorySuggestions" maxlength="60" placeholder="e.g. Drinks, Groceries" autocomplete="off"><datalist id="categorySuggestions"></datalist><div id="categorySuggestionChips" class="category-suggestions" aria-label="Existing category suggestions"></div>
 <label for="pcost">Cost price per unit (₦)</label><input id="pcost" type="number" min="0" step="0.01" required>
-<div class="price-calculator"><strong>Suggested markup</strong><div class="markup-options" role="group" aria-label="Choose markup percentage"><button type="button" data-markup="10" aria-pressed="false">10%</button><button type="button" data-markup="20" aria-pressed="false">20%</button><button type="button" data-markup="30" class="selected" aria-pressed="true">30%</button><button type="button" data-markup="40" aria-pressed="false">40%</button><button type="button" data-markup="50" aria-pressed="false">50%</button></div><p id="priceSuggestion" class="price-suggestion">Enter a cost price to calculate a suggested price.</p></div>
+<div class="price-calculator"><strong>Suggested markup</strong><div class="markup-options category-suggestions" role="group" aria-label="Choose markup percentage"><button type="button" data-markup="10" aria-pressed="false">10%</button><button type="button" data-markup="20" aria-pressed="false">20%</button><button type="button" data-markup="30" class="selected" aria-pressed="true">30%</button><button type="button" data-markup="40" aria-pressed="false">40%</button><button type="button" data-markup="50" aria-pressed="false">50%</button></div><p id="priceSuggestion" class="price-suggestion">Enter a cost price to calculate a suggested price.</p></div>
 <label for="pprice">Selling price per unit (₦)</label><input id="pprice" type="number" min="0.01" step="0.01" required>
 <label for="pstock">Opening stock (units)</label><input id="pstock" type="number" min="0" step="1" required>
 <label>Product photo (optional)</label>
@@ -366,6 +366,7 @@ body.admin-conversation-open #backAdminChatList{font-size:15px}
     <input id="editProductCategory" list="categorySuggestions" maxlength="60" placeholder="e.g. Drinks, Groceries" autocomplete="off"><div id="editCategorySuggestionChips" class="category-suggestions" aria-label="Existing category suggestions"></div>
     <label for="editProductCost">Cost price per unit (₦)</label>
     <input id="editProductCost" type="number" min="0" step="0.01" required inputmode="decimal">
+    <div class="price-calculator"><strong>Suggested markup</strong><div class="markup-options category-suggestions" role="group" aria-label="Choose markup percentage for edited product"><button type="button" data-edit-markup="10" aria-pressed="false">10%</button><button type="button" data-edit-markup="20" aria-pressed="false">20%</button><button type="button" data-edit-markup="30" aria-pressed="true">30%</button><button type="button" data-edit-markup="40" aria-pressed="false">40%</button><button type="button" data-edit-markup="50" aria-pressed="false">50%</button></div><p id="editPriceSuggestion" class="price-suggestion">Choose a markup to calculate a suggested selling price.</p></div>
     <label for="editProductPrice">Selling price per unit (₦)</label>
     <input id="editProductPrice" type="number" min="0.01" step="0.01" required inputmode="decimal">
     <label for="editProductStock">Current units in stock</label>
@@ -1193,12 +1194,38 @@ function updateEditProductPhotoPreview(product) {
   document.getElementById('editRemoveProductPhoto').disabled=!image && !product?.image;
 }
 
+let selectedEditMarkup=30;
+function updateEditSuggestedPrice(updatePrice=true){
+ const c=document.getElementById('editProductCost'),p=document.getElementById('editProductPrice'),o=document.getElementById('editPriceSuggestion');
+ const cost=Number(c.value);
+ if(c.value.trim()===''||!Number.isFinite(cost)||cost<0){o.textContent='Enter a cost price to calculate a suggested price.';return;}
+ const price=Math.round((cost*(1+selectedEditMarkup/100)+Number.EPSILON)*100)/100;
+ if(updatePrice)p.value=price.toFixed(2);
+ const money=n=>new Intl.NumberFormat('en-NG',{style:'currency',currency:'NGN',maximumFractionDigits:2}).format(n);
+ o.textContent='Suggested price: '+money(price)+' · Gross profit: '+money(price-cost);
+}
+document.querySelectorAll('[data-edit-markup]').forEach(b=>b.addEventListener('click',()=>{
+ selectedEditMarkup=Number(b.dataset.editMarkup);
+ document.querySelectorAll('[data-edit-markup]').forEach(x=>{const yes=x===b;x.classList.toggle('selected',yes);x.setAttribute('aria-pressed',String(yes));});
+ updateEditSuggestedPrice(true);
+}));
+document.getElementById('editProductCost').addEventListener('input',()=>updateEditSuggestedPrice(true));
+document.getElementById('editProductForm').addEventListener('reset',()=>{
+ selectedEditMarkup=30;
+ document.querySelectorAll('[data-edit-markup]').forEach(x=>{const yes=x.dataset.editMarkup==='30';x.classList.toggle('selected',yes);x.setAttribute('aria-pressed',String(yes));});
+ const out=document.getElementById('editPriceSuggestion');if(out)out.textContent='Choose a markup to calculate a suggested selling price.';
+});
 function openProductEditor(product) {
   document.getElementById('editProductId').value=product.id;
   document.getElementById('editProductName').value=product.name;
   document.getElementById('editProductCategory').value=normalizeCategory(product.category);
   document.getElementById('editProductCost').value=product.cost;
   document.getElementById('editProductPrice').value=product.price;
+  const editCost=Number(product.cost), editPrice=Number(product.price);
+  let editMarkup=30;
+  if(editCost>0&&Number.isFinite(editPrice)){const actual=(editPrice/editCost-1)*100;editMarkup=[10,20,30,40,50].reduce((best,n)=>Math.abs(n-actual)<Math.abs(best-actual)?n:best,30);}
+  document.querySelectorAll('[data-edit-markup]').forEach(b=>{const yes=Number(b.dataset.editMarkup)===editMarkup;b.classList.toggle('selected',yes);b.setAttribute('aria-pressed',String(yes));});
+  updateEditSuggestedPrice(false);
   document.getElementById('editProductStock').value=product.stock;
   editPendingProductImage='';
   editRemoveProductImage=false;
