@@ -339,7 +339,7 @@ body.admin-conversation-open #backAdminChatList{font-size:15px}
 <div class="card"><label for="reportRange">Reporting period</label><select id="reportRange"><option value="7">Last 7 days</option><option value="30" selected>Last 30 days</option><option value="90">Last 90 days</option></select><div class="stats" style="margin-top:12px"><div class="stat"><small>Sales</small><strong id="reportSales">₦0</strong></div><div class="stat"><small>Gross profit</small><strong id="reportGross">₦0</strong></div><div class="stat"><small>Expenses</small><strong id="reportExpenses">₦0</strong></div><div class="stat"><small>Net profit</small><strong id="reportNet">₦0</strong></div></div></div>
 <div class="card"><h2>Sales by day</h2><div id="reportSalesChart" class="chart-wrap"><div class="empty">No sales in this period.</div></div></div><div class="card"><h2>Best-selling products</h2><div id="topProductsChart" class="muted">Rankings appear after sales are recorded.</div></div></section>
 <section id="stock" class="page hidden"><h2 class="page-title">Stock management</h2><p class="page-intro">Adjust stock when new items arrive, goods are damaged, or a count needs correction. Each change is recorded.</p>
-<div class="card"><h2>Adjust stock</h2><form id="stockAdjustmentForm"><label for="adjustProduct">Product</label><select id="adjustProduct" required></select><div class="stats" style="margin-top:10px"><div class="stat"><small>Current stock</small><strong id="adjustCurrentStock">—</strong></div><div class="stat"><small>Change</small><strong id="adjustStockChange">—</strong></div></div><label for="adjustNewStock">New stock quantity</label><input id="adjustNewStock" type="number" min="0" step="1" required inputmode="numeric"><label for="adjustReason">Reason (optional)</label><input id="adjustReason" maxlength="120" placeholder="e.g. New stock received"><button class="primary">Save stock adjustment</button></form></div>
+<div class="card"><h2>Restock products</h2><p class="muted">Record each purchase and Sellbook will update stock and weighted-average cost.</p><form id="restockForm"><label for="restockProduct">Product</label><select id="restockProduct" required></select><label for="restockPurchaseQty">Quantity purchased</label><input id="restockPurchaseQty" type="number" min="1" step="1" value="1" required inputmode="numeric><label for="restockPurchaseUnit">Purchase unit</label><input id="restockPurchaseUnit" maxlength="30" value="unit" required placeholder="e.g. bottle, pack, carton"><label for="restockUnitsPerPurchase">Smallest units in each purchase unit</label><input id="restockUnitsPerPurchase" type="number" min="1" step="1" value="1" required inputmode="numeric"><label for="restockCostPerPurchase">Cost per purchase unit (₦)</label><input id="restockCostPerPurchase" type="number" min="0" step="0.01" required inputmode="decimal"><div id="restockPreview" class="muted">Choose a product and enter purchase details.</div><button class="primary">Record restock</button></form></div><div class="card"><h2>Adjust stock</h2><form id="stockAdjustmentForm"><label for="adjustProduct">Product</label><select id="adjustProduct" required></select><div class="stats" style="margin-top:10px"><div class="stat"><small>Current stock</small><strong id="adjustCurrentStock">—</strong></div><div class="stat"><small>Change</small><strong id="adjustStockChange">—</strong></div></div><label for="adjustNewStock">New stock quantity</label><input id="adjustNewStock" type="number" min="0" step="1" required inputmode="numeric"><label for="adjustReason">Reason (optional)</label><input id="adjustReason" maxlength="120" placeholder="e.g. New stock received"><button class="primary">Save stock adjustment</button></form></div>
 <div class="card"><h2>Low-stock products</h2><div id="lowStockList" class="muted">No low-stock products.</div></div><div class="card"><h2>Stock adjustment history</h2><div id="stockAdjustmentList" class="empty">No stock adjustments recorded yet.</div></div></section>
 <section id="settings" class="page hidden"><h2 class="page-title">Settings</h2><p class="page-intro">Choose a section to manage its settings.</p>
 <div class="settings-menu-list">
@@ -600,6 +600,8 @@ function applyPendingToDb() {
       if (!db.expenses.some(x => x.id === p.expense.id)) db.expenses.push(p.expense);
     } else if (item.type === 'sale_import') {
       if (!db.sales.some(x => x.id === p.sale.id)) db.sales.push(p.sale);
+    } else if(item.type==='stock_restock'){
+      const r=p.restock;if(r){const product=db.products.find(x=>x.id===r.productId);if(product){product.stock=r.newStock;product.cost=r.averageCostAfter;}}
     } else if(item.type==='stock_adjustment'){
       if(p.adjustment&&!db.stockAdjustments.some(x=>x.id===p.adjustment.id))db.stockAdjustments.push(p.adjustment);
     } else if(item.type==='profile_save'){
@@ -648,6 +650,10 @@ async function syncPendingChanges() {
           const newVersion=await currentProductVersion(p.product.id);
           p.product.updatedAt=newVersion;
           propagateQueuedProductVersion(queue,queueIndex,p.product.id,newVersion);
+        } else if (item.type === 'stock_restock') {
+          const r=p.restock;
+          const {error}=await supabaseClient.rpc('restock_product',{p_purchase_id:r.id,p_product_id:r.productId,p_purchase_quantity:r.purchaseQuantity,p_purchase_unit:r.purchaseUnit,p_units_per_purchase:r.unitsPerPurchase,p_cost_per_purchase_unit:r.costPerPurchaseUnit,p_restocked_at:r.date});
+          if(error)throw error;
         } else if (item.type === 'product_delete') {
           if (p.product.updatedAt) {
             const currentVersion=await currentProductVersion(p.product.id);
@@ -1064,6 +1070,8 @@ document.getElementById('productImageLightbox').addEventListener('click',event=>
 document.addEventListener('keydown',event=>{if(event.key==='Escape')closeProductLightbox();});
 
 function render(){
+ const restockSelect=document.getElementById('restockProduct');if(restockSelect){const selected=restockSelect.value;restockSelect.innerHTML=db.products.map(p=>'<option value="'+esc(p.id)+'">'+esc(p.name)+'</option>').join('');if(db.products.some(p=>p.id===selected))restockSelect.value=selected;updateRestockPreview();}
+
   db=normalizeDb(db);renderBrand();
   const d=today();
   const todays=db.sales.filter(x=>dateKey(x.date)===d);
@@ -1140,6 +1148,41 @@ document.getElementById('adjustProduct').addEventListener('change',()=>{const p=
 document.getElementById('adjustNewStock').addEventListener('input',updateAdjustmentPreview);
 document.getElementById('lowStockList').addEventListener('click',e=>{const b=e.target.closest('[data-adjust-from-list]');if(!b)return;showPage('stock');document.getElementById('adjustProduct').value=b.dataset.adjustFromList;const p=db.products.find(x=>x.id===b.dataset.adjustFromList);document.getElementById('adjustNewStock').value=p?p.stock:'';updateAdjustmentPreview();});
 function renderStockAdjustments(){const target=document.getElementById('stockAdjustmentList');if(!target)return;const rows=[...(db.stockAdjustments||[])].sort((a,b)=>safeDate(b.date)-safeDate(a.date)).slice(0,100);target.innerHTML=rows.length?rows.map(a=>'<div class="item"><div class="row"><strong>'+esc(a.productName)+'</strong><strong>'+(a.quantityChange>0?'+':'')+a.quantityChange+' units</strong></div><div class="muted">'+safeDate(a.date).toLocaleString()+' · '+a.previousStock+' → '+a.newStock+' units'+(a.reason?' · '+esc(a.reason):'')+'</div></div>').join(''):'<div class="empty">No stock adjustments recorded yet.</div>';}
+function updateRestockPreview(){
+ const p=db.products.find(x=>x.id===document.getElementById('restockProduct').value);
+ const qty=Number(document.getElementById('restockPurchaseQty').value),units=Number(document.getElementById('restockUnitsPerPurchase').value),cost=Number(document.getElementById('restockCostPerPurchase').value);
+ const out=document.getElementById('restockPreview');
+ if(!p||!Number.isSafeInteger(qty)||qty<1||!Number.isSafeInteger(units)||units<1||!Number.isFinite(cost)||cost<0){out.textContent='Choose a product and enter valid purchase details.';return;}
+ const baseQty=qty*units,total=qty*cost,newStock=p.stock+baseQty,baseCost=total/baseQty,avg=p.stock>0?((p.stock*p.cost+baseQty*baseCost)/newStock):baseCost;
+ out.textContent='Adds '+baseQty+' units · Total purchase cost '+money(total)+' · New stock '+newStock+' · New average cost '+money(avg)+' per smallest unit.';
+}
+['restockProduct','restockPurchaseQty','restockPurchaseUnit','restockUnitsPerPurchase','restockCostPerPurchase'].forEach(id=>document.getElementById(id).addEventListener('input',updateRestockPreview));
+document.getElementById('restockForm').addEventListener('submit',async e=>{
+ e.preventDefault();
+ const p=db.products.find(x=>x.id===document.getElementById('restockProduct').value);
+ const purchaseQuantity=Number(document.getElementById('restockPurchaseQty').value),purchaseUnit=document.getElementById('restockPurchaseUnit').value.trim(),unitsPerPurchase=Number(document.getElementById('restockUnitsPerPurchase').value),costPerPurchaseUnit=Number(document.getElementById('restockCostPerPurchase').value);
+ if(!p)return alert('Choose a product.');
+ if(!Number.isSafeInteger(purchaseQuantity)||purchaseQuantity<1||!purchaseUnit||purchaseUnit.length>30||!Number.isSafeInteger(unitsPerPurchase)||unitsPerPurchase<1||!Number.isFinite(costPerPurchaseUnit)||costPerPurchaseUnit<0)return alert('Check the purchase quantity, unit, units per purchase, and cost.');
+ const baseQuantity=purchaseQuantity*unitsPerPurchase,totalCost=Math.round(purchaseQuantity*costPerPurchaseUnit*100)/100,newStock=p.stock+baseQuantity,baseCost=totalCost/baseQuantity,averageCostAfter=p.stock>0?((p.stock*p.cost+baseQuantity*baseCost)/newStock):baseCost;
+ if(!Number.isSafeInteger(baseQuantity)||!Number.isSafeInteger(newStock)||newStock>2000000000)return alert('This purchase quantity is too large.');
+ if(!confirm('Record purchase of '+purchaseQuantity+' '+purchaseUnit+' for '+money(totalCost)+'? This adds '+baseQuantity+' units and updates average cost.'))return;
+ const restock={id:crypto.randomUUID(),productId:p.id,purchaseQuantity,purchaseUnit,unitsPerPurchase,costPerPurchaseUnit,date:now(),newStock,averageCostAfter};
+ const oldStock=p.stock,oldCost=p.cost;
+ p.stock=newStock;p.cost=Math.round(averageCostAfter*10000)/10000;
+ try{
+  if(cloudUser){
+   enqueueChange('stock_restock',{restock});
+   pendingSync=readQueue(cloudUser.id);
+   if(navigator.onLine) await syncPendingChanges();
+   else {storageMode='cloud-offline';cacheCloudData(cloudUser.id);render();cloudMessage('Restock saved on this phone. It will sync when you reconnect.');}
+  }else{
+   if(!save()){p.stock=oldStock;p.cost=oldCost;return;}
+   render();
+  }
+  e.target.reset();document.getElementById('restockPurchaseQty').value=1;document.getElementById('restockUnitsPerPurchase').value=1;document.getElementById('restockPurchaseUnit').value='unit';updateRestockPreview();
+  alert('Restock recorded.');
+ }catch(err){p.stock=oldStock;p.cost=oldCost;render();alert('Restock could not be saved: '+(err.message||String(err)));}
+});
 document.getElementById('stockAdjustmentForm').addEventListener('submit',async e=>{e.preventDefault();const p=db.products.find(x=>x.id===document.getElementById('adjustProduct').value),next=Number(document.getElementById('adjustNewStock').value),reason=document.getElementById('adjustReason').value.trim();if(!p)return alert('Choose a product first.');if(!Number.isSafeInteger(next)||next<0)return alert('Enter a whole-number stock quantity of zero or more.');if(next===p.stock)return alert('The new stock quantity is the same as the current quantity.');if(!confirm('Change '+p.name+' stock from '+p.stock+' to '+next+' units?'))return;const old=p.stock,oldVersion=p.updatedAt,a={id:crypto.randomUUID(),productId:p.id,productName:p.name,previousStock:old,newStock:next,quantityChange:next-old,reason,date:now()};p.stock=next;if(cloudUser){try{await saveCloudChangeLocally('product_save',{product:{...p},isNew:false});enqueueChange('stock_adjustment',{adjustment:a});db.stockAdjustments.push(a);cacheCloudData(cloudUser.id);render();updateSyncStatus();if(navigator.onLine)await syncPendingChanges();}catch(err){p.stock=old;p.updatedAt=oldVersion;db.stockAdjustments=db.stockAdjustments.filter(x=>x.id!==a.id);render();return alert(err.message||String(err));}}else{db.stockAdjustments.push(a);if(!save()){p.stock=old;db.stockAdjustments.pop();return;}render();}document.getElementById('adjustReason').value='';alert('Stock adjustment saved.');});
 
 function updateSalePrice(){
