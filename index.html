@@ -219,19 +219,20 @@ body.admin-conversation-open #backAdminChatList{font-size:15px}
 <label for="pcategory">Category</label><input id="pcategory" list="categorySuggestions" maxlength="60" placeholder="e.g. Drinks, Groceries" autocomplete="off"><datalist id="categorySuggestions"></datalist><div id="categorySuggestionChips" class="category-suggestions" aria-label="Existing category suggestions"></div>
 <label for="pcost" id="pcostLabel">Cost price per unit (₦)</label><input id="pcost" type="number" min="0" step="0.01" required>
 <div class="price-calculator"><strong>Suggested markup</strong><div class="markup-options category-suggestions" role="group" aria-label="Choose markup percentage"><button type="button" data-markup="10" aria-pressed="false">10%</button><button type="button" data-markup="20" aria-pressed="false">20%</button><button type="button" data-markup="30" class="selected" aria-pressed="true">30%</button><button type="button" data-markup="40" aria-pressed="false">40%</button><button type="button" data-markup="50" aria-pressed="false">50%</button></div><p id="priceSuggestion" class="price-suggestion">Enter a cost price to calculate a suggested price.</p></div>
-<label for="pprice">Selling price per unit (₦)</label><input id="pprice" type="number" min="0.01" step="0.01" required>
-<label for="pstock" id="pstockLabel">Opening stock (individual units)</label><input id="pstock" type="number" min="0" step="1" required>
 <div id="unitProductPanel">
 <h3>Individual-unit product</h3>
 <label for="pbaseunit">Unit name</label><input id="pbaseunit" maxlength="30" value="unit" placeholder="e.g. bottle, piece">
 </div>
 <div id="packProductPanel" class="hidden">
 <h3>Pack details</h3>
+<label for="ppackprice">Selling price for one full pack (₦)</label><input id="ppackprice" type="number" min="0.01" step="0.01" placeholder="Enter pack selling price">
+<label for="punitsperpack">How many individual units in one pack?</label><input id="punitsperpack" type="number" min="1" step="1" value="1">
+<label>Cost price per individual unit (₦)</label><output id="pcostPerUnit" class="price-suggestion">Enter pack cost and unit count.</output>
 <label for="pbaseunitPack">Individual unit name</label><input id="pbaseunitPack" maxlength="30" value="unit" placeholder="e.g. bottle, piece">
 <label for="ppackunit">Pack name</label><input id="ppackunit" maxlength="30" placeholder="e.g. carton, dozen, pack">
-<label for="punitsperpack">How many individual units in one pack?</label><input id="punitsperpack" type="number" min="1" step="1" value="1">
-<label for="ppackprice">Selling price for one full pack (₦)</label><input id="ppackprice" type="number" min="0.01" step="0.01" placeholder="Enter pack selling price">
 </div>
+<label for="pprice" id="ppriceLabel">Selling price per unit (₦)</label><input id="pprice" type="number" min="0.01" step="0.01" required>
+<label for="pstock" id="pstockLabel">Opening stock (individual units)</label><input id="pstock" type="number" min="0" step="1" required>
 <label>Product photo (optional)</label>
 <div class="photo-actions">
 <button type="button" id="takeProductPhoto">Take photo</button>
@@ -1302,7 +1303,7 @@ const DEFAULT_MARKUP_KEY='my-sales-book-default-markup-v1';
 let defaultMarkup=Number(localStorage.getItem(DEFAULT_MARKUP_KEY)||30);if(![10,20,30,40,50].includes(defaultMarkup))defaultMarkup=30;
 let selectedMarkup=defaultMarkup;
 function syncDefaultMarkupUI(){const stored=Number(localStorage.getItem(DEFAULT_MARKUP_KEY)||30);defaultMarkup=[10,20,30,40,50].includes(stored)?stored:30;selectedMarkup=defaultMarkup;document.querySelectorAll('[data-markup]').forEach(x=>{const yes=Number(x.dataset.markup)===defaultMarkup;x.classList.toggle('selected',yes);x.setAttribute('aria-pressed',String(yes));});}
-function updateSuggestedPrice(){const c=document.getElementById('pcost'),p=document.getElementById('pprice'),pp=document.getElementById('ppackprice'),o=document.getElementById('priceSuggestion');if(c.value.trim()===''||!Number.isFinite(Number(c.value))||Number(c.value)<0){o.textContent='Enter a cost price to calculate a suggested price.';return;}const money=n=>new Intl.NumberFormat('en-NG',{style:'currency',currency:'NGN',maximumFractionDigits:2}).format(n);if(productSellingType==='pack'){const count=Number(document.getElementById('punitsperpack').value);if(!Number.isSafeInteger(count)||count<1){o.textContent='Enter how many individual units are in each pack.';return;}const packCost=Number(c.value),packPrice=Math.round((packCost*(1+selectedMarkup/100)+Number.EPSILON)*100)/100,unitPrice=Math.round((packPrice/count+Number.EPSILON)*100)/100;pp.value=packPrice.toFixed(2);p.value=unitPrice.toFixed(2);o.textContent='Suggested selling prices — per pack: '+money(packPrice)+' · per '+(document.getElementById('pbaseunitPack').value.trim()||'unit')+': '+money(unitPrice);return;}const cost=Number(c.value),price=Math.round((cost*(1+selectedMarkup/100)+Number.EPSILON)*100)/100;p.value=price.toFixed(2);o.textContent='Suggested unit price: '+money(price)+' · Gross profit per unit: '+money(price-cost);}
+function updateSuggestedPrice(){const c=document.getElementById('pcost'),p=document.getElementById('pprice'),pp=document.getElementById('ppackprice'),o=document.getElementById('priceSuggestion');if(c.value.trim()===''||!Number.isFinite(Number(c.value))||Number(c.value)<0){o.textContent='Enter a cost price to calculate a suggested price.';return;}const money=n=>new Intl.NumberFormat('en-NG',{style:'currency',currency:'NGN',maximumFractionDigits:2}).format(n);if(productSellingType==='pack'){const count=Number(document.getElementById('punitsperpack').value);if(!Number.isSafeInteger(count)||count<1){o.textContent='Enter how many individual units are in each pack.';return;}const packCost=Number(c.value),packPrice=Math.round((packCost*(1+selectedMarkup/100)+Number.EPSILON)*100)/100,unitCost=Math.round((packCost/count+Number.EPSILON)*100)/100,unitPrice=Math.round((packPrice/count+Number.EPSILON)*100)/100;pp.value=packPrice.toFixed(2);p.value=unitPrice.toFixed(2);document.getElementById('pcostPerUnit').textContent=money(unitCost)+' per '+(document.getElementById('pbaseunitPack').value.trim()||'unit');o.textContent='Suggested selling price for one full pack: '+money(packPrice);return;}const cost=Number(c.value),price=Math.round((cost*(1+selectedMarkup/100)+Number.EPSILON)*100)/100;p.value=price.toFixed(2);o.textContent='Suggested unit price: '+money(price)+' · Gross profit per unit: '+money(price-cost);}
 document.querySelectorAll('[data-markup]').forEach(b=>b.addEventListener('click',()=>{selectedMarkup=Number(b.dataset.markup);document.querySelectorAll('[data-markup]').forEach(x=>{x.classList.toggle('selected',x===b);x.setAttribute('aria-pressed',String(x===b));});updateSuggestedPrice();}));
 document.getElementById('pcost').addEventListener('input',updateSuggestedPrice);
 document.getElementById('punitsperpack').addEventListener('input',updateSuggestedPrice);
@@ -1325,6 +1326,7 @@ function setProductSellingType(type){
  document.getElementById('productTypeHelp').textContent=pack?'Enter what you pay for one pack and how many units it contains. Sell complete packs or individual units.':'Enter the cost and opening stock in individual units.';
  document.getElementById('pcostLabel').textContent=pack?'Purchase cost per pack (₦)':'Cost price per unit (₦)';
  document.getElementById('pstockLabel').textContent=pack?'Opening stock (number of packs purchased)':'Opening stock (individual units)';
+ document.getElementById('ppriceLabel').textContent=pack?'Selling price per individual unit (₦)':'Selling price per unit (₦)';
  document.getElementById('pcost').placeholder=pack?'Enter cost for one pack':'Enter cost for one unit';
  document.getElementById('pstock').placeholder=pack?'e.g. 5 packs':'e.g. 24 units';
  updateSuggestedPrice();
