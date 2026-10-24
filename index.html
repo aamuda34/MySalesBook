@@ -217,10 +217,10 @@ body.admin-conversation-open #backAdminChatList{font-size:15px}
 </div>
 <label for="pname">Product name</label><input id="pname" required maxlength="100">
 <label for="pcategory">Category</label><input id="pcategory" list="categorySuggestions" maxlength="60" placeholder="e.g. Drinks, Groceries" autocomplete="off"><datalist id="categorySuggestions"></datalist><div id="categorySuggestionChips" class="category-suggestions" aria-label="Existing category suggestions"></div>
-<label for="pcost">Cost price per unit (₦)</label><input id="pcost" type="number" min="0" step="0.01" required>
+<label for="pcost" id="pcostLabel">Cost price per unit (₦)</label><input id="pcost" type="number" min="0" step="0.01" required>
 <div class="price-calculator"><strong>Suggested markup</strong><div class="markup-options category-suggestions" role="group" aria-label="Choose markup percentage"><button type="button" data-markup="10" aria-pressed="false">10%</button><button type="button" data-markup="20" aria-pressed="false">20%</button><button type="button" data-markup="30" class="selected" aria-pressed="true">30%</button><button type="button" data-markup="40" aria-pressed="false">40%</button><button type="button" data-markup="50" aria-pressed="false">50%</button></div><p id="priceSuggestion" class="price-suggestion">Enter a cost price to calculate a suggested price.</p></div>
 <label for="pprice">Selling price per unit (₦)</label><input id="pprice" type="number" min="0.01" step="0.01" required>
-<label for="pstock">Opening stock (individual units)</label><input id="pstock" type="number" min="0" step="1" required>
+<label for="pstock" id="pstockLabel">Opening stock (individual units)</label><input id="pstock" type="number" min="0" step="1" required>
 <div id="unitProductPanel">
 <h3>Individual-unit product</h3>
 <label for="pbaseunit">Unit name</label><input id="pbaseunit" maxlength="30" value="unit" placeholder="e.g. bottle, piece">
@@ -1302,9 +1302,10 @@ const DEFAULT_MARKUP_KEY='my-sales-book-default-markup-v1';
 let defaultMarkup=Number(localStorage.getItem(DEFAULT_MARKUP_KEY)||30);if(![10,20,30,40,50].includes(defaultMarkup))defaultMarkup=30;
 let selectedMarkup=defaultMarkup;
 function syncDefaultMarkupUI(){const stored=Number(localStorage.getItem(DEFAULT_MARKUP_KEY)||30);defaultMarkup=[10,20,30,40,50].includes(stored)?stored:30;selectedMarkup=defaultMarkup;document.querySelectorAll('[data-markup]').forEach(x=>{const yes=Number(x.dataset.markup)===defaultMarkup;x.classList.toggle('selected',yes);x.setAttribute('aria-pressed',String(yes));});}
-function updateSuggestedPrice(){const c=document.getElementById('pcost'),p=document.getElementById('pprice'),o=document.getElementById('priceSuggestion');if(c.value.trim()===''||!Number.isFinite(Number(c.value))||Number(c.value)<0){o.textContent='Enter a cost price to calculate a suggested price.';return;}const cost=Number(c.value),price=Math.round((cost*(1+selectedMarkup/100)+Number.EPSILON)*100)/100;p.value=price.toFixed(2);const money=n=>new Intl.NumberFormat('en-NG',{style:'currency',currency:'NGN',maximumFractionDigits:2}).format(n);o.textContent='Suggested price: '+money(price)+' · Gross profit: '+money(price-cost);}
+function updateSuggestedPrice(){const c=document.getElementById('pcost'),p=document.getElementById('pprice'),o=document.getElementById('priceSuggestion');if(c.value.trim()===''||!Number.isFinite(Number(c.value))||Number(c.value)<0){o.textContent='Enter a cost price to calculate a suggested price.';return;}let cost=Number(c.value);if(productSellingType==='pack'){const count=Number(document.getElementById('punitsperpack').value);if(!Number.isSafeInteger(count)||count<1){o.textContent='Enter how many individual units are in each pack.';return;}cost=cost/count;}const price=Math.round((cost*(1+selectedMarkup/100)+Number.EPSILON)*100)/100;p.value=price.toFixed(2);const money=n=>new Intl.NumberFormat('en-NG',{style:'currency',currency:'NGN',maximumFractionDigits:2}).format(n);o.textContent='Suggested unit price: '+money(price)+' · Gross profit per unit: '+money(price-cost);}
 document.querySelectorAll('[data-markup]').forEach(b=>b.addEventListener('click',()=>{selectedMarkup=Number(b.dataset.markup);document.querySelectorAll('[data-markup]').forEach(x=>{x.classList.toggle('selected',x===b);x.setAttribute('aria-pressed',String(x===b));});updateSuggestedPrice();}));
 document.getElementById('pcost').addEventListener('input',updateSuggestedPrice);
+document.getElementById('punitsperpack').addEventListener('input',updateSuggestedPrice);
 let productSellingType='unit';
 function setProductSellingType(type){
  productSellingType=type;
@@ -1320,7 +1321,12 @@ function setProductSellingType(type){
  document.getElementById('ppackunit').disabled=!pack;
  document.getElementById('punitsperpack').disabled=!pack;
  document.getElementById('ppackprice').disabled=!pack;
- document.getElementById('productTypeHelp').textContent=pack?'Enter the unit and pack details. You can sell this product by either unit or pack.':'Enter the details for a product sold one unit at a time.';
+ document.getElementById('productTypeHelp').textContent=pack?'Enter purchase cost and opening quantity in packs. Sales can be recorded by pack or individual unit.':'Enter the cost and opening stock in individual units.';
+ document.getElementById('pcostLabel').textContent=pack?'Purchase cost per pack (₦)':'Cost price per unit (₦)';
+ document.getElementById('pstockLabel').textContent=pack?'Opening stock (number of packs purchased)':'Opening stock (individual units)';
+ document.getElementById('pcost').placeholder=pack?'Enter cost for one pack':'Enter cost for one unit';
+ document.getElementById('pstock').placeholder=pack?'e.g. 5 packs':'e.g. 24 units';
+ updateSuggestedPrice();
  document.getElementById('ppackunit').required=pack;
  document.getElementById('ppackprice').required=pack;
 }
@@ -1330,8 +1336,11 @@ document.getElementById('productForm').addEventListener('reset',()=>setProductSe
 document.getElementById('productForm').addEventListener('reset',()=>{selectedMarkup=defaultMarkup;document.querySelectorAll('[data-markup]').forEach(x=>{const yes=Number(x.dataset.markup)===defaultMarkup;x.classList.toggle('selected',yes);x.setAttribute('aria-pressed',String(yes));});document.getElementById('priceSuggestion').textContent='Enter a cost price to calculate a suggested price.';});
 document.getElementById('productForm').addEventListener('submit',async e=>{
  e.preventDefault();
- const name=document.getElementById('pname').value.trim(),cost=Number(document.getElementById('pcost').value),price=Number(document.getElementById('pprice').value),stock=Number(document.getElementById('pstock').value);
- if(!name||!Number.isFinite(cost)||cost<0||!Number.isFinite(price)||price<=0||!Number.isSafeInteger(stock)||stock<0)return alert('Check the product details.');
+ const name=document.getElementById('pname').value.trim(),enteredCost=Number(document.getElementById('pcost').value),price=Number(document.getElementById('pprice').value),enteredStock=Number(document.getElementById('pstock').value);
+ const unitsPerPackInput=productSellingType==='pack'?Number(document.getElementById('punitsperpack').value):1;
+ const cost=productSellingType==='pack'?enteredCost/unitsPerPackInput:enteredCost;
+ const stock=productSellingType==='pack'?enteredStock*unitsPerPackInput:enteredStock;
+ if(!name||!Number.isFinite(enteredCost)||enteredCost<0||!Number.isFinite(cost)||cost<0||!Number.isFinite(price)||price<=0||!Number.isSafeInteger(enteredStock)||enteredStock<0||!Number.isSafeInteger(stock)||stock<0)return alert('Check the product details and stock quantity.');
  if(db.products.some(p=>p.name.toLowerCase()===name.toLowerCase()))return alert('A product with this name already exists.');
  const category=normalizeCategory(document.getElementById('pcategory').value);
  const baseUnit=((productSellingType==='pack'?document.getElementById('pbaseunitPack').value:document.getElementById('pbaseunit').value).trim()||'unit');
