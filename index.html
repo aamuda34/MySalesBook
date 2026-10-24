@@ -535,12 +535,15 @@ function updateSyncStatus() {
         item.type==='sale_import'?'Imported sale: '+(payload.sale?.name||'item'):
         item.type==='expense'?'Expense: '+(payload.expense?.name||'item'):item.type;
       const actions=item.status==='conflict'&&item.type==='product_save'
-        ? '<div class="photo-actions"><button type="button" data-resolve-sync="'+esc(item.id)+'" data-choice="cloud">Keep cloud version</button><button type="button" data-resolve-sync="'+esc(item.id)+'" data-choice="local">Keep my version</button></div><p class="muted">Choose carefully. Keeping your version overwrites the cloud product details.</p>'
+        ? '<div class="photo-actions"><select aria-label="Resolve product conflict" data-sync-choice="'+esc(item.id)+'"><option value="cloud">Use cloud version</option><option value="local">Keep this phone version</option></select><button type="button" data-resolve-sync="'+esc(item.id)+'">Apply choice</button></div><p class="muted">Your other unsynchronised products will be preserved.</p>'
         : '';
       return '<div class="item"><strong>'+esc(item.status==='conflict'?'Needs attention':item.error?'Sync failed':'Waiting to sync')+'</strong> · '+esc(label)+(item.error?'<div>'+esc(item.error)+'</div>':'')+actions+'</div>';
     }).join('');
     details.querySelectorAll('[data-resolve-sync]').forEach(button=>button.addEventListener('click',async()=>{
-      const id=button.dataset.resolveSync,choice=button.dataset.choice;
+      const id=button.dataset.resolveSync;
+      const selector=details.querySelector('[data-sync-choice="'+CSS.escape(id)+'"]');
+      const choice=selector?.value;
+      if(!choice)return;
       if(choice==='local'&&!confirm('Keep this phone’s product details and overwrite the cloud version? Check stock and selling price on both phones first.'))return;
       details.querySelectorAll('[data-resolve-sync]').forEach(b=>b.disabled=true);
       try { await resolveQueuedProductConflict(id,choice); }
@@ -930,10 +933,29 @@ async function resolveQueuedProductConflict(queueItem,choice) {
   const item=queue[index], p=item.payload||{}, product=p.product;
   if(item.type!=='product_save'||!product) throw Error('This conflict needs a different recovery method. Your records are unchanged.');
   if(choice==='cloud') {
+    // Snapshot local products before refreshing cloud data. Keep every other unsynchronised
+    // product on this device; resolving one conflict must never erase unrelated products.
+    const localProducts=(db.products||[]).map(x=>({...x}));
+    const resolvedId=product.id;
     queue.splice(index,1);
     writeQueue(queue,cloudUser.id);
     await cloudLoadAll();
-    cloudMessage('Kept the cloud version. This unsynchronised product change was removed from this device.');
+    const cloudIds=new Set(db.products.map(x=>x.id));
+    const queuedProductIds=new Set(readQueue(cloudUser.id).filter(x=>x.type==='product_save').map(x=>x.payload?.product?.id));
+    const preserve=localProducts.filter(x=>x.id!==resolvedId&&!cloudIds.has(x.id)&&!queuedProductIds.has(x.id));
+    if(preserve.length) {
+      db.products.push(...preserve);
+      const latestQueue=readQueue(cloudUser.id);
+      for(const localProduct of preserve) latestQueue.push({id:crypto.randomUUID(),type:'product_save',payload:{product:{...localProduct},isNew:true},createdAt:now(),status:'pending',error:'Preserved from this device after resolving another product conflict. Review if the cloud reports a duplicate name.'});
+      writeQueue(latestQueue,cloudUser.id);
+      applyPendingToDb();
+      render();
+      cacheCloudData(cloudUser.id);
+      updateSyncStatus();
+      cloudMessage('Used the cloud version for this conflict. Other recently added products were preserved and queued for sync.');
+    } else {
+      cloudMessage('Used the cloud version for this conflict. Other queued products remain on this device.');
+    }
     return;
   }
   if(choice!=='local') throw Error('Unknown conflict choice.');
