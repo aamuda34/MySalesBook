@@ -534,8 +534,19 @@ function updateSyncStatus() {
         item.type==='sale'?'Sale: '+(payload.sale?.name||'item'):
         item.type==='sale_import'?'Imported sale: '+(payload.sale?.name||'item'):
         item.type==='expense'?'Expense: '+(payload.expense?.name||'item'):item.type;
-      return '<div class="item"><strong>'+esc(item.status==='conflict'?'Needs attention':item.error?'Sync failed':'Waiting to sync')+'</strong> · '+esc(label)+(item.error?'<div>'+esc(item.error)+'</div>':'')+'</div>';
+      const actions=item.status==='conflict'&&item.type==='product_save'
+        ? '<div class="photo-actions"><button type="button" data-resolve-sync="'+esc(item.id)+'" data-choice="cloud">Keep cloud version</button><button type="button" data-resolve-sync="'+esc(item.id)+'" data-choice="local">Keep my version</button></div><p class="muted">Choose carefully. Keeping your version overwrites the cloud product details.</p>'
+        : '';
+      return '<div class="item"><strong>'+esc(item.status==='conflict'?'Needs attention':item.error?'Sync failed':'Waiting to sync')+'</strong> · '+esc(label)+(item.error?'<div>'+esc(item.error)+'</div>':'')+actions+'</div>';
     }).join('');
+    details.querySelectorAll('[data-resolve-sync]').forEach(button=>button.addEventListener('click',async()=>{
+      const id=button.dataset.resolveSync,choice=button.dataset.choice;
+      if(choice==='local'&&!confirm('Keep this phone’s product details and overwrite the cloud version? Check stock and selling price on both phones first.'))return;
+      details.querySelectorAll('[data-resolve-sync]').forEach(b=>b.disabled=true);
+      try { await resolveQueuedProductConflict(id,choice); }
+      catch(error) { cloudMessage('Could not resolve this change: '+(error.message||String(error))); }
+      finally { updateSyncStatus(); }
+    }));
   }
 }
 function enqueueChange(type, payload) {
@@ -910,6 +921,49 @@ async function cloudSaveProduct(product,isNew) {
     product.image=data?.signedUrl||'';
     if(oldPath&&oldPath!==imagePath) await supabaseClient.storage.from('product-images').remove([oldPath]);
   }
+}
+
+async function resolveQueuedProductConflict(queueItem,choice) {
+  if(!cloudUser||!navigator.onLine) throw Error('Connect to the internet before resolving this conflict.');
+  const queue=readQueue(cloudUser.id), index=queue.findIndex(x=>x.id===queueItem);
+  if(index<0) throw Error('This queued change is no longer available.');
+  const item=queue[index], p=item.payload||{}, product=p.product;
+  if(item.type!=='product_save'||!product) throw Error('This conflict needs a different recovery method. Your records are unchanged.');
+  if(choice==='cloud') {
+    queue.splice(index,1);
+    writeQueue(queue,cloudUser.id);
+    await cloudLoadAll();
+    cloudMessage('Kept the cloud version. This unsynchronised product change was removed from this device.');
+    return;
+  }
+  if(choice!=='local') throw Error('Unknown conflict choice.');
+  const user=await requireCloudUser();
+  const {data:existing,error:findError}=await supabaseClient.from('products')
+    .select('id,name,category,cost_price,selling_price,stock,image_path,updated_at')
+    .eq('user_id',user.id).ilike('name',String(product.name||'').trim()).limit(2);
+  if(findError) throw findError;
+  let targetId=product.id, isNew=!!p.isNew;
+  if(isNew) {
+    if(!existing||existing.length!==1) throw Error('Cannot safely keep this version: no single matching cloud product was found. Rename or review the product first.');
+    targetId=existing[0].id;
+    product.id=targetId;
+    p.isNew=false;
+  } else {
+    const match=(existing||[]).find(x=>x.id===product.id);
+    if(!match) throw Error('This product no longer exists in the cloud. Keep the cloud records and review before recreating it.');
+  }
+  const {data:latest,error:latestError}=await supabaseClient.from('products').select('updated_at').eq('id',targetId).eq('user_id',user.id).single();
+  if(latestError) throw latestError;
+  product.updatedAt=latest.updated_at;
+  p.product=product; item.payload=p; item.status='pending'; item.error='';
+  queue[index]=item;
+  for(let i=index+1;i<queue.length;i++){
+    const later=queue[i], lp=later.payload||{};
+    if(lp.product?.id===targetId && later.type==='product_save' && !lp.isNew) lp.product.updatedAt=latest.updated_at;
+    if(later.type==='sale'&&lp.sale?.productId===targetId) lp.productUpdatedAt=latest.updated_at;
+  }
+  writeQueue(queue,cloudUser.id);
+  await syncPendingChanges();
 }
 
 async function cloudRemoveProductImage(product) {
