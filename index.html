@@ -350,7 +350,7 @@ body.admin-conversation-open #backAdminChatList{font-size:15px}
 </div></section>
 <section id="settings-business" class="page hidden"><div class="settings-page-heading"><button type="button" class="settings-back-button" data-open-page="settings">‹ Settings</button><h2 class="page-title">Business profile</h2><p class="page-intro">Manage your business name and logo.</p></div><div class="card"><p class="muted">Your business name and logo belong to your account and appear on your devices.</p><form id="businessProfileForm"><label for="businessNameInput">Business name</label><input id="businessNameInput" required maxlength="100" placeholder="e.g. Amuda Stores"><label for="businessLogoInput">Business logo (optional)</label><input id="businessLogoInput" type="file" accept="image/jpeg,image/png,image/webp"><img id="businessLogoPreview" alt="Business logo preview"><p id="businessLogoHint" class="muted">Choose a small image. It will be resized for the app.</p><button class="primary">Save business profile</button></form></div></section>
 <section id="settings-sync" class="page hidden"><div class="settings-page-heading"><button type="button" class="settings-back-button" data-open-page="settings">‹ Settings</button><h2 class="page-title">Sync and data</h2><p class="page-intro">Manage synchronization, backups and restore.</p></div><div class="card"><p id="syncStatus" class="muted">Checking sync status...</p><div id="syncDetails" class="muted"></div><div class="photo-actions"><button type="button" id="syncNowBtn" class="primary">Sync now</button><button type="button" id="importLocalRecordsBtn" class="hidden">Import device records</button></div><div class="settings-group"><h3>Backup and restore</h3><p class="muted">Export a copy regularly. Restoring replaces records currently on this device.</p><button type="button" id="exportBtn">Export backup</button><label for="importFile">Restore from backup</label><input type="file" id="importFile" accept=".json,application/json"></div></div></section>
-<section id="settings-preferences" class="page hidden"><div class="settings-page-heading"><button type="button" class="settings-back-button" data-open-page="settings">‹ Settings</button><h2 class="page-title">App preference</h2><p class="page-intro">Adjust how Sellbook looks and alerts you.</p></div><div class="card"><div class="settings-group"><label for="themePreference">Appearance</label><select id="themePreference"><option value="light">Light mode</option><option value="dark">Dark mode</option><option value="system">Use device setting</option></select></div><div class="settings-group"><label for="lowStockThreshold">Low-stock alert threshold (units)</label><input id="lowStockThreshold" type="number" min="0" max="100000" step="1" value="5"><button type="button" id="savePreferencesBtn">Save preferences</button></div></div></section>
+<section id="settings-preferences" class="page hidden"><div class="settings-page-heading"><button type="button" class="settings-back-button" data-open-page="settings">‹ Settings</button><h2 class="page-title">App preference</h2><p class="page-intro">Adjust how Sellbook looks and alerts you.</p></div><div class="card"><div class="settings-group"><label for="themePreference">Appearance</label><select id="themePreference"><option value="light">Light mode</option><option value="dark">Dark mode</option><option value="system">Use device setting</option></select></div><div class="settings-group"><label>Default selling-price markup</label><p class="muted">Choose the percentage Sellbook should select automatically when adding or editing a product. You can still change the percentage or selling price for each product.</p><div class="markup-options category-suggestions" role="group" aria-label="Default selling-price markup"><button type="button" data-default-markup="10" aria-pressed="false">10%</button><button type="button" data-default-markup="20" aria-pressed="false">20%</button><button type="button" data-default-markup="30" aria-pressed="true">30%</button><button type="button" data-default-markup="40" aria-pressed="false">40%</button><button type="button" data-default-markup="50" aria-pressed="false">50%</button></div></div><div class="settings-group"><label for="lowStockThreshold">Low-stock alert threshold (units)</label><input id="lowStockThreshold" type="number" min="0" max="100000" step="1" value="5"><button type="button" id="savePreferencesBtn">Save preferences</button></div></div></section>
 <section id="settings-account" class="page hidden"><div class="settings-page-heading"><button type="button" class="settings-back-button" data-open-page="settings">‹ Settings</button><h2 class="page-title">Account and security</h2><p class="page-intro">Manage your sign-in and account security.</p></div><div class="card"><p id="settingsAccountStatus" class="muted">Checking account...</p><div id="accountManagePanel" class="settings-group hidden"><form id="changeEmailForm"><label for="newAccountEmail">Change account email</label><input id="newAccountEmail" type="email" autocomplete="email" required placeholder="New email address"><button type="submit">Request email change</button></form><button type="button" class="danger" id="deleteAccountBtn" style="width:100%;margin-top:12px">Delete my account and cloud records</button></div><button type="button" id="googleSignOut" class="danger" style="width:100%">Sign out</button><p id="settingsAccountMessage" class="muted" aria-live="polite"></p></div></section>
 <footer>Sellbook · Keep regular backups of your business records.<br><a href="./privacy.html">Privacy</a> · <a href="./terms.html">Terms</a></footer>
 </div>
@@ -1157,11 +1157,13 @@ document.getElementById('productCamera').addEventListener('change',handleImageSe
 document.getElementById('productGallery').addEventListener('change',handleImageSelection);
 document.getElementById('removePendingPhoto').addEventListener('click',clearPendingPhoto);
 
-let selectedMarkup=30;
+const DEFAULT_MARKUP_KEY='my-sales-book-default-markup-v1';
+let defaultMarkup=Number(localStorage.getItem(DEFAULT_MARKUP_KEY)||30);if(![10,20,30,40,50].includes(defaultMarkup))defaultMarkup=30;
+let selectedMarkup=defaultMarkup;
 function updateSuggestedPrice(){const c=document.getElementById('pcost'),p=document.getElementById('pprice'),o=document.getElementById('priceSuggestion');if(c.value.trim()===''||!Number.isFinite(Number(c.value))||Number(c.value)<0){o.textContent='Enter a cost price to calculate a suggested price.';return;}const cost=Number(c.value),price=Math.round((cost*(1+selectedMarkup/100)+Number.EPSILON)*100)/100;p.value=price.toFixed(2);const money=n=>new Intl.NumberFormat('en-NG',{style:'currency',currency:'NGN',maximumFractionDigits:2}).format(n);o.textContent='Suggested price: '+money(price)+' · Gross profit: '+money(price-cost);}
 document.querySelectorAll('[data-markup]').forEach(b=>b.addEventListener('click',()=>{selectedMarkup=Number(b.dataset.markup);document.querySelectorAll('[data-markup]').forEach(x=>{x.classList.toggle('selected',x===b);x.setAttribute('aria-pressed',String(x===b));});updateSuggestedPrice();}));
 document.getElementById('pcost').addEventListener('input',updateSuggestedPrice);
-document.getElementById('productForm').addEventListener('reset',()=>{selectedMarkup=30;document.querySelectorAll('[data-markup]').forEach(x=>{const yes=x.dataset.markup==='30';x.classList.toggle('selected',yes);x.setAttribute('aria-pressed',String(yes));});document.getElementById('priceSuggestion').textContent='Enter a cost price to calculate a suggested price.';});
+document.getElementById('productForm').addEventListener('reset',()=>{selectedMarkup=defaultMarkup;document.querySelectorAll('[data-markup]').forEach(x=>{const yes=Number(x.dataset.markup)===defaultMarkup;x.classList.toggle('selected',yes);x.setAttribute('aria-pressed',String(yes));});document.getElementById('priceSuggestion').textContent='Enter a cost price to calculate a suggested price.';});
 document.getElementById('productForm').addEventListener('submit',async e=>{
  e.preventDefault();
  const name=document.getElementById('pname').value.trim(),cost=Number(document.getElementById('pcost').value),price=Number(document.getElementById('pprice').value),stock=Number(document.getElementById('pstock').value);
@@ -1194,7 +1196,7 @@ function updateEditProductPhotoPreview(product) {
   document.getElementById('editRemoveProductPhoto').disabled=!image && !product?.image;
 }
 
-let selectedEditMarkup=30;
+let selectedEditMarkup=defaultMarkup;
 function updateEditSuggestedPrice(updatePrice=true){
  const c=document.getElementById('editProductCost'),p=document.getElementById('editProductPrice'),o=document.getElementById('editPriceSuggestion');
  const cost=Number(c.value);
@@ -1211,8 +1213,8 @@ document.querySelectorAll('[data-edit-markup]').forEach(b=>b.addEventListener('c
 }));
 document.getElementById('editProductCost').addEventListener('input',()=>updateEditSuggestedPrice(true));
 document.getElementById('editProductForm').addEventListener('reset',()=>{
- selectedEditMarkup=30;
- document.querySelectorAll('[data-edit-markup]').forEach(x=>{const yes=x.dataset.editMarkup==='30';x.classList.toggle('selected',yes);x.setAttribute('aria-pressed',String(yes));});
+ selectedEditMarkup=defaultMarkup;
+ document.querySelectorAll('[data-edit-markup]').forEach(x=>{const yes=Number(x.dataset.editMarkup)===defaultMarkup;x.classList.toggle('selected',yes);x.setAttribute('aria-pressed',String(yes));});
  const out=document.getElementById('editPriceSuggestion');if(out)out.textContent='Choose a markup to calculate a suggested selling price.';
 });
 function openProductEditor(product) {
@@ -1222,8 +1224,8 @@ function openProductEditor(product) {
   document.getElementById('editProductCost').value=product.cost;
   document.getElementById('editProductPrice').value=product.price;
   const editCost=Number(product.cost), editPrice=Number(product.price);
-  let editMarkup=30;
-  if(editCost>0&&Number.isFinite(editPrice)){const actual=(editPrice/editCost-1)*100;editMarkup=[10,20,30,40,50].reduce((best,n)=>Math.abs(n-actual)<Math.abs(best-actual)?n:best,30);}
+  let editMarkup=defaultMarkup;
+  if(editCost>0&&Number.isFinite(editPrice)){const actual=(editPrice/editCost-1)*100;editMarkup=[10,20,30,40,50].reduce((best,n)=>Math.abs(n-actual)<Math.abs(best-actual)?n:best,defaultMarkup);}
   document.querySelectorAll('[data-edit-markup]').forEach(b=>{const yes=Number(b.dataset.editMarkup)===editMarkup;b.classList.toggle('selected',yes);b.setAttribute('aria-pressed',String(yes));});
   updateEditSuggestedPrice(false);
   document.getElementById('editProductStock').value=product.stock;
@@ -1649,6 +1651,16 @@ document.getElementById('businessLogoInput').addEventListener('change',async e=>
   let b=document.querySelector('[id="removeBusinessLogo"]');if(!b){b=document.createElement('button');b.type='button';b.id='removeBusinessLogo';b.textContent='Remove logo';b.style.marginTop='8px';document.getElementById('businessProfileForm').appendChild(b);b.addEventListener('click',()=>{pendingBusinessLogo='';document.getElementById('businessLogoPreview').removeAttribute('src');document.getElementById('businessLogoPreview').style.display='none';document.getElementById('businessLogoHint').textContent='Logo will be removed when you save.';document.getElementById('businessProfileForm').dataset.logoPending='yes';});}
   }catch(err){alert(err.message||String(err));e.target.value='';}
 });
+document.querySelectorAll('[data-default-markup]').forEach(b=>b.addEventListener('click',()=>{
+ defaultMarkup=Number(b.dataset.defaultMarkup);
+ document.querySelectorAll('[data-default-markup]').forEach(x=>{const yes=x===b;x.classList.toggle('selected',yes);x.setAttribute('aria-pressed',String(yes));});
+ localStorage.setItem(DEFAULT_MARKUP_KEY,String(defaultMarkup));
+ document.querySelectorAll('[data-markup]').forEach(x=>{const yes=Number(x.dataset.markup)===defaultMarkup;x.classList.toggle('selected',yes);x.setAttribute('aria-pressed',String(yes));});
+ selectedMarkup=defaultMarkup;
+ document.querySelectorAll('[data-edit-markup]').forEach(x=>{const yes=Number(x.dataset.editMarkup)===defaultMarkup;x.classList.toggle('selected',yes);x.setAttribute('aria-pressed',String(yes));});
+ selectedEditMarkup=defaultMarkup;
+}));
+document.querySelectorAll('[data-default-markup]').forEach(x=>{const yes=Number(x.dataset.defaultMarkup)===defaultMarkup;x.classList.toggle('selected',yes);x.setAttribute('aria-pressed',String(yes));});
 document.getElementById('themePreference').value=themePreference;
 document.getElementById('themePreference').addEventListener('change',()=>{themePreference=document.getElementById('themePreference').value;localStorage.setItem('my-sales-book-theme-v1',themePreference);applyTheme();});
 document.getElementById('lowStockThreshold').value=lowStockThreshold;
