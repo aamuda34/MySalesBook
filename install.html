@@ -4,7 +4,14 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#14532d">
-<meta name="description" content="Install Sellbook — your business records, made simple. Track sales, expenses, products, stock and profit from your phone.">
+<meta name="description" content="Install Sellbook — a simple business record app for tracking sales, expenses, products, stock and profit in Nigerian naira.">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Sellbook — Your Business Records, Made Simple">
+<meta property="og:description" content="Keep sales, expenses, products, stock and profit organised in one simple app. Install Sellbook on your phone.">
+<meta property="og:url" content="https://my-sales-book.vercel.app/install.html">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Sellbook — Your Business Records, Made Simple">
+<meta name="twitter:description" content="A simple app for sales, expenses, stock and business profit.">
 <title>Install Sellbook — Your Business Records, Made Simple</title>
 <link rel="manifest" href="./manifest.webmanifest">
 <link rel="icon" href="./icons/icon.svg" type="image/svg+xml">
@@ -68,8 +75,12 @@ footer{max-width:1080px;margin:auto;padding:0 22px 30px;text-align:center;color:
 .footer-links{display:flex;justify-content:center;gap:18px;flex-wrap:wrap;margin-bottom:9px}
 .footer-links a{text-decoration:none}
 .footer-links a:hover{text-decoration:underline}
+.mobile-install-bar{display:none}
+details[open] summary{color:#14532d}
+summary:focus-visible,a:focus-visible,button:focus-visible{outline:3px solid #70bd88;outline-offset:3px}
 @media(max-width:760px){.hero{grid-template-columns:1fr;gap:12px;padding:30px 24px}.hero-copy{max-width:540px}.phone-wrap{min-height:220px;margin-top:10px}.phone{width:225px}.features{grid-template-columns:repeat(2,1fr)}.steps{grid-template-columns:1fr}.section{padding-top:39px}h1{letter-spacing:-1.7px}}
 @media(max-width:390px){main{padding-left:14px;padding-right:14px}.topbar{padding-left:17px;padding-right:17px}.hero{padding:26px 19px;border-radius:24px}.features{gap:9px}.feature{padding:17px 14px}.actions .btn{width:100%}}
+@media(max-width:600px){body{padding-bottom:76px}.mobile-install-bar{position:fixed;z-index:10;left:0;right:0;bottom:0;display:flex;align-items:center;gap:12px;padding:10px 14px calc(10px + env(safe-area-inset-bottom));background:#ffffffed;backdrop-filter:blur(12px);border-top:1px solid #dfe8e0;box-shadow:0 -8px 24px #163d2510}.mobile-install-copy{font-size:12px;line-height:1.3;color:#536657;flex:1}.mobile-install-copy strong{display:block;color:#173b27;font-size:14px}.mobile-install-bar .btn{min-height:43px;padding:11px 14px;font-size:13px;white-space:nowrap}}
 @media(prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 </head>
@@ -139,6 +150,14 @@ footer{max-width:1080px;margin:auto;padding:0 22px 30px;text-align:center;color:
    <details class="feature" style="min-height:0;padding:18px 20px"><summary style="font-weight:750;cursor:pointer">How do I share the installation page?</summary><p style="margin:12px 0 0">Tap “Share Sellbook” and choose WhatsApp or another app. You can also copy the installation link and send it directly.</p></details>
   </div>
  </section>
+ <section class="section" aria-labelledby="privacy-title">
+  <div class="section-heading"><div class="kicker">Use it with confidence</div><h2 id="privacy-title">A simple tool for your business</h2><p>Sellbook is designed to help you record everyday business activity without unnecessary complexity.</p></div>
+  <div class="steps">
+   <article class="step"><div class="step-num" aria-hidden="true">✓</div><div><h3>Made for everyday sales</h3><p>Record sales, expenses and stock in Nigerian naira (₦).</p></div></article>
+   <article class="step"><div class="step-num" aria-hidden="true">✓</div><div><h3>Use your own account</h3><p>If you choose Google sign-in, use your own account and keep your sign-in details private.</p></div></article>
+   <article class="step"><div class="step-num" aria-hidden="true">✓</div><div><h3>Know your connection</h3><p>Some cloud features require internet access. Check that your records have saved before closing the app.</p></div></article>
+  </div>
+ </section>
  <section class="final-cta" aria-labelledby="cta-title">
   <h2 id="cta-title">Ready to organise your business?</h2>
   <p>Put your sales, expenses, stock and profit records in one convenient place.</p>
@@ -147,6 +166,10 @@ footer{max-width:1080px;margin:auto;padding:0 22px 30px;text-align:center;color:
   <a id="open-after-install" href="./" style="display:none;font-weight:700;color:#14532d">Open Sellbook</a>
  </section>
 </main>
+<div class="mobile-install-bar" aria-label="Quick install">
+ <div class="mobile-install-copy"><strong>Get Sellbook on your phone</strong>Free to install</div>
+ <button class="btn btn-primary" id="install-mobile" type="button" style="background:#14532d;color:#fff">Install app</button>
+</div>
 <footer>
  <div class="footer-links"><a href="./">Open Sellbook in browser</a><a href="#faq">Installation help</a><a href="https://my-sales-book.vercel.app/manifest.webmanifest">App details</a></div>
  <div>Sellbook · Your Business Records, Made Simple.</div>
@@ -154,7 +177,7 @@ footer{max-width:1080px;margin:auto;padding:0 22px 30px;text-align:center;color:
 <script>
 let deferredInstallPrompt = null;
 const status = document.getElementById('status');
-const installButtons = [document.getElementById('install-top'), document.getElementById('install-bottom')];
+const installButtons = [document.getElementById('install-top'), document.getElementById('install-bottom'), document.getElementById('install-mobile')];
 const openAfterInstall = document.getElementById('open-after-install');
 const isInstalled = () => window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
 function showInstalledState(){
