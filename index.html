@@ -25,6 +25,7 @@ h3{font-size:15px;margin:0 0 8px}
 .stat small{display:block;color:#526358;margin-bottom:7px}
 .stat strong{font-size:19px;overflow-wrap:anywhere}
 label{display:block;font-size:13px;font-weight:bold;margin:12px 0 5px}
+.product-type-picker{margin-top:14px;padding:12px;border:1px solid var(--border,#e4ebe5);border-radius:12px;background:#f7faf7}.product-type-picker p{margin:0 0 9px}.product-type-options{display:grid;grid-template-columns:1fr 1fr;gap:8px}.product-type-options button{background:#e5efe7;color:#14532d;border:2px solid transparent;padding:12px 8px}.product-type-options button.selected{background:#14532d;color:#fff;border-color:#14532d}.product-type-picker .muted{margin-top:8px;margin-bottom:0}
 input,select{width:100%;padding:12px;border:1px solid #ccd6ce;border-radius:8px;font-size:16px;background:white}
 form button{width:100%;margin-top:14px}
 .row{display:flex;justify-content:space-between;gap:12px;align-items:center}
@@ -211,13 +212,21 @@ body.admin-conversation-open #backAdminChatList{font-size:15px}
 <label for="pcost">Cost price per unit (₦)</label><input id="pcost" type="number" min="0" step="0.01" required>
 <div class="price-calculator"><strong>Suggested markup</strong><div class="markup-options category-suggestions" role="group" aria-label="Choose markup percentage"><button type="button" data-markup="10" aria-pressed="false">10%</button><button type="button" data-markup="20" aria-pressed="false">20%</button><button type="button" data-markup="30" class="selected" aria-pressed="true">30%</button><button type="button" data-markup="40" aria-pressed="false">40%</button><button type="button" data-markup="50" aria-pressed="false">50%</button></div><p id="priceSuggestion" class="price-suggestion">Enter a cost price to calculate a suggested price.</p></div>
 <label for="pprice">Selling price per unit (₦)</label><input id="pprice" type="number" min="0.01" step="0.01" required>
-<label for="pstock">Opening stock (units)</label><input id="pstock" type="number" min="0" step="1" required>
-<details class="card" style="padding:12px;margin-top:12px"><summary><strong>Optional pack-selling setup</strong></summary><p class="muted">For ordinary products, leave this section unchanged. For products sold as packs and individual items, enter the details below.</p>
-<label for="pbaseunit">Smallest selling unit</label><input id="pbaseunit" maxlength="30" value="unit" placeholder="e.g. bottle, piece">
-<label for="ppackunit">Pack name (optional)</label><input id="ppackunit" maxlength="30" placeholder="e.g. carton, dozen, pack">
-<label for="punitsperpack">Smallest units in one pack</label><input id="punitsperpack" type="number" min="1" step="1" value="1">
-<label for="ppackprice">Selling price for one full pack (₦)</label><input id="ppackprice" type="number" min="0.01" step="0.01" placeholder="Leave blank if not sold as a pack">
-</details>
+<label for="pstock">Opening stock (individual units)</label><input id="pstock" type="number" min="0" step="1" required>
+<label for="pbaseunit">Individual unit name</label><input id="pbaseunit" maxlength="30" value="unit" placeholder="e.g. bottle, piece">
+<div class="product-type-picker" role="group" aria-label="Product selling type">
+<p><strong>How will you sell this product?</strong></p>
+<div class="product-type-options">
+<button type="button" id="productTypeUnit" class="selected" aria-pressed="true">Individual units only</button>
+<button type="button" id="productTypePack" aria-pressed="false">Both units and packs</button>
+</div>
+<p id="productTypeHelp" class="muted">Use this for products sold one unit at a time.</p>
+</div>
+<div id="packSetupFields" class="hidden">
+<label for="ppackunit">Pack name</label><input id="ppackunit" maxlength="30" placeholder="e.g. carton, dozen, pack">
+<label for="punitsperpack">How many individual units in one pack?</label><input id="punitsperpack" type="number" min="1" step="1" value="1">
+<label for="ppackprice">Selling price for one full pack (₦)</label><input id="ppackprice" type="number" min="0.01" step="0.01" placeholder="Enter pack selling price">
+</div>
 <label>Product photo (optional)</label>
 <div class="photo-actions">
 <button type="button" id="takeProductPhoto">Take photo</button>
@@ -1291,6 +1300,22 @@ function syncDefaultMarkupUI(){const stored=Number(localStorage.getItem(DEFAULT_
 function updateSuggestedPrice(){const c=document.getElementById('pcost'),p=document.getElementById('pprice'),o=document.getElementById('priceSuggestion');if(c.value.trim()===''||!Number.isFinite(Number(c.value))||Number(c.value)<0){o.textContent='Enter a cost price to calculate a suggested price.';return;}const cost=Number(c.value),price=Math.round((cost*(1+selectedMarkup/100)+Number.EPSILON)*100)/100;p.value=price.toFixed(2);const money=n=>new Intl.NumberFormat('en-NG',{style:'currency',currency:'NGN',maximumFractionDigits:2}).format(n);o.textContent='Suggested price: '+money(price)+' · Gross profit: '+money(price-cost);}
 document.querySelectorAll('[data-markup]').forEach(b=>b.addEventListener('click',()=>{selectedMarkup=Number(b.dataset.markup);document.querySelectorAll('[data-markup]').forEach(x=>{x.classList.toggle('selected',x===b);x.setAttribute('aria-pressed',String(x===b));});updateSuggestedPrice();}));
 document.getElementById('pcost').addEventListener('input',updateSuggestedPrice);
+let productSellingType='unit';
+function setProductSellingType(type){
+ productSellingType=type;
+ const pack=type==='pack';
+ document.getElementById('productTypeUnit').classList.toggle('selected',!pack);
+ document.getElementById('productTypeUnit').setAttribute('aria-pressed',String(!pack));
+ document.getElementById('productTypePack').classList.toggle('selected',pack);
+ document.getElementById('productTypePack').setAttribute('aria-pressed',String(pack));
+ document.getElementById('packSetupFields').classList.toggle('hidden',!pack);
+ document.getElementById('productTypeHelp').textContent=pack?'Set the pack size and pack price. The product can then be sold by individual unit or by pack.':'Use this for products sold one unit at a time.';
+ document.getElementById('ppackunit').required=pack;
+ document.getElementById('ppackprice').required=pack;
+}
+document.getElementById('productTypeUnit').addEventListener('click',()=>setProductSellingType('unit'));
+document.getElementById('productTypePack').addEventListener('click',()=>setProductSellingType('pack'));
+document.getElementById('productForm').addEventListener('reset',()=>setProductSellingType('unit'));
 document.getElementById('productForm').addEventListener('reset',()=>{selectedMarkup=defaultMarkup;document.querySelectorAll('[data-markup]').forEach(x=>{const yes=Number(x.dataset.markup)===defaultMarkup;x.classList.toggle('selected',yes);x.setAttribute('aria-pressed',String(yes));});document.getElementById('priceSuggestion').textContent='Enter a cost price to calculate a suggested price.';});
 document.getElementById('productForm').addEventListener('submit',async e=>{
  e.preventDefault();
@@ -1299,11 +1324,11 @@ document.getElementById('productForm').addEventListener('submit',async e=>{
  if(db.products.some(p=>p.name.toLowerCase()===name.toLowerCase()))return alert('A product with this name already exists.');
  const category=normalizeCategory(document.getElementById('pcategory').value);
  const baseUnit=(document.getElementById('pbaseunit').value.trim()||'unit');
- const packUnit=document.getElementById('ppackunit').value.trim();
- const unitsPerPack=Number(document.getElementById('punitsperpack').value||1);
- const packPriceRaw=document.getElementById('ppackprice').value.trim();
+ const packUnit=productSellingType==='pack'?document.getElementById('ppackunit').value.trim():'';
+ const unitsPerPack=productSellingType==='pack'?Number(document.getElementById('punitsperpack').value):1;
+ const packPriceRaw=productSellingType==='pack'?document.getElementById('ppackprice').value.trim():'';
  const packPrice=packPriceRaw===''?null:Number(packPriceRaw);
- if(!Number.isSafeInteger(unitsPerPack)||unitsPerPack<1||(packUnit&&(!Number.isFinite(packPrice)||packPrice<=0))||(!packUnit&&packPrice!==null))return alert('Enter a valid pack name, pack size, and pack selling price, or leave the pack fields empty.');
+ if(productSellingType==='pack'&&(!packUnit||!Number.isSafeInteger(unitsPerPack)||unitsPerPack<1||!Number.isFinite(packPrice)||packPrice<=0))return alert('Enter a pack name, the number of individual units in each pack, and a valid pack selling price.');
  const product={id:crypto.randomUUID(),name,category,cost,price,stock,baseUnit,packUnit,unitsPerPack,packPrice,image:pendingProductImage,createdAt:now()};
  if(cloudUser){
    try { await saveCloudChangeLocally('product_save',{product,isNew:true}); }
