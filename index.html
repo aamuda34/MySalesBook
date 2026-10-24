@@ -1494,7 +1494,10 @@ document.getElementById('googleSignIn').addEventListener('click', async () => {
 
   const { error } = await supabaseClient.auth.signInWithOAuth({
     provider: 'google',
-    options: { redirectTo: window.location.origin + window.location.pathname + window.location.search }
+    options: {
+      redirectTo: window.location.origin + window.location.pathname + window.location.search,
+      queryParams: { prompt: 'select_account' }
+    }
   });
 
   if (error) message.textContent = 'Sign-in failed: ' + error.message;
