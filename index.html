@@ -211,7 +211,7 @@ body.admin-conversation-open #backAdminChatList{font-size:15px}
 <p><strong>Choose product type</strong></p>
 <div class="product-type-options">
 <button type="button" id="productTypeUnit" class="selected" aria-pressed="true">Individual Units Only</button>
-<button type="button" id="productTypePack" aria-pressed="false">Units and Packs</button>
+<button type="button" id="productTypePack" aria-pressed="false">Pack</button>
 </div>
 <p id="productTypeHelp" class="muted">Choose an option above to open its product form.</p>
 </div>
@@ -226,7 +226,7 @@ body.admin-conversation-open #backAdminChatList{font-size:15px}
 <label for="pbaseunit">Unit name</label><input id="pbaseunit" maxlength="30" value="unit" placeholder="e.g. bottle, piece">
 </div>
 <div id="packProductPanel" class="hidden">
-<h3>Product sold by units and packs</h3>
+<h3>Pack product</h3>
 <label for="pbaseunitPack">Individual unit name</label><input id="pbaseunitPack" maxlength="30" value="unit" placeholder="e.g. bottle, piece">
 <label for="ppackunit">Pack name</label><input id="ppackunit" maxlength="30" placeholder="e.g. carton, dozen, pack">
 <label for="punitsperpack">How many individual units in one pack?</label><input id="punitsperpack" type="number" min="1" step="1" value="1">
@@ -1302,10 +1302,10 @@ const DEFAULT_MARKUP_KEY='my-sales-book-default-markup-v1';
 let defaultMarkup=Number(localStorage.getItem(DEFAULT_MARKUP_KEY)||30);if(![10,20,30,40,50].includes(defaultMarkup))defaultMarkup=30;
 let selectedMarkup=defaultMarkup;
 function syncDefaultMarkupUI(){const stored=Number(localStorage.getItem(DEFAULT_MARKUP_KEY)||30);defaultMarkup=[10,20,30,40,50].includes(stored)?stored:30;selectedMarkup=defaultMarkup;document.querySelectorAll('[data-markup]').forEach(x=>{const yes=Number(x.dataset.markup)===defaultMarkup;x.classList.toggle('selected',yes);x.setAttribute('aria-pressed',String(yes));});}
-function updateSuggestedPrice(){const c=document.getElementById('pcost'),p=document.getElementById('pprice'),o=document.getElementById('priceSuggestion');if(c.value.trim()===''||!Number.isFinite(Number(c.value))||Number(c.value)<0){o.textContent='Enter a cost price to calculate a suggested price.';return;}let cost=Number(c.value);if(productSellingType==='pack'){const count=Number(document.getElementById('punitsperpack').value);if(!Number.isSafeInteger(count)||count<1){o.textContent='Enter how many individual units are in each pack.';return;}cost=cost/count;}const price=Math.round((cost*(1+selectedMarkup/100)+Number.EPSILON)*100)/100;p.value=price.toFixed(2);const money=n=>new Intl.NumberFormat('en-NG',{style:'currency',currency:'NGN',maximumFractionDigits:2}).format(n);o.textContent='Suggested unit price: '+money(price)+' · Gross profit per unit: '+money(price-cost);}
+function updateSuggestedPrice(){const c=document.getElementById('pcost'),p=document.getElementById('pprice'),pp=document.getElementById('ppackprice'),o=document.getElementById('priceSuggestion');if(c.value.trim()===''||!Number.isFinite(Number(c.value))||Number(c.value)<0){o.textContent='Enter a cost price to calculate a suggested price.';return;}const money=n=>new Intl.NumberFormat('en-NG',{style:'currency',currency:'NGN',maximumFractionDigits:2}).format(n);if(productSellingType==='pack'){const count=Number(document.getElementById('punitsperpack').value);if(!Number.isSafeInteger(count)||count<1){o.textContent='Enter how many individual units are in each pack.';return;}const packCost=Number(c.value),packPrice=Math.round((packCost*(1+selectedMarkup/100)+Number.EPSILON)*100)/100,unitPrice=Math.round((packPrice/count+Number.EPSILON)*100)/100;pp.value=packPrice.toFixed(2);p.value=unitPrice.toFixed(2);o.textContent='Suggested pack selling price: '+money(packPrice)+' · Suggested price per unit ('+count+' in a pack): '+money(unitPrice);return;}const cost=Number(c.value),price=Math.round((cost*(1+selectedMarkup/100)+Number.EPSILON)*100)/100;p.value=price.toFixed(2);o.textContent='Suggested unit price: '+money(price)+' · Gross profit per unit: '+money(price-cost);}
 document.querySelectorAll('[data-markup]').forEach(b=>b.addEventListener('click',()=>{selectedMarkup=Number(b.dataset.markup);document.querySelectorAll('[data-markup]').forEach(x=>{x.classList.toggle('selected',x===b);x.setAttribute('aria-pressed',String(x===b));});updateSuggestedPrice();}));
 document.getElementById('pcost').addEventListener('input',updateSuggestedPrice);
-document.getElementById('punitsperpack').addEventListener('input',updateSuggestedPrice);
+document.getElementById('punitsperpack').addEventListener('input',updateSuggestedPrice);\ndocument.getElementById('ppackprice').addEventListener('input',()=>{if(productSellingType!=='pack')return;const count=Number(document.getElementById('punitsperpack').value),packPrice=Number(document.getElementById('ppackprice').value);if(Number.isSafeInteger(count)&&count>0&&Number.isFinite(packPrice)&&packPrice>0)document.getElementById('pprice').value=(Math.round((packPrice/count+Number.EPSILON)*100)/100).toFixed(2);});
 let productSellingType='unit';
 function setProductSellingType(type){
  productSellingType=type;
