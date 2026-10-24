@@ -25,14 +25,17 @@ jobs:
         with:
           gradle-version: "8.9"
 
-      - name: Build debug APK
+      - name: Build APK
         working-directory: sellbook-android
         run: gradle assembleDebug
 
-      - name: Upload APK
+      - name: Rename APK for easy identification
+        run: cp sellbook-android/app/build/outputs/apk/debug/app-debug.apk sellbook-android/app/build/outputs/apk/debug/Sellbook.apk
+
+      - name: Upload Sellbook APK
         uses: actions/upload-artifact@v4
         with:
-          name: Sellbook-Android-APK
-          path: sellbook-android/app/build/outputs/apk/debug/app-debug.apk
+          name: Sellbook-APK
+          path: sellbook-android/app/build/outputs/apk/debug/Sellbook.apk
           if-no-files-found: error
           retention-days: 14
