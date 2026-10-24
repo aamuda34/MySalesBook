@@ -946,6 +946,20 @@ async function cloudLoadAll() {
   cloudMessage(pendingSync.length
     ? pendingSync.length + ' change(s) are waiting to sync. Your local copies are preserved.'
     : 'Cloud records loaded and synchronised.');
+  // When a connected shop loads its cloud records, publish any existing private product photos that have not yet been copied to the public marketplace bucket.
+  try {
+    const {data:shop}=await supabaseClient.from('marketplace_shops').select('is_connected,is_active').eq('owner_id',user.id).maybeSingle();
+    if(shop?.is_connected&&shop?.is_active){
+      for(const product of products){
+        if(!product.imagePath) continue;
+        const {data:listing}=await supabaseClient.from('marketplace_listings').select('image_url').eq('product_id',product.id).eq('owner_id',user.id).maybeSingle();
+        if(listing&&!listing.image_url){
+          try{await cloudPublishMarketplaceImage(product,user,null,product.imagePath);}
+          catch(imageError){console.warn('Automatic Buybook photo publishing skipped for product:',product.id,imageError);}
+        }
+      }
+    }
+  } catch(imageSyncError) { console.warn('Automatic Buybook photo sync could not complete:',imageSyncError); }
 }
 
 async function cloudUploadProductImage(imageData) {
