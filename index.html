@@ -111,6 +111,7 @@ body.admin-mode nav,body.admin-mode #quickSaleFab{display:none!important}body.ad
   .category-suggestions:empty{display:none}
   .category-suggestions button{width:auto;margin:0;padding:7px 11px;border:1px solid #cbdccf;border-radius:999px;background:#edf5ef;color:#14532d;font-size:13px;font-weight:600}
   .category-suggestions .suggestion-label{width:100%;font-size:12px;color:#637168}
+.price-calculator{margin-top:12px;padding:12px;border:1px solid var(--border);border-radius:10px;background:var(--page)}.price-calculator>strong{display:block;font-size:13px;margin-bottom:8px}.markup-options{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px}.markup-options button{margin:0;padding:10px 3px;background:var(--surface);color:var(--green);border:1px solid #cbdccf;font-size:13px}.markup-options button.selected{background:var(--green);color:#fff;border-color:var(--green)}.price-suggestion{font-size:13px;color:var(--muted);line-height:1.45;margin:9px 0 0}
 
 .admin-toolbar{display:flex;gap:10px;flex-wrap:wrap;margin:12px 0}.admin-toolbar button{width:auto;margin:0}.admin-panel-nav{display:flex;gap:7px;overflow-x:auto;padding:4px 0 12px;margin-bottom:8px}.admin-panel-tab{flex:0 0 auto;width:auto;margin:0;padding:10px 13px;border:1px solid var(--border);border-radius:999px;background:var(--surface);color:var(--ink);font-weight:700}.admin-panel-tab.active{background:var(--green);color:#fff;border-color:var(--green)}.admin-panel{min-width:0}.admin-panel.hidden{display:none!important}.admin-panel .card{margin-top:12px}body.admin-mode #admin{max-width:100%}
 
@@ -208,6 +209,7 @@ body.admin-conversation-open #backAdminChatList{font-size:15px}
 <label for="pname">Product name</label><input id="pname" required maxlength="100">
 <label for="pcategory">Category</label><input id="pcategory" list="categorySuggestions" maxlength="60" placeholder="e.g. Drinks, Groceries" autocomplete="off"><datalist id="categorySuggestions"></datalist><div id="categorySuggestionChips" class="category-suggestions" aria-label="Existing category suggestions"></div>
 <label for="pcost">Cost price per unit (₦)</label><input id="pcost" type="number" min="0" step="0.01" required>
+<div class="price-calculator"><strong>Suggested markup</strong><div class="markup-options" role="group" aria-label="Choose markup percentage"><button type="button" data-markup="10" aria-pressed="false">10%</button><button type="button" data-markup="20" aria-pressed="false">20%</button><button type="button" data-markup="30" class="selected" aria-pressed="true">30%</button><button type="button" data-markup="40" aria-pressed="false">40%</button><button type="button" data-markup="50" aria-pressed="false">50%</button></div><p id="priceSuggestion" class="price-suggestion">Enter a cost price to calculate a suggested price.</p></div>
 <label for="pprice">Selling price per unit (₦)</label><input id="pprice" type="number" min="0.01" step="0.01" required>
 <label for="pstock">Opening stock (units)</label><input id="pstock" type="number" min="0" step="1" required>
 <label>Product photo (optional)</label>
@@ -1154,6 +1156,11 @@ document.getElementById('productCamera').addEventListener('change',handleImageSe
 document.getElementById('productGallery').addEventListener('change',handleImageSelection);
 document.getElementById('removePendingPhoto').addEventListener('click',clearPendingPhoto);
 
+let selectedMarkup=30;
+function updateSuggestedPrice(){const c=document.getElementById('pcost'),p=document.getElementById('pprice'),o=document.getElementById('priceSuggestion');if(c.value.trim()===''||!Number.isFinite(Number(c.value))||Number(c.value)<0){o.textContent='Enter a cost price to calculate a suggested price.';return;}const cost=Number(c.value),price=Math.round((cost*(1+selectedMarkup/100)+Number.EPSILON)*100)/100;p.value=price.toFixed(2);const money=n=>new Intl.NumberFormat('en-NG',{style:'currency',currency:'NGN',maximumFractionDigits:2}).format(n);o.textContent='Suggested price: '+money(price)+' · Gross profit: '+money(price-cost);}
+document.querySelectorAll('[data-markup]').forEach(b=>b.addEventListener('click',()=>{selectedMarkup=Number(b.dataset.markup);document.querySelectorAll('[data-markup]').forEach(x=>{x.classList.toggle('selected',x===b);x.setAttribute('aria-pressed',String(x===b));});updateSuggestedPrice();}));
+document.getElementById('pcost').addEventListener('input',updateSuggestedPrice);
+document.getElementById('productForm').addEventListener('reset',()=>{selectedMarkup=30;document.querySelectorAll('[data-markup]').forEach(x=>{const yes=x.dataset.markup==='30';x.classList.toggle('selected',yes);x.setAttribute('aria-pressed',String(yes));});document.getElementById('priceSuggestion').textContent='Enter a cost price to calculate a suggested price.';});
 document.getElementById('productForm').addEventListener('submit',async e=>{
  e.preventDefault();
  const name=document.getElementById('pname').value.trim(),cost=Number(document.getElementById('pcost').value),price=Number(document.getElementById('pprice').value),stock=Number(document.getElementById('pstock').value);
