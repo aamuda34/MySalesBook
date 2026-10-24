@@ -215,14 +215,20 @@ body.admin-conversation-open #backAdminChatList{font-size:15px}
 <label for="pstock">Opening stock (individual units)</label><input id="pstock" type="number" min="0" step="1" required>
 <label for="pbaseunit">Individual unit name</label><input id="pbaseunit" maxlength="30" value="unit" placeholder="e.g. bottle, piece">
 <div class="product-type-picker" role="group" aria-label="Product selling type">
-<p><strong>How will you sell this product?</strong></p>
+<p><strong>Choose product type</strong></p>
 <div class="product-type-options">
-<button type="button" id="productTypeUnit" class="selected" aria-pressed="true">Individual units only</button>
-<button type="button" id="productTypePack" aria-pressed="false">Both units and packs</button>
+<button type="button" id="productTypeUnit" class="selected" aria-pressed="true">Individual Units Only</button>
+<button type="button" id="productTypePack" aria-pressed="false">Units and Packs</button>
 </div>
-<p id="productTypeHelp" class="muted">Use this for products sold one unit at a time.</p>
+<p id="productTypeHelp" class="muted">Choose an option above to open its product form.</p>
 </div>
-<div id="packSetupFields" class="hidden">
+<div id="unitProductPanel">
+<h3>Individual-unit product</h3>
+<label for="pbaseunit">Unit name</label><input id="pbaseunit" maxlength="30" value="unit" placeholder="e.g. bottle, piece">
+</div>
+<div id="packProductPanel" class="hidden">
+<h3>Product sold by units and packs</h3>
+<label for="pbaseunitPack">Individual unit name</label><input id="pbaseunitPack" maxlength="30" value="unit" placeholder="e.g. bottle, piece">
 <label for="ppackunit">Pack name</label><input id="ppackunit" maxlength="30" placeholder="e.g. carton, dozen, pack">
 <label for="punitsperpack">How many individual units in one pack?</label><input id="punitsperpack" type="number" min="1" step="1" value="1">
 <label for="ppackprice">Selling price for one full pack (₦)</label><input id="ppackprice" type="number" min="0.01" step="0.01" placeholder="Enter pack selling price">
@@ -1308,8 +1314,14 @@ function setProductSellingType(type){
  document.getElementById('productTypeUnit').setAttribute('aria-pressed',String(!pack));
  document.getElementById('productTypePack').classList.toggle('selected',pack);
  document.getElementById('productTypePack').setAttribute('aria-pressed',String(pack));
- document.getElementById('packSetupFields').classList.toggle('hidden',!pack);
- document.getElementById('productTypeHelp').textContent=pack?'Set the pack size and pack price. The product can then be sold by individual unit or by pack.':'Use this for products sold one unit at a time.';
+ document.getElementById('unitProductPanel').classList.toggle('hidden',pack);
+ document.getElementById('packProductPanel').classList.toggle('hidden',!pack);
+ document.getElementById('pbaseunit').disabled=pack;
+ document.getElementById('pbaseunitPack').disabled=!pack;
+ document.getElementById('ppackunit').disabled=!pack;
+ document.getElementById('punitsperpack').disabled=!pack;
+ document.getElementById('ppackprice').disabled=!pack;
+ document.getElementById('productTypeHelp').textContent=pack?'Enter the unit and pack details. You can sell this product by either unit or pack.':'Enter the details for a product sold one unit at a time.';
  document.getElementById('ppackunit').required=pack;
  document.getElementById('ppackprice').required=pack;
 }
@@ -1323,7 +1335,7 @@ document.getElementById('productForm').addEventListener('submit',async e=>{
  if(!name||!Number.isFinite(cost)||cost<0||!Number.isFinite(price)||price<=0||!Number.isSafeInteger(stock)||stock<0)return alert('Check the product details.');
  if(db.products.some(p=>p.name.toLowerCase()===name.toLowerCase()))return alert('A product with this name already exists.');
  const category=normalizeCategory(document.getElementById('pcategory').value);
- const baseUnit=(document.getElementById('pbaseunit').value.trim()||'unit');
+ const baseUnit=((productSellingType==='pack'?document.getElementById('pbaseunitPack').value:document.getElementById('pbaseunit').value).trim()||'unit');
  const packUnit=productSellingType==='pack'?document.getElementById('ppackunit').value.trim():'';
  const unitsPerPack=productSellingType==='pack'?Number(document.getElementById('punitsperpack').value):1;
  const packPriceRaw=productSellingType==='pack'?document.getElementById('ppackprice').value.trim():'';
