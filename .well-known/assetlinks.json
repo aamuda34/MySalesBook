@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "app.vercel.my_sales_book.twa",
+      "sha256_cert_fingerprints": [
+        "70:E8:92:69:9C:7F:03:FB:5F:58:F6:80:A6:D0:FE:BC:AD:85:69:AF:74:B3:6B:30:81:42:3B:FC:75:E2:01:36"
+      ]
+    }
+  }
+]
