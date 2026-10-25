@@ -1275,10 +1275,12 @@ document.getElementById('closeProductImage').addEventListener('click',closeProdu
 document.getElementById('productImageLightbox').addEventListener('click',event=>{if(event.target.id==='productImageLightbox')closeProductLightbox();});
 document.addEventListener('keydown',event=>{if(event.key==='Escape')closeProductLightbox();});
 
+function updateHomeProductSummary(){const count=document.getElementById('productCountHome'),value=document.getElementById('productSellingValueHome');if(count)count.textContent=String((db.products||[]).length);if(value){const total=(db.products||[]).reduce((sum,p)=>sum+Math.max(0,Number(p.stock)||0)*Math.max(0,Number(p.price??p.selling_price)||0),0);value.textContent=money(total);}}
+
 function render(){
  const restockSelect=document.getElementById('restockProduct');if(restockSelect){const selected=restockSelect.value;restockSelect.innerHTML=db.products.map(p=>'<option value="'+esc(p.id)+'">'+esc(p.name)+'</option>').join('');if(db.products.some(p=>p.id===selected))restockSelect.value=selected;updateRestockPreview();}
 
-  db=normalizeDb(db);renderBrand();
+  db=normalizeDb(db);renderBrand();updateHomeProductSummary();
   const d=today();
   const todays=db.sales.filter(x=>dateKey(x.date)===d);
   const expensesToday=db.expenses.filter(x=>dateKey(x.date)===d).reduce((s,x)=>s+x.amount,0);
