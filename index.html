@@ -299,7 +299,7 @@ body.admin-conversation-open #backAdminChatList{font-size:15px}
 <section id="support" class="page hidden">
 <div class="section-heading support-page-heading"><button type="button" id="backSupportPage" class="support-back-button" aria-label="Go back" title="Go back" onclick="showPage('me')"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg></button><div><h2 class="page-title">Messages</h2><p class="page-intro">Chat directly with Sellbook support.</p></div><button type="button" id="refreshSupportChat" aria-label="Refresh chat" title="Refresh chat">↻</button></div>
 <div class="chat-card card">
-<div class="chat-topline"><div class="chat-support-avatar" aria-hidden="true">SB</div><div><strong>Sellbook Support</strong><div class="muted" id="supportChatStatus">Support conversation</div></div><button type="button" id="openFeedbackPage" class="chat-feedback-link">Send feedback</button></div>
+<div class="chat-topline"><div class="chat-support-avatar" aria-hidden="true">SB</div><div style="flex:1;min-width:0"><strong id="supportConversationTitle">Sellbook Support</strong><div class="muted" id="supportChatStatus">Choose support or a Buybook subscriber</div><label class="hidden" for="messageConversationSelect">Choose conversation</label><select id="messageConversationSelect" aria-label="Choose conversation" style="width:100%;margin-top:8px"><option value="support">Sellbook Support</option></select></div><button type="button" id="openFeedbackPage" class="chat-feedback-link">Send feedback</button></div>
 <div id="userSupportMessages" class="chat-transcript" role="log" aria-live="polite" aria-label="Conversation with Sellbook support"><div class="empty">Your conversation will appear here.</div></div>
 <form id="supportMessageForm" class="chat-composer"><label class="hidden" for="supportMessageBody">Write a message</label><textarea id="supportMessageBody" required maxlength="4000" rows="1" placeholder="Write a message…" aria-label="Write a message"></textarea><button class="primary chat-send-button" type="submit" aria-label="Send message" title="Send message"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M22 2 15 22l-4-9-9-4 20-7ZM22 2 11 13"/></svg></button></form>
 <p id="supportMessageStatus" class="muted chat-status" aria-live="polite"></p>
@@ -382,12 +382,6 @@ body.admin-conversation-open #backAdminChatList{font-size:15px}
   <div class="section-heading"><div><h2>Buyer activity</h2><p class="muted">See subscribers, reply to their messages and review product reservations.</p></div><button type="button" id="refreshBuybookActivity">Refresh</button></div>
   <h3>Subscribers</h3>
   <div id="marketplaceSubscriberList" class="empty">Sign in and connect your shop to see subscribers.</div>
-  <div id="marketplaceSellerChat" class="hidden" style="margin-top:14px">
-    <div class="chat-topline"><div class="chat-support-avatar" aria-hidden="true">💬</div><div><strong id="marketplaceSellerChatTitle">Subscriber messages</strong><div class="muted" id="marketplaceSellerChatStatus">Private conversation with a subscriber</div></div></div>
-    <div id="marketplaceSellerMessages" class="chat-transcript" role="log" aria-live="polite" aria-label="Messages with subscriber"><div class="empty">Choose a subscriber to open messages.</div></div>
-    <form id="marketplaceSellerMessageForm" class="chat-composer"><label class="hidden" for="marketplaceSellerMessageBody">Write a message to this subscriber</label><textarea id="marketplaceSellerMessageBody" required maxlength="4000" rows="1" placeholder="Write a message…" aria-label="Write a message to this subscriber"></textarea><button class="primary chat-send-button" type="submit" aria-label="Send message" title="Send message">➤</button></form>
-    <p id="marketplaceSellerMessageStatus" class="muted chat-status" aria-live="polite"></p>
-  </div>
   <h3 style="margin-top:22px">Product reservations</h3>
   <p class="muted">New reservations also appear in Notifications.</p>
   <div id="marketplaceReservationsList" class="empty">Reservations will appear here when buyers reserve your products on Buybook.</div>
@@ -900,7 +894,7 @@ async function loadBuybookActivity(){
    return '<div class="marketplace-reservation"><div class="reservation-top"><strong>'+escAdmin(marketplaceBuyerName(r.buyer_id))+'</strong><span class="status-pill">'+escAdmin(status)+'</span></div><p>'+ (products||'Product details unavailable') +'</p>'+(r.buyer_note?'<p class="muted">Buyer note: '+escAdmin(r.buyer_note)+'</p>':'')+'<div class="muted">'+escAdmin(new Date(r.created_at).toLocaleString([], {dateStyle:'medium',timeStyle:'short'}))+(r.expires_at?' · Expires '+escAdmin(new Date(r.expires_at).toLocaleString([], {dateStyle:'short',timeStyle:'short'})):'')+'</div></div>';
   }).join(''):'No product reservations yet.';
   if(marketplaceSelectedBuyerId&&!marketplaceSubscribersCache.some(x=>x.buyer_id===marketplaceSelectedBuyerId)){marketplaceSelectedBuyerId=null;document.getElementById('marketplaceSellerChat').classList.add('hidden');}
-  if(marketplaceSelectedBuyerId)await loadMarketplaceSellerConversation(marketplaceSelectedBuyerId);
+  if(marketplaceSelectedBuyerId){const selector=document.getElementById('messageConversationSelect');if(selector)selector.value=marketplaceSelectedBuyerId;}
  }catch(err){
   if(!marketplaceSubscribersCache.length)subscribersTarget.innerHTML='Could not load subscribers: '+escAdmin(err.message||String(err));
   reservationsTarget.innerHTML='Could not load reservations: '+escAdmin(err.message||String(err));
@@ -927,7 +921,7 @@ async function loadMarketplaceSellerConversation(buyerId){
  target.scrollTop=target.scrollHeight;
  await updateUnreadBadges();
 }
-document.getElementById('marketplaceSubscriberList')?.addEventListener('click',event=>{const button=event.target.closest('[data-marketplace-buyer]');if(button)loadMarketplaceSellerConversation(button.dataset.marketplaceBuyer);});
+document.getElementById('marketplaceSubscriberList')?.addEventListener('click',event=>{const button=event.target.closest('[data-marketplace-buyer]');if(button){marketplaceSelectedBuyerId=button.dataset.marketplaceBuyer;showPage('support');loadUserSupport();}});
 document.getElementById('refreshBuybookActivity')?.addEventListener('click',async()=>{await loadBuybookConnection();await loadBuybookActivity();});
 document.getElementById('marketplaceSellerMessageForm')?.addEventListener('submit',async event=>{
  event.preventDefault();
@@ -1236,7 +1230,7 @@ document.querySelectorAll('[data-edit-product-category]').forEach(x=>x.addEventL
 
 const VALID_PAGES=new Set(['home','products','sales','more','expenses','reports','stock','settings','settings-business','settings-sync','settings-preferences','settings-account','settings-buybook','support','feedback','admin','me','notifications']);
 function currentPage(){return [...document.querySelectorAll('.page')].find(x=>!x.classList.contains('hidden'))?.id||'home';}
-function paintPage(name,scroll){if(!VALID_PAGES.has(name))name='home';document.querySelectorAll('.page').forEach(x=>x.classList.toggle('hidden',x.id!==name));document.querySelectorAll('nav button').forEach(x=>x.classList.toggle('active',x.dataset.page===name||(x.dataset.page==='me'&&['me','more','reports','stock','settings','settings-business','settings-sync','settings-preferences','settings-account','settings-buybook'].includes(name))));sessionStorage.setItem('my-sales-book-current-page',name);render();const fab=document.getElementById('quickSaleFab');const fabPages={home:{label:'Record a sale',title:'Record a sale'},sales:{label:'Record a sale',title:'Record a sale'},products:{label:'Add a product',title:'Add a product'},expenses:{label:'Add an expense',title:'Add an expense'}};const fabAction=fabPages[name];if(fab){fab.style.display='none';fab.hidden=true;fab.setAttribute('aria-hidden','true');if(fabAction&&!sellbookIsAdmin){fab.hidden=false;fab.style.display='flex';fab.setAttribute('aria-hidden','false');fab.setAttribute('aria-label',fabAction.label);fab.title=fabAction.title;fab.dataset.action=name;}}if(name==='support'&&cloudUser){localStorage.setItem('sellbook-messages-seen-'+cloudUser.id,new Date().toISOString());loadUserSupport();}if(name==='feedback'&&cloudUser){loadUserSupport();}if(name==='notifications'&&cloudUser){localStorage.setItem('sellbook-notifications-seen-'+cloudUser.id,new Date().toISOString());updateUnreadBadges();}if(name==='settings-buybook'&&cloudUser){loadBuybookConnection();loadBuybookActivity();}if(name==='me')updateMePanel();if(scroll)window.scrollTo({top:0,behavior:'auto'});}
+function paintPage(name,scroll){if(!VALID_PAGES.has(name))name='home';document.querySelectorAll('.page').forEach(x=>x.classList.toggle('hidden',x.id!==name));document.querySelectorAll('nav button').forEach(x=>x.classList.toggle('active',x.dataset.page===name||(x.dataset.page==='me'&&['me','more','reports','stock','settings','settings-business','settings-sync','settings-preferences','settings-account','settings-buybook'].includes(name))));sessionStorage.setItem('my-sales-book-current-page',name);render();const fab=document.getElementById('quickSaleFab');const fabPages={home:{label:'Record a sale',title:'Record a sale'},sales:{label:'Record a sale',title:'Record a sale'},products:{label:'Add a product',title:'Add a product'},expenses:{label:'Add an expense',title:'Add an expense'}};const fabAction=fabPages[name];if(fab){fab.style.display='none';fab.hidden=true;fab.setAttribute('aria-hidden','true');if(fabAction&&!sellbookIsAdmin){fab.hidden=false;fab.style.display='flex';fab.setAttribute('aria-hidden','false');fab.setAttribute('aria-label',fabAction.label);fab.title=fabAction.title;fab.dataset.action=name;}}if(name==='support'&&cloudUser){loadUserSupport();}if(name==='feedback'&&cloudUser){loadUserSupport();}if(name==='notifications'&&cloudUser){localStorage.setItem('sellbook-notifications-seen-'+cloudUser.id,new Date().toISOString());updateUnreadBadges();}if(name==='settings-buybook'&&cloudUser){loadBuybookConnection();loadBuybookActivity();}if(name==='me')updateMePanel();if(scroll)window.scrollTo({top:0,behavior:'auto'});}
 function showPage(name,options={}){if(!VALID_PAGES.has(name))return;const previous=currentPage();document.body.classList.toggle('user-support-open',name==='support'&&!sellbookIsAdmin);if(!options.fromHistory&&previous!==name)history.pushState({mySalesBookPage:name},'', '#'+name);paintPage(name,options.scroll!==false);}
 function restorePageFromLocation(){const hash=location.hash.slice(1),saved=sessionStorage.getItem('my-sales-book-current-page'),name=VALID_PAGES.has(hash)?hash:(VALID_PAGES.has(saved)?saved:'home');document.body.classList.toggle('user-support-open',name==='support'&&!sellbookIsAdmin);paintPage(name,false);}
 // Keep Android/browser Back inside the app. Page changes have their own
@@ -2271,13 +2265,31 @@ async function loadUserNotifications(){
 }
 async function loadUserSupport(){
  if(!cloudUser)return;
- const feedback=document.getElementById('userFeedbackList'),messages=document.getElementById('userSupportMessages');
- const [fr,mr]=await Promise.all([
+ const feedback=document.getElementById('userFeedbackList'),messages=document.getElementById('userSupportMessages'),selector=document.getElementById('messageConversationSelect');
+ const [fr,mr,sr]=await Promise.all([
   supabaseClient.from('user_feedback').select('id,category,subject,message,status,admin_reply,created_at').eq('user_id',cloudUser.id).order('created_at',{ascending:false}).limit(50),
-  supabaseClient.from('support_messages').select('id,sender_id,recipient_id,body,created_at,delivered_at,read_at').or('sender_id.eq.'+cloudUser.id+',recipient_id.eq.'+cloudUser.id).order('created_at',{ascending:true}).limit(100)
+  supabaseClient.from('support_messages').select('id,sender_id,recipient_id,body,created_at,delivered_at,read_at').or('sender_id.eq.'+cloudUser.id+',recipient_id.eq.'+cloudUser.id).order('created_at',{ascending:true}).limit(100),
+  supabaseClient.rpc('get_my_marketplace_subscribers')
  ]);
  if(feedback)feedback.innerHTML=fr.error?'Could not load feedback: '+escAdmin(fr.error.message):(fr.data||[]).length?fr.data.map(f=>'<div class="item"><div class="row"><strong>'+escAdmin(f.subject)+'</strong><span class="status-pill">'+escAdmin(f.status)+'</span></div><div class="muted">'+escAdmin(f.category)+' · '+escAdmin(new Date(f.created_at).toLocaleString())+'</div><p>'+escAdmin(f.message)+'</p>'+(f.admin_reply?'<p><strong>Sellbook reply:</strong> '+escAdmin(f.admin_reply)+'</p>':'')+'</div>').join(''):'<div class="empty">You have not sent feedback yet.</div>';
- if(messages){let rows=mr.data||[];const isViewingChat=currentPage()==='support';const incoming=isViewingChat?rows.filter(m=>m.sender_id!==cloudUser.id&&m.recipient_id===cloudUser.id&&!m.read_at).map(m=>m.id):[];if(incoming.length){const now=new Date().toISOString();const {data:updated,error:readError}=await supabaseClient.from('support_messages').update({delivered_at:now,read_at:now}).in('id',incoming).select('id');if(readError){console.warn('Could not mark support messages read:',readError.message);}else{const fresh=await supabaseClient.from('support_messages').select('id,sender_id,recipient_id,body,created_at,delivered_at,read_at').or('sender_id.eq.'+cloudUser.id+',recipient_id.eq.'+cloudUser.id).order('created_at',{ascending:true}).limit(100);if(!fresh.error)rows=fresh.data||rows;}}messages.innerHTML=mr.error?'Could not load messages: '+escAdmin(mr.error.message):rows.length?rows.map(m=>{const mine=m.sender_id===cloudUser.id;const receipt=mine?(m.read_at?'Opened':m.delivered_at?'Delivered':'Sent'):'';return '<div class="chat-message '+(mine?'from-user':'from-support')+'"><strong>'+(mine?'You':'Sellbook Support')+'</strong><p>'+escAdmin(m.body)+'</p><time class="chat-time">'+escAdmin(new Date(m.created_at).toLocaleString([], {dateStyle:'medium',timeStyle:'short'}))+(receipt?' · '+receipt:'')+'</time></div>';}).join(''):'<div class="empty">No messages yet. Send a message below to start chatting with Sellbook support.</div>';if(!mr.error)messages.scrollTop=messages.scrollHeight;}
+ if(!sr.error)marketplaceSubscribersCache=sr.data||[];
+ if(selector){const old=selector.value||'support';selector.innerHTML='<option value="support">Sellbook Support</option>'+marketplaceSubscribersCache.map(x=>'<option value="'+escAdmin(x.buyer_id)+'">'+escAdmin(x.display_name||marketplaceBuyerName(x.buyer_id))+' · Buybook</option>').join('');selector.value=old==='support'||marketplaceSubscribersCache.some(x=>x.buyer_id===old)?old:'support';}
+ const chosen=selector?selector.value:'support';
+ const title=document.getElementById('supportConversationTitle'),status=document.getElementById('supportChatStatus');
+ if(title)title.textContent=chosen==='support'?'Sellbook Support':marketplaceBuyerName(chosen);
+ if(status)status.textContent=chosen==='support'?'Support conversation':'Buybook subscriber conversation';
+ if(messages&&chosen==='support'){
+  let rows=mr.data||[];
+  const incoming=currentPage()==='support'?rows.filter(m=>m.sender_id!==cloudUser.id&&m.recipient_id===cloudUser.id&&!m.read_at).map(m=>m.id):[];
+  if(incoming.length){const stamp=new Date().toISOString();const {error}=await supabaseClient.from('support_messages').update({delivered_at:stamp,read_at:stamp}).in('id',incoming).select('id');if(!error){const fresh=await supabaseClient.from('support_messages').select('id,sender_id,recipient_id,body,created_at,delivered_at,read_at').or('sender_id.eq.'+cloudUser.id+',recipient_id.eq.'+cloudUser.id).order('created_at',{ascending:true}).limit(100);if(!fresh.error)rows=fresh.data||rows;}}
+  messages.innerHTML=mr.error?'Could not load messages: '+escAdmin(mr.error.message):rows.length?rows.map(m=>{const mine=m.sender_id===cloudUser.id,receipt=mine?(m.read_at?'Opened':m.delivered_at?'Delivered':'Sent'):'';return '<div class="chat-message '+(mine?'from-user':'from-support')+'"><strong>'+(mine?'You':'Sellbook Support')+'</strong><p>'+escAdmin(m.body)+'</p><time class="chat-time">'+escAdmin(new Date(m.created_at).toLocaleString([], {dateStyle:'medium',timeStyle:'short'}))+(receipt?' · '+receipt:'')+'</time></div>';}).join(''):'<div class="empty">No support messages yet. Send a message below to start chatting.</div>';
+ }else if(messages){
+  const {data,error}=await supabaseClient.from('marketplace_messages').select('id,owner_id,buyer_id,sender_id,body,created_at,read_at').eq('owner_id',cloudUser.id).eq('buyer_id',chosen).order('created_at',{ascending:true}).limit(200);
+  let rows=data||[];const incoming=rows.filter(m=>m.sender_id===chosen&&!m.read_at).map(m=>m.id);
+  if(incoming.length){const stamp=new Date().toISOString();const {error:readError}=await supabaseClient.from('marketplace_messages').update({read_at:stamp}).in('id',incoming).eq('owner_id',cloudUser.id);if(!readError)rows=rows.map(m=>incoming.includes(m.id)?{...m,read_at:stamp}:m);}
+  messages.innerHTML=error?'<div class="empty">Could not load Buybook messages: '+escAdmin(error.message)+'</div>':rows.length?rows.map(m=>{const mine=m.sender_id===cloudUser.id;return '<div class="chat-message '+(mine?'from-user':'from-support')+'"><strong>'+escAdmin(mine?'You':marketplaceBuyerName(chosen))+'</strong><p>'+escAdmin(m.body)+'</p><time class="chat-time">'+escAdmin(new Date(m.created_at).toLocaleString([], {dateStyle:'medium',timeStyle:'short'}))+(mine&&m.read_at?' · Read':'')+'</time></div>';}).join(''):'<div class="empty">No messages from this subscriber yet. You can start the conversation below.</div>';
+ }
+ if(messages)messages.scrollTop=messages.scrollHeight;
  await loadUserNotifications();await updateUnreadBadges();
 }
 document.getElementById('userFeedbackForm').addEventListener('submit',async e=>{
@@ -2288,13 +2300,15 @@ document.getElementById('userFeedbackForm').addEventListener('submit',async e=>{
 });
 document.getElementById('supportMessageForm').addEventListener('submit',async e=>{
  e.preventDefault();if(!cloudUser)return document.getElementById('supportMessageStatus').textContent='Please sign in first.';
- const form=e.target,body=document.getElementById('supportMessageBody'),status=document.getElementById('supportMessageStatus'),button=form.querySelector('button[type="submit"]'),message=body.value.trim();if(!message)return;
- button.disabled=true;status.textContent='Sending…';
- const {error}=await supabaseClient.from('support_messages').insert({sender_id:cloudUser.id,recipient_id:null,body:message});
- button.disabled=false;
- if(error){status.textContent='Could not send message: '+error.message;return;}form.reset();body.style.height='auto';status.textContent='';await loadUserSupport();
+ const form=e.target,body=document.getElementById('supportMessageBody'),status=document.getElementById('supportMessageStatus'),button=form.querySelector('button[type="submit"]'),message=body.value.trim(),chosen=document.getElementById('messageConversationSelect')?.value||'support';if(!message)return;
+ button.disabled=true;status.textContent='Sending…';let error;
+ if(chosen==='support'){({error}=await supabaseClient.from('support_messages').insert({sender_id:cloudUser.id,recipient_id:null,body:message}));}
+ else{({error}=await supabaseClient.from('marketplace_messages').insert({owner_id:cloudUser.id,buyer_id:chosen,sender_id:cloudUser.id,body:message}));}
+ button.disabled=false;if(error){status.textContent='Could not send message: '+error.message;return;}
+ form.reset();body.style.height='auto';status.textContent='';await loadUserSupport();
 });
 document.getElementById('refreshSupportChat').addEventListener('click',loadUserSupport);
+document.getElementById('messageConversationSelect')?.addEventListener('change',()=>{marketplaceSelectedBuyerId=document.getElementById('messageConversationSelect').value==='support'?null:document.getElementById('messageConversationSelect').value;loadUserSupport();});
 document.getElementById('openFeedbackPage').addEventListener('click',()=>showPage('feedback'));
 document.querySelectorAll('[data-open-page="support"]').forEach(b=>b.addEventListener('click',async()=>{if(sellbookIsAdmin){showPage('admin');showAdminPanel('support');await loadAdminUsers();}else{showPage('support');loadUserSupport();}}));
 const chatInput=document.getElementById('supportMessageBody');chatInput.addEventListener('input',()=>{chatInput.style.height='auto';chatInput.style.height=Math.min(chatInput.scrollHeight,140)+'px';});
