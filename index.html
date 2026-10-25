@@ -1427,6 +1427,7 @@ function setProductSellingType(type){
 document.getElementById('productTypeUnit').addEventListener('click',()=>setProductSellingType('unit'));
 document.getElementById('productTypePack').addEventListener('click',()=>setProductSellingType('pack'));
 document.getElementById('productForm').addEventListener('reset',()=>setProductSellingType('unit'));
+document.getElementById('productForm').addEventListener('reset',()=>setTimeout(()=>syncCategoryPicker('product',''),0));
 document.getElementById('productForm').addEventListener('reset',()=>{selectedMarkup=defaultMarkup;document.querySelectorAll('[data-markup]').forEach(x=>{const yes=Number(x.dataset.markup)===defaultMarkup;x.classList.toggle('selected',yes);x.setAttribute('aria-pressed',String(yes));});document.getElementById('priceSuggestion').textContent='Enter a cost price to calculate a suggested price.';});
 document.getElementById('productForm').addEventListener('submit',async e=>{
  e.preventDefault();
@@ -1437,6 +1438,7 @@ document.getElementById('productForm').addEventListener('submit',async e=>{
  if(!name||!Number.isFinite(enteredCost)||enteredCost<0||!Number.isFinite(cost)||cost<0||!Number.isFinite(price)||price<=0||!Number.isSafeInteger(enteredStock)||enteredStock<0||!Number.isSafeInteger(stock)||stock<0)return alert('Check the product details and stock quantity.');
  if(db.products.some(p=>p.name.toLowerCase()===name.toLowerCase()))return alert('A product with this name already exists.');
  const category=normalizeCategory(getSelectedCategories('product').join(' | '));
+ if(!getSelectedCategories('product').length)return alert('Choose at least one product category. You can select up to three.');
  const baseUnit=((productSellingType==='pack'?document.getElementById('pbaseunitPack').value:document.getElementById('pbaseunit').value).trim()||'unit');
  const packUnit=productSellingType==='pack'?document.getElementById('ppackunit').value.trim():'';
  const unitsPerPack=productSellingType==='pack'?Number(document.getElementById('punitsperpack').value):1;
@@ -1575,6 +1577,7 @@ document.getElementById('editProductForm').addEventListener('submit',async event
   if(!product)return alert('This product could not be found. Close the form and try again.');
   const name=document.getElementById('editProductName').value.trim();
   const category=normalizeCategory(getSelectedCategories('editProduct').join(' | '));
+  if(!getSelectedCategories('editProduct').length)return alert('Choose at least one product category. You can select up to three.');
   const cost=Number(document.getElementById('editProductCost').value);
   const price=Number(document.getElementById('editProductPrice').value);
   const stock=Number(document.getElementById('editProductStock').value);
