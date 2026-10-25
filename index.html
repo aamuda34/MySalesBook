@@ -196,7 +196,7 @@ body.admin-conversation-open #backAdminChatList{font-size:15px}
 <div id="appWorkspace" class="hidden">
 <nav aria-label="Main navigation">
 <button class="active" data-page="home"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1z"/></svg></span><span>Home</span></button>
-<button data-page="messages" aria-label="Subscriber messages" title="Subscriber messages"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M21 11.5a8.4 8.4 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.4 8.4 0 0 1-3.8-.9L3 21l1.9-5.7a8.4 8.4 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.4 8.4 0 0 1 3.8-.9h.5a8.5 8.5 0 0 1 8 8z"/></svg></span><span>Messages</span></button>
+<button data-page="messenger" aria-label="Messenger" title="Messenger"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M21 11.5a8.4 8.4 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.4 8.4 0 0 1-3.8-.9L3 21l1.9-5.7a8.4 8.4 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.4 8.4 0 0 1 3.8-.9h.5a8.5 8.5 0 0 1 8 8z"/></svg></span><span>Messages</span></button>
 <button data-page="me"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg></span><span>Me</span></button>
 </nav>
 <button type="button" id="quickSaleFab" class="quick-sale-fab" aria-label="Record a sale" title="Record a sale">+</button>
@@ -309,6 +309,15 @@ body.admin-conversation-open #backAdminChatList{font-size:15px}
 <button type="button" class="menu-tile" data-open-page="stock"><span class="tile-icon">▤</span><strong>Stock management</strong><span>Adjust quantities and review changes</span></button>
 </div>
 </section>
+
+<section id="messenger" class="page hidden">
+<div class="section-heading"><div><h2 class="page-title">Messenger</h2><p class="page-intro">Your conversations with Buybook subscribers and Sellbook Support.</p></div><button type="button" id="refreshMessenger" aria-label="Refresh messages" title="Refresh messages">↻</button></div>
+<div class="card"><div class="section-heading"><h2>Conversations</h2><span class="muted">Messages</span></div><div id="messengerConversationList" class="conversation-list"><div class="empty">Sign in to load your conversations.</div></div></div>
+<div class="chat-card card" id="messengerChatCard" style="margin-top:12px">
+<div class="chat-topline"><div class="chat-support-avatar" aria-hidden="true">💬</div><div style="flex:1;min-width:0"><strong id="messengerChatTitle">Choose a conversation</strong><div class="muted" id="messengerChatSubtitle">Select a conversation above to view messages.</div></div></div>
+<div id="messengerTranscript" class="chat-transcript" role="log" aria-live="polite" aria-label="Messenger conversation"><div class="empty">Choose a conversation to see its messages.</div></div>
+<form id="messengerComposer" class="chat-composer"><label class="hidden" for="messengerBody">Write a message</label><textarea id="messengerBody" required maxlength="4000" rows="1" placeholder="Write a message…" aria-label="Write a message" disabled></textarea><button class="primary chat-send-button" type="submit" aria-label="Send message" title="Send message" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M22 2 15 22l-4-9-9-4 20-7ZM22 2 11 13"/></svg></button></form><p id="messengerStatus" class="muted chat-status" aria-live="polite"></p>
+</div></section>
 
 <section id="support" class="page hidden">
 <div class="section-heading support-page-heading"><button type="button" id="backSupportPage" class="support-back-button" aria-label="Go back" title="Go back" onclick="backFromMessageConversation()"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg></button><div><h2 class="page-title">Conversations</h2><p class="page-intro">Message Sellbook Support or reply to your Buybook subscribers.</p></div><button type="button" id="refreshSupportChat" aria-label="Refresh chat" title="Refresh chat">↻</button></div>
@@ -1246,7 +1255,7 @@ function updateCategoryPickerLimits(prefix){const edit=prefix==='editProduct';co
 document.querySelectorAll('[data-product-category]').forEach(x=>x.addEventListener('change',()=>updateCategoryPickerLimits('product')));
 document.querySelectorAll('[data-edit-product-category]').forEach(x=>x.addEventListener('change',()=>updateCategoryPickerLimits('editProduct')));
 
-const VALID_PAGES=new Set(['home','products','sales','more','expenses','reports','stock','settings','settings-business','settings-sync','settings-preferences','settings-account','settings-buybook','support','feedback','admin','me','notifications']);
+const VALID_PAGES=new Set(['home','products','sales','more','expenses','reports','stock','settings','settings-business','settings-sync','settings-preferences','settings-account','settings-buybook','support','messenger','feedback','admin','me','notifications']);
 function currentPage(){return [...document.querySelectorAll('.page')].find(x=>!x.classList.contains('hidden'))?.id||'home';}
 async function renderDailySalesSummary(){const target=document.getElementById('dailySalesSummary');if(!target)return;const rows=new Map();const now=new Date();for(let i=0;i<7;i++){const d=new Date(now.getFullYear(),now.getMonth(),now.getDate()-i);const key=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');rows.set(key,{label:i===0?'Today':i===1?'Yesterday':d.toLocaleDateString(undefined,{weekday:'short',day:'numeric',month:'short'}),total:0,count:0});}for(const sale of (db.sales||[])){const raw=sale.sold_at||sale.created_at;if(!raw)continue;const d=new Date(raw);if(Number.isNaN(d.getTime()))continue;const key=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');const row=rows.get(key);if(row){row.total+=Number(sale.total)||0;row.count++;}}target.innerHTML=[...rows.values()].map(r=>'<div class="daily-sales-row"><span>'+escAdmin(r.label)+' · '+r.count+' sale'+(r.count===1?'':'s')+'</span><strong>'+escAdmin(new Intl.NumberFormat('en-NG',{style:'currency',currency:'NGN',maximumFractionDigits:2}).format(r.total))+'</strong></div>').join('');}
 function refreshHomeWeeklySales(){const el=document.getElementById('weeklySalesHome');if(!el)return;const now=new Date();const start=new Date(now.getFullYear(),now.getMonth(),now.getDate()-6);let total=0;for(const sale of (db.sales||[])){const raw=sale.sold_at||sale.created_at;if(!raw)continue;const d=new Date(raw);if(!Number.isNaN(d.getTime())&&d>=start&&d<=now)total+=Number(sale.total)||0;}el.textContent=money(total);}
@@ -1271,7 +1280,7 @@ function restorePageFromLocation(){const hash=location.hash.slice(1),saved=sessi
     }
   });
 })();
-document.querySelectorAll('nav button').forEach(b=>b.addEventListener('click',()=>{if(b.dataset.page==='messages'){showPage('support');if(cloudUser)loadUserSupport();return;}showPage(b.dataset.page);}));
+document.querySelectorAll('nav button').forEach(b=>b.addEventListener('click',()=>{showPage(b.dataset.page);if(b.dataset.page==='messenger')loadMessengerConversations();}));
 document.querySelectorAll('[data-open-page]').forEach(b=>b.addEventListener('click',()=>{if(b.dataset.openPage==='admin'&&!sellbookIsAdmin)return cloudMessage('Administrator access is required.');showPage(b.dataset.openPage);if(b.dataset.openPage==='admin')loadAdminDashboard();if(b.dataset.openPage==='support'){messageListOpen=true;document.getElementById('conversationListView')?.classList.remove('hidden');document.getElementById('supportConversationView')?.classList.add('hidden');loadConversationList();}if(b.dataset.openPage==='notifications')loadUserNotifications();}));
 document.querySelectorAll('[data-open-support-direct]').forEach(b=>b.addEventListener('click',async()=>{showPage('support');messageListOpen=false;document.getElementById('conversationListView')?.classList.add('hidden');document.getElementById('supportConversationView')?.classList.remove('hidden');const selector=document.getElementById('messageConversationSelect');if(selector)selector.value='support';await loadUserSupport();}));
 function openEntryForm(type){const ids={sale:'saleFormCard',product:'productFormCard',expense:'expenseFormCard'};const fieldIds={sale:'saleProduct',product:'pname',expense:'ename'};const card=document.getElementById(ids[type]);if(!card)return;if(type==='product'&&typeof syncDefaultMarkupUI==='function')syncDefaultMarkupUI();document.querySelectorAll('.entry-form-overlay').forEach(x=>x.classList.remove('entry-form-overlay'));document.body.classList.add('entry-form-open');card.classList.remove('hidden');card.classList.add('entry-form-overlay');setTimeout(()=>document.getElementById(fieldIds[type])?.focus({preventScroll:true}),80);}function closeEntryForm(type){const ids={sale:'saleFormCard',product:'productFormCard',expense:'expenseFormCard'};const card=document.getElementById(ids[type]);if(card){card.classList.remove('entry-form-overlay');card.classList.add('hidden');}document.body.classList.remove('entry-form-open');}document.querySelectorAll('[data-close-entry]').forEach(b=>b.addEventListener('click',()=>closeEntryForm(b.dataset.closeEntry)));document.getElementById('quickSaleFab').addEventListener('click',()=>{const page=currentPage();if(page==='products'){openEntryForm('product');return;}if(page==='expenses'){openEntryForm('expense');return;}if(page==='home'||page==='sales'){if(page!=='sales')showPage('sales');openEntryForm('sale');}});
@@ -2361,6 +2370,53 @@ document.getElementById('supportMessageForm').addEventListener('submit',async e=
  button.disabled=false;if(error){status.textContent='Could not send message: '+error.message;return;}
  form.reset();body.style.height='auto';status.textContent='';await loadUserSupport();
 });
+
+let messengerSelectedConversation=null;
+async function loadMessengerConversations(){
+ const list=document.getElementById('messengerConversationList');if(!list)return;
+ if(!cloudUser||!supabaseClient){list.innerHTML='<div class="empty">Please sign in to use Messenger.</div>';return;}
+ list.innerHTML='<div class="empty">Loading conversations…</div>';
+ try{
+  const uid=cloudUser.id;
+  const [supportRes,marketRes,subsRes]=await Promise.all([
+   supabaseClient.from('support_messages').select('id,sender_id,recipient_id,body,created_at,read_at').or('sender_id.eq.'+uid+',recipient_id.eq.'+uid).order('created_at',{ascending:false}).limit(100),
+   supabaseClient.from('marketplace_messages').select('id,owner_id,buyer_id,sender_id,body,created_at,read_at').eq('owner_id',uid).order('created_at',{ascending:false}).limit(200),
+   supabaseClient.from('marketplace_subscribers').select('buyer_id,display_name').eq('owner_id',uid)
+  ]);
+  const conversations=[];
+  if(!supportRes.error&&(supportRes.data||[]).length){const m=supportRes.data[0];conversations.push({id:'support',title:'Sellbook Support',body:m.body,time:m.created_at,unread:supportRes.data.filter(x=>x.sender_id!==uid&&x.recipient_id===uid&&!x.read_at).length});}
+  const subs=subsRes.data||[],msgs=marketRes.data||[],ids=[...new Set([...subs.map(x=>x.buyer_id),...msgs.map(x=>x.buyer_id)])];
+  for(const id of ids){const m=msgs.find(x=>x.buyer_id===id);if(!m)continue;const sub=subs.find(x=>x.buyer_id===id);conversations.push({id,title:sub?.display_name||marketplaceBuyerName(id),body:m.body,time:m.created_at,unread:msgs.filter(x=>x.buyer_id===id&&x.sender_id!==uid&&!x.read_at).length});}
+  if(supportRes.error&&marketRes.error)throw supportRes.error;
+  list.innerHTML=conversations.length?conversations.map(c=>'<button type="button" class="conversation-list-button" data-messenger-id="'+escAdmin(c.id)+'"><span class="chat-support-avatar" aria-hidden="true">'+(c.id==='support'?'SB':'👤')+'</span><span class="conversation-preview"><strong>'+escAdmin(c.title)+'</strong><small>'+escAdmin(c.body||'No messages yet')+'</small></span><span class="conversation-time">'+escAdmin(new Date(c.time).toLocaleDateString())+(c.unread?'<span class="status-pill">'+c.unread+'</span>':'')+'</span></button>').join(''):'<div class="empty">No conversations yet. Buybook subscriber conversations and Sellbook Support replies will appear here.</div>';
+  list.querySelectorAll('[data-messenger-id]').forEach(b=>b.addEventListener('click',()=>openMessengerConversation(b.dataset.messengerId)));
+ }catch(err){list.innerHTML='<div class="empty">Could not load conversations: '+escAdmin(err.message||'Please try again.')+'</div>';}
+}
+async function openMessengerConversation(id){
+ messengerSelectedConversation=id;const input=document.getElementById('messengerBody'),send=document.querySelector('#messengerComposer button[type="submit"]');
+ input.disabled=false;send.disabled=false;
+ document.getElementById('messengerChatTitle').textContent=id==='support'?'Sellbook Support':marketplaceBuyerName(id);
+ document.getElementById('messengerChatSubtitle').textContent=id==='support'?'Message the Sellbook support team':'Buybook subscriber conversation';
+ const target=document.getElementById('messengerTranscript');target.innerHTML='<div class="empty">Loading messages…</div>';
+ try{
+  const uid=cloudUser.id;let rows=[],error=null;
+  if(id==='support'){const r=await supabaseClient.from('support_messages').select('id,sender_id,recipient_id,body,created_at,delivered_at,read_at').or('sender_id.eq.'+uid+',recipient_id.eq.'+uid).order('created_at',{ascending:true}).limit(200);rows=r.data||[];error=r.error;}
+  else{const r=await supabaseClient.from('marketplace_messages').select('id,owner_id,buyer_id,sender_id,body,created_at,read_at').eq('owner_id',uid).eq('buyer_id',id).order('created_at',{ascending:true}).limit(200);rows=r.data||[];error=r.error;}
+  if(error)throw error;
+  target.innerHTML=rows.length?rows.map(m=>'<div class="chat-message '+(m.sender_id===uid?'from-user':'from-support')+'"><strong>'+(m.sender_id===uid?'You':(id==='support'?'Sellbook Support':escAdmin(marketplaceBuyerName(id))))+'</strong><p>'+escAdmin(m.body)+'</p><time class="chat-time">'+escAdmin(new Date(m.created_at).toLocaleString([], {dateStyle:'medium',timeStyle:'short'}))+'</time></div>').join(''):'<div class="empty">No messages in this conversation yet.</div>';
+  target.scrollTop=target.scrollHeight;
+ }catch(err){target.innerHTML='<div class="empty">Could not load messages: '+escAdmin(err.message||'Please try again.')+'</div>';}
+}
+document.getElementById('refreshMessenger')?.addEventListener('click',loadMessengerConversations);
+document.getElementById('messengerComposer')?.addEventListener('submit',async e=>{
+ e.preventDefault();if(!cloudUser||!messengerSelectedConversation)return;
+ const input=document.getElementById('messengerBody'),status=document.getElementById('messengerStatus'),button=e.currentTarget.querySelector('button[type="submit"]'),body=input.value.trim();if(!body)return;
+ button.disabled=true;status.textContent='Sending…';
+ try{let result;if(messengerSelectedConversation==='support')result=await supabaseClient.from('support_messages').insert({sender_id:cloudUser.id,recipient_id:null,body});else result=await supabaseClient.from('marketplace_messages').insert({owner_id:cloudUser.id,buyer_id:messengerSelectedConversation,sender_id:cloudUser.id,body});if(result.error)throw result.error;input.value='';status.textContent='';await openMessengerConversation(messengerSelectedConversation);await loadMessengerConversations();}
+ catch(err){status.textContent='Message not sent: '+(err.message||'Please try again.');}
+ finally{button.disabled=false;}
+});
+
 document.getElementById('refreshSupportChat').addEventListener('click',()=>messageListOpen?loadConversationList():loadUserSupport());document.getElementById('refreshConversationList')?.addEventListener('click',loadConversationList);
 document.getElementById('messageConversationSelect')?.addEventListener('change',()=>{marketplaceSelectedBuyerId=document.getElementById('messageConversationSelect').value==='support'?null:document.getElementById('messageConversationSelect').value;loadUserSupport();});
 document.getElementById('openFeedbackPage').addEventListener('click',()=>showPage('feedback'));
