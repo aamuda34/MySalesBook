@@ -202,15 +202,16 @@ body.admin-conversation-open #backAdminChatList{font-size:15px}
 <div class="section-heading" style="display:none!important"><div><h2 class="page-title">Home</h2><p class="page-intro" id="dashboardGreeting">Your business at a glance</p></div><span class="status-pill" id="homeSyncPill">Ready</span></div>
 <div class="home-sales-board"><div class="home-sales-board-top"><div><div class="home-sales-label"><span aria-hidden="true">✓</span> Sales <button type="button" class="sales-visibility-toggle" id="salesVisibilityToggle" onclick="toggleSalesVisibility()" aria-label="Hide sales amount" title="Hide sales amount"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12Z"></path><circle cx="12" cy="12" r="3"></circle></svg></button></div><div class="home-sales-amount" id="todaySales">₦0</div></div><button type="button" class="home-add-sales" id="homeAddSalesButton" onclick="document.getElementById('quickSaleFab').click()">＋ Add Sales</button></div><div class="home-sales-board-bottom"><div class="home-board-metric"><div class="home-sales-subs-label">Profits</div><div class="home-sales-subs-value" id="todayNet">₦0</div></div><div class="home-board-metric home-board-metric-right"><div class="home-sales-subs-label">Subscribers</div><div class="home-sales-subs-value" id="subscriberCountHome">0</div></div></div><div class="home-products-count"><div class="home-products-count-label"><span id="productCountHome">0</span> Products</div><strong id="productSellingValueHome">₦0</strong></div></div>
 
-<div class="card"><h2>Today’s business summary</h2><div class="stats"><div class="stat"><small>Expenses</small><strong id="todayExpenses">₦0</strong></div><div class="stat"><small>Gross profit</small><strong id="todayGross">₦0</strong></div><div class="stat"><small>Net profit</small><strong id="todayNet">₦0</strong></div><div class="stat"><small>Total sales</small><strong id="allSales">₦0</strong></div></div></div>
-<div class="quick-actions" aria-label="Quick actions"><button type="button" data-open-page="sales"><strong>Record sale</strong><span>Record a paid sale</span></button><button type="button" data-open-page="products"><strong>Add product</strong><span>Manage your products</span></button><button type="button" data-open-page="expenses"><strong>Add expense</strong><span>Record business costs</span></button></div>
-<div class="dashboard-grid" style="margin-top:14px"><div class="card"><h2>Business totals</h2><div class="stats"><div class="stat"><small>Net profit</small><strong id="allNet">₦0</strong></div><div class="stat"><small>Products</small><strong id="productCount">0</strong></div><div class="stat"><small>Units in stock</small><strong id="stockCount">0</strong></div></div></div>
-<div class="card"><div class="section-heading"><h2>Low stock</h2><button type="button" data-open-page="stock">Manage</button></div><div id="lowStockPreview" class="muted">No low-stock products.</div></div></div>
 
-<div class="card"><h2>Recent sales</h2><div id="recentSales" class="empty">No sales recorded yet.</div></div>
+<div class="quick-actions" aria-label="Quick actions"><button type="button" data-open-page="sales"><strong>Record sale</strong><span>Record a paid sale</span></button><button type="button" data-open-page="products"><strong>Add product</strong><span>Manage your products</span></button><button type="button" data-open-page="expenses"><strong>Add expense</strong><span>Record business costs</span></button></div>
+
+
+
 </section>
 
 <section id="products" class="page hidden">
+<div class="dashboard-grid" style="margin-top:14px"><div class="card"><h2>Business totals</h2><div class="stats"><div class="stat"><small>Net profit</small><strong id="allNet">₦0</strong></div><div class="stat"><small>Products</small><strong id="productCount">0</strong></div><div class="stat"><small>Units in stock</small><strong id="stockCount">0</strong></div></div></div>
+<div class="card"><div class="section-heading"><h2>Low stock</h2><button type="button" data-open-page="stock">Manage</button></div><div id="lowStockPreview" class="muted">No low-stock products.</div></div></div>
 <div class="card hidden" id="productFormCard">
 <div class="section-heading"><h2>Add a product</h2><button type="button" data-close-entry="product" aria-label="Close product form">Close</button></div>
 <form id="productForm">
@@ -264,6 +265,8 @@ body.admin-conversation-open #backAdminChatList{font-size:15px}
 </section>
 
 <section id="sales" class="page hidden">
+<div class="card"><h2>Today’s business summary</h2><div class="stats"><div class="stat"><small>Expenses</small><strong id="todayExpenses">₦0</strong></div><div class="stat"><small>Gross profit</small><strong id="todayGross">₦0</strong></div><div class="stat"><small>Net profit</small><strong id="todayNet">₦0</strong></div><div class="stat"><small>Total sales</small><strong id="allSales">₦0</strong></div></div></div>
+<div class="card"><h2>Recent sales</h2><div id="recentSales" class="empty">No sales recorded yet.</div></div>
 <div class="card"><div class="section-heading"><h2>Sales this week</h2><strong id="weeklySalesHome">₦0</strong></div><p class="muted">Total sales for the last 7 days.</p></div>
 <div class="card"><div class="section-heading"><h2>Daily sales</h2><button type="button" data-open-page="sales">View sales</button></div><div id="dailySalesSummary" class="daily-sales-summary"><div class="empty">Daily sales will appear here.</div></div></div>
 <div class="card hidden" id="saleFormCard">
