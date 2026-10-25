@@ -1027,15 +1027,17 @@ async function resolveQueuedProductConflict(queueItem,choice) {
   if(!cloudUser||!navigator.onLine) throw Error('Connect to the internet before resolving this conflict.');
   const queue=readQueue(cloudUser.id), index=queue.findIndex(x=>x.id===queueItem);
   if(index<0) throw Error('This queued change is no longer available.');
-  const item=queue[index], p=item.payload||{}, product=p.product;
-  if(item.type!=='product_save'||!product) throw Error('This conflict needs a different recovery method. Your records are unchanged.');
+  const item=queue[index], p=item.payload||{}, queuedProduct=p.product;
+  if(item.type!=='product_save'||!queuedProduct) throw Error('This conflict needs a different recovery method. Your records are unchanged.');
+  const resolvedId=queuedProduct.id;
   if(choice==='cloud') {
     // Snapshot local products before refreshing cloud data. Keep every other unsynchronised
     // product on this device; resolving one conflict must never erase unrelated products.
     const localProducts=(db.products||[]).map(x=>({...x}));
-    const resolvedId=product.id;
-    queue.splice(index,1);
-    writeQueue(queue,cloudUser.id);
+    // Remove queued edits for this same product: choosing cloud means none of those edits
+    // should subsequently overwrite the cloud copy.
+    const remaining=queue.filter(x=>!(x.type==='product_save'&&x.payload?.product?.id===resolvedId));
+    writeQueue(remaining,cloudUser.id);
     await cloudLoadAll();
     const cloudIds=new Set(db.products.map(x=>x.id));
     const queuedProductIds=new Set(readQueue(cloudUser.id).filter(x=>x.type==='product_save').map(x=>x.payload?.product?.id));
@@ -1049,39 +1051,47 @@ async function resolveQueuedProductConflict(queueItem,choice) {
       render();
       cacheCloudData(cloudUser.id);
       updateSyncStatus();
-      cloudMessage('Used the cloud version for this conflict. Other recently added products were preserved and queued for sync.');
+      cloudMessage('Used the cloud version for this product. Other recently added products were preserved and queued for sync.');
     } else {
-      cloudMessage('Used the cloud version for this conflict. Other queued products remain on this device.');
+      cloudMessage('Used the cloud version for this product. Other queued products remain on this device.');
     }
     return;
   }
   if(choice!=='local') throw Error('Unknown conflict choice.');
   const user=await requireCloudUser();
+  // Use the newest copy currently on this phone, not an older queued snapshot.
+  const phoneProduct=(db.products||[]).find(x=>x.id===resolvedId)||queuedProduct;
+  const product={...phoneProduct};
   const {data:existing,error:findError}=await supabaseClient.from('products')
     .select('id,name,category,cost_price,selling_price,stock,image_path,updated_at')
     .eq('user_id',user.id).ilike('name',String(product.name||'').trim()).limit(2);
   if(findError) throw findError;
-  let targetId=product.id, isNew=!!p.isNew;
+  let targetId=resolvedId, isNew=!!p.isNew;
   if(isNew) {
     if(!existing||existing.length!==1) throw Error('Cannot safely keep this version: no single matching cloud product was found. Rename or review the product first.');
     targetId=existing[0].id;
     product.id=targetId;
-    p.isNew=false;
+    isNew=false;
   } else {
-    const match=(existing||[]).find(x=>x.id===product.id);
+    const match=(existing||[]).find(x=>x.id===resolvedId);
     if(!match) throw Error('This product no longer exists in the cloud. Keep the cloud records and review before recreating it.');
   }
   const {data:latest,error:latestError}=await supabaseClient.from('products').select('updated_at').eq('id',targetId).eq('user_id',user.id).single();
   if(latestError) throw latestError;
   product.updatedAt=latest.updated_at;
-  p.product=product; item.payload=p; item.status='pending'; item.error='';
-  queue[index]=item;
-  for(let i=index+1;i<queue.length;i++){
-    const later=queue[i], lp=later.payload||{};
+  // Collapse multiple queued edits for this product into one newest phone version. This
+  // prevents an older queued snapshot from causing another conflict or undoing the latest edit.
+  const updatedItem={...item,payload:{...p,product,isNew},status:'pending',error:''};
+  const nextQueue=queue.filter((x,i)=>i===index||!(x.type==='product_save'&&x.payload?.product?.id===resolvedId));
+  const updatedIndex=nextQueue.findIndex(x=>x.id===item.id);
+  nextQueue[updatedIndex]=updatedItem;
+  for(let i=0;i<nextQueue.length;i++){
+    if(i===updatedIndex) continue;
+    const later=nextQueue[i], lp=later.payload||{};
     if(lp.product?.id===targetId && later.type==='product_save' && !lp.isNew) lp.product.updatedAt=latest.updated_at;
     if(later.type==='sale'&&lp.sale?.productId===targetId) lp.productUpdatedAt=latest.updated_at;
   }
-  writeQueue(queue,cloudUser.id);
+  writeQueue(nextQueue,cloudUser.id);
   await syncPendingChanges();
 }
 
