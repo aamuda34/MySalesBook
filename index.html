@@ -2345,6 +2345,7 @@ document.getElementById('adminReplyForm').addEventListener('submit',async e=>{
  if(error){status.textContent='Could not send message: '+error.message;send.disabled=false;return;}
  input.value='';input.style.height='auto';status.textContent='Message sent.';await loadAdminConversation();await loadAdminUsers();send.disabled=false;
 });
+setInterval(()=>{if(cloudUser&&!document.hidden&&currentPage()==='settings-buybook'){loadBuybookActivity();}},5000);
 setInterval(()=>{if(sellbookIsAdmin&&currentPage()==='admin'&&sessionStorage.getItem('sellbook-admin-panel')==='support'){if(!document.getElementById('adminChatConversationView').classList.contains('hidden')&&document.getElementById('adminMessageUser').value)loadAdminConversation();else loadAdminUsers();}},5000);
 setInterval(()=>{if(!cloudUser||document.hidden)return;if(!sellbookIsAdmin&&currentPage()==='support')loadUserSupport();else updateUnreadBadges();},5000);
 
