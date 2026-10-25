@@ -1032,6 +1032,7 @@ async function cloudLoadAll() {
   pendingSync=readQueue(user.id);
   applyPendingToDb();
   render();
+  refreshHomeSubscriberCount();
   cacheCloudData(user.id);
   updateSyncStatus();
   cloudMessage(pendingSync.length
@@ -1275,7 +1276,7 @@ document.getElementById('closeProductImage').addEventListener('click',closeProdu
 document.getElementById('productImageLightbox').addEventListener('click',event=>{if(event.target.id==='productImageLightbox')closeProductLightbox();});
 document.addEventListener('keydown',event=>{if(event.key==='Escape')closeProductLightbox();});
 
-function updateHomeProductSummary(){const count=document.getElementById('productCountHome'),value=document.getElementById('productSellingValueHome');if(count)count.textContent=String((db.products||[]).length);if(value){const total=(db.products||[]).reduce((sum,p)=>sum+Math.max(0,Number(p.stock)||0)*Math.max(0,Number(p.price??p.selling_price)||0),0);value.textContent=money(total);}}
+function updateHomeProductSummary(){const products=db.products||[],count=document.getElementById('productCountHome'),label=document.querySelector('.home-products-count-label'),value=document.getElementById('productSellingValueHome');if(count)count.textContent=String(products.length);if(label)label.lastChild.textContent=products.length===1?' Product':' Products';if(value){const total=products.reduce((sum,p)=>sum+Math.max(0,Number(p.stock)||0)*Math.max(0,Number(p.price??p.selling_price)||0),0);value.textContent=money(total);}}
 
 function render(){
  const restockSelect=document.getElementById('restockProduct');if(restockSelect){const selected=restockSelect.value;restockSelect.innerHTML=db.products.map(p=>'<option value="'+esc(p.id)+'">'+esc(p.name)+'</option>').join('');if(db.products.some(p=>p.id===selected))restockSelect.value=selected;updateRestockPreview();}
