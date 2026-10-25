@@ -1006,22 +1006,25 @@ async function cloudPublishMarketplaceImage(product, user, imageData, existingPa
 
 async function cloudSaveProduct(product,isNew) {
   const user=await requireCloudUser();
-  let imagePath=product.imagePath||null;
-  if(product.image&&product.image.startsWith('data:image/')) imagePath=await cloudUploadProductImage(product.image);
+  // Keep the original photo data before replacing it with a signed private-bucket URL.
+  // The original data is the most reliable source for publishing the matching Buybook photo.
+  const newImageData=product.image&&product.image.startsWith('data:image/')?product.image:null;
+  const imagePath= newImageData ? await cloudUploadProductImage(newImageData) : (product.imagePath||null);
   const row={user_id:user.id,name:product.name,category:normalizeCategory(product.category),cost_price:product.cost,selling_price:product.price,stock:product.stock,base_unit:product.baseUnit||'unit',purchase_unit:product.purchaseUnit||'unit',units_per_purchase:product.unitsPerPurchase||1,pack_unit:product.packUnit||null,units_per_pack:product.packUnit?(product.unitsPerPack||1):null,pack_selling_price:product.packUnit&&product.packPrice?product.packPrice:null,image_path:imagePath,updated_at:now()};
   const result=isNew
     ? await supabaseClient.from('products').insert({id:product.id,...row})
     : await supabaseClient.from('products').update(row).eq('id',product.id).eq('user_id',user.id);
   if(result.error) throw result.error;
-  if(product.image&&product.image.startsWith('data:image/')){
+  if(newImageData){
     const oldPath=product.imagePath;
     product.imagePath=imagePath;
     const {data}=await supabaseClient.storage.from('product-images').createSignedUrl(imagePath,3600);
     product.image=data?.signedUrl||'';
     if(oldPath&&oldPath!==imagePath) await supabaseClient.storage.from('product-images').remove([oldPath]);
   }
-  // Marketplace images are copied into a dedicated public bucket; private Sellbook images remain private.
-  if(imagePath) await cloudPublishMarketplaceImage(product,user,product.image&&product.image.startsWith('data:image/')?product.image:null,imagePath);
+  // Publish the exact newly selected photo; otherwise copy the existing private photo.
+  // A marketplace copy is separate from the private image used by Sellbook.
+  if(imagePath) await cloudPublishMarketplaceImage(product,user,newImageData||product.offlineImage||null,newImageData?null:imagePath);
 }
 
 async function resolveQueuedProductConflict(queueItem,choice) {
