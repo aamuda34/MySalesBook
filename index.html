@@ -355,7 +355,7 @@ body:has(#me:not(.hidden)) .me-topbar{padding-top:max(10px, env(safe-area-inset-
 .product-open-button{width:100%;display:flex;text-align:left;align-items:center;border:0;border-bottom:1px solid #e7ece8;border-radius:0;background:transparent;color:inherit;padding:12px 0;cursor:pointer}.product-open-button .item-product{flex:1;min-width:0}.product-details-photo{display:block;width:100%;max-height:420px;object-fit:contain;border-radius:14px;background:#f3f6f3}.product-details-title-row{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:14px 0 4px}.product-details-name{font-size:22px;margin:0;min-width:0;overflow-wrap:anywhere}.product-details-edit-icon{display:grid;place-items:center;flex:0 0 42px;width:42px;height:42px;padding:0;border:1px solid #cfe2d2;border-radius:11px;background:#e5f1e7;color:#14532d}.product-details-edit-icon svg{width:21px;height:21px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}.product-details-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px}.product-details-field{border:1px solid var(--border,#e4ebe5);border-radius:12px;padding:12px;min-width:0}.product-details-field small{display:block;color:var(--muted,#647269);font-size:12px;margin-bottom:5px}.product-details-field strong{overflow-wrap:anywhere}.product-details-edit{width:100%;margin-top:16px}
 
 /* Compact three-column layout for today's sales summary. */
-.today-sales-summary .stats{grid-template-columns:repeat(3,minmax(0,1fr));gap:7px}
+.sales-summary-heading{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px}.sales-summary-heading h2{margin:0;min-width:0}.sales-summary-period{flex:0 0 auto;min-width:0;width:auto;max-width:150px;min-height:36px;padding:6px 30px 6px 12px;font-size:13px;background-position:right 10px center}.today-sales-summary .stats{grid-template-columns:repeat(3,minmax(0,1fr));gap:7px}
 .today-sales-summary .stat{min-width:0;padding:10px 8px;border-radius:9px}
 .today-sales-summary .stat small{font-size:11px;line-height:1.3;margin-bottom:5px;overflow-wrap:anywhere}
 .today-sales-summary .stat strong{font-size:clamp(13px,3.7vw,19px);line-height:1.25;overflow-wrap:anywhere}
@@ -462,7 +462,7 @@ body:has(#me:not(.hidden)) .me-topbar{padding-top:max(10px, env(safe-area-inset-
 
 <section id="sales" class="page hidden">
 <div class="products-page-header sales-page-header"><button type="button" class="products-back-button" aria-label="Back" title="Back" onclick="showPage('home')"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6M9 12h11"/></svg></button><h1>Sales</h1></div>
-<div class="card today-sales-summary"><h2>Today’s sales summary</h2><div class="stats"><div class="stat"><small>Total sales</small><strong id="allSales">₦0</strong></div><div class="stat"><small>Gross profit</small><strong id="todayGross">₦0</strong></div><div class="stat"><small>Net profit</small><strong id="todayNet">₦0</strong></div></div></div>
+<div class="card today-sales-summary"><div class="sales-summary-heading"><h2>Sales summary</h2><select id="salesSummaryPeriod" class="expense-period-select sales-summary-period" aria-label="Select sales summary period"><option value="today" selected>Today</option><option value="week">This week</option><option value="month">This month</option><option value="year">This year</option><option value="all">All time</option></select></div><div class="stats"><div class="stat"><small>Total sales</small><strong id="salesSummaryTotal">₦0</strong></div><div class="stat"><small>Gross profit</small><strong id="salesSummaryGross">₦0</strong></div><div class="stat"><small>Net profit</small><strong id="salesSummaryNet">₦0</strong></div></div></div>
 
 <div class="card"><div class="section-heading"><h2>Daily sales</h2></div><div id="dailySalesSummary" class="daily-sales-summary"><div class="empty">Daily sales will appear here.</div></div></div>
 <div class="card"><div class="section-heading"><h2>Sales this week</h2><strong id="weeklySalesHome">₦0</strong></div><p class="muted">Total sales for the last 7 days.</p></div>
@@ -707,6 +707,22 @@ function updateExpensePeriodTotal(){
  label.textContent=labelText;amount.textContent=money(total);
 }
 document.getElementById('expensePeriodSelect')?.addEventListener('change',event=>setExpensePeriod(event.target.value));
+
+let selectedSalesSummaryPeriod='today';
+function updateSalesPeriodSummary(){
+ const selector=document.getElementById('salesSummaryPeriod');if(selector&&selector.value!==selectedSalesSummaryPeriod)selector.value=selectedSalesSummaryPeriod;
+ const now=new Date();now.setHours(0,0,0,0);let start=new Date(now);
+ if(selectedSalesSummaryPeriod==='week'){start.setDate(now.getDate()-((now.getDay()+6)%7));}
+ else if(selectedSalesSummaryPeriod==='month'){start=new Date(now.getFullYear(),now.getMonth(),1);}
+ else if(selectedSalesSummaryPeriod==='year'){start=new Date(now.getFullYear(),0,1);}
+ const startKey=selectedSalesSummaryPeriod==='all'?'':dateKey(start),endKey=dateKey(now);
+ const inPeriod=x=>selectedSalesSummaryPeriod==='all'||(dateKey(x.date)>=startKey&&dateKey(x.date)<=endKey);
+ const sales=(db.sales||[]).filter(inPeriod),expenses=(db.expenses||[]).filter(inPeriod);
+ const totalSales=sales.reduce((sum,x)=>sum+(Number(x.total)||0),0),gross=sales.reduce((sum,x)=>sum+(Number(x.profit)||0),0),expenseTotal=expenses.reduce((sum,x)=>sum+(Number(x.amount)||0),0);
+ const totalEl=document.getElementById('salesSummaryTotal'),grossEl=document.getElementById('salesSummaryGross'),netEl=document.getElementById('salesSummaryNet');
+ if(totalEl)totalEl.textContent=money(totalSales);if(grossEl)grossEl.textContent=money(gross);if(netEl)netEl.textContent=money(gross-expenseTotal);
+}
+document.getElementById('salesSummaryPeriod')?.addEventListener('change',event=>{selectedSalesSummaryPeriod=event.target.value;updateSalesPeriodSummary();});
 
 function getProfile(){return db.profile||{businessName:'',businessLogo:''};}
 function renderBrand(){const p=getProfile(),name=String(p.businessName||'').trim();const meName=document.getElementById('meSellerName');if(meName){const meta=cloudUser?.user_metadata||{};const googleName=String(meta.given_name||meta.first_name||meta.full_name||meta.name||meta.display_name||'').trim();const emailName=String(cloudUser?.email||'').split('@')[0].trim();const sellerFirstName=String(googleName||emailName||'Seller').trim().split(/[\s._-]+/)[0];meName.textContent=sellerFirstName||'Seller';}document.getElementById('businessTitle').textContent=name||'Sellbook';document.getElementById('businessSubtitle').textContent=name?'Business records · Nigerian naira (₦)':'Simple business records · Nigerian naira (₦)';const logo=document.getElementById('headerBusinessLogo'),mark=document.getElementById('brandMark');if(p.businessLogo){logo.src=p.businessLogo;logo.style.display='block';mark.style.display='none';}else{logo.removeAttribute('src');logo.style.display='none';mark.style.display='grid';mark.textContent=(name||'Sellbook').split(/\s+/).slice(0,2).map(x=>x[0]||'').join('').toUpperCase()||'MS';}const input=document.getElementById('businessNameInput');if(input&&document.activeElement!==input)input.value=name;const preview=document.getElementById('businessLogoPreview');if(preview&&document.activeElement!==preview){if(p.businessLogo){preview.src=p.businessLogo;preview.style.display='block';}else{preview.removeAttribute('src');preview.style.display='none';}}}
@@ -1656,9 +1672,7 @@ function render(){
   const allExpenses=db.expenses.reduce((s,x)=>s+x.amount,0);
   const salesAmount=document.getElementById('todaySales');salesAmount.dataset.actualAmount=money(salesToday);document.querySelectorAll('#todayNet').forEach(amount=>{amount.dataset.actualAmount=money(grossToday-expensesToday);});setSalesAmountVisibility();
   updateExpensePeriodTotal();
-  document.getElementById('todayGross').textContent=money(grossToday);
-  document.getElementById('todayNet').textContent=money(grossToday-expensesToday);
-  document.getElementById('allSales').textContent=money(allSales);
+  updateSalesPeriodSummary();
   const totalNet=money(allGross-allExpenses),totalProducts=db.products.length,totalStock=db.products.reduce((s,p)=>s+p.stock,0);
   const meNet=document.getElementById('meAllNet'),meProducts=document.getElementById('meProductCount'),meStock=document.getElementById('meStockCount');
   if(meNet)meNet.textContent=totalNet;if(meProducts)meProducts.textContent=String(totalProducts);if(meStock)meStock.textContent=String(totalStock);
