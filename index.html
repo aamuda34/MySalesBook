@@ -96,7 +96,8 @@ input,select{background:var(--surface);color:var(--ink);border-color:#d4ded6}inp
 .quick-actions span:not(.quick-icon),.menu-tile span{display:block;color:var(--muted);font-size:12px;font-weight:400;line-height:1.4}
 .menu-tile{display:flex;flex-direction:column;justify-content:center;gap:5px}.tile-icon{font-size:22px}
 .section-heading{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px}.section-heading h2{margin:0}
-.products-list-heading{align-items:center;gap:8px}.products-list-heading h2{font-size:17px;flex:0 0 auto}.products-total-summary{display:flex;align-items:center;justify-content:flex-end;gap:10px;min-width:0;text-align:right}.products-total-count{display:flex;align-items:baseline;gap:4px;white-space:nowrap;color:var(--muted);font-size:11px}.products-total-count strong{font-size:15px;color:var(--ink)}.products-total-value{font-size:clamp(13px,3.6vw,17px);white-space:nowrap;overflow-wrap:anywhere;color:var(--green)}@media(max-width:360px){.products-list-heading h2{font-size:15px}.products-total-summary{gap:6px}.products-total-count{font-size:10px}.products-total-count strong{font-size:14px}.products-total-value{font-size:13px}}
+.products-list-heading{align-items:center;gap:8px}.products-list-heading h2{font-size:17px;flex:0 0 auto}.products-total-summary{display:flex;align-items:center;justify-content:flex-end;gap:10px;min-width:0;text-align:right}.expense-period-card{padding:14px}.expense-period-pills{display:flex;gap:5px;overflow-x:auto;padding:3px;background:#f0f7f1;border-radius:999px;scrollbar-width:none}.expense-period-pills::-webkit-scrollbar{display:none}.expense-period-pill{flex:1 0 auto;padding:9px 11px;border-radius:999px;background:transparent;color:#526358;font-size:12px;white-space:nowrap}.expense-period-pill.active{background:#14532d;color:#fff;box-shadow:0 1px 4px #14532d30}.expense-period-total{display:flex;flex-direction:column;gap:7px;margin-top:16px}.expense-period-total small{font-size:12px;color:var(--muted)}.expense-period-total strong{font-size:clamp(23px,6vw,30px);color:var(--green);overflow-wrap:anywhere}body.dark .expense-period-pills{background:#23392a}body.dark .expense-period-pill{color:#c4d2c7}body.dark .expense-period-pill.active{background:#14532d;color:#fff}
+.products-total-count{display:flex;align-items:baseline;gap:4px;white-space:nowrap;color:var(--muted);font-size:11px}.products-total-count strong{font-size:15px;color:var(--ink)}.products-total-value{font-size:clamp(13px,3.6vw,17px);white-space:nowrap;overflow-wrap:anywhere;color:var(--green)}@media(max-width:360px){.products-list-heading h2{font-size:15px}.products-total-summary{gap:6px}.products-total-count{font-size:10px}.products-total-count strong{font-size:14px}.products-total-value{font-size:13px}}
 .page-title{font-size:23px;margin:8px 0 4px}.page-intro{font-size:13px;color:var(--muted);margin:0 0 15px}
 .filters{display:grid;grid-template-columns:1fr 1fr;gap:8px}.filter-wide{grid-column:1/-1}
 .chart-bars{height:175px;display:flex;align-items:flex-end;gap:6px;padding:12px 0 0;border-bottom:1px solid var(--border)}
@@ -492,7 +493,7 @@ body:has(#me:not(.hidden)) .me-topbar{padding-top:max(10px, env(safe-area-inset-
 </section>
 
 <section id="expenses" class="page hidden"><div class="products-page-header expenses-page-header"><button type="button" class="products-back-button" aria-label="Back to Home" title="Back to Home" onclick="showPage('home')"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6M9 12h11"/></svg></button><h1>Expenses</h1></div>
-<div class="card"><h2>Today’s expenses</h2><div class="stats"><div class="stat"><small>Total expenses today</small><strong id="todayExpenses">₦0</strong></div></div></div>
+<div class="card expense-period-card"><div class="expense-period-pills" role="group" aria-label="Expense total period"><button type="button" class="expense-period-pill active" data-expense-period="today" aria-pressed="true">Today</button><button type="button" class="expense-period-pill" data-expense-period="week" aria-pressed="false">This week</button><button type="button" class="expense-period-pill" data-expense-period="month" aria-pressed="false">This month</button><button type="button" class="expense-period-pill" data-expense-period="year" aria-pressed="false">This year</button></div><div class="expense-period-total"><small id="expensePeriodLabel">Total expenses today</small><strong id="todayExpenses">₦0</strong></div></div>
 <div class="card hidden" id="expenseFormCard"><div class="section-heading"><h2>Record an expense</h2><button type="button" data-close-entry="expense" aria-label="Close expense form">Close</button></div><form id="expenseForm"><label for="ename">Expense description</label><input id="ename" required maxlength="100" placeholder="e.g. Transport"><label for="eamount">Amount (₦)</label><input id="eamount" type="number" min="0.01" step="0.01" required inputmode="decimal"><button class="primary">Save expense</button></form></div>
 <div class="card"><h2>Expense history</h2><div id="expenseList" class="empty">No expenses recorded yet.</div></div></section>
 <section id="me" class="page hidden me-page">
@@ -685,6 +686,27 @@ let themePreference=localStorage.getItem('my-sales-book-theme-v1')||'system';
 function applyTheme(){const dark=themePreference==='dark'||(themePreference==='system'&&window.matchMedia?.('(prefers-color-scheme: dark)').matches);document.body.classList.toggle('dark',!!dark);}
 function safeDate(value){const d=new Date(value);return Number.isNaN(d.getTime())?new Date(0):d;}
 function dateKey(value){const d=safeDate(value);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+let selectedExpensePeriod='today';
+function setExpensePeriod(period){
+ if(!['today','week','month','year'].includes(period))return;
+ selectedExpensePeriod=period;
+ document.querySelectorAll('[data-expense-period]').forEach(button=>{const active=button.dataset.expensePeriod===period;button.classList.toggle('active',active);button.setAttribute('aria-pressed',String(active));});
+ updateExpensePeriodTotal();
+}
+function updateExpensePeriodTotal(){
+ const label=document.getElementById('expensePeriodLabel'),amount=document.getElementById('todayExpenses');
+ if(!label||!amount||!Array.isArray(db.expenses))return;
+ const nowDate=new Date();nowDate.setHours(0,0,0,0);
+ let start=new Date(nowDate),labelText='Total expenses today';
+ if(selectedExpensePeriod==='week'){const day=(nowDate.getDay()+6)%7;start.setDate(nowDate.getDate()-day);labelText='Total expenses this week';}
+ else if(selectedExpensePeriod==='month'){start=new Date(nowDate.getFullYear(),nowDate.getMonth(),1);labelText='Total expenses this month';}
+ else if(selectedExpensePeriod==='year'){start=new Date(nowDate.getFullYear(),0,1);labelText='Total expenses this year';}
+ const startKey=dateKey(start),endKey=dateKey(nowDate);
+ const total=db.expenses.reduce((sum,expense)=>{const key=dateKey(expense.date);return key>=startKey&&key<=endKey?sum+(Number(expense.amount)||0):sum;},0);
+ label.textContent=labelText;amount.textContent=money(total);
+}
+document.querySelectorAll('[data-expense-period]').forEach(button=>button.addEventListener('click',()=>setExpensePeriod(button.dataset.expensePeriod)));
+
 function getProfile(){return db.profile||{businessName:'',businessLogo:''};}
 function renderBrand(){const p=getProfile(),name=String(p.businessName||'').trim();const meName=document.getElementById('meSellerName');if(meName){const meta=cloudUser?.user_metadata||{};const googleName=String(meta.given_name||meta.first_name||meta.full_name||meta.name||meta.display_name||'').trim();const emailName=String(cloudUser?.email||'').split('@')[0].trim();const sellerFirstName=String(googleName||emailName||'Seller').trim().split(/[\s._-]+/)[0];meName.textContent=sellerFirstName||'Seller';}document.getElementById('businessTitle').textContent=name||'Sellbook';document.getElementById('businessSubtitle').textContent=name?'Business records · Nigerian naira (₦)':'Simple business records · Nigerian naira (₦)';const logo=document.getElementById('headerBusinessLogo'),mark=document.getElementById('brandMark');if(p.businessLogo){logo.src=p.businessLogo;logo.style.display='block';mark.style.display='none';}else{logo.removeAttribute('src');logo.style.display='none';mark.style.display='grid';mark.textContent=(name||'Sellbook').split(/\s+/).slice(0,2).map(x=>x[0]||'').join('').toUpperCase()||'MS';}const input=document.getElementById('businessNameInput');if(input&&document.activeElement!==input)input.value=name;const preview=document.getElementById('businessLogoPreview');if(preview&&document.activeElement!==preview){if(p.businessLogo){preview.src=p.businessLogo;preview.style.display='block';}else{preview.removeAttribute('src');preview.style.display='none';}}}
 let storageMode='memory';
@@ -1632,7 +1654,7 @@ function render(){
   const allGross=db.sales.reduce((s,x)=>s+x.profit,0);
   const allExpenses=db.expenses.reduce((s,x)=>s+x.amount,0);
   const salesAmount=document.getElementById('todaySales');salesAmount.dataset.actualAmount=money(salesToday);document.querySelectorAll('#todayNet').forEach(amount=>{amount.dataset.actualAmount=money(grossToday-expensesToday);});setSalesAmountVisibility();
-  document.getElementById('todayExpenses').textContent=money(expensesToday);
+  updateExpensePeriodTotal();
   document.getElementById('todayGross').textContent=money(grossToday);
   document.getElementById('todayNet').textContent=money(grossToday-expensesToday);
   document.getElementById('allSales').textContent=money(allSales);
