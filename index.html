@@ -1087,7 +1087,7 @@ async function loadBuybookConnection() {
     status.classList.toggle('not-connected',!connected);
     if(form)form.classList.toggle('hidden',connected);
     if(disconnect)disconnect.classList.toggle('hidden',!connected);
-    if(activity)activity.classList.remove('hidden');
+    if(activity)activity.classList.toggle('hidden',!connected);
   };
   if(!cloudUser){setConnectionView(false);status.textContent='Sign in to Sellbook to connect to Buybook.';if(activity)activity.classList.add('hidden');return;}
   status.textContent='Checking Buybook connection…';
@@ -1185,12 +1185,12 @@ document.getElementById('buybookConnectionForm')?.addEventListener('submit',asyn
  const {error}=await supabaseClient.from('marketplace_shops').upsert(shop,{onConflict:'owner_id'});if(error)throw error;
  const sync=await supabaseClient.rpc('sync_owner_marketplace_listings',{p_owner_id:user.id});if(sync.error)throw sync.error;
  for(const product of (db.products||[])){if(product.imagePath){try{await cloudPublishMarketplaceImage(product,user,product.offlineImage||null,product.imagePath);}catch(imageError){console.warn('Buybook image sync skipped for product:',product.id,imageError);}}}
- message.textContent='Connected successfully. Your products will appear automatically on Buybook. Only marketplace product details and shop information are shared.';document.getElementById('buybookConnectionStatus').textContent='Your shop is connected. Product listings sync automatically when product details or stock change.';
+ message.textContent='Connected successfully. Your products will appear automatically on Buybook. Only marketplace product details and shop information are shared.';await loadBuybookConnection();
  }catch(err){message.textContent='Could not connect: '+(err.message||'Please try again when online.');console.error('Buybook connection error:',err);}finally{button.disabled=false;}
 });
 document.getElementById('buybookDisconnectButton')?.addEventListener('click',async()=>{
  if(!cloudUser){alert('Sign in to Sellbook first.');return;}if(!confirm('Disconnect your shop from Buybook? Your Sellbook records will remain unchanged.'))return;
- const message=document.getElementById('buybookConnectionMessage');try{const user=await requireCloudUser();const {error}=await supabaseClient.from('marketplace_shops').update({is_connected:false}).eq('owner_id',user.id);if(error)throw error;const sync=await supabaseClient.rpc('sync_owner_marketplace_listings',{p_owner_id:user.id});if(sync.error)throw sync.error;message.textContent='Disconnected. Your products are no longer listed on Buybook. Sellbook records remain unchanged.';document.getElementById('buybookConnectionStatus').textContent='Your shop is disconnected from Buybook.';}catch(err){message.textContent='Could not disconnect: '+(err.message||'Please try again.');}
+ const message=document.getElementById('buybookConnectionMessage');try{const user=await requireCloudUser();const {error}=await supabaseClient.from('marketplace_shops').update({is_connected:false}).eq('owner_id',user.id);if(error)throw error;const sync=await supabaseClient.rpc('sync_owner_marketplace_listings',{p_owner_id:user.id});if(sync.error)throw sync.error;message.textContent='Disconnected. Your products are no longer listed on Buybook. Sellbook records remain unchanged.';await loadBuybookConnection();}catch(err){message.textContent='Could not disconnect: '+(err.message||'Please try again.');}
 });
 async function cloudAction(action) {
   if (cloudBusy) {
