@@ -966,6 +966,21 @@ async function handleCloudAuthChange() {
   if (authTransition) return;
   authTransition = true;
   let activeUser = null;
+  let coreWorkspaceLoaded = false;
+  // Never leave the full-screen startup indicator spinning indefinitely on a slow connection.
+  const loadingWatchdog = setTimeout(() => {
+    document.body.classList.remove('auth-initializing');
+    const loading = document.getElementById('authLoading');
+    if (loading) loading.style.display = 'none';
+    if (!coreWorkspaceLoaded && cloudUser) {
+      cloudMessage('Still connecting to your cloud records. Your saved copy remains available while Sellbook retries.');
+    }
+  }, 10000);
+  const finishStartup = () => {
+    document.body.classList.remove('auth-initializing');
+    const loading = document.getElementById('authLoading');
+    if (loading) loading.style.display = 'none';
+  };
   try {
     const {data, error} = await supabaseClient.auth.getSession();
     if (error) throw error;
@@ -975,51 +990,68 @@ async function handleCloudAuthChange() {
     if (user) {
       if (storageMode !== 'cloud') localSnapshot = snapshotLocalRecords();
       cloudUser = user;
-      await verifyAdminAccess();
       pendingSync = readQueue(user.id);
       try {
         await cloudLoadAll();
-        if (pendingSync.some(item => item.status !== 'conflict')) await syncPendingChanges();
+        coreWorkspaceLoaded = true;
+        finishStartup();
+        if (pendingSync.some(item => item.status !== 'conflict')) {
+          syncPendingChanges().catch(error => {
+            cloudMessage('Some changes are still waiting to sync. Your local copies are preserved: ' + (error.message || String(error)));
+          });
+        }
       } catch (loadError) {
         if (!restoreCloudCache(user.id)) throw loadError;
         cloudReady = false;
         storageMode = 'cloud-offline';
-        cloudMessage('Offline mode: showing the last saved copy for ' + (user.email || 'your account') + '. Changes will be queued when saved.');
+        coreWorkspaceLoaded = true;
+        finishStartup();
+        cloudMessage('Showing your last saved copy while Sellbook reconnects. Changes will be kept on this device until they can sync.');
       }
     } else {
       restoreLocalRecords();
+      coreWorkspaceLoaded = true;
+      finishStartup();
       cloudMessage('Sign in to access your private business records.');
     }
-    await refreshAccountStatus();
-    if(cloudUser){await verifyAdminAccess();if(currentPage()==='admin'&&sellbookIsAdmin)await loadAdminDashboard();await loadUserSupport();}
+
+    // These checks are useful but must not block the business book from opening.
+    refreshAccountStatus().catch(error => console.warn('Account status refresh failed:', error));
+    if (cloudUser) {
+      verifyAdminAccess().then(async () => {
+        if (currentPage() === 'admin' && sellbookIsAdmin) await loadAdminDashboard();
+      }).catch(error => console.warn('Admin access check failed:', error));
+      loadUserSupport().catch(error => console.warn('Support panel refresh failed:', error));
+    }
   } catch (err) {
     cloudReady = false;
     if (activeUser) {
       cloudUser = activeUser;
       const restored = restoreCloudCache(activeUser.id);
       if (restored) {
+        coreWorkspaceLoaded = true;
+        finishStartup();
         cloudMessage('Could not reach the cloud. Showing the last saved copy; queued changes remain on this device.');
-        await refreshAccountStatus();
+        refreshAccountStatus().catch(error => console.warn('Account status refresh failed:', error));
       } else {
         workspaceReady = false;
         document.getElementById('appWorkspace').classList.add('hidden');
         cloudMessage('Could not reach the cloud and no saved copy exists on this device. Connect to the internet to load your account for the first time.');
-        await refreshAccountStatus();
+        refreshAccountStatus().catch(error => console.warn('Account status refresh failed:', error));
       }
     } else {
       workspaceReady = false;
       document.getElementById('appWorkspace').classList.add('hidden');
       cloudMessage('Cloud connection failed: ' + (err.message || String(err)) + '. Sign in again when internet is available.');
-      await refreshAccountStatus();
+      refreshAccountStatus().catch(error => console.warn('Account status refresh failed:', error));
     }
     console.error('Cloud authentication/load error:', err);
   } finally {
+    clearTimeout(loadingWatchdog);
+    finishStartup();
     authTransition = false;
-    document.body.classList.remove('auth-initializing');
-    const loading=document.getElementById('authLoading');if(loading)loading.style.display='none';
   }
 }
-
 async function loadBuybookConnection() {
   const status=document.getElementById('buybookConnectionStatus');if(!status)return;
   if(!cloudUser){status.textContent='Sign in to Sellbook with Google before connecting a shop.';return;}
