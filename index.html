@@ -1317,7 +1317,18 @@ function restorePageFromLocation(){const hash=location.hash.slice(1),saved=sessi
     history.pushState({mySalesBookRoot:true,mySalesBookPage:pageFromUrl()},'',location.href);
   }
   window.addEventListener('popstate',event=>{
+    // Android/browser Back should close the open Messenger chat first,
+    // returning to the conversation list instead of leaving the panel stuck.
+    if(document.body.classList.contains('messenger-open')&&document.body.classList.contains('messenger-conversation-open')){
+      document.body.classList.remove('messenger-conversation-open');
+      messengerSelectedConversation=null;
+      history.pushState({mySalesBookPage:'messenger'},'','#messenger');
+      return;
+    }
     const name=pageFromUrl();
+    document.body.classList.toggle('user-support-open',name==='support'&&!sellbookIsAdmin);
+    document.body.classList.toggle('messenger-open',name==='messenger');
+    if(name!=='messenger')document.body.classList.remove('messenger-conversation-open');
     paintPage(name,false);
     if(event.state?.mySalesBookRootGuard){
       history.pushState({mySalesBookRoot:true,mySalesBookPage:name},'',location.href);
