@@ -1164,17 +1164,17 @@ async function cloudLoadAll() {
   if(pr.error)throw pr.error;if(sr.error)throw sr.error;if(er.error)throw er.error;if(ar.error)throw ar.error;if(profileResult.error)throw profileResult.error;
   let fallbackProfile={business_name:'',business_logo:null};
   if(!profileResult.data){const identity=String(user.user_metadata?.business_name||user.user_metadata?.full_name||user.email?.split('@')[0]||'My').trim();fallbackProfile={business_name:(identity.endsWith('Business')?identity:identity+' Business').slice(0,100),business_logo:null};const {error}=await supabaseClient.from('user_profiles').upsert({user_id:user.id,...fallbackProfile,updated_at:now()},{onConflict:'user_id',ignoreDuplicates:true});if(error)throw error;}
-  const products=await Promise.all((pr.data||[]).map(async row=>{
-    let image='',offlineImage='';
-    if(row.image_path){
-      const {data,error}=await supabaseClient.storage.from('product-images').createSignedUrl(row.image_path,3600);
-      if(!error&&data?.signedUrl){
-        image=data.signedUrl;
-        // Do not download every product photo again as a base64 copy during startup.
-        // This avoids extra network traffic and keeps the first workspace render fast.
-      }
-    }
-    return {id:row.id,name:row.name,category:normalizeCategory(row.category),cost:Number(row.cost_price),price:Number(row.selling_price),stock:Number(row.stock),baseUnit:row.base_unit||'unit',purchaseUnit:row.purchase_unit||'unit',unitsPerPurchase:Number(row.units_per_purchase||1),packUnit:row.pack_unit||'',unitsPerPack:Number(row.units_per_pack||1),packPrice:row.pack_selling_price==null?null:Number(row.pack_selling_price),image,offlineImage,imagePath:row.image_path||'',createdAt:row.created_at,updatedAt:row.updated_at};
+  // Build the product list without waiting for one signed-photo URL per product.
+  // The records can render first; product photos are resolved in the background.
+  const products=(pr.data||[]).map(row=>({
+    id:row.id,name:row.name,category:normalizeCategory(row.category),
+    cost:Number(row.cost_price),price:Number(row.selling_price),stock:Number(row.stock),
+    baseUnit:row.base_unit||'unit',purchaseUnit:row.purchase_unit||'unit',
+    unitsPerPurchase:Number(row.units_per_purchase||1),packUnit:row.pack_unit||'',
+    unitsPerPack:Number(row.units_per_pack||1),
+    packPrice:row.pack_selling_price==null?null:Number(row.pack_selling_price),
+    image:'',offlineImage:'',imagePath:row.image_path||'',
+    createdAt:row.created_at,updatedAt:row.updated_at
   }));
   const sales=(sr.data||[]).map(row=>({id:row.id,productId:row.product_id,name:row.product_name,qty:Number(row.quantity),price:Number(row.unit_price),cost:Number(row.unit_cost),total:Number(row.total),profit:Number(row.gross_profit),note:row.note||'',date:row.sold_at,baseQty:Number(row.base_quantity||row.quantity),saleUnit:row.sale_unit||'unit',unitsPerSale:Number(row.units_per_sale||1)}));
   const expenses=(er.data||[]).map(row=>({id:row.id,name:row.description,amount:Number(row.amount),date:row.spent_at}));
@@ -1190,6 +1190,30 @@ async function cloudLoadAll() {
   refreshHomeSubscriberCount();
   cacheCloudData(user.id);
   updateSyncStatus();
+
+  // Load signed product-photo URLs after the sales workspace is already visible.
+  // Guard against an account switch while the background requests are running.
+  const productsWithImages=products.filter(product=>product.imagePath);
+  if(productsWithImages.length){
+    setTimeout(async()=>{
+      if(!cloudUser||cloudUser.id!==user.id||!navigator.onLine)return;
+      const results=await Promise.all(productsWithImages.map(async product=>{
+        try{
+          const {data,error}=await supabaseClient.storage.from('product-images').createSignedUrl(product.imagePath,3600);
+          return !error&&data?.signedUrl?{id:product.id,image:data.signedUrl}:null;
+        }catch(_){return null;}
+      }));
+      if(!cloudUser||cloudUser.id!==user.id)return;
+      let changed=false;
+      for(const result of results){
+        if(!result)continue;
+        const current=db.products.find(product=>String(product.id)===String(result.id));
+        if(current&&current.image!==result.image){current.image=result.image;changed=true;}
+      }
+      if(changed){render();cacheCloudData(user.id);}
+    },0);
+  }
+
   cloudMessage(pendingSync.length
     ? pendingSync.length + ' change(s) are waiting to sync. Your local copies are preserved.'
     : 'Cloud records loaded and synchronised.');
