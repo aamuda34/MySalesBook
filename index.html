@@ -350,6 +350,13 @@ body:has(#me:not(.hidden)) .me-topbar{padding-top:max(10px, env(safe-area-inset-
 .product-list-filters{display:flex;align-items:center;gap:10px;margin:10px 0 14px}.product-list-filters input[type="search"]{flex:1 1 58%;width:58%;min-width:0;padding:8px 14px;border-radius:999px;font-size:14px}.product-list-filters select{flex:0 1 42%;width:42%;min-width:0;padding:8px 10px;border-radius:999px;font-size:14px}
 
 .product-open-button{width:100%;display:flex;text-align:left;align-items:center;border:0;border-bottom:1px solid #e7ece8;border-radius:0;background:transparent;color:inherit;padding:12px 0;cursor:pointer}.product-open-button .item-product{flex:1;min-width:0}.product-details-photo{display:block;width:100%;max-height:420px;object-fit:contain;border-radius:14px;background:#f3f6f3}.product-details-title-row{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:14px 0 4px}.product-details-name{font-size:22px;margin:0;min-width:0;overflow-wrap:anywhere}.product-details-edit-icon{display:grid;place-items:center;flex:0 0 42px;width:42px;height:42px;padding:0;border:1px solid #cfe2d2;border-radius:11px;background:#e5f1e7;color:#14532d}.product-details-edit-icon svg{width:21px;height:21px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}.product-details-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px}.product-details-field{border:1px solid var(--border,#e4ebe5);border-radius:12px;padding:12px;min-width:0}.product-details-field small{display:block;color:var(--muted,#647269);font-size:12px;margin-bottom:5px}.product-details-field strong{overflow-wrap:anywhere}.product-details-edit{width:100%;margin-top:16px}
+
+/* Compact three-column layout for today's sales summary. */
+.today-sales-summary .stats{grid-template-columns:repeat(3,minmax(0,1fr));gap:7px}
+.today-sales-summary .stat{min-width:0;padding:10px 8px;border-radius:9px}
+.today-sales-summary .stat small{font-size:11px;line-height:1.3;margin-bottom:5px;overflow-wrap:anywhere}
+.today-sales-summary .stat strong{font-size:clamp(13px,3.7vw,19px);line-height:1.25;overflow-wrap:anywhere}
+@media(max-width:360px){.today-sales-summary .stats{gap:5px}.today-sales-summary .stat{padding:9px 5px}.today-sales-summary .stat small{font-size:10px}}
 </style>
 
 <link rel="manifest" href="./manifest.webmanifest">
@@ -452,7 +459,7 @@ body:has(#me:not(.hidden)) .me-topbar{padding-top:max(10px, env(safe-area-inset-
 
 <section id="sales" class="page hidden">
 <div class="products-page-header sales-page-header"><button type="button" class="products-back-button" aria-label="Back" title="Back" onclick="showPage('home')"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6M9 12h11"/></svg></button><h1>Sales</h1></div>
-<div class="card"><h2>Today’s sales summary</h2><div class="stats"><div class="stat"><small>Total sales</small><strong id="allSales">₦0</strong></div><div class="stat"><small>Gross profit</small><strong id="todayGross">₦0</strong></div><div class="stat"><small>Net profit</small><strong id="todayNet">₦0</strong></div></div></div>
+<div class="card today-sales-summary"><h2>Today’s sales summary</h2><div class="stats"><div class="stat"><small>Total sales</small><strong id="allSales">₦0</strong></div><div class="stat"><small>Gross profit</small><strong id="todayGross">₦0</strong></div><div class="stat"><small>Net profit</small><strong id="todayNet">₦0</strong></div></div></div>
 
 <div class="card"><div class="section-heading"><h2>Daily sales</h2><button type="button" data-open-page="sales">View sales</button></div><div id="dailySalesSummary" class="daily-sales-summary"><div class="empty">Daily sales will appear here.</div></div></div>
 <div class="card"><div class="section-heading"><h2>Sales this week</h2><strong id="weeklySalesHome">₦0</strong></div><p class="muted">Total sales for the last 7 days.</p></div>
