@@ -1,6 +1,6 @@
 'use strict';
 
-const CACHE_NAME = 'sellbook-shell-v47';
+const CACHE_NAME = 'sellbook-shell-v48';
 const APP_SHELL = [
   './',
   './index.html',
@@ -54,17 +54,19 @@ self.addEventListener('fetch', event => {
   if (request.mode === 'navigate') {
     event.respondWith((async () => {
       const cache = await caches.open(CACHE_NAME);
-      try {
-        const response = await fetch(request);
+      const cached = await cache.match('./index.html') || await cache.match('./');
+      // Open immediately from the cached app shell; refresh the cache in the
+      // background so slow mobile connections do not block every app launch.
+      const refresh = fetch(request).then(response => {
         if (response && response.ok) cache.put('./index.html', response.clone()).catch(() => {});
         return response;
-      } catch (_) {
-        // A previously visited page must still open when offline. Always fall
-        // back to the cached app shell, even for a URL containing a page hash.
-        return (await cache.match('./index.html')) ||
-               (await cache.match('./')) ||
-               new Response('Sellbook is not available offline yet. Connect once to the internet, open the app, and try again.', {status:503,headers:{'Content-Type':'text/plain; charset=utf-8'}});
+      }).catch(() => null);
+      if (cached) {
+        event.waitUntil(refresh);
+        return cached;
       }
+      const response = await refresh;
+      return response || new Response('Sellbook is not available offline yet. Connect once to the internet, open the app, and try again.', {status:503,headers:{'Content-Type':'text/plain; charset=utf-8'}});
     })());
     return;
   }
