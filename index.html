@@ -2052,7 +2052,7 @@ function renderProductDetails(p){
  const cost=Number(p.cost??p.costPrice??p.cost_price??0),price=Number(p.price??p.sellingPrice??p.selling_price??0),stock=Number(p.stock||0);
  const field=(label,value)=>'<div class="product-details-field"><small>'+label+'</small><strong>'+value+'</strong></div>';
  target.innerHTML='<div class="card">'+image+'<h2 class="product-details-name">'+esc(p.name)+'</h2><p class="muted">'+esc(p.category||'Uncategorised')+'</p><div class="product-details-grid">'+field('Date added',esc(addedText))+field('Category',esc(p.category||'Not set'))+field('Cost price',money(cost))+field('Selling price',money(price))+field('Profit per unit',money(price-cost))+field('Current stock',esc(String(stock))+' units')+(p.baseUnit?field('Stock unit',esc(p.baseUnit)):'')+(p.purchaseUnit?field('Purchase unit',esc(p.purchaseUnit)):'')+'</div><button type="button" class="primary product-details-edit" data-details-edit="'+String(p.id).replace(/"/g,'&quot;')+'">Edit product</button></div>';
- const edit=target.querySelector('[data-details-edit]');edit.addEventListener('click',()=>{showPage('products');const editButton=document.querySelector('#productList [data-edit="'+CSS.escape(String(p.id))+'"]');if(editButton)editButton.click();});
+ const edit=target.querySelector('[data-details-edit]');edit.addEventListener('click',()=>{showPage('products');const trigger=document.createElement('button');trigger.type='button';trigger.dataset.edit=String(p.id);trigger.hidden=true;document.getElementById('productList').appendChild(trigger);trigger.click();trigger.remove();});
 }
 document.getElementById('productList').addEventListener('click',async e=>{
  const openButton=e.target.closest('[data-product-open]');
