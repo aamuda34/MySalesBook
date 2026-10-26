@@ -1320,9 +1320,14 @@ function restorePageFromLocation(){const hash=location.hash.slice(1),saved=sessi
     // Android/browser Back should close the open Messenger chat first,
     // returning to the conversation list instead of leaving the panel stuck.
     if(document.body.classList.contains('messenger-open')&&document.body.classList.contains('messenger-conversation-open')){
+      // A conversation gets its own history entry. Back consumes that entry,
+      // leaving the existing Messenger-list entry available for the next Back.
       document.body.classList.remove('messenger-conversation-open');
       messengerSelectedConversation=null;
-      history.pushState({mySalesBookPage:'messenger'},'','#messenger');
+      const input=document.getElementById('messengerBody');
+      const send=document.querySelector('#messengerComposer button[type="submit"]');
+      if(input)input.disabled=true;
+      if(send)send.disabled=true;
       return;
     }
     const name=pageFromUrl();
@@ -2459,6 +2464,10 @@ async function loadMessengerConversations(options={}){
  }catch(err){if(!options.quiet)list.innerHTML='<div class="empty">Could not load chats: '+escAdmin(err.message||'Please try again.')+'</div>';}
 }
 async function openMessengerConversation(id,options={}){
+ const wasConversationOpen=document.body.classList.contains('messenger-conversation-open');
+ if(!wasConversationOpen&&!options.quiet){
+  history.pushState({mySalesBookPage:'messenger',mySalesBookMessengerChat:true},'','#messenger');
+ }
  messengerSelectedConversation=id;document.body.classList.add('messenger-conversation-open');
  const input=document.getElementById('messengerBody'),send=document.querySelector('#messengerComposer button[type="submit"]');
  input.disabled=false;send.disabled=false;
@@ -2479,7 +2488,7 @@ async function openMessengerConversation(id,options={}){
 }
 document.getElementById('refreshMessenger')?.addEventListener('click',()=>loadMessengerConversations({refreshSelected:true}));
 document.getElementById('messengerSearch')?.addEventListener('input',renderMessengerConversationList);
-document.getElementById('messengerBackToChats')?.addEventListener('click',()=>{document.body.classList.remove('messenger-conversation-open');messengerSelectedConversation=null;});
+document.getElementById('messengerBackToChats')?.addEventListener('click',()=>{if(document.body.classList.contains('messenger-conversation-open')&&history.state?.mySalesBookMessengerChat){history.back();return;}document.body.classList.remove('messenger-conversation-open');messengerSelectedConversation=null;const input=document.getElementById('messengerBody');const send=document.querySelector('#messengerComposer button[type="submit"]');if(input)input.disabled=true;if(send)send.disabled=true;});
 document.getElementById('messengerBody')?.addEventListener('input',e=>{e.target.style.height='auto';e.target.style.height=Math.min(e.target.scrollHeight,120)+'px';});
 document.getElementById('messengerBody')?.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();document.getElementById('messengerComposer')?.requestSubmit();}});
 document.getElementById('messengerComposer')?.addEventListener('submit',async e=>{
