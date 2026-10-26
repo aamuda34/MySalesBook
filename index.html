@@ -1164,6 +1164,10 @@ async function handleCloudAuthChange() {
     clearTimeout(loadingWatchdog);
     finishStartup();
     authTransition = false;
+    // Refresh Me-panel identity after the persisted auth session has been restored.
+    // On a page refresh, paintPage() may run before Supabase returns the session.
+    updateMePanel();
+    if (currentPage() === 'me') render();
   }
 }
 async function loadBuybookConnection() {
