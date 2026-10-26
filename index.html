@@ -469,7 +469,7 @@ body:has(#me:not(.hidden)) .me-topbar{padding-top:max(10px, env(safe-area-inset-
 </form>
 <p class="muted">Sales are recorded as paid. Stock is deducted automatically.</p>
 </div>
-<div class="card"><div class="section-heading"><h2>Sales history</h2><span id="salesResultCount" class="muted"></span></div>
+<div class="card hidden" aria-hidden="true"><div class="section-heading"><h2>Sales history</h2><span id="salesResultCount" class="muted"></span></div>
 <div class="filters"><div class="filter-wide"><label for="salesSearch">Search sales</label><input id="salesSearch" type="search" placeholder="Product or note..." autocomplete="off"></div><div><label for="salesFrom">From date</label><input id="salesFrom" type="date"></div><div><label for="salesTo">To date</label><input id="salesTo" type="date"></div><div class="filter-wide"><button type="button" id="clearSalesFilters">Clear filters</button></div></div>
 <div id="salesList" class="empty">No sales recorded yet.</div></div>
 <div class="card"><div class="section-heading"><h2>Sales trend</h2><button type="button" data-open-page="reports">Reports</button></div><div id="salesTrendChart" class="chart-wrap"><div class="empty">Sales trend appears here.</div></div></div>
