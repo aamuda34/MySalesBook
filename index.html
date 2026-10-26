@@ -265,6 +265,27 @@ body.admin-conversation-open #backAdminChatList{font-size:15px}
 .me-menu-card{overflow:hidden;border-radius:18px;background:var(--surface);box-shadow:0 2px 10px #00000005;padding:0 15px}.me-menu-row{width:100%;display:flex;align-items:center;gap:13px;min-height:70px;padding:11px 2px;border:0;border-bottom:1px solid var(--border);background:transparent;color:var(--ink);text-align:left}.me-menu-row:last-child{border-bottom:0}.me-row-icon{width:38px;height:38px;flex:0 0 38px;display:grid;place-items:center;border-radius:12px;background:var(--soft);color:var(--green);font-size:22px;font-weight:600}.me-row-copy{display:flex;flex:1;min-width:0;flex-direction:column;gap:4px}.me-row-copy strong{font-size:14px;font-weight:650}.me-row-copy small{font-size:11px;color:var(--muted);line-height:1.35}.me-footer-note{text-align:center;color:var(--muted);font-size:11px;padding:3px 0 8px}
 @media(min-width:700px){.me-page{max-width:760px;margin:0 auto!important}.me-shortcuts{gap:22px;padding:18px 35px}.me-menu-row{min-height:74px}}
 
+/* Me panel layout refined to follow the supplied OPay account-page arrangement */
+.me-page{gap:14px!important;background:#f0f1f8!important;padding:4px 0 22px!important}
+.me-topbar{display:flex;justify-content:flex-end;min-height:46px;padding:8px 4px 0;gap:12px}
+.me-topbar-title{display:none}
+.me-topbar-actions{display:flex;align-items:center;gap:12px}
+.me-profile-card{background:transparent;box-shadow:none;border-radius:0;padding:10px 8px 14px;gap:14px}
+.me-profile-avatar{width:72px;height:72px;flex-basis:72px;border-radius:50%;background:#e1f5eb}
+.me-profile-copy strong{font-size:20px;font-weight:600}
+.me-profile-copy span{font-size:12px}
+.me-profile-copy small{display:inline-flex;align-self:flex-start;padding:5px 11px;border-radius:20px;background:#bfe8d2;color:#14532d;font-weight:700}
+.me-summary-card{background:#fff;border:0;border-radius:22px;color:var(--ink);padding:20px}
+.me-summary-heading{font-size:17px;color:var(--ink)}
+.me-summary-card p{color:var(--muted)}
+.me-summary-card>button{border-color:#edf0f0;color:var(--green)}
+.me-shortcuts{border-radius:22px;padding:22px 10px}
+.me-shortcut-icon{border-radius:18px;background:#e0f5eb}
+.me-menu-card{border-radius:22px;padding:0 18px}
+.me-menu-row{min-height:79px;gap:14px}
+.me-row-icon{background:transparent;border-radius:0;color:var(--ink);font-size:25px}
+.me-footer-note{padding-bottom:12px}
+@media(min-width:700px){.me-page{padding-top:12px!important}}
 /* Top-right support and gear controls, matching the reference account panel */
 .me-topbar{padding:18px 4px 4px;gap:12px}
 .me-topbar-title{margin-right:auto}
