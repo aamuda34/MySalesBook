@@ -340,6 +340,8 @@ body:has(#me:not(.hidden)) .me-topbar{padding-top:max(10px, env(safe-area-inset-
 @media(max-width:360px){.me-shortcuts{padding:12px 4px!important}.me-shortcut-icon{width:42px;height:42px}.me-shortcuts button strong{font-size:12px}}
 .low-stock-entry-button{display:inline-flex;flex-direction:row;align-items:center;justify-content:center;gap:8px;width:auto;min-width:0;min-height:0;padding:7px 12px;text-align:center;color:#14532d;cursor:pointer;border:1px solid #bbf7d0;border-radius:999px;background:#f0fdf4;box-shadow:0 1px 4px rgba(20,83,45,.08)}.low-stock-entry-title{display:inline-flex;align-items:center;justify-content:center;gap:8px;font-size:.9rem;line-height:1.2;font-weight:700}.low-stock-entry-description{font-size:.92rem;color:var(--muted,#68736b)}.low-stock-entry-button:focus-visible{outline:2px solid #14532d;outline-offset:2px}
 .product-list-filters{display:flex;align-items:center;gap:10px;margin:10px 0 14px}.product-list-filters input[type="search"]{flex:1 1 58%;width:58%;min-width:0;padding:8px 14px;border-radius:999px;font-size:14px}.product-list-filters select{flex:0 1 42%;width:42%;min-width:0;padding:8px 10px;border-radius:999px;font-size:14px}
+
+.product-open-button{width:100%;display:flex;text-align:left;align-items:center;border:0;border-bottom:1px solid #e7ece8;border-radius:0;background:transparent;color:inherit;padding:12px 0;cursor:pointer}.product-open-button .item-product{flex:1;min-width:0}.product-open-button .product-open-chevron{font-size:25px;color:#14532d;padding:0 5px}.product-details-photo{display:block;width:100%;max-height:420px;object-fit:contain;border-radius:14px;background:#f3f6f3}.product-details-name{font-size:22px;margin:14px 0 4px}.product-details-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px}.product-details-field{border:1px solid var(--border,#e4ebe5);border-radius:12px;padding:12px;min-width:0}.product-details-field small{display:block;color:var(--muted,#647269);font-size:12px;margin-bottom:5px}.product-details-field strong{overflow-wrap:anywhere}.product-details-edit{width:100%;margin-top:16px}
 </style>
 
 <link rel="manifest" href="./manifest.webmanifest">
@@ -437,6 +439,8 @@ body:has(#me:not(.hidden)) .me-topbar{padding-top:max(10px, env(safe-area-inset-
 <div id="productList" class="empty">No products yet.</div>
 </div>
 </section>
+
+<section id="product-details" class="page hidden"><div class="products-page-header"><button type="button" class="products-back-button" aria-label="Back to Products" title="Back to Products" onclick="showPage('products')"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6M9 12h11"/></svg></button><h1>Product details</h1></div><div id="productDetailsContent"></div></section>
 
 <section id="sales" class="page hidden">
 <div class="card"><h2>Today’s business summary</h2><div class="stats"><div class="stat"><small>Expenses</small><strong id="todayExpenses">₦0</strong></div><div class="stat"><small>Gross profit</small><strong id="todayGross">₦0</strong></div><div class="stat"><small>Net profit</small><strong id="todayNet">₦0</strong></div><div class="stat"><small>Total sales</small><strong id="allSales">₦0</strong></div></div></div>
@@ -1520,7 +1524,7 @@ function updateCategoryPickerLimits(prefix){const edit=prefix==='editProduct';co
 document.querySelectorAll('[data-product-category]').forEach(x=>x.addEventListener('change',()=>updateCategoryPickerLimits('product')));
 document.querySelectorAll('[data-edit-product-category]').forEach(x=>x.addEventListener('change',()=>updateCategoryPickerLimits('editProduct')));
 
-const VALID_PAGES=new Set(['home','products','low-stock','sales','more','expenses','reports','stock','settings','settings-business','settings-sync','settings-preferences','settings-account','settings-buybook','support','messenger','feedback','admin','me','notifications']);
+const VALID_PAGES=new Set(['home','products','product-details','low-stock','sales','more','expenses','reports','stock','settings','settings-business','settings-sync','settings-preferences','settings-account','settings-buybook','support','messenger','feedback','admin','me','notifications']);
 function currentPage(){return [...document.querySelectorAll('.page')].find(x=>!x.classList.contains('hidden'))?.id||'home';}
 async function renderDailySalesSummary(){const target=document.getElementById('dailySalesSummary');if(!target)return;const rows=new Map();const now=new Date();for(let i=0;i<7;i++){const d=new Date(now.getFullYear(),now.getMonth(),now.getDate()-i);const key=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');rows.set(key,{label:i===0?'Today':i===1?'Yesterday':d.toLocaleDateString(undefined,{weekday:'short',day:'numeric',month:'short'}),total:0,count:0});}for(const sale of (db.sales||[])){const raw=sale.sold_at||sale.created_at;if(!raw)continue;const d=new Date(raw);if(Number.isNaN(d.getTime()))continue;const key=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');const row=rows.get(key);if(row){row.total+=Number(sale.total)||0;row.count++;}}target.innerHTML=[...rows.values()].map(r=>'<div class="daily-sales-row"><span>'+escAdmin(r.label)+' · '+r.count+' sale'+(r.count===1?'':'s')+'</span><strong>'+escAdmin(new Intl.NumberFormat('en-NG',{style:'currency',currency:'NGN',maximumFractionDigits:2}).format(r.total))+'</strong></div>').join('');}
 function refreshHomeWeeklySales(){const el=document.getElementById('weeklySalesHome');if(!el)return;const now=new Date();const start=new Date(now.getFullYear(),now.getMonth(),now.getDate()-6);let total=0;for(const sale of (db.sales||[])){const raw=sale.sold_at||sale.created_at;if(!raw)continue;const d=new Date(raw);if(!Number.isNaN(d.getTime())&&d>=start&&d<=now)total+=Number(sale.total)||0;}el.textContent=money(total);}
@@ -1634,10 +1638,10 @@ function render(){
     const displayImage=typeof p.image==='string'&&p.image.startsWith('data:image/')?p.image:(p.offlineImage||p.image);
     const photo=typeof displayImage==='string'&&(displayImage.startsWith('data:image/')||displayImage.startsWith('https://'))?`<img class="product-photo" src="${displayImage}" alt="${esc(p.name)} photo">`:'<div class="product-photo" aria-label="No product photo"></div>';
     const lowStock=Number(p.stock)<=Number(lowStockThreshold);
-    return `<div class="item product-summary-item"><div class="item-product">${photo}<div class="item-product-details">
-    <div class="row product-summary-top"><strong>${esc(p.name)}</strong><strong>${money(p.price)}</strong></div>
-    <div class="muted">Stock: <strong>${p.stock} units</strong>${lowStock?' · Low stock':''}</div>
-    </div></div><button type="button" class="product-edit-icon" data-edit="${p.id}" aria-label="Edit ${esc(p.name)}" title="Edit product"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L8 18l-4 1 1-4Z"/></svg></button></div>`;
+    return `<button type="button" class="item product-summary-item product-open-button" data-product-open="${p.id}" aria-label="View ${esc(p.name)}"><span class="item-product">${photo}<span class="item-product-details">
+    <span class="row product-summary-top"><strong>${esc(p.name)}</strong><strong>${money(p.price)}</strong></span>
+    <span class="muted">Stock: <strong>${p.stock} units</strong>${lowStock?' · Low stock':''}</span>
+    </span></span><span class="product-open-chevron" aria-hidden="true">›</span></button>`;
   }).join(''):db.products.length?'<div class="empty">No products match your search or category.</div>':'<div class="empty">No products yet.</div>';
 
   const sel=document.getElementById('saleProduct'), previous=sel.value;
@@ -2038,7 +2042,21 @@ document.getElementById('editProductForm').addEventListener('submit',async event
   }
 });
 
+
+function renderProductDetails(p){
+ const target=document.getElementById('productDetailsContent');if(!target||!p)return;
+ const rawImage=typeof p.image==='string'&&p.image.startsWith('data:image/')?p.image:(p.offlineImage||p.image||'');
+ const image=typeof rawImage==='string'&&(rawImage.startsWith('data:image/')||rawImage.startsWith('https://'))?'<img class="product-details-photo" src="'+rawImage.replace(/"/g,'&quot;')+'" alt="'+esc(p.name)+'">':'<div class="product-details-photo" style="height:220px;display:grid;place-items:center;color:#647269">No product photo</div>';
+ const added=p.createdAt||p.created_at||p.dateAdded||p.addedAt||p.updatedAt||p.updated_at;
+ const addedText=added?safeDate(added).toLocaleDateString():'Not available';
+ const cost=Number(p.cost??p.costPrice??p.cost_price??0),price=Number(p.price??p.sellingPrice??p.selling_price??0),stock=Number(p.stock||0);
+ const field=(label,value)=>'<div class="product-details-field"><small>'+label+'</small><strong>'+value+'</strong></div>';
+ target.innerHTML='<div class="card">'+image+'<h2 class="product-details-name">'+esc(p.name)+'</h2><p class="muted">'+esc(p.category||'Uncategorised')+'</p><div class="product-details-grid">'+field('Date added',esc(addedText))+field('Category',esc(p.category||'Not set'))+field('Cost price',money(cost))+field('Selling price',money(price))+field('Profit per unit',money(price-cost))+field('Current stock',esc(String(stock))+' units')+(p.baseUnit?field('Stock unit',esc(p.baseUnit)):'')+(p.purchaseUnit?field('Purchase unit',esc(p.purchaseUnit)):'')+'</div><button type="button" class="primary product-details-edit" data-details-edit="'+String(p.id).replace(/"/g,'&quot;')+'">Edit product</button></div>';
+ const edit=target.querySelector('[data-details-edit]');edit.addEventListener('click',()=>{showPage('products');const editButton=document.querySelector('#productList [data-edit="'+CSS.escape(String(p.id))+'"]');if(editButton)editButton.click();});
+}
 document.getElementById('productList').addEventListener('click',async e=>{
+ const openButton=e.target.closest('[data-product-open]');
+ if(openButton){const p=db.products.find(x=>String(x.id)===String(openButton.dataset.productOpen));if(!p)return;renderProductDetails(p);showPage('product-details');return;}
  const button=e.target.closest('button');
  if(!button)return;
  const id=button.dataset.edit||button.dataset.delete||button.dataset.imageCamera||button.dataset.imageGallery||button.dataset.imageRemove;
