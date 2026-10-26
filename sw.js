@@ -52,25 +52,25 @@ self.addEventListener('fetch', event => {
 
   // App navigation: try the network first, then use the cached app page.
   if (request.mode === 'navigate') {
+    const refresh = fetch(request).then(async response => {
+      if (response && response.ok) {
+        const cache = await caches.open(CACHE_NAME);
+        await cache.put('./index.html', response.clone()).catch(() => {});
+      }
+      return response;
+    }).catch(() => null);
+    // Extend the navigation event immediately while the cached shell is served.
+    event.waitUntil(refresh);
     event.respondWith((async () => {
       const cache = await caches.open(CACHE_NAME);
       const cached = await cache.match('./index.html') || await cache.match('./');
-      // Open immediately from the cached app shell; refresh the cache in the
-      // background so slow mobile connections do not block every app launch.
-      const refresh = fetch(request).then(response => {
-        if (response && response.ok) cache.put('./index.html', response.clone()).catch(() => {});
-        return response;
-      }).catch(() => null);
-      if (cached) {
-        event.waitUntil(refresh);
-        return cached;
-      }
+      // Return the cached app immediately; network refresh updates the next launch.
+      if (cached) return cached;
       const response = await refresh;
       return response || new Response('Sellbook is not available offline yet. Connect once to the internet, open the app, and try again.', {status:503,headers:{'Content-Type':'text/plain; charset=utf-8'}});
     })());
     return;
   }
-
   // Cache successful same-origin static files. Also allow already-cached
   // external libraries to load offline after they have been fetched online.
   event.respondWith(
