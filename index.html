@@ -190,7 +190,9 @@ body.admin-conversation-open #backAdminChatList{font-size:15px}
 }
 /* Accurate Messenger delivery labels and conversation-list status */
 #messenger .messenger-list-ticks{display:inline-block;font-size:12px;font-weight:800;letter-spacing:-2px;color:var(--muted);margin-right:3px;white-space:nowrap}
+#messenger .messenger-list-ticks.is-read{color:#168bff}
 #messenger .chat-message.from-user .chat-time{color:rgba(255,255,255,.88)}
+#messenger .chat-message.from-user .chat-time .messenger-message-ticks.is-read{color:#73c8ff;font-weight:800}
 /* WhatsApp-inspired Sellbook Messenger: compact chat list, full-height mobile conversation, and familiar message bubbles. */
 #messenger .messenger-search{width:100%;border:1px solid var(--border);background:var(--soft);color:var(--ink);border-radius:22px;padding:12px 15px;font:inherit;margin:0 0 10px}
 #messenger .messenger-list-card{padding:12px}
@@ -2472,7 +2474,7 @@ function renderMessengerConversationList(){
  const list=document.getElementById('messengerConversationList');if(!list)return;
  const term=(document.getElementById('messengerSearch')?.value||'').trim().toLowerCase();
  const rows=messengerConversationCache.filter(c=>(c.title+' '+(c.body||'')).toLowerCase().includes(term)&&(messengerListFilter==='all'||(messengerListFilter==='unread'&&c.unread>0)||(messengerListFilter==='support'&&c.id==='support')||(messengerListFilter==='buyers'&&c.id!=='support')));
- list.innerHTML=rows.length?rows.map(c=>'<button type="button" class="conversation-list-button" data-messenger-id="'+escAdmin(c.id)+'"><span class="chat-support-avatar" aria-hidden="true">'+(c.id==='support'?'SB':'👤')+'</span><span class="conversation-preview"><strong>'+escAdmin(c.title)+'</strong><small>'+(c.lastMine?'<span class="messenger-list-ticks" aria-label="'+(c.lastRead?'Read':c.lastDelivered?'Delivered':'Sent')+'">'+(c.lastRead?'✓✓':c.lastDelivered?'✓✓':'✓')+'</span> ':'')+escAdmin(c.body||'No messages yet')+'</small></span><span class="conversation-time">'+escAdmin(messengerTime(c.time))+(c.unread?'<span class="status-pill">'+c.unread+'</span>':'')+'</span></button>').join(''):'<div class="empty">'+(term?'No matching conversations.':'No conversations yet. Buybook subscriber chats and Sellbook Support replies will appear here.')+'</div>';
+ list.innerHTML=rows.length?rows.map(c=>'<button type="button" class="conversation-list-button" data-messenger-id="'+escAdmin(c.id)+'"><span class="chat-support-avatar" aria-hidden="true">'+(c.id==='support'?'SB':'👤')+'</span><span class="conversation-preview"><strong>'+escAdmin(c.title)+'</strong><small>'+(c.lastMine?'<span class="messenger-list-ticks'+(c.lastRead?' is-read':'')+'" aria-label="'+(c.lastRead?'Read':c.lastDelivered?'Delivered':'Sent')+'">'+(c.lastRead?'✓✓':c.lastDelivered?'✓✓':'✓')+'</span> ':'')+escAdmin(c.body||'No messages yet')+'</small></span><span class="conversation-time">'+escAdmin(messengerTime(c.time))+(c.unread?'<span class="status-pill">'+c.unread+'</span>':'')+'</span></button>').join(''):'<div class="empty">'+(term?'No matching conversations.':'No conversations yet. Buybook subscriber chats and Sellbook Support replies will appear here.')+'</div>';
  list.querySelectorAll('[data-messenger-id]').forEach(b=>b.addEventListener('click',()=>openMessengerConversation(b.dataset.messengerId)));
 }
 async function loadMessengerConversations(options={}){
@@ -2514,7 +2516,7 @@ async function openMessengerConversation(id,options={}){
   else{const r=await supabaseClient.from('marketplace_messages').select('id,owner_id,buyer_id,sender_id,body,created_at,read_at').eq('owner_id',uid).eq('buyer_id',id).order('created_at',{ascending:true}).limit(300);rows=r.data||[];error=r.error;}
   if(error)throw error;
   const wasNearBottom=target.scrollHeight-target.scrollTop-target.clientHeight<120;
-  target.innerHTML=rows.length?rows.map(m=>'<div class="chat-message '+(m.sender_id===uid?'from-user':'from-support')+'"><strong>'+(m.sender_id===uid?'You':(id==='support'?'Sellbook Support':escAdmin(convo?.title||marketplaceBuyerName(id))))+'</strong><p>'+escAdmin(m.body)+'</p><time class="chat-time">'+escAdmin(messengerTime(m.created_at))+(m.sender_id===uid?' · '+(m.read_at?'✓✓ Read':(id==='support'&&m.delivered_at?'✓✓ Delivered':'✓ Sent')):'')+'</time></div>').join(''):'<div class="empty">Say hello to start the conversation.</div>';
+  target.innerHTML=rows.length?rows.map(m=>'<div class="chat-message '+(m.sender_id===uid?'from-user':'from-support')+'"><strong>'+(m.sender_id===uid?'You':(id==='support'?'Sellbook Support':escAdmin(convo?.title||marketplaceBuyerName(id))))+'</strong><p>'+escAdmin(m.body)+'</p><time class="chat-time">'+escAdmin(messengerTime(m.created_at))+(m.sender_id===uid?' · <span class="messenger-message-ticks'+(m.read_at?' is-read':'')+'">'+(m.read_at?'✓✓ Read':(id==='support'&&m.delivered_at?'✓✓ Delivered':'✓ Sent'))+'</span>':'')+'</time></div>').join(''):'<div class="empty">Say hello to start the conversation.</div>';
   if(wasNearBottom||!options.quiet)target.scrollTop=target.scrollHeight;
   const status=document.getElementById('messengerStatus');if(status)status.textContent='';
  }catch(err){if(!options.quiet)target.innerHTML='<div class="empty">Could not load messages: '+escAdmin(err.message||'Please try again.')+'</div>';}
