@@ -188,6 +188,9 @@ body.admin-conversation-open #backAdminChatList{font-size:15px}
  body.messenger-open #messenger>.section-heading.messenger-main-heading{padding:calc(12px + env(safe-area-inset-top)) 18px 10px!important}
  body.messenger-open #messenger>.messenger-list-card{padding-top:10px!important}
 }
+/* Accurate Messenger delivery labels and conversation-list status */
+#messenger .messenger-list-ticks{display:inline-block;font-size:12px;font-weight:800;letter-spacing:-2px;color:var(--muted);margin-right:3px;white-space:nowrap}
+#messenger .chat-message.from-user .chat-time{color:rgba(255,255,255,.88)}
 /* WhatsApp-inspired Sellbook Messenger: compact chat list, full-height mobile conversation, and familiar message bubbles. */
 #messenger .messenger-search{width:100%;border:1px solid var(--border);background:var(--soft);color:var(--ink);border-radius:22px;padding:12px 15px;font:inherit;margin:0 0 10px}
 #messenger .messenger-list-card{padding:12px}
@@ -2469,7 +2472,7 @@ function renderMessengerConversationList(){
  const list=document.getElementById('messengerConversationList');if(!list)return;
  const term=(document.getElementById('messengerSearch')?.value||'').trim().toLowerCase();
  const rows=messengerConversationCache.filter(c=>(c.title+' '+(c.body||'')).toLowerCase().includes(term)&&(messengerListFilter==='all'||(messengerListFilter==='unread'&&c.unread>0)||(messengerListFilter==='support'&&c.id==='support')||(messengerListFilter==='buyers'&&c.id!=='support')));
- list.innerHTML=rows.length?rows.map(c=>'<button type="button" class="conversation-list-button" data-messenger-id="'+escAdmin(c.id)+'"><span class="chat-support-avatar" aria-hidden="true">'+(c.id==='support'?'SB':'👤')+'</span><span class="conversation-preview"><strong>'+escAdmin(c.title)+'</strong><small>'+escAdmin(c.body||'No messages yet')+'</small></span><span class="conversation-time">'+escAdmin(messengerTime(c.time))+(c.unread?'<span class="status-pill">'+c.unread+'</span>':'')+'</span></button>').join(''):'<div class="empty">'+(term?'No matching conversations.':'No conversations yet. Buybook subscriber chats and Sellbook Support replies will appear here.')+'</div>';
+ list.innerHTML=rows.length?rows.map(c=>'<button type="button" class="conversation-list-button" data-messenger-id="'+escAdmin(c.id)+'"><span class="chat-support-avatar" aria-hidden="true">'+(c.id==='support'?'SB':'👤')+'</span><span class="conversation-preview"><strong>'+escAdmin(c.title)+'</strong><small>'+(c.lastMine?'<span class="messenger-list-ticks" aria-label="'+(c.lastRead?'Read':c.lastDelivered?'Delivered':'Sent')+'">'+(c.lastRead?'✓✓':c.lastDelivered?'✓✓':'✓')+'</span> ':'')+escAdmin(c.body||'No messages yet')+'</small></span><span class="conversation-time">'+escAdmin(messengerTime(c.time))+(c.unread?'<span class="status-pill">'+c.unread+'</span>':'')+'</span></button>').join(''):'<div class="empty">'+(term?'No matching conversations.':'No conversations yet. Buybook subscriber chats and Sellbook Support replies will appear here.')+'</div>';
  list.querySelectorAll('[data-messenger-id]').forEach(b=>b.addEventListener('click',()=>openMessengerConversation(b.dataset.messengerId)));
 }
 async function loadMessengerConversations(options={}){
@@ -2479,14 +2482,14 @@ async function loadMessengerConversations(options={}){
  try{
   const uid=cloudUser.id;
   const [supportRes,marketRes,subsRes]=await Promise.all([
-   supabaseClient.from('support_messages').select('id,sender_id,recipient_id,body,created_at,read_at').or('sender_id.eq.'+uid+',recipient_id.eq.'+uid).order('created_at',{ascending:false}).limit(100),
+   supabaseClient.from('support_messages').select('id,sender_id,recipient_id,body,created_at,delivered_at,read_at').or('sender_id.eq.'+uid+',recipient_id.eq.'+uid).order('created_at',{ascending:false}).limit(100),
    supabaseClient.from('marketplace_messages').select('id,owner_id,buyer_id,sender_id,body,created_at,read_at').eq('owner_id',uid).order('created_at',{ascending:false}).limit(300),
    supabaseClient.rpc('get_my_marketplace_subscribers')
   ]);
   const conversations=[];
-  if(!supportRes.error&&(supportRes.data||[]).length){const rows=supportRes.data;const m=rows[0];conversations.push({id:'support',title:'Sellbook Support',body:m.body,time:m.created_at,unread:rows.filter(x=>x.sender_id!==uid&&x.recipient_id===uid&&!x.read_at).length});}
+  if(!supportRes.error&&(supportRes.data||[]).length){const rows=supportRes.data;const m=rows[0];conversations.push({id:'support',title:'Sellbook Support',body:m.body,time:m.created_at,unread:rows.filter(x=>x.sender_id!==uid&&x.recipient_id===uid&&!x.read_at).length,lastMine:m.sender_id===uid,lastDelivered:!!m.delivered_at,lastRead:!!m.read_at});}
   const subs=subsRes.data||[],msgs=marketRes.data||[],ids=[...new Set([...subs.map(x=>x.buyer_id),...msgs.map(x=>x.buyer_id)])];
-  for(const id of ids){const m=msgs.find(x=>x.buyer_id===id);const sub=subs.find(x=>x.buyer_id===id);if(!m&&!sub)continue;conversations.push({id,title:sub?.display_name||marketplaceBuyerName(id),body:m?.body||'Start a conversation',time:m?.created_at||sub?.created_at||new Date().toISOString(),unread:msgs.filter(x=>x.buyer_id===id&&x.sender_id!==uid&&!x.read_at).length});}
+  for(const id of ids){const m=msgs.find(x=>x.buyer_id===id);const sub=subs.find(x=>x.buyer_id===id);if(!m&&!sub)continue;conversations.push({id,title:sub?.display_name||marketplaceBuyerName(id),body:m?.body||'Start a conversation',time:m?.created_at||sub?.created_at||new Date().toISOString(),unread:msgs.filter(x=>x.buyer_id===id&&x.sender_id!==uid&&!x.read_at).length,lastMine:!!m&&m.sender_id===uid,lastDelivered:false,lastRead:!!m&&!!m.read_at});}
   if(supportRes.error&&marketRes.error&&subsRes.error)throw supportRes.error;
   messengerConversationCache=conversations.sort((a,b)=>new Date(b.time)-new Date(a.time));
   renderMessengerConversationList();
@@ -2507,11 +2510,11 @@ async function openMessengerConversation(id,options={}){
  const target=document.getElementById('messengerTranscript');if(!options.quiet)target.innerHTML='<div class="empty">Loading messages…</div>';
  try{
   const uid=cloudUser.id;let rows=[],error=null;
-  if(id==='support'){const r=await supabaseClient.from('support_messages').select('id,sender_id,recipient_id,body,created_at,delivered_at,read_at').or('sender_id.eq.'+uid+',recipient_id.eq.'+uid).order('created_at',{ascending:true}).limit(300);rows=r.data||[];error=r.error;}
+  if(id==='support'){const r=await supabaseClient.from('support_messages').select('id,sender_id,recipient_id,body,created_at,delivered_at,read_at').or('sender_id.eq.'+uid+',recipient_id.eq.'+uid).order('created_at',{ascending:true}).limit(300);rows=r.data||[];error=r.error;if(!error){const incoming=rows.filter(m=>m.recipient_id===uid&&!m.delivered_at).map(m=>m.id);if(incoming.length){const stamp=now();const ack=await supabaseClient.from('support_messages').update({delivered_at:stamp}).in('id',incoming).eq('recipient_id',uid).is('delivered_at',null);if(!ack.error)rows=rows.map(m=>incoming.includes(m.id)?{...m,delivered_at:stamp}:m);}}}
   else{const r=await supabaseClient.from('marketplace_messages').select('id,owner_id,buyer_id,sender_id,body,created_at,read_at').eq('owner_id',uid).eq('buyer_id',id).order('created_at',{ascending:true}).limit(300);rows=r.data||[];error=r.error;}
   if(error)throw error;
   const wasNearBottom=target.scrollHeight-target.scrollTop-target.clientHeight<120;
-  target.innerHTML=rows.length?rows.map(m=>'<div class="chat-message '+(m.sender_id===uid?'from-user':'from-support')+'"><strong>'+(m.sender_id===uid?'You':(id==='support'?'Sellbook Support':escAdmin(convo?.title||marketplaceBuyerName(id))))+'</strong><p>'+escAdmin(m.body)+'</p><time class="chat-time">'+escAdmin(messengerTime(m.created_at))+(m.sender_id===uid?' · ✓✓':'')+'</time></div>').join(''):'<div class="empty">Say hello to start the conversation.</div>';
+  target.innerHTML=rows.length?rows.map(m=>'<div class="chat-message '+(m.sender_id===uid?'from-user':'from-support')+'"><strong>'+(m.sender_id===uid?'You':(id==='support'?'Sellbook Support':escAdmin(convo?.title||marketplaceBuyerName(id))))+'</strong><p>'+escAdmin(m.body)+'</p><time class="chat-time">'+escAdmin(messengerTime(m.created_at))+(m.sender_id===uid?' · '+(m.read_at?'✓✓ Read':(id==='support'&&m.delivered_at?'✓✓ Delivered':'✓ Sent')):'')+'</time></div>').join(''):'<div class="empty">Say hello to start the conversation.</div>';
   if(wasNearBottom||!options.quiet)target.scrollTop=target.scrollHeight;
   const status=document.getElementById('messengerStatus');if(status)status.textContent='';
  }catch(err){if(!options.quiet)target.innerHTML='<div class="empty">Could not load messages: '+escAdmin(err.message||'Please try again.')+'</div>';}
