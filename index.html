@@ -1170,7 +1170,8 @@ async function cloudLoadAll() {
       const {data,error}=await supabaseClient.storage.from('product-images').createSignedUrl(row.image_path,3600);
       if(!error&&data?.signedUrl){
         image=data.signedUrl;
-        try { offlineImage=await imageUrlToDataUrl(image); } catch (_) {}
+        // Do not download every product photo again as a base64 copy during startup.
+        // This avoids extra network traffic and keeps the first workspace render fast.
       }
     }
     return {id:row.id,name:row.name,category:normalizeCategory(row.category),cost:Number(row.cost_price),price:Number(row.selling_price),stock:Number(row.stock),baseUnit:row.base_unit||'unit',purchaseUnit:row.purchase_unit||'unit',unitsPerPurchase:Number(row.units_per_purchase||1),packUnit:row.pack_unit||'',unitsPerPack:Number(row.units_per_pack||1),packPrice:row.pack_selling_price==null?null:Number(row.pack_selling_price),image,offlineImage,imagePath:row.image_path||'',createdAt:row.created_at,updatedAt:row.updated_at};
@@ -1192,20 +1193,25 @@ async function cloudLoadAll() {
   cloudMessage(pendingSync.length
     ? pendingSync.length + ' change(s) are waiting to sync. Your local copies are preserved.'
     : 'Cloud records loaded and synchronised.');
-  // When a connected shop loads its cloud records, publish any existing private product photos that have not yet been copied to the public marketplace bucket.
-  try {
-    const {data:shop}=await supabaseClient.from('marketplace_shops').select('is_connected,is_active').eq('owner_id',user.id).maybeSingle();
-    if(shop?.is_connected&&shop?.is_active){
+  // Marketplace photo repair is non-critical to the sales workspace.
+  // Defer it until after the first render so it cannot delay opening Sellbook.
+  setTimeout(async () => {
+    if (!cloudUser || cloudUser.id !== user.id || !navigator.onLine) return;
+    try {
+      const {data:shop}=await supabaseClient.from('marketplace_shops').select('is_connected,is_active').eq('owner_id',user.id).maybeSingle();
+      if(!shop?.is_connected||!shop?.is_active) return;
       for(const product of products){
+        if (!cloudUser || cloudUser.id !== user.id || !navigator.onLine) return;
         if(!product.imagePath) continue;
-        const {data:listing}=await supabaseClient.from('marketplace_listings').select('image_url').eq('product_id',product.id).eq('owner_id',user.id).maybeSingle();
+        const {data:listing,error}=await supabaseClient.from('marketplace_listings').select('image_url').eq('product_id',product.id).eq('owner_id',user.id).maybeSingle();
+        if(error) continue;
         if(listing&&!listing.image_url){
           try{await cloudPublishMarketplaceImage(product,user,product.offlineImage||null,product.imagePath);}
-          catch(imageError){console.warn('Automatic Buybook photo publishing skipped for product:',product.id,imageError);}
+          catch(imageError){console.warn('Background marketplace photo publishing skipped:',product.id,imageError);}
         }
       }
-    }
-  } catch(imageSyncError) { console.warn('Automatic Buybook photo sync could not complete:',imageSyncError); }
+    } catch(imageSyncError) { console.warn('Background marketplace photo sync skipped:',imageSyncError); }
+  }, 1500);
 }
 
 async function cloudUploadProductImage(imageData) {
