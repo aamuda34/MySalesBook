@@ -275,7 +275,9 @@ body.admin-conversation-open #backAdminChatList{font-size:15px}
 .me-top-icon:active{background:var(--soft);transform:scale(.97)}
 
 /* Keep the three global action icons on Home only. Me has its own Support + Settings pair. */
-body:has(#me:not(.hidden)) .seller-welcome-header .header-actions{display:none!important}
+body:has(#me:not(.hidden)) .seller-welcome-header{display:none!important}
+body:has(#me:not(.hidden)) #me{padding-top:0!important}
+body:has(#me:not(.hidden)) .me-topbar{padding-top:max(10px, env(safe-area-inset-top))!important}
 .me-support-button svg{width:25px;height:25px;stroke-width:2}
 
 /* OPay-inspired Me header: action icons on their own upper row, using Sellbook green */
