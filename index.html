@@ -1076,12 +1076,36 @@ async function handleCloudAuthChange() {
   }
 }
 async function loadBuybookConnection() {
-  const status=document.getElementById('buybookConnectionStatus');if(!status)return;
-  if(!cloudUser){status.textContent='Sign in to Sellbook with Google before connecting a shop.';return;}
+  const status=document.getElementById('buybookConnectionStatus');
+  const form=document.getElementById('buybookConnectionForm');
+  const disconnect=document.getElementById('buybookDisconnectButton');
+  const activity=document.getElementById('buybookSellerActivity');
+  if(!status)return;
+  const setConnectionView=(connected)=>{
+    status.textContent=connected?'Connected to Buybook':'Not connected to Buybook';
+    status.classList.toggle('connected',connected);
+    status.classList.toggle('not-connected',!connected);
+    if(form)form.classList.toggle('hidden',connected);
+    if(disconnect)disconnect.classList.toggle('hidden',!connected);
+    if(activity)activity.classList.remove('hidden');
+  };
+  if(!cloudUser){setConnectionView(false);status.textContent='Sign in to Sellbook to connect to Buybook.';if(activity)activity.classList.add('hidden');return;}
+  status.textContent='Checking Buybook connection…';
   const {data,error}=await supabaseClient.from('marketplace_shops').select('name,description,phone,address,city,state,is_connected,is_active').eq('owner_id',cloudUser.id).maybeSingle();
-  if(error){status.textContent='Could not load Buybook connection details. Please try again when online.';console.error(error);return;}
-  if(data){document.getElementById('buybookShopName').value=data.name||'';document.getElementById('buybookDescription').value=data.description||'';document.getElementById('buybookPhone').value=data.phone||'';document.getElementById('buybookAddress').value=data.address||'';document.getElementById('buybookCity').value=data.city||'';document.getElementById('buybookState').value=data.state||'Osun';status.textContent=data.is_connected&&data.is_active?'Your shop is connected. Product listings sync automatically when product details or stock change.':'Your shop details are saved but not currently visible on Buybook.';}
-  else{document.getElementById('buybookShopName').value=db.profile?.businessName||cloudUser.user_metadata?.business_name||cloudUser.user_metadata?.full_name||'';status.textContent='Not connected yet. Complete your shop details to publish your products.';}
+  if(error){setConnectionView(false);status.textContent='Could not check Buybook connection. Please try again.';console.error(error);return;}
+  const connected=!!(data&&data.is_connected&&data.is_active);
+  if(data){
+    document.getElementById('buybookShopName').value=data.name||'';
+    document.getElementById('buybookDescription').value=data.description||'';
+    document.getElementById('buybookPhone').value=data.phone||'';
+    document.getElementById('buybookAddress').value=data.address||'';
+    document.getElementById('buybookCity').value=data.city||'';
+    document.getElementById('buybookState').value=data.state||'Osun';
+  }else{
+    document.getElementById('buybookShopName').value=db.profile?.businessName||cloudUser.user_metadata?.business_name||cloudUser.user_metadata?.full_name||'';
+  }
+  setConnectionView(connected);
+  if(connected) await loadBuybookActivity();
 }
 let marketplaceSubscribersCache=[];
 let marketplaceSelectedBuyerId=null;
