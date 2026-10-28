@@ -377,6 +377,75 @@ body.reports-page-open>.seller-welcome-header{display:none!important}body.report
 /* Keep the App preference Appearance control pill-shaped and pill-sized. */
 #themePreference{display:inline-block;width:auto;min-width:190px;max-width:100%;min-height:42px;padding:9px 38px 9px 16px;border-radius:999px;font-size:14px;font-weight:700;box-sizing:border-box}
 @media(max-width:420px){#themePreference{width:auto;min-width:190px;max-width:100%}}
+
+/* Dark mode contrast and surface consistency across the app */
+body.dark{
+ color-scheme:dark;
+ --page:#101713;
+ --ink:#edf5ef;
+ --muted:#b4c2b8;
+ --surface:#1b2720;
+ --border:#394a3e;
+ --soft:#263b2d;
+}
+body.dark body, body.dark main, body.dark .page{color:var(--ink)}
+body.dark h1,body.dark h2,body.dark h3,body.dark h4,body.dark h5,
+body.dark p,body.dark label,body.dark legend,body.dark li,
+body.dark dt,body.dark dd,body.dark .page-title,body.dark .section-heading,
+body.dark .settings-page-heading,body.dark .settings-group,
+body.dark .business-logo-title{color:var(--ink)}
+body.dark .muted,body.dark small,body.dark .help-text,body.dark .hint,
+body.dark .business-logo-help,body.dark .expense-period-select-label,
+body.dark .subtext,body.dark .secondary-text{color:var(--muted)}
+body.dark .card,body.dark .stat,body.dark .menu-tile,body.dark .quick-action,
+body.dark .settings-group,body.dark .settings-row,body.dark .settings-item,
+body.dark .summary-card,body.dark .panel,body.dark .modal,
+body.dark .dialog,body.dark .empty-state,body.dark .product-card,
+body.dark .sale-card,body.dark .expense-card,body.dark .list-card,
+body.dark .report-card,body.dark .business-details-row,
+body.dark .entry-form-overlay{
+ background-color:var(--surface);
+ color:var(--ink);
+ border-color:var(--border);
+}
+body.dark input,body.dark select,body.dark textarea,
+body.dark .search-input,body.dark .filter-input{
+ background-color:#121c16;
+ color:var(--ink);
+ border-color:#46594b;
+}
+body.dark input::placeholder,body.dark textarea::placeholder{color:#a5b4a9;opacity:1}
+body.dark input:disabled,body.dark select:disabled,body.dark textarea:disabled{
+ background-color:#202b24;color:#9eaea2;opacity:1
+}
+body.dark button:not(.primary):not(.danger):not(.success):not(.active):not(.nav-button),
+body.dark .secondary-button,body.dark .outline-button,body.dark .settings-back-button{
+ color:var(--ink);
+ border-color:var(--border);
+}
+body.dark .settings-back-button{background:#26382b}
+body.dark table{color:var(--ink);border-color:var(--border)}
+body.dark th{background:#26362b;color:#edf5ef;border-color:var(--border)}
+body.dark td,body.dark tr{border-color:var(--border)}
+body.dark hr{border-color:var(--border)}
+body.dark .chip,body.dark .category-chip,body.dark .filter-chip,
+body.dark .markup-option,body.dark .pill,body.dark .badge-neutral{
+ background:#26382b;color:#e5f2e8;border-color:#46594b;
+}
+body.dark .product-open-button{color:var(--ink);border-color:var(--border)}
+body.dark .product-open-button:hover,body.dark .menu-tile:hover,
+body.dark .quick-action:hover{background-color:#24352a}
+body.dark .nav button,body.dark nav button{color:#c4d2c8}
+body.dark nav button.active{color:#fff}
+body.dark .business-logo-avatar-wrap{background:#26382b;border-color:#526b59}
+body.dark .business-logo-avatar-wrap>svg{stroke:#d5e5d9}
+body.dark .business-logo-edit-button{background:var(--green);color:#fff;border-color:#8ab99a}
+body.dark .divider,body.dark .list-divider{border-color:var(--border)}
+body.dark a:not(.primary){color:#9fe0b1}
+body.dark .success-text{color:#8de0a8}
+body.dark .warning-text{color:#ffd28a}
+body.dark .error-text,body.dark .danger-text{color:#ffaaa5}
+body.dark #themePreference{background-color:#19271e;color:var(--ink);border-color:#64856c}
 </style>
 
 <link rel="manifest" href="./manifest.webmanifest">
