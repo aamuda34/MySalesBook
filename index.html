@@ -578,6 +578,66 @@ body.dark .home-marketplace-board .quick-icon svg,
 body.dark .me-quick-tool .tile-icon svg,
 body.dark .business-logo-edit-button svg,
 body.dark .stock-history-open-button svg{color:#36a269;stroke:currentColor}
+
+/* Make the Home panel's Recent sales shortcut easier to notice and read. */
+.recent-sales-strip{
+ min-height:68px;
+ padding:13px 15px;
+ gap:11px;
+ background:#dcefe2;
+ color:#123d27;
+ border:1px solid #9ccdad;
+ border-top:2px solid #14532d;
+ box-shadow:0 3px 10px rgba(20,83,45,.12);
+}
+.recent-sales-check{
+ flex-basis:30px;
+ width:30px;
+ height:30px;
+ background:#14532d;
+ color:#fff;
+ border:0;
+ font-size:19px;
+}
+.recent-sales-strip-content{
+ flex-direction:column;
+ align-items:flex-start;
+ gap:4px;
+}
+.recent-sales-strip-content strong{
+ font-size:15px;
+ font-weight:800;
+ line-height:1.25;
+ color:#14532d;
+}
+.recent-sales-strip-content span{
+ font-size:14px;
+ font-weight:600;
+ line-height:1.35;
+ color:#234b34;
+}
+.recent-sales-history{
+ padding:6px 9px;
+ border-radius:8px;
+ background:#14532d;
+ color:#fff;
+ font-size:12px;
+ font-weight:800;
+}
+.recent-sales-chevron{color:#14532d;font-weight:700}
+body.dark .recent-sales-strip{
+ background:#211b2a;
+ color:#f6f4fa;
+ border:1px solid #51445e;
+ border-top:2px solid #36a269;
+ box-shadow:0 4px 14px rgba(0,0,0,.24);
+}
+body.dark .recent-sales-check{background:#14532d;color:#fff}
+body.dark .recent-sales-strip-content strong{color:#f6f4fa!important}
+body.dark .recent-sales-strip-content span{color:#ded6e9!important}
+body.dark .recent-sales-history{background:#14532d;color:#fff}
+body.dark .recent-sales-chevron{color:#36a269}
+
 </style>
 
 <link rel="manifest" href="./manifest.webmanifest">
