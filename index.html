@@ -533,14 +533,20 @@ body.dark .stock-history-open-button{color:#36a269}
 body.dark .nav button.active,body.dark .nav-button.active{color:#36a269}
 
 
-/* Home header seller/business name: lavender-green text, with header icons kept Sellbook green. */
+/* Home seller/business name uses soft lavender-green in dark mode only. */
 body.dark .seller-welcome-header .brand-copy h1,
 body.dark .seller-welcome-header .brand-copy h1 *,
 body.dark .seller-welcome-header .brand-copy .seller-name,
-body.dark .seller-welcome-header .brand-copy .business-name{color:#bcaee9!important}
+body.dark .seller-welcome-header .brand-copy .business-name{
+ color:#bcaee9!important;
+ -webkit-text-fill-color:#bcaee9!important;
+}
 body.dark .seller-welcome-header .header-icon-button,
 body.dark .seller-welcome-header .header-icon-button svg,
-body.dark .seller-welcome-header .header-icon-button svg *{color:#36a269!important;stroke:currentColor}
+body.dark .seller-welcome-header .header-icon-button svg *{
+ color:#36a269!important;
+ stroke:currentColor;
+}
 
 /* Dark green text becomes soft lavender-green; iconography stays Sellbook green. */
 body.dark .success-text,body.dark .positive-text,body.dark .profit-text,
