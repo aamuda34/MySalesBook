@@ -447,18 +447,82 @@ body.dark .warning-text{color:#ffd28a}
 body.dark .error-text,body.dark .danger-text{color:#ffaaa5}
 body.dark #themePreference{background-color:#19271e;color:var(--ink);border-color:#64856c}
 
-/* Dark mode: change only the overall background to dark night purple */
+/* Sellbook dark mode: polished night-purple surfaces with clear green accents. */
 body.dark{
- --page:#100b1c;
- --ink:#f3f6fb;
- --muted:#c0cad8;
- --surface:#1c2738;
- --border:#3b4a60;
- --soft:#26374b;
+ color-scheme:dark;
+ --page:#100b18;
+ --ink:#f6f4fa;
+ --muted:#bdb6c9;
+ --surface:#1c1824;
+ --border:#393143;
+ --soft:#292333;
  --green:#36a269;
  background:var(--page)!important;
+ color:var(--ink);
 }
-body.dark main,body.dark .page{background:var(--page)}
+body.dark html,body.dark main,body.dark .page,
+body.dark #appWorkspace{background:var(--page)!important;color:var(--ink)}
+body.dark .card,body.dark .stat,body.dark .menu-tile,body.dark .quick-action,
+body.dark .settings-group,body.dark .settings-row,body.dark .settings-item,
+body.dark .summary-card,body.dark .panel,body.dark .modal,body.dark .dialog,
+body.dark .empty-state,body.dark .product-card,body.dark .sale-card,
+body.dark .expense-card,body.dark .list-card,body.dark .report-card,
+body.dark .business-details-row,body.dark .entry-form-overlay,
+body.dark .home-marketplace-board,body.dark .me-quick-tools{
+ background-color:var(--surface)!important;
+ color:var(--ink);
+ border-color:var(--border)!important;
+ box-shadow:0 3px 12px rgba(0,0,0,.14);
+}
+body.dark h1,body.dark h2,body.dark h3,body.dark h4,body.dark h5,
+body.dark p,body.dark label,body.dark legend,body.dark li,
+body.dark dt,body.dark dd,body.dark .page-title,body.dark .section-heading,
+body.dark .settings-page-heading,body.dark .settings-group,
+body.dark .business-logo-title{color:var(--ink)}
+body.dark .muted,body.dark small,body.dark .help-text,body.dark .hint,
+body.dark .business-logo-help,body.dark .expense-period-select-label,
+body.dark .subtext,body.dark .secondary-text{color:var(--muted)}
+body.dark input,body.dark select,body.dark textarea,
+body.dark .search-input,body.dark .filter-input{
+ background-color:#17131d;color:var(--ink);border-color:#494052;
+}
+body.dark input::placeholder,body.dark textarea::placeholder{color:#aaa2b7;opacity:1}
+body.dark input:disabled,body.dark select:disabled,body.dark textarea:disabled{
+ background-color:#24202c;color:#a9a1b4;opacity:1
+}
+body.dark button:not(.primary):not(.danger):not(.success):not(.active):not(.nav-button),
+body.dark .secondary-button,body.dark .outline-button,body.dark .settings-back-button{
+ color:var(--ink);border-color:var(--border);
+}
+body.dark .settings-back-button{background:#292333}
+body.dark table{color:var(--ink);border-color:var(--border)}
+body.dark th{background:#292333;color:var(--ink);border-color:var(--border)}
+body.dark td,body.dark tr,body.dark hr{border-color:var(--border)}
+body.dark .chip,body.dark .category-chip,body.dark .filter-chip,
+body.dark .markup-option,body.dark .pill,body.dark .badge-neutral{
+ background:#292333;color:#f0ebf7;border-color:#494052;
+}
+body.dark .product-open-button{color:var(--ink);border-color:var(--border)}
+body.dark .product-open-button:hover,body.dark .menu-tile:hover,
+body.dark .quick-action:hover{background-color:#30283b}
+body.dark .nav button,body.dark nav button{color:#c5bdcf}
+body.dark nav button.active{color:#fff}
+body.dark .business-logo-avatar-wrap{background:#292333;border-color:#51445e}
+body.dark .business-logo-avatar-wrap>svg{stroke:#e3d9ed}
+body.dark .business-logo-edit-button{background:var(--green);color:#fff;border-color:#6fb78e}
+body.dark .divider,body.dark .list-divider{border-color:var(--border)}
+body.dark a:not(.primary){color:#8fe0b0}
+body.dark .success-text{color:#8de0a8}
+body.dark .warning-text{color:#ffd28a}
+body.dark .error-text,body.dark .danger-text{color:#ffaaa5}
+body.dark #themePreference{background-color:#211b2a;color:var(--ink);border-color:#594767}
+body.dark .home-marketplace-board .buybook-home-card .quick-icon,
+body.dark .me-quick-tool .tile-icon{background:#183d2c;color:#72d6a0}
+body.dark .low-stock-entry-button{background:#183d2c;color:#8de0b0;border-color:#286847}
+body.dark .product-details-photo{background:#17131d}
+body.dark .product-details-edit-icon{background:#292333;color:#8fe0b0;border-color:#494052}
+body.dark .stock-history-open-button{color:#8fe0b0}
+body.dark .nav button.active,body.dark .nav-button.active{color:#8fe0b0}
 </style>
 
 <link rel="manifest" href="./manifest.webmanifest">
