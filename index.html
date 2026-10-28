@@ -533,6 +533,20 @@ body.dark .stock-history-open-button{color:#36a269}
 body.dark .nav button.active,body.dark .nav-button.active{color:#36a269}
 
 
+/* Exact home title override: only seller name text changes in dark mode. */
+body.dark #businessTitle,
+body.dark .seller-welcome-header #businessTitle{
+ color:#c4b5e9!important;
+ -webkit-text-fill-color:#c4b5e9!important;
+ text-shadow:none!important;
+}
+body.dark .seller-welcome-header .header-actions .header-icon-button,
+body.dark .seller-welcome-header .header-actions .header-icon-button svg,
+body.dark .seller-welcome-header .header-actions .header-icon-button svg *{
+ color:#36a269!important;
+ stroke:#36a269!important;
+}
+
 /* Home seller/business name uses soft lavender-green in dark mode only. */
 body.dark .seller-welcome-header .brand-copy h1,
 body.dark .seller-welcome-header .brand-copy h1 *,
