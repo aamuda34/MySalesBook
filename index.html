@@ -644,6 +644,55 @@ body.dark .recent-sales-chevron{color:#36a269}
 /* OPay-inspired overlap: tuck the Recent sales card underneath the dashboard board. */
 .home-sales-board{position:relative;z-index:2;margin-bottom:0;border-bottom-left-radius:22px;border-bottom-right-radius:22px}
 .recent-sales-strip{position:relative;z-index:1;margin:-12px 0 14px;padding:23px 15px 12px;border-top:0;border-radius:0 0 17px 17px}
+
+/* Compact, single-line Recent sales strip inspired by the OPay dashboard row. */
+.recent-sales-strip{
+ display:flex;
+ flex-wrap:nowrap;
+ align-items:center;
+ gap:8px;
+ min-height:48px;
+ padding:10px 14px;
+ margin:-12px 0 14px;
+ border:0;
+ border-radius:0 0 17px 17px;
+ white-space:nowrap;
+ overflow:hidden;
+}
+.recent-sales-check{flex:0 0 22px;width:22px;height:22px;font-size:16px}
+.recent-sales-strip-content{
+ display:flex;
+ flex:1 1 auto;
+ min-width:0;
+ flex-direction:row;
+ align-items:center;
+ gap:6px;
+ white-space:nowrap;
+ overflow:hidden;
+}
+.recent-sales-strip-content strong{
+ flex:0 0 auto;
+ font-size:13px;
+ font-weight:700;
+ white-space:nowrap;
+}
+.recent-sales-strip-content span{
+ flex:1 1 auto;
+ min-width:0;
+ font-size:12px;
+ font-weight:600;
+ white-space:nowrap;
+ overflow:hidden;
+ text-overflow:ellipsis;
+}
+.recent-sales-history{flex:0 0 auto;font-size:12px;font-weight:700}
+.recent-sales-chevron{flex:0 0 auto;font-size:20px}
+@media(max-width:380px){
+ .recent-sales-strip{gap:6px;padding-left:10px;padding-right:10px}
+ .recent-sales-strip-content{gap:4px}
+ .recent-sales-strip-content strong,.recent-sales-strip-content span,.recent-sales-history{font-size:11px}
+ .recent-sales-check{flex-basis:20px;width:20px;height:20px}
+}
 </style>
 
 <link rel="manifest" href="./manifest.webmanifest">
