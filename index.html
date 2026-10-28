@@ -447,21 +447,29 @@ body.dark .warning-text{color:#ffd28a}
 body.dark .error-text,body.dark .danger-text{color:#ffaaa5}
 body.dark #themePreference{background-color:#19271e;color:var(--ink);border-color:#64856c}
 
-/* Sellbook dark mode: polished night-purple surfaces with clear green accents. */
+/* Sellbook dark mode: premium midnight-plum background with subtle depth. */
 body.dark{
  color-scheme:dark;
- --page:#100b18;
+ --page:#0d0914;
  --ink:#f6f4fa;
  --muted:#bdb6c9;
  --surface:#1c1824;
  --border:#393143;
  --soft:#292333;
  --green:#36a269;
- background:var(--page)!important;
+ background:
+   radial-gradient(ellipse at 50% -12%, rgba(91,55,119,.30) 0%, rgba(48,30,67,.13) 32%, transparent 66%),
+   linear-gradient(155deg,#100b19 0%,#0d0914 48%,#100b18 100%)!important;
+ background-attachment:fixed!important;
  color:var(--ink);
 }
-body.dark html,body.dark main,body.dark .page,
-body.dark #appWorkspace{background:var(--page)!important;color:var(--ink)}
+body.dark html{background:#0d0914!important}
+body.dark main,body.dark .page,
+body.dark #appWorkspace{
+ background:transparent!important;
+ color:var(--ink);
+}
+body.dark #appWorkspace>main{background:transparent!important}
 body.dark .card,body.dark .stat,body.dark .menu-tile,body.dark .quick-action,
 body.dark .settings-group,body.dark .settings-row,body.dark .settings-item,
 body.dark .summary-card,body.dark .panel,body.dark .modal,body.dark .dialog,
