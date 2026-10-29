@@ -1995,10 +1995,19 @@ async function updateReservationDecision(id,decision,button){
   if(error)throw error;
   if(!data)throw new Error('This reservation has already been updated. Refresh the page to see its latest status.');
   reservation.status=decision;
+  let notificationFailed=false;
+  try{
+   const {error:notificationError}=await supabaseClient.functions.invoke('notify-reservation-decision',{body:{reservation_id:id,decision}});
+   if(notificationError)throw notificationError;
+  }catch(notificationError){
+   notificationFailed=true;
+   console.error('Sellbook: reservation decision saved, but buyer notification failed.',notificationError);
+  }
   await loadReservationsPage();
   showReservationDetails(id);
-  if(typeof showToast==='function')showToast(decision==='approved'?'Reservation approved.':'Reservation rejected.');
-  else alert(decision==='approved'?'Reservation approved.':'Reservation rejected.');
+  const message=(decision==='approved'?'Reservation approved.':'Reservation rejected.')+(notificationFailed?' Buyer notification could not be sent; please try again later.':' Buyer notification sent.');
+  if(typeof showToast==='function')showToast(message);
+  else alert(message);
  }catch(err){alert('Could not update reservation: '+(err.message||'Please try again.'));if(button){button.disabled=false;button.textContent=original||'Try again';}}
 }
 function showReservationDetails(id){
