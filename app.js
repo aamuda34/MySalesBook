@@ -249,7 +249,13 @@ function applyPendingToDb() {
     } else if (item.type === 'sale_import') {
       if (!db.sales.some(x => x.id === p.sale.id)) db.sales.push(p.sale);
     } else if(item.type==='stock_restock'){
-      const r=p.restock;if(r){const product=db.products.find(x=>x.id===r.productId);if(product){product.stock=r.newStock;product.cost=r.averageCostAfter;}}
+      const r=p.restock;if(r){
+        // Keep queued restocks visible in History after a cloud reload. The queue
+        // is the durable local record until Supabase acknowledges the RPC.
+        if(!db.restocks.some(x=>String(x.id)===String(r.id)))db.restocks.push(r);
+        const product=db.products.find(x=>String(x.id)===String(r.productId));
+        if(product){product.stock=r.newStock;product.cost=r.averageCostAfter;}
+      }
     } else if(item.type==='stock_adjustment'){
       if(p.adjustment&&!db.stockAdjustments.some(x=>x.id===p.adjustment.id))db.stockAdjustments.push(p.adjustment);
     } else if(item.type==='profile_save'){
