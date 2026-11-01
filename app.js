@@ -27,7 +27,7 @@ let lowStockThreshold=Number(localStorage.getItem('my-sales-book-low-stock-v1')|
 function applyTheme(){document.body.classList.remove('dark');}
 function safeDate(value){const d=new Date(value);return Number.isNaN(d.getTime())?new Date(0):d;}
 function dateKey(value){const d=safeDate(value);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
-function validDateKey(value){if(value==null||value==='')return null;const d=new Date(value);if(!Number.isFinite(d.getTime()))return null;return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+function validDateKey(value){if(value==null||value==='')return null;const raw=String(value);if(/^\d{4}-\d{2}-\d{2}$/.test(raw)){const [year,month,day]=raw.split('-').map(Number);const check=new Date(year,month-1,day);return check.getFullYear()===year&&check.getMonth()===month-1&&check.getDate()===day?raw:null;}const d=new Date(value);if(!Number.isFinite(d.getTime()))return null;return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
 let selectedExpensePeriod='today';
 function setExpensePeriod(period){
  if(!['today','week','month','year','all'].includes(period))return;
