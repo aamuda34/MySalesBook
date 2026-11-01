@@ -1127,25 +1127,44 @@ function refreshStockHistoryBadges(){
  });
 }
 async function refreshStockHistoryFromCloud(){
- if(!cloudUser||!navigator.onLine||storageMode==='local'){renderStockAdjustments();refreshStockHistoryBadges();return;}
+ const renderAll=()=>{renderStockAdjustments();renderRestockHistory();refreshStockHistoryBadges();};
+ if(!cloudUser||!navigator.onLine||storageMode==='local'){renderAll();return;}
  const uid=cloudUser.id;
  try{
-  const result=await supabaseClient.from('stock_purchases').select('id,product_id,product_name,purchase_quantity,purchase_unit,units_per_purchase,base_quantity,cost_per_purchase_unit,total_cost,average_cost_before,average_cost_after,restocked_at').eq('user_id',uid).order('restocked_at',{ascending:false});
+  const result=await supabaseClient.from('stock_purchases')
+   .select('id,product_id,product_name,purchase_quantity,purchase_unit,units_per_purchase,base_quantity,cost_per_purchase_unit,total_cost,average_cost_before,average_cost_after,restocked_at')
+   .eq('user_id',uid).order('restocked_at',{ascending:false}).limit(500);
   if(result.error)throw result.error;
   if(!cloudUser||cloudUser.id!==uid)return;
-  const previous=new Map((db.restocks||[]).map(row=>[String(row.id),row]));
-  const remote=(result.data||[]).map(row=>{const old=previous.get(String(row.id));return {id:row.id,productId:row.product_id,productName:row.product_name,purchaseQuantity:Number(row.purchase_quantity),purchaseUnit:row.purchase_unit,unitsPerPurchase:Number(row.units_per_purchase),baseQuantity:Number(row.base_quantity),costPerPurchaseUnit:Number(row.cost_per_purchase_unit),totalCost:Number(row.total_cost),averageCostBefore:Number(row.average_cost_before),averageCostAfter:Number(row.average_cost_after),previousStock:old?.previousStock,newStock:old?.newStock,date:row.restocked_at};});
-  const ids=new Set(remote.map(row=>String(row.id)));
-  for(const item of pendingSync||[]){const row=item.payload?.restock;if(item.type==='stock_restock'&&item.status!=='synced'&&row&&!ids.has(String(row.id)))remote.push(row);}
-  db.restocks=remote;
-  renderStockAdjustments();
-  refreshStockHistoryBadges();
+  const merged=new Map();
+  const add=(row)=>{
+   if(!row||row.id==null)return;
+   const key=String(row.id),existing=merged.get(key);
+   merged.set(key,{...(existing||{}),...row});
+  };
+  // Keep the current account's cached rows while the server response is reconciled.
+  // This prevents an empty/partial response from erasing history on the device.
+  for(const row of Array.isArray(db.restocks)?db.restocks:[])add(row);
+  for(const row of result.data||[]){
+   const old=merged.get(String(row.id))||{};
+   add({id:row.id,productId:row.product_id,productName:row.product_name,
+    purchaseQuantity:Number(row.purchase_quantity),purchaseUnit:row.purchase_unit,
+    unitsPerPurchase:Number(row.units_per_purchase),baseQuantity:Number(row.base_quantity),
+    costPerPurchaseUnit:Number(row.cost_per_purchase_unit),totalCost:Number(row.total_cost),
+    averageCostBefore:Number(row.average_cost_before),averageCostAfter:Number(row.average_cost_after),
+    previousStock:old.previousStock,newStock:old.newStock,date:row.restocked_at});
+  }
+  for(const item of readQueue(uid)){
+   const row=item.payload?.restock;
+   if(item.type==='stock_restock'&&item.status!=='synced'&&row)add(row);
+  }
+  db.restocks=[...merged.values()].sort((a,b)=>safeDate(b.date)-safeDate(a.date));
+  renderAll();
   cacheCloudData(uid);
  }catch(error){
   console.warn('Restock history refresh failed:',error);
-  cloudMessage('Restock history could not be refreshed. Your saved records have not been changed.');
-  renderStockAdjustments();
-  refreshStockHistoryBadges();
+  cloudMessage('Restock history could not be refreshed. Showing the saved history on this phone.');
+  renderAll();
  }
 }
 
@@ -1322,7 +1341,30 @@ function renderBarChart(id,rows,labelFn,valueFn){const target=document.getElemen
  function reportRowsFor7(){const dailyTotals=salesTotalsByDate(),rows=[];for(let i=6;i>=0;i--){const d=new Date();d.setHours(0,0,0,0);d.setDate(d.getDate()-i);const key=dateKey(d);rows.push({label:d.toLocaleDateString(undefined,{weekday:'short'}),sales:dailyTotals.get(key)||0});}return rows;}
 function renderReports(){const {start,rows}=reportRows(),allTime=document.getElementById('reportRange')?.value==='all',key=dateKey(start),sales=db.sales.filter(x=>allTime||dateKey(x.date)>=key),expenses=db.expenses.filter(x=>allTime||dateKey(x.date)>=key);const total=sales.reduce((n,x)=>n+x.total,0),gross=sales.reduce((n,x)=>n+x.profit,0),costs=expenses.reduce((n,x)=>n+x.amount,0);document.getElementById('reportSales').textContent=money(total);document.getElementById('reportGross').textContent=money(gross);document.getElementById('reportExpenses').textContent=money(costs);document.getElementById('reportNet').textContent=money(gross-costs);renderBarChart('salesTrendChart',reportRowsFor7(),x=>x.label,x=>x.sales);renderBarChart('reportSalesChart',rows,x=>x.label,x=>x.sales);const sums=new Map();sales.forEach(x=>sums.set(x.name,(sums.get(x.name)||0)+x.qty));const top=[...sums.entries()].map(([name,qty])=>({name,qty})).sort((a,b)=>b.qty-a.qty).slice(0,5),max=top[0]?.qty||1;document.getElementById('topProductsChart').innerHTML=top.length?top.map(x=>'<div class="progress-row"><strong>'+esc(x.name)+'</strong><div class="progress-track"><div class="progress-fill" style="width:'+(x.qty/max*100)+'%"></div></div><span class="muted">'+x.qty+' sold</span></div>').join(''):'<div class="empty">No product sales in this period.</div>';}
 document.getElementById('reportRange').addEventListener('change',renderReports);
-function renderRestockHistory(){const target=document.getElementById('restockHistoryList');if(!target)return;const rows=[...(db.restocks||[])].sort((a,b)=>safeDate(b.date)-safeDate(a.date)).slice(0,100);target.innerHTML=rows.length?rows.map(r=>'<button type="button" class="stock-history-row" data-stock-history-id="'+esc(r.id)+'" data-stock-history-kind="restock"><span class="row"><strong>'+esc(r.productName||db.products.find(p=>p.id===r.productId)?.name||'Product')+'</strong><strong>+'+(Number(r.baseQuantity)||Number(r.purchaseQuantity)*Number(r.unitsPerPurchase)||0)+' units</strong></span><span class="muted">'+safeDate(r.date).toLocaleString()+' · '+(Number(r.purchaseQuantity)||0)+' '+esc(r.purchaseUnit||'unit')+' · '+money(Number(r.totalCost)||Number(r.purchaseQuantity)*Number(r.costPerPurchaseUnit)||0)+'</span></button>').join(''):'<div class="empty">No restocks recorded yet.</div>';}
+function renderRestockHistory(){
+ const target=document.getElementById('restockHistoryList');
+ if(!target)return;
+ const productById=new Map((db.products||[]).map(p=>[String(p.id),p]));
+ const unique=new Map();
+ for(const row of Array.isArray(db.restocks)?db.restocks:[]){
+  if(!row||row.id==null)continue;
+  const key=String(row.id);
+  const previous=unique.get(key);
+  if(!previous||safeDate(row.date)>safeDate(previous.date))unique.set(key,{...previous,...row});
+ }
+ const rows=[...unique.values()].sort((a,b)=>safeDate(b.date)-safeDate(a.date)).slice(0,200);
+ if(!rows.length){target.innerHTML='<div class="empty">No restocks recorded yet.</div>';return;}
+ target.innerHTML=rows.map(r=>{
+  const product=productById.get(String(r.productId));
+  const name=String(r.productName||product?.name||'Product');
+  const quantity=Number(r.baseQuantity)||Number(r.purchaseQuantity)*Number(r.unitsPerPurchase)||0;
+  const purchaseQty=Number(r.purchaseQuantity)||0;
+  const unit=String(r.purchaseUnit||'unit');
+  const cost=Number(r.totalCost)||purchaseQty*(Number(r.costPerPurchaseUnit)||0);
+  const date=safeDate(r.date);
+  return '<button type="button" class="stock-history-row" data-stock-history-id="'+esc(String(r.id))+'" data-stock-history-kind="restock"><span class="row"><strong>'+esc(name)+'</strong><strong>+'+quantity.toLocaleString('en-NG')+' units</strong></span><span class="muted">'+(date.getTime()?date.toLocaleString():'Date unavailable')+' · '+purchaseQty.toLocaleString('en-NG')+' '+esc(unit)+' · '+money(cost)+'</span></button>';
+ }).join('');
+}
 function renderStockHistoryDetail(kind,id){const row=(kind==='restock'?(db.restocks||[]):(db.stockAdjustments||[])).find(x=>x.id===id);const target=document.getElementById('stockHistoryDetailContent');if(!target||!row)return;const fields=kind==='restock'?[['Type','Restock'],['Product',row.productName||db.products.find(p=>p.id===row.productId)?.name||'Product'],['Date and time',safeDate(row.date).toLocaleString()],['Purchase quantity',(row.purchaseQuantity||0)+' '+(row.purchaseUnit||'unit')],['Units per purchase',row.unitsPerPurchase||1],['Total units added',row.baseQuantity||((row.purchaseQuantity||0)*(row.unitsPerPurchase||1))],['Cost per purchase unit',money(Number(row.costPerPurchaseUnit)||0)],['Total purchase cost',money(Number(row.totalCost)||((row.purchaseQuantity||0)*(Number(row.costPerPurchaseUnit)||0)))],['Stock after restock',row.newStock??'—'],['Average cost per unit',money(Number(row.averageCostAfter)||0)]]:[['Type','Stock adjustment'],['Product',row.productName||'Product'],['Date and time',safeDate(row.date).toLocaleString()],['Previous stock',String(row.previousStock??'—')+' units'],['New stock',String(row.newStock??'—')+' units'],['Change',((Number(row.quantityChange)>0?'+':'')+String(row.quantityChange??0))+' units'],['Reason',row.reason||'Not specified']];target.innerHTML=fields.map(([label,value])=>'<div class="stock-history-detail-field"><span>'+esc(label)+'</span><strong>'+esc(String(value))+'</strong></div>').join('');}
 document.getElementById('stock-history').addEventListener('click',e=>{const b=e.target.closest('[data-stock-history-id]');if(!b)return;renderStockHistoryDetail(b.dataset.stockHistoryKind,b.dataset.stockHistoryId);showPage('stock-history-detail');});
 
