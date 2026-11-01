@@ -2142,7 +2142,7 @@ function restorePageFromLocation(){const hash=location.hash.slice(1),saved=sessi
 // history entries; the duplicate root entry prevents the app from closing
 // when the user reaches the first page, including while offline.
 (function installBackNavigationGuard(){
-  const pageFromUrl=()=>VALID_PAGES.has(location.hash.slice(1))?location.hash.slice(1):(sessionStorage.getItem('my-sales-book-current-page')||'home');
+  const pageFromUrl=state=>VALID_PAGES.has(state?.mySalesBookPage)?state.mySalesBookPage:(VALID_PAGES.has(location.hash.slice(1))?location.hash.slice(1):(VALID_PAGES.has(sessionStorage.getItem('my-sales-book-current-page'))?sessionStorage.getItem('my-sales-book-current-page'):'home'));
   if(!history.state?.mySalesBookRootGuard){
     history.replaceState({mySalesBookRootGuard:true,mySalesBookPage:pageFromUrl()},'',location.href);
     history.pushState({mySalesBookRoot:true,mySalesBookPage:pageFromUrl()},'',location.href);
@@ -2161,7 +2161,7 @@ function restorePageFromLocation(){const hash=location.hash.slice(1),saved=sessi
       if(send)send.disabled=true;
       return;
     }
-    let name=pageFromUrl();
+    let name=pageFromUrl(event.state);
     // Some Android installed-PWA shells restore the same #messenger entry on Back.
     // If Back reaches the list but the URL still says Messenger, explicitly return to the panel that opened it.
     if(name==='messenger'&&document.body.classList.contains('messenger-open')){
