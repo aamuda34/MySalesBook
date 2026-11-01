@@ -2111,7 +2111,9 @@ document.getElementById('importLocalRecordsBtn').addEventListener('click', async
     }
     for (const original of local.sales) {
       if (saleIds.has(original.id)) continue;
-      const sale = {...original,productId:productIdMap.get(original.productId)||original.productId};
+      // Keep historical sales importable even when their original product is no longer in this account.
+      // The sale snapshot retains its product name, price and cost without linking to an unrelated product.
+      const sale = {...original,productId:productIdMap.get(original.productId)||null};
       enqueueChange('sale_import',{sale});
       if (!db.sales.some(x=>x.id===sale.id)) db.sales.push(sale);
       added++;
