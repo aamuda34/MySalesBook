@@ -1014,7 +1014,7 @@ body.subscribers-page-open #subscribers,body.reservations-page-open #reservation
 <section id="about-sellbook" class="page hidden"><div class="about-sellbook-page-heading"><button type="button" class="about-sellbook-back-button" data-app-back="me" aria-label="Go back">‹</button><h2 class="page-title">About Sellbook</h2></div><div class="card" style="text-align:center;padding:28px 20px"><img src="./icons/icon.svg" alt="Sellbook app icon" style="width:76px;height:76px;object-fit:contain;margin:0 auto 16px;display:block"><h2 style="margin:0 0 8px">Sellbook</h2><p class="muted" style="margin:0">Simple business records</p></div><div class="card"><h3>About the app</h3><p class="muted">Sellbook helps small businesses record sales, manage products and stock, track expenses, and review business performance in one simple place.</p></div><div class="card"><h3>Built for your business</h3><p class="muted">Designed for straightforward everyday record-keeping, with amounts shown in Nigerian naira (₦).</p></div><div class="me-footer-note" style="text-align:center">Sellbook · Simple business records</div></section>
 <section id="business-details" class="page hidden"><div class="business-profile-page-heading"><button type="button" class="business-profile-back" data-open-page="me" aria-label="Back to Me"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 18 9 12l6-6"/></svg></button><h2>Business profile</h2></div><div class="business-profile-content"><div class="business-details-avatar" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg></div><div class="business-details-row"><span>Business name</span><strong id="businessDetailsBusinessName">Sellbook</strong></div><div class="business-details-row"><span>Date registered</span><strong id="businessDetailsRegistered">Not available</strong></div><div class="business-details-row"><span>Account email</span><strong id="businessDetailsEmail">Not signed in</strong></div><div class="business-details-row"><span>Account status</span><strong id="businessDetailsStatus">Device profile</strong></div></div></section>
 <section id="settings-business" class="page hidden"><div class="settings-page-heading"><button type="button" class="settings-back-button" data-open-page="settings" aria-label="Back to Settings" title="Back to Settings"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 12H5M12 19l-7-7 7-7"/></svg></button><h2 class="page-title">Business profile</h2></div><div class="card"><form id="businessProfileForm"><div class="business-logo-editor"><div class="business-logo-avatar-wrap" id="businessLogoAvatar" role="button" tabindex="0" aria-label="Take or choose a business profile picture" title="Take or choose a picture"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg><img id="businessLogoPreview" alt="Business profile picture"><button type="button" class="business-logo-edit-button" id="editBusinessLogoButton" aria-label="Edit business profile picture" title="Edit picture"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L8 18l-4 1 1-4Z"/></svg></button></div><p class="business-logo-title">Business picture</p></div><label for="businessNameInput">Business name</label><input id="businessNameInput" required maxlength="100" placeholder="e.g. Amuda Stores"><input id="businessLogoInput" type="file" accept="image/jpeg,image/png,image/webp" hidden><button class="primary">Save business profile</button></form></div></section>
-<section id="settings-sync" class="page hidden"><div class="settings-page-heading"><button type="button" class="settings-back-button" data-open-page="settings" aria-label="Back to Settings" title="Back to Settings"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 12H5M12 19l-7-7 7-7"/></svg></button><h2 class="page-title">Sync and data</h2></div><div class="card"><p id="syncStatus" class="muted">Checking sync status...</p><div id="syncDetails" class="muted"></div><div class="photo-actions"><button type="button" id="syncNowBtn" class="primary">Sync now</button><button type="button" id="importLocalRecordsBtn" class="hidden">Import device records</button></div><div class="settings-group"><h3>Backup and restore</h3><button type="button" id="exportBtn">Export backup</button><label for="importFile">Restore from backup</label><input type="file" id="importFile" accept=".json,application/json"></div></div></section>
+<section id="settings-sync" class="page hidden"><div class="settings-page-heading"><button type="button" class="settings-back-button" data-open-page="settings" aria-label="Back to Settings" title="Back to Settings"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 12H5M12 19l-7-7 7-7"/></svg></button><h2 class="page-title">Sync and data</h2></div><div class="card"><p id="syncStatus" class="muted">Checking sync status...</p><div id="syncDetails" class="muted"></div><div class="photo-actions"><button type="button" id="syncNowBtn" class="primary">Sync now</button><button type="button" id="importLocalRecordsBtn" class="hidden">Import device records</button></div><div class="settings-group"><h3>Backup and restore</h3><button type="button" id="exportBtn">Export backup</button><p id="backupStatus" class="muted" role="status">No backup created on this device yet.</p><label for="importFile">Restore from backup</label><input type="file" id="importFile" accept=".json,application/json"></div></div></section>
 <section id="settings-preferences" class="page hidden"><div class="settings-page-heading"><button type="button" class="settings-back-button" data-open-page="settings" aria-label="Back to Settings" title="Back to Settings"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 12H5M12 19l-7-7 7-7"/></svg></button><h2 class="page-title">App preference</h2></div><div class="card"><div class="settings-group"><label>Default selling-price markup</label><div class="markup-options category-suggestions" role="group" aria-label="Default selling-price markup"><button type="button" data-default-markup="10" aria-pressed="false">10%</button><button type="button" data-default-markup="20" aria-pressed="false">20%</button><button type="button" data-default-markup="30" aria-pressed="true">30%</button><button type="button" data-default-markup="40" aria-pressed="false">40%</button><button type="button" data-default-markup="50" aria-pressed="false">50%</button></div></div><div class="settings-group"><label for="lowStockThreshold">Low-stock alert threshold (units)</label><input id="lowStockThreshold" type="number" min="0" max="100000" step="1" value="5"><button type="button" id="savePreferencesBtn">Save preferences</button></div></div></section>
 <section id="settings-buybook" class="page hidden"><div class="settings-page-heading"><button type="button" class="settings-back-button" data-open-page="settings" aria-label="Back to Settings" title="Back to Settings"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 12H5M12 19l-7-7 7-7"/></svg></button><h2 class="page-title">Buybook connection</h2></div><div class="card"><div class="buybook-connection-bar"><strong id="buybookConnectionStatus" role="status">Checking Buybook connection…</strong><button type="button" id="buybookDisconnectButton" class="danger hidden">Disconnect</button></div><form id="buybookConnectionForm"><label for="buybookShopName">Shop / business name</label><input id="buybookShopName" required maxlength="100" placeholder="e.g. Amuda Stores"><label for="buybookPhone">Shop phone number (optional)</label><input id="buybookPhone" type="tel" maxlength="30" placeholder="Phone buyers can use to contact you"><label for="buybookAddress">Shop address</label><input id="buybookAddress" required maxlength="250" placeholder="Street, market or landmark"><label for="buybookCity">Town / city</label><input id="buybookCity" required maxlength="100" placeholder="e.g. Iwo"><label for="buybookState">State</label><input id="buybookState" required maxlength="100" value="Osun"><label for="buybookDescription">Short shop description (optional)</label><textarea id="buybookDescription" maxlength="500" rows="3" placeholder="What do you sell?"></textarea><button class="primary" type="submit" id="buybookConnectButton">Connect and list my products</button><p id="buybookConnectionMessage" class="muted" aria-live="polite"></p></form></div>
 <div class="card" id="buybookSellerActivity">
@@ -1287,7 +1287,13 @@ function enqueueChanges(changes) {
   if (!cloudUser) throw Error('Sign in before saving business records.');
   if (!Array.isArray(changes) || !changes.length) return;
   const key=cloudQueueKey(cloudUser.id),previous=readQueue(cloudUser.id);
-  const additions=changes.map(change=>({id:crypto.randomUUID(),type:change.type,payload:JSON.parse(JSON.stringify(change.payload)),createdAt:now(),status:'pending',error:''}));
+  const additions=changes.map(change=>{
+    const payload=JSON.parse(JSON.stringify(change.payload));
+    // A stable timestamp makes a product update safe to retry if the server committed
+    // it but the phone lost the acknowledgement before updating its queue.
+    if(change.type==='product_save'&&payload.product&&!payload.product.syncUpdatedAt)payload.product.syncUpdatedAt=now();
+    return {id:crypto.randomUUID(),type:change.type,payload,createdAt:now(),status:'pending',error:''};
+  });
   const next=[...previous,...additions];
   try {
     // Persist the complete queue first; it is the recovery source if the app closes mid-sync.
@@ -1377,7 +1383,13 @@ async function syncPendingChanges() {
         if (item.type === 'product_save') {
           if (!p.isNew && p.product.updatedAt) {
             const currentVersion=await currentProductVersion(p.product.id);
-            if (currentVersion!==p.product.updatedAt) throw Error('Conflict: this product changed on another phone. Review the product and try again.');
+            if(p.product.syncUpdatedAt&&currentVersion===p.product.syncUpdatedAt){
+              // The database write already committed. Repeat the same idempotent update
+              // so any unfinished photo publishing steps are retried as well.
+              p.product.updatedAt=currentVersion;
+            } else if (currentVersion!==p.product.updatedAt) {
+              throw Error('Conflict: this product changed on another phone. Review the product and try again.');
+            }
           }
           await cloudSaveProduct(p.product, p.isNew);
           const newVersion=await currentProductVersion(p.product.id);
@@ -1497,6 +1509,8 @@ function snapshotLocalRecords() {
 }
 
 function restoreLocalRecords() {
+  // Never carry the previous cloud account's sync indicators into the local workspace.
+  pendingSync = [];
   db = localSnapshot || {products: [], sales: [], expenses: []};
   storageMode = 'browser';
   cloudReady = false;
@@ -1899,7 +1913,7 @@ async function cloudSaveProduct(product,isNew) {
   // The original data is the most reliable source for publishing the matching Buybook photo.
   const newImageData=product.image&&product.image.startsWith('data:image/')?product.image:null;
   const imagePath= newImageData ? await cloudUploadProductImage(newImageData) : (product.imagePath||null);
-  const row={user_id:user.id,name:product.name,category:normalizeCategory(product.category),cost_price:product.cost,selling_price:product.price,stock:product.stock,base_unit:product.baseUnit||'unit',purchase_unit:product.purchaseUnit||'unit',units_per_purchase:product.unitsPerPurchase||1,pack_unit:product.packUnit||null,units_per_pack:product.packUnit?(product.unitsPerPack||1):null,pack_selling_price:product.packUnit&&product.packPrice?product.packPrice:null,image_path:imagePath,updated_at:now()};
+  const row={user_id:user.id,name:product.name,category:normalizeCategory(product.category),cost_price:product.cost,selling_price:product.price,stock:product.stock,base_unit:product.baseUnit||'unit',purchase_unit:product.purchaseUnit||'unit',units_per_purchase:product.unitsPerPurchase||1,pack_unit:product.packUnit||null,units_per_pack:product.packUnit?(product.unitsPerPack||1):null,pack_selling_price:product.packUnit&&product.packPrice?product.packPrice:null,image_path:imagePath,updated_at:product.syncUpdatedAt||now()};
   const result=isNew
     // Retrying after a timed-out response must not create a duplicate-key conflict.
     ? await supabaseClient.from('products').upsert({id:product.id,...row},{onConflict:'id'})
@@ -2829,12 +2843,27 @@ document.getElementById('expenseForm').addEventListener('submit',async e=>{
  e.target.reset();alert('Expense saved.');
 });
 
+const BACKUP_STATUS_KEY='my-sales-book-last-backup-v1';
+function updateBackupStatus(){
+ const el=document.getElementById('backupStatus');if(!el)return;
+ try{
+  const stamp=localStorage.getItem(BACKUP_STATUS_KEY);
+  el.textContent=stamp?'Last backup created: '+new Date(stamp).toLocaleString():'No backup created on this device yet.';
+ }catch(_){el.textContent='Backup history is unavailable on this device.';}
+}
 document.getElementById('exportBtn').addEventListener('click',()=>{
- const blob=new Blob([JSON.stringify({app:'Sellbook',version:1,exportedAt:now(),data:db},null,2)],{type:'application/json'});
- const url=URL.createObjectURL(blob),a=document.createElement('a');
- a.href=url;a.download='my-sales-book-backup-'+today()+'.json';a.click();
- setTimeout(()=>URL.revokeObjectURL(url),1000);
+ try{
+  const backup={app:'Sellbook',version:2,exportedAt:now(),accountId:cloudUser?.id||null,data:normalizeDb(db)};
+  const blob=new Blob([JSON.stringify(backup,null,2)],{type:'application/json'});
+  const url=URL.createObjectURL(blob),a=document.createElement('a');
+  a.href=url;a.download='sellbook-backup-'+today()+'.json';a.click();
+  setTimeout(()=>URL.revokeObjectURL(url),1000);
+  localStorage.setItem(BACKUP_STATUS_KEY,backup.exportedAt);
+  updateBackupStatus();
+  cloudMessage('Backup file created. Keep a copy somewhere safe.');
+ }catch(error){cloudMessage('Could not create backup: '+(error.message||String(error)));}
 });
+updateBackupStatus();
 document.getElementById('importFile').addEventListener('change',async e=>{
  const file=e.target.files[0];if(!file)return;
  try{
