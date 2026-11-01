@@ -209,3 +209,15 @@ if missing_fk_indexes:
     raise SystemExit("Missing foreign-key performance indexes: " + ", ".join(missing_fk_indexes))
 print(f"Marketplace and stock foreign-key index migration checks passed ({len(required_fk_indexes)} indexes).")
 
+# Reservation and message histories must not silently stop at arbitrary row limits.
+messaging_history_checks = {
+    "reservation history is fully paginated": "fetchAllCloudRows(()=>supabaseClient.from('marketplace_reservations')" in app_js,
+    "reservation item lookups are chunked safely": "reservationIds.slice(offset,offset+100)" in app_js,
+    "support conversation history is fully paginated": "fetchAllCloudRows(()=>supabaseClient.from('support_messages')" in app_js,
+    "subscriber messenger history is fully paginated": "fetchAllCloudRows(()=>supabaseClient.from('marketplace_messages')" in app_js,
+    "message pagination uses stable tie-break ordering": ".order('created_at',{ascending:true}).order('id',{ascending:true})" in app_js,
+}
+failed_messaging_history = [label for label, passed in messaging_history_checks.items() if not passed]
+if failed_messaging_history:
+    raise SystemExit("Reservation/messaging history checks failed: " + "; ".join(failed_messaging_history))
+print(f"Reservation and messaging history pagination checks passed ({len(messaging_history_checks)} checks).")
