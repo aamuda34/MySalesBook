@@ -1399,6 +1399,10 @@ async function syncPendingChanges() {
           const r=p.restock;
           const {error}=await supabaseClient.rpc('restock_product',{p_purchase_id:r.id,p_product_id:r.productId,p_purchase_quantity:r.purchaseQuantity,p_purchase_unit:r.purchaseUnit,p_units_per_purchase:r.unitsPerPurchase,p_cost_per_purchase_unit:r.costPerPurchaseUnit,p_restocked_at:r.date});
           if(error)throw error;
+          // Restocking updates products.updated_at. Advance later queued changes for
+          // this product so a sale made after the restock does not look stale.
+          const newVersion=await currentProductVersion(r.productId);
+          propagateQueuedProductVersion(queue,queueIndex,r.productId,newVersion);
         } else if (item.type === 'product_delete') {
           if (p.product.updatedAt) {
             const currentVersion=await currentProductVersion(p.product.id);
@@ -2365,13 +2369,19 @@ function updateRestockPreview(){
  out.textContent='Adds '+baseQty+' units · Total purchase cost '+money(total)+' · New stock '+newStock+' · New average cost '+money(avg)+' per smallest unit.';
 }
 ['restockProduct','restockPurchaseQty','restockPurchaseUnit','restockUnitsPerPurchase','restockCostPerPurchase'].forEach(id=>document.getElementById(id).addEventListener('input',updateRestockPreview));
+let restockSubmitting=false;
 document.getElementById('restockForm').addEventListener('submit',async e=>{
  e.preventDefault();
+ if(restockSubmitting)return;
+ restockSubmitting=true;
+ const submitButton=e.submitter||e.currentTarget.querySelector('button[type="submit"]');
+ if(submitButton)submitButton.disabled=true;
+ try {
  const p=db.products.find(x=>x.id===document.getElementById('restockProduct').value);
  const purchaseQuantity=Number(document.getElementById('restockPurchaseQty').value),purchaseUnit=document.getElementById('restockPurchaseUnit').value.trim(),unitsPerPurchase=Number(document.getElementById('restockUnitsPerPurchase').value),costPerPurchaseUnit=Number(document.getElementById('restockCostPerPurchase').value);
  if(!p)return alert('Choose a product.');
  if(!Number.isSafeInteger(purchaseQuantity)||purchaseQuantity<1||!purchaseUnit||purchaseUnit.length>30||!Number.isSafeInteger(unitsPerPurchase)||unitsPerPurchase<1||!Number.isFinite(costPerPurchaseUnit)||costPerPurchaseUnit<0)return alert('Check the purchase quantity, unit, units per purchase, and cost.');
- const baseQuantity=purchaseQuantity*unitsPerPurchase,totalCost=Math.round(purchaseQuantity*costPerPurchaseUnit*100)/100,newStock=p.stock+baseQuantity,baseCost=totalCost/baseQuantity,averageCostAfter=p.stock>0?((p.stock*p.cost+baseQuantity*baseCost)/newStock):baseCost;
+ const baseQuantity=purchaseQuantity*unitsPerPurchase,totalCost=Math.round(purchaseQuantity*costPerPurchaseUnit*100)/100,newStock=p.stock+baseQuantity,baseCost=Math.round((totalCost/baseQuantity+Number.EPSILON)*10000)/10000,averageCostAfter=p.stock>0?Math.round((((p.stock*p.cost+baseQuantity*baseCost)/newStock)+Number.EPSILON)*10000)/10000:baseCost;
  if(!Number.isSafeInteger(baseQuantity)||!Number.isSafeInteger(newStock)||newStock>2000000000)return alert('This purchase quantity is too large.');
  if(!confirm('Record purchase of '+purchaseQuantity+' '+purchaseUnit+' for '+money(totalCost)+'? This adds '+baseQuantity+' units and updates average cost.'))return;
  const restock={id:crypto.randomUUID(),productId:p.id,productName:p.name,purchaseQuantity,purchaseUnit,unitsPerPurchase,costPerPurchaseUnit,date:now(),previousStock:p.stock,newStock,baseQuantity,totalCost:Math.round(purchaseQuantity*costPerPurchaseUnit*100)/100,averageCostAfter};db.restocks.push(restock);
@@ -2390,6 +2400,7 @@ document.getElementById('restockForm').addEventListener('submit',async e=>{
   e.target.reset();document.getElementById('restockPurchaseQty').value=1;document.getElementById('restockUnitsPerPurchase').value=1;document.getElementById('restockPurchaseUnit').value='unit';updateRestockPreview();
   alert('Restock recorded.');
  }catch(err){p.stock=oldStock;p.cost=oldCost;db.restocks=db.restocks.filter(item=>item.id!==restock.id);render();alert('Restock could not be saved: '+(err.message||String(err)));}
+ } finally {restockSubmitting=false;if(submitButton)submitButton.disabled=false;}
 });
 document.getElementById('stockAdjustmentForm').addEventListener('submit',async e=>{e.preventDefault();const p=db.products.find(x=>x.id===document.getElementById('adjustProduct').value),next=Number(document.getElementById('adjustNewStock').value),reason=document.getElementById('adjustReason').value.trim();if(!p)return alert('Choose a product first.');if(!Number.isSafeInteger(next)||next<0)return alert('Enter a whole-number stock quantity of zero or more.');if(next===p.stock)return alert('The new stock quantity is the same as the current quantity.');if(!confirm('Change '+p.name+' stock from '+p.stock+' to '+next+' units?'))return;const old=p.stock,oldVersion=p.updatedAt,a={id:crypto.randomUUID(),productId:p.id,productName:p.name,previousStock:old,newStock:next,quantityChange:next-old,reason,date:now()};p.stock=next;if(cloudUser){try{db.stockAdjustments.push(a);await saveCloudChangesLocally([{type:'product_save',payload:{product:{...p},isNew:false}},{type:'stock_adjustment',payload:{adjustment:a}}]);}catch(err){p.stock=old;p.updatedAt=oldVersion;db.stockAdjustments=db.stockAdjustments.filter(x=>x.id!==a.id);render();return alert(err.message||String(err));}}else{db.stockAdjustments.push(a);if(!save()){p.stock=old;db.stockAdjustments.pop();return;}render();}document.getElementById('adjustReason').value='';alert('Stock adjustment saved.');});
 
@@ -2691,21 +2702,16 @@ document.getElementById('editProductForm').addEventListener('submit',async event
     if(cloudUser){
       try {
         const cloudUpdated = editRemoveProductImage ? {...updated,imagePath:product.imagePath,image:product.image} : updated;
-        await saveCloudChangeLocally('product_save',{product:cloudUpdated,isNew:false},{syncNow:!stockChanged});
-        if(editRemoveProductImage&&product.imagePath) {
-          await saveCloudChangeLocally('product_remove_image',{product:{...product}},{syncNow:!stockChanged});
-        }
-        if(adjustment){
-          enqueueChange('stock_adjustment',{adjustment});
-          db.stockAdjustments.push(adjustment);
-        }
-        Object.assign(product,updated);
-        if(editRemoveProductImage){delete product.image;delete product.offlineImage;delete product.imagePath;}
-        if(adjustment){
-          cacheCloudData(cloudUser.id);
-          render();
-          updateSyncStatus();
-          if(navigator.onLine)await syncPendingChanges();
+        const queuedChanges=[{type:'product_save',payload:{product:cloudUpdated,isNew:false}}];
+        if(editRemoveProductImage&&product.imagePath)queuedChanges.push({type:'product_remove_image',payload:{product:{...product}}});
+        if(adjustment)queuedChanges.push({type:'stock_adjustment',payload:{adjustment}});
+        // Persist the product change, optional photo removal, and stock history as one
+        // recoverable queue batch. A crash cannot leave the stock changed without its log.
+        await saveCloudChangesLocally(queuedChanges);
+        const savedProduct=db.products.find(x=>x.id===id);
+        if(savedProduct){
+          Object.assign(savedProduct,updated);
+          if(editRemoveProductImage){delete savedProduct.image;delete savedProduct.offlineImage;delete savedProduct.imagePath;}
         }
         saved=true;
       } catch(err) { alert(err.message || String(err)); }
@@ -2795,8 +2801,14 @@ function refreshSaleUnitOptions(){
 }
 document.getElementById('saleProduct').addEventListener('change',refreshSaleUnitOptions);
 document.getElementById('saleUnit').addEventListener('change',refreshSaleUnitOptions);
+let saleSubmitting=false;
 document.getElementById('saleForm').addEventListener('submit',async e=>{
  e.preventDefault();
+ if(saleSubmitting)return;
+ saleSubmitting=true;
+ const submitButton=e.submitter||e.currentTarget.querySelector('button[type="submit"]');
+ if(submitButton)submitButton.disabled=true;
+ try {
  const p=db.products.find(x=>x.id===document.getElementById('saleProduct').value);
  const qty=Number(document.getElementById('saleQty').value),price=Number(document.getElementById('salePrice').value),note=document.getElementById('saleNote').value.trim(),saleAsPack=document.getElementById('saleUnit').value==='pack',unitsPerSale=saleAsPack?Number(p?.unitsPerPack||1):1,baseQty=qty*unitsPerSale,saleUnit=saleAsPack?p?.packUnit:(p?.baseUnit||'unit');
  if(!p)return alert('Choose a product.');
@@ -2823,6 +2835,7 @@ document.getElementById('saleForm').addEventListener('submit',async e=>{
    render();
  }
  e.target.reset();document.getElementById('saleQty').value=1;alert('Sale recorded and stock updated.');
+ } finally {saleSubmitting=false;if(submitButton)submitButton.disabled=false;}
 });
 
 document.getElementById('expenseForm').addEventListener('submit',async e=>{
