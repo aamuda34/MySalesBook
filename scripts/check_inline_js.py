@@ -193,7 +193,7 @@ if "if(/^\\d{4}-\\d{2}-\\d{2}$/.test(raw))" not in app_js:
 print("Local date-only report boundary regression check passed.")
 
 # Priority 4/6 database lookup indexes are kept as a versioned migration.
-fk_index_migration = Path("supabase/migrations/20261101200000_add_marketplace_and_stock_fk_indexes.sql").read_text(encoding="utf-8")
+fk_index_migration = Path("supabase/migrations/20261101200818_add_marketplace_and_stock_fk_indexes.sql").read_text(encoding="utf-8")
 required_fk_indexes = [
     "marketplace_listings_owner_id_idx",
     "marketplace_messages_buyer_id_idx",
@@ -222,7 +222,7 @@ if failed_messaging_history:
     raise SystemExit("Reservation/messaging history checks failed: " + "; ".join(failed_messaging_history))
 print(f"Reservation and messaging history pagination checks passed ({len(messaging_history_checks)} checks).")
 # Reservation decision notification retries must be idempotent.
-reservation_notification_migration = Path("supabase/migrations/20261101203000_make_reservation_notifications_idempotent.sql").read_text(encoding="utf-8")
+reservation_notification_migration = Path("supabase/migrations/20261101201144_make_reservation_notifications_idempotent.sql").read_text(encoding="utf-8")
 reservation_notification_function = Path("supabase/functions/notify-reservation-decision/index.ts").read_text(encoding="utf-8")
 if "app_notifications_reservation_kind_uidx" not in reservation_notification_migration or "reservation_id, kind" not in reservation_notification_migration:
     raise SystemExit("Reservation notification idempotency index is missing.")
