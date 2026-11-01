@@ -229,3 +229,14 @@ if "app_notifications_reservation_kind_uidx" not in reservation_notification_mig
 if 'onConflict: "reservation_id,kind"' not in reservation_notification_function or "ignoreDuplicates: true" not in reservation_notification_function:
     raise SystemExit("Reservation notification function must safely ignore duplicate retries.")
 print("Retry-safe reservation notification checks passed.")
+
+# Buybook activity and notification failure recovery must remain complete.
+buybook_recovery_checks = {
+    "home Buybook reservations are fully paginated": "fetchAllCloudRows(()=>supabaseClient.from('marketplace_reservations')" in app_js,
+    "home reservation item queries are chunked": "reservationIds.slice(offset,offset+100)" in app_js,
+    "failed buyer notifications can be retried": "async function retryReservationNotification(id,button)" in app_js and "data-retry-reservation-notification" in app_js,
+}
+failed_buybook_recovery = [label for label, passed in buybook_recovery_checks.items() if not passed]
+if failed_buybook_recovery:
+    raise SystemExit("Buybook activity/recovery checks failed: " + "; ".join(failed_buybook_recovery))
+print(f"Buybook activity and notification recovery checks passed ({len(buybook_recovery_checks)} checks).")
