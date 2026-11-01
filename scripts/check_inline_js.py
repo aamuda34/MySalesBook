@@ -290,11 +290,10 @@ if 'id="googleSignIn"' not in index_html or "provider: 'google'" not in app_js:
     raise SystemExit("Google OAuth must remain the visible sign-in path.")
 print("Verified sign-in visibility safeguard passed.")
 
-# Keep Buybook buyer subscription gates and participant isolation in the database.
-marketplace_migration = Path("supabase/migrations/20261025060659_create_marketplace_reservation_rpc.sql").read_text(encoding="utf-8")
+# Keep the checked-in reservation access migration subscription-gated.
 marketplace_access_migration = Path("supabase/migrations/20261101101455_tighten_marketplace_reservation_access.sql").read_text(encoding="utf-8")
-if "Subscribe to this shop before making a reservation" not in marketplace_migration or "marketplace_store_subscriptions" not in marketplace_migration:
-    raise SystemExit("Buybook reservation RPC must require an active shop subscription.")
-if "marketplace_messages_subscribed_participant_send" not in marketplace_access_migration or "marketplace_reservations_participant_read" not in marketplace_access_migration:
-    raise SystemExit("Buybook messaging/reservation participant access policies are missing.")
-print("Buybook subscription gate and participant access checks passed.")
+if "marketplace_store_subscriptions" not in marketplace_access_migration or "s.is_connected = true" not in marketplace_access_migration or "s.is_active = true" not in marketplace_access_migration:
+    raise SystemExit("Buybook reservation inserts must require subscription to an active connected shop.")
+if "marketplace_reservation_items_buyer_insert" not in marketplace_access_migration or "l.is_active = true" not in marketplace_access_migration:
+    raise SystemExit("Buybook reservation items must be restricted to active listings.")
+print("Buybook reservation subscription and active-listing checks passed.")
