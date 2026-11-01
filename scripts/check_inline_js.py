@@ -71,7 +71,7 @@ required_behaviours = {
     "stock edits create an audit entry": "Stock quantity changed while editing product",
     "stock adjustments are queued for cloud sync": "item.type==='stock_adjustment'",
     "stock adjustments are loaded from the cloud": "from('stock_adjustments').select(",
-    "offline navigation falls back to the cached app": "return (await cache.match('./index.html'))",
+    "offline navigation falls back to the cached app": "const cached = await cache.match('./index.html') || await cache.match('./')",
     "reconnection triggers pending sync": "window.addEventListener('online'",
     "failed sync keeps pending changes": "Your local copies are kept.",
 }
