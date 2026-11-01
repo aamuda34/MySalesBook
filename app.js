@@ -14,6 +14,9 @@ if (!supabaseClient) {
   console.error('Sellbook: Supabase could not be initialized.');
 }
 const DBKEY='my-sales-book-v1';
+const MAX_MONEY=9999999999.99;
+function roundMoney(value){const n=Number(value);if(!Number.isFinite(n)||Math.abs(n)>MAX_MONEY)throw Error('Enter a valid monetary amount.');const rounded=Math.round((n+Number.EPSILON)*100)/100;if(Math.abs(rounded)>MAX_MONEY)throw Error('The amount is too large to save safely.');return rounded;}
+function calculateSaleAmounts(quantity,unitPrice,unitCost,unitsPerSale=1){if(!Number.isSafeInteger(quantity)||quantity<1||!Number.isSafeInteger(unitsPerSale)||unitsPerSale<1||quantity*unitsPerSale>2147483647)throw Error('Sale quantity is invalid.');const price=roundMoney(unitPrice),cost=roundMoney(unitCost);if(price<=0||cost<0)throw Error('Enter a valid selling price and product cost.');const total=roundMoney(quantity*price);const costPerSaleUnit=roundMoney(cost*unitsPerSale);const costTotal=roundMoney(quantity*costPerSaleUnit);return {total,cost:costPerSaleUnit,costTotal,profit:roundMoney(total-costTotal)};}
 const money=n=>'₦'+Number(n||0).toLocaleString('en-NG',{minimumFractionDigits:2,maximumFractionDigits:2});
 const today=()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');};
 const now=()=>new Date().toISOString();
@@ -24,6 +27,7 @@ let lowStockThreshold=Number(localStorage.getItem('my-sales-book-low-stock-v1')|
 function applyTheme(){document.body.classList.remove('dark');}
 function safeDate(value){const d=new Date(value);return Number.isNaN(d.getTime())?new Date(0):d;}
 function dateKey(value){const d=safeDate(value);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+function validDateKey(value){if(value==null||value==='')return null;const d=new Date(value);if(!Number.isFinite(d.getTime()))return null;return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
 let selectedExpensePeriod='today';
 function setExpensePeriod(period){
  if(!['today','week','month','year','all'].includes(period))return;
@@ -41,7 +45,7 @@ function updateExpensePeriodTotal(){
  else if(selectedExpensePeriod==='year'){start=new Date(nowDate.getFullYear(),0,1);labelText='Total expenses this year';}
  else if(selectedExpensePeriod==='all'){labelText='Total expenses all time';}
  const startKey=selectedExpensePeriod==='all'?'':dateKey(start),endKey=dateKey(nowDate);
- const total=db.expenses.reduce((sum,expense)=>{const key=dateKey(expense.date);return (selectedExpensePeriod==='all'||(key>=startKey&&key<=endKey))?sum+(Number(expense.amount)||0):sum;},0);
+ const total=db.expenses.reduce((sum,expense)=>{const key=validDateKey(expense.date);return key&&(selectedExpensePeriod==='all'||(key>=startKey&&key<=endKey))?sum+(Number(expense.amount)||0):sum;},0);
  label.textContent=labelText;amount.textContent=money(total);
 }
 document.getElementById('expensePeriodSelect')?.addEventListener('change',event=>setExpensePeriod(event.target.value));
@@ -54,7 +58,7 @@ function updateSalesPeriodSummary(){
  else if(selectedSalesSummaryPeriod==='month'){start=new Date(now.getFullYear(),now.getMonth(),1);}
  else if(selectedSalesSummaryPeriod==='year'){start=new Date(now.getFullYear(),0,1);}
  const startKey=selectedSalesSummaryPeriod==='all'?'':dateKey(start),endKey=dateKey(now);
- const inPeriod=x=>selectedSalesSummaryPeriod==='all'||(dateKey(x.date)>=startKey&&dateKey(x.date)<=endKey);
+ const inPeriod=x=>{const key=validDateKey(x.date);return !!key&&key<=endKey&&(selectedSalesSummaryPeriod==='all'||key>=startKey);};
  const sales=(db.sales||[]).filter(inPeriod),expenses=(db.expenses||[]).filter(inPeriod);
  const totalSales=sales.reduce((sum,x)=>sum+(Number(x.total)||0),0),gross=sales.reduce((sum,x)=>sum+(Number(x.profit)||0),0),expenseTotal=expenses.reduce((sum,x)=>sum+(Number(x.amount)||0),0);
  const totalEl=document.getElementById('salesSummaryTotal'),grossEl=document.getElementById('salesSummaryGross'),netEl=document.getElementById('salesSummaryNet');
@@ -337,14 +341,14 @@ async function syncPendingChanges() {
           const newVersion=await currentProductVersion(p.product.id);
           propagateQueuedProductVersion(queue,queueIndex,p.product.id,newVersion);
         } else if (item.type === 'sale') {
-          if (p.productUpdatedAt) {
-            const currentVersion=await currentProductVersion(p.sale.productId);
-            if (currentVersion!==p.productUpdatedAt) throw Error('Conflict: this product changed on another phone. Check stock and product details before retrying this sale.');
-          }
+          if (!p.productUpdatedAt) throw Error('This sale was saved by an older app version and needs a fresh product check. Keep it on this phone and contact Sellbook Support before retrying.');
+          const currentVersion=await currentProductVersion(p.sale.productId);
+          if (currentVersion!==p.productUpdatedAt) throw Error('Conflict: this product changed on another phone. Check stock and product details before retrying this sale.');
           const {error} = await supabaseClient.rpc('record_sale_offline', {
             p_sale_id:p.sale.id,p_product_id:p.sale.productId,p_quantity:p.sale.qty,
             p_unit_price:p.sale.price,p_note:p.sale.note||null,p_sold_at:p.sale.date,
-            p_units_per_sale:p.sale.unitsPerSale||1,p_sale_unit:p.sale.saleUnit||'unit'
+            p_units_per_sale:p.sale.unitsPerSale||1,p_sale_unit:p.sale.saleUnit||'unit',
+            p_expected_updated_at:p.productUpdatedAt
           });
           if (error) throw error;
           const newVersion=await currentProductVersion(p.sale.productId);
@@ -1336,10 +1340,10 @@ document.getElementById('categoryFilter').addEventListener('change',render);
  ['historySalesProduct','historySalesFrom','historySalesTo'].forEach(id=>document.getElementById(id).addEventListener('input',render));document.getElementById('clearHistorySalesDates').addEventListener('click',()=>{document.getElementById('historySalesProduct').value='';document.getElementById('historySalesFrom').value='';document.getElementById('historySalesTo').value='';render();});['historyExpensesFrom','historyExpensesTo'].forEach(id=>document.getElementById(id).addEventListener('input',render));document.getElementById('clearHistoryExpensesDates').addEventListener('click',()=>{document.getElementById('historyExpensesFrom').value='';document.getElementById('historyExpensesTo').value='';render();});
 document.getElementById('clearSalesFilters').addEventListener('click',()=>{['salesSearch','salesFrom','salesTo'].forEach(id=>document.getElementById(id).value='');render();});
 function renderBarChart(id,rows,labelFn,valueFn){const target=document.getElementById(id);if(!target)return;if(!rows.length||rows.every(r=>Number(valueFn(r))<=0)){target.innerHTML='<div class="empty">No sales in this period yet.</div>';return;}const max=Math.max(1,...rows.map(r=>Number(valueFn(r))||0));target.innerHTML='<div class="chart-bars" role="img" aria-label="Sales bar chart">'+rows.map(r=>{const v=Math.max(0,Number(valueFn(r))||0);return '<div class="chart-col" title="'+esc(labelFn(r)+': '+money(v))+'"><span class="chart-value">'+(v?esc(money(v).replace('.00','')):'')+'</span><div class="chart-bar" style="height:'+Math.max(2,v/max*100)+'%"></div><span class="chart-label">'+esc(labelFn(r))+'</span></div>';}).join('')+'</div>';}
- function salesTotalsByDate(){const totals=new Map();for(const sale of db.sales||[]){const key=dateKey(sale.date);totals.set(key,(totals.get(key)||0)+(Number(sale.total)||0));}return totals;}
- function reportRows(){const range=document.getElementById('reportRange')?.value||'30';const allTime=range==='all';const days=allTime?0:Number(range);const start=new Date();start.setHours(0,0,0,0);if(!allTime)start.setDate(start.getDate()-days+1);else{const dates=[...(db.sales||[]),...(db.expenses||[])].map(x=>x.date).filter(Boolean).map(x=>new Date(x)).filter(d=>!Number.isNaN(d.getTime()));if(dates.length){start.setTime(Math.min(...dates.map(d=>d.getTime())));start.setHours(0,0,0,0);}else{start.setFullYear(start.getFullYear(),0,1);}}const span=Math.max(1,Math.floor((new Date().setHours(0,0,0,0)-start.getTime())/86400000)+1);const size=allTime?Math.max(1,Math.ceil(span/14)):Math.max(1,Math.ceil(days/14));const dailyTotals=salesTotalsByDate(),rows=[];for(let offset=0;offset<span;offset+=size){const d=new Date(start);d.setDate(start.getDate()+offset);let total=0;for(let i=offset;i<Math.min(span,offset+size);i++){const day=new Date(start);day.setDate(start.getDate()+i);total+=dailyTotals.get(dateKey(day))||0;}rows.push({label:d.toLocaleDateString(undefined,{month:'numeric',day:'numeric'}),sales:total});}return {start,rows};}
+ function salesTotalsByDate(){const totals=new Map();for(const sale of db.sales||[]){const key=validDateKey(sale.date);if(!key||key>dateKey(new Date()))continue;totals.set(key,(totals.get(key)||0)+(Number(sale.total)||0));}return totals;}
+ function reportRows(){const range=document.getElementById('reportRange')?.value||'30';const allTime=range==='all';const days=allTime?0:Number(range);const start=new Date();start.setHours(0,0,0,0);if(!allTime)start.setDate(start.getDate()-days+1);else{const dates=[...(db.sales||[]),...(db.expenses||[])].map(x=>x.date).filter(Boolean).map(x=>new Date(x)).filter(d=>!Number.isNaN(d.getTime())&&d<=new Date());if(dates.length){start.setTime(Math.min(...dates.map(d=>d.getTime())));start.setHours(0,0,0,0);}else{start.setFullYear(start.getFullYear(),0,1);}}const span=Math.max(1,Math.floor((new Date().setHours(0,0,0,0)-start.getTime())/86400000)+1);const size=allTime?Math.max(1,Math.ceil(span/14)):Math.max(1,Math.ceil(days/14));const dailyTotals=salesTotalsByDate(),rows=[];for(let offset=0;offset<span;offset+=size){const d=new Date(start);d.setDate(start.getDate()+offset);let total=0;for(let i=offset;i<Math.min(span,offset+size);i++){const day=new Date(start);day.setDate(start.getDate()+i);total+=dailyTotals.get(dateKey(day))||0;}rows.push({label:d.toLocaleDateString(undefined,{month:'numeric',day:'numeric'}),sales:total});}return {start,rows};}
  function reportRowsFor7(){const dailyTotals=salesTotalsByDate(),rows=[];for(let i=6;i>=0;i--){const d=new Date();d.setHours(0,0,0,0);d.setDate(d.getDate()-i);const key=dateKey(d);rows.push({label:d.toLocaleDateString(undefined,{weekday:'short'}),sales:dailyTotals.get(key)||0});}return rows;}
-function renderReports(){const {start,rows}=reportRows(),allTime=document.getElementById('reportRange')?.value==='all',key=dateKey(start),sales=db.sales.filter(x=>allTime||dateKey(x.date)>=key),expenses=db.expenses.filter(x=>allTime||dateKey(x.date)>=key);const total=sales.reduce((n,x)=>n+x.total,0),gross=sales.reduce((n,x)=>n+x.profit,0),costs=expenses.reduce((n,x)=>n+x.amount,0);document.getElementById('reportSales').textContent=money(total);document.getElementById('reportGross').textContent=money(gross);document.getElementById('reportExpenses').textContent=money(costs);document.getElementById('reportNet').textContent=money(gross-costs);renderBarChart('salesTrendChart',reportRowsFor7(),x=>x.label,x=>x.sales);renderBarChart('reportSalesChart',rows,x=>x.label,x=>x.sales);const sums=new Map();sales.forEach(x=>sums.set(x.name,(sums.get(x.name)||0)+x.qty));const top=[...sums.entries()].map(([name,qty])=>({name,qty})).sort((a,b)=>b.qty-a.qty).slice(0,5),max=top[0]?.qty||1;document.getElementById('topProductsChart').innerHTML=top.length?top.map(x=>'<div class="progress-row"><strong>'+esc(x.name)+'</strong><div class="progress-track"><div class="progress-fill" style="width:'+(x.qty/max*100)+'%"></div></div><span class="muted">'+x.qty+' sold</span></div>').join(''):'<div class="empty">No product sales in this period.</div>';}
+function renderReports(){const {start,rows}=reportRows(),allTime=document.getElementById('reportRange')?.value==='all',key=dateKey(start),todayKey=dateKey(new Date()),inRange=x=>{const recordKey=validDateKey(x.date);return !!recordKey&&recordKey<=todayKey&&(allTime||recordKey>=key);},sales=db.sales.filter(inRange),expenses=db.expenses.filter(inRange);const total=sales.reduce((n,x)=>n+x.total,0),gross=sales.reduce((n,x)=>n+x.profit,0),costs=expenses.reduce((n,x)=>n+x.amount,0);document.getElementById('reportSales').textContent=money(total);document.getElementById('reportGross').textContent=money(gross);document.getElementById('reportExpenses').textContent=money(costs);document.getElementById('reportNet').textContent=money(gross-costs);renderBarChart('salesTrendChart',reportRowsFor7(),x=>x.label,x=>x.sales);renderBarChart('reportSalesChart',rows,x=>x.label,x=>x.sales);const sums=new Map();sales.forEach(x=>sums.set(x.name,(sums.get(x.name)||0)+x.qty));const top=[...sums.entries()].map(([name,qty])=>({name,qty})).sort((a,b)=>b.qty-a.qty).slice(0,5),max=top[0]?.qty||1;document.getElementById('topProductsChart').innerHTML=top.length?top.map(x=>'<div class="progress-row"><strong>'+esc(x.name)+'</strong><div class="progress-track"><div class="progress-fill" style="width:'+(x.qty/max*100)+'%"></div></div><span class="muted">'+x.qty+' sold</span></div>').join(''):'<div class="empty">No product sales in this period.</div>';}
 document.getElementById('reportRange').addEventListener('change',renderReports);
 function renderRestockHistory(){
  const target=document.getElementById('restockHistoryList');
@@ -1850,11 +1854,10 @@ document.getElementById('saleForm').addEventListener('submit',async e=>{
  if(!Number.isSafeInteger(qty)||qty<1||!Number.isSafeInteger(baseQty)||baseQty>p.stock)return alert('Quantity must be a whole number and cannot exceed available stock.');
  if(!Number.isFinite(price)||price<=0)return alert('Enter a valid selling price.');
  if(note.length>150)return alert('Sale note must be 150 characters or fewer.');
- const total=Math.round(qty*price*100)/100;
+ const amounts=calculateSaleAmounts(qty,price,p.cost,unitsPerSale),total=amounts.total;
  if(!confirm('Record this paid sale for '+money(total)+'?'))return;
  if(cloudUser){
-   const saleCost=Math.round((p.cost*unitsPerSale+Number.EPSILON)*100)/100;
-   const profit=Math.round((total-Math.round(qty*saleCost*100)/100+Number.EPSILON)*100)/100;
+   const saleCost=amounts.cost,profit=amounts.profit;
    const sale={id:crypto.randomUUID(),productId:p.id,name:p.name,qty,price,cost:saleCost,total,profit,note,date:now(),baseQty,saleUnit,unitsPerSale};
    const productUpdatedAt=p.updatedAt;
    p.stock-=baseQty;
@@ -1862,8 +1865,7 @@ document.getElementById('saleForm').addEventListener('submit',async e=>{
    try { await saveCloudChangeLocally('sale',{sale,productUpdatedAt}); }
    catch(err){ p.stock+=baseQty; db.sales=db.sales.filter(x=>x.id!==sale.id); render(); return alert(err.message || String(err)); }
  }else{
-   const saleCost=Math.round((p.cost*unitsPerSale+Number.EPSILON)*100)/100;
-   const profit=Math.round((total-Math.round(qty*saleCost*100)/100+Number.EPSILON)*100)/100;
+   const saleCost=amounts.cost,profit=amounts.profit;
    p.stock-=baseQty;
    db.sales.push({id:crypto.randomUUID(),productId:p.id,name:p.name,qty,price,cost:saleCost,total,profit,note,date:now(),baseQty,saleUnit,unitsPerSale});
    if(!save())return;
@@ -1877,7 +1879,7 @@ document.getElementById('expenseForm').addEventListener('submit',async e=>{
  e.preventDefault();
  const name=document.getElementById('ename').value.trim(),amount=Number(document.getElementById('eamount').value);
  if(!name||!Number.isFinite(amount)||amount<=0)return alert('Enter a description and valid amount.');
- const rounded=Math.round(amount*100)/100;
+ const rounded=roundMoney(amount);
  if(cloudUser){
    const expense={id:crypto.randomUUID(),name,amount:rounded,date:now()};
    db.expenses.push(expense);
