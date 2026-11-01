@@ -240,3 +240,6 @@ failed_buybook_recovery = [label for label, passed in buybook_recovery_checks.it
 if failed_buybook_recovery:
     raise SystemExit("Buybook activity/recovery checks failed: " + "; ".join(failed_buybook_recovery))
 print(f"Buybook activity and notification recovery checks passed ({len(buybook_recovery_checks)} checks).")
+if 'replace(/^Bearer\\s+/i, "")' not in reservation_notification_function:
+    raise SystemExit("Reservation notification must correctly extract the bearer token.")
+print("Reservation notification authentication parsing check passed.")
