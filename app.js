@@ -1051,7 +1051,7 @@ async function retryReservationNotification(id,button){
   if(button){button.disabled=false;button.textContent=original||'Resend buyer notification';}
  }
 }
-function updateReservationDecision(id,decision,button){
+async function updateReservationDecision(id,decision,button){
  if(!cloudUser||!supabaseClient)return;
  if(!['approved','rejected'].includes(decision))return;
  const reservation=marketplaceReservationsCache.find(item=>String(item.id)===String(id));
