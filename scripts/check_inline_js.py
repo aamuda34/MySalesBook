@@ -262,3 +262,7 @@ failed_messenger_poll = [label for label, passed in messenger_poll_checks.items(
 if failed_messenger_poll:
     raise SystemExit("Messenger polling checks failed: " + "; ".join(failed_messenger_poll))
 print(f"Bounded messenger polling checks passed ({len(messenger_poll_checks)} checks).")
+notification_unique_migration = Path("supabase/migrations/20261101201313_use_inferable_unique_key_for_reservation_notifications.sql").read_text(encoding="utf-8")
+if "drop index if exists public.app_notifications_reservation_kind_uidx" not in notification_unique_migration or "on public.app_notifications (reservation_id, kind)" not in notification_unique_migration:
+    raise SystemExit("Reservation notification unique index migration sequence is incomplete.")
+print("Applied migration sequence and PostgREST conflict-target checks passed.")
