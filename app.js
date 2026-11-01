@@ -14,6 +14,8 @@ if (!supabaseClient) {
   console.error('Sellbook: Supabase could not be initialized.');
 }
 const DBKEY='my-sales-book-v1';
+function roundMoney(value){const n=Number(value);if(!Number.isFinite(n))throw Error('Enter a valid monetary amount.');return Math.round((n+Number.EPSILON)*100)/100;}
+function calculateSaleAmounts(quantity,unitPrice,unitCost,unitsPerSale=1){if(!Number.isSafeInteger(quantity)||quantity<1||!Number.isSafeInteger(unitsPerSale)||unitsPerSale<1)throw Error('Sale quantity is invalid.');const total=roundMoney(quantity*roundMoney(unitPrice));const costPerSaleUnit=roundMoney(roundMoney(unitCost)*unitsPerSale);const costTotal=roundMoney(quantity*costPerSaleUnit);return {total,cost:costPerSaleUnit,costTotal,profit:roundMoney(total-costTotal)};}
 const money=n=>'₦'+Number(n||0).toLocaleString('en-NG',{minimumFractionDigits:2,maximumFractionDigits:2});
 const today=()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');};
 const now=()=>new Date().toISOString();
@@ -1850,11 +1852,10 @@ document.getElementById('saleForm').addEventListener('submit',async e=>{
  if(!Number.isSafeInteger(qty)||qty<1||!Number.isSafeInteger(baseQty)||baseQty>p.stock)return alert('Quantity must be a whole number and cannot exceed available stock.');
  if(!Number.isFinite(price)||price<=0)return alert('Enter a valid selling price.');
  if(note.length>150)return alert('Sale note must be 150 characters or fewer.');
- const total=Math.round(qty*price*100)/100;
+ const amounts=calculateSaleAmounts(qty,price,p.cost,unitsPerSale),total=amounts.total;
  if(!confirm('Record this paid sale for '+money(total)+'?'))return;
  if(cloudUser){
-   const saleCost=Math.round((p.cost*unitsPerSale+Number.EPSILON)*100)/100;
-   const profit=Math.round((total-Math.round(qty*saleCost*100)/100+Number.EPSILON)*100)/100;
+   const saleCost=amounts.cost,profit=amounts.profit;
    const sale={id:crypto.randomUUID(),productId:p.id,name:p.name,qty,price,cost:saleCost,total,profit,note,date:now(),baseQty,saleUnit,unitsPerSale};
    const productUpdatedAt=p.updatedAt;
    p.stock-=baseQty;
@@ -1862,8 +1863,7 @@ document.getElementById('saleForm').addEventListener('submit',async e=>{
    try { await saveCloudChangeLocally('sale',{sale,productUpdatedAt}); }
    catch(err){ p.stock+=baseQty; db.sales=db.sales.filter(x=>x.id!==sale.id); render(); return alert(err.message || String(err)); }
  }else{
-   const saleCost=Math.round((p.cost*unitsPerSale+Number.EPSILON)*100)/100;
-   const profit=Math.round((total-Math.round(qty*saleCost*100)/100+Number.EPSILON)*100)/100;
+   const saleCost=amounts.cost,profit=amounts.profit;
    p.stock-=baseQty;
    db.sales.push({id:crypto.randomUUID(),productId:p.id,name:p.name,qty,price,cost:saleCost,total,profit,note,date:now(),baseQty,saleUnit,unitsPerSale});
    if(!save())return;
