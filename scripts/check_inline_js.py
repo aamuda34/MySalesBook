@@ -170,3 +170,10 @@ if failed_priority4:
     raise SystemExit("Priority 4 loading/performance checks failed: " + "; ".join(failed_priority4))
 print(f"Priority 4 loading and background-request checks passed ({len(priority4_checks)} checks).")
 
+
+
+# Date-only values (for example, YYYY-MM-DD expense dates) must remain
+# calendar dates in the seller's local timezone, not shift through UTC parsing.
+if "if(/^\\d{4}-\\d{2}-\\d{2}$/.test(raw))" not in app_js:
+    raise SystemExit("Date-only report values must be parsed without a UTC day shift.")
+print("Local date-only report boundary regression check passed.")
