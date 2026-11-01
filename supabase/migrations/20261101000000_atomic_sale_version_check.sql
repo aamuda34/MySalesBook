@@ -20,7 +20,7 @@ declare
  v_user_id uuid := auth.uid();
  v_existing_user_id uuid;
  v_product public.products%rowtype;
- v_base_quantity integer;
+ v_base_quantity bigint;
  v_unit_cost numeric(12,2);
  v_total numeric(12,2);
  v_profit numeric(12,2);
@@ -29,6 +29,7 @@ begin
  if p_sale_id is null then raise exception 'A unique sale ID is required.'; end if;
  if p_quantity is null or p_quantity<1 then raise exception 'Quantity must be at least one.'; end if;
  if p_units_per_sale is null or p_units_per_sale<1 then raise exception 'Sale unit factor must be positive.'; end if;
+ if p_quantity::bigint * p_units_per_sale::bigint > 2147483647 then raise exception 'Sale quantity is too large.'; end if;
  if p_unit_price is null or p_unit_price<=0 then raise exception 'Enter a valid selling price.'; end if;
  if p_expected_updated_at is null then raise exception 'A product version is required. Refresh Sellbook before synchronising this sale.'; end if;
  if p_note is not null and char_length(p_note)>150 then raise exception 'The sale note is too long.'; end if;
@@ -57,14 +58,14 @@ begin
    raise exception 'Selling unit changed. Refresh the app and try again.';
  end if;
 
- v_base_quantity:=p_quantity*p_units_per_sale;
+ v_base_quantity:=p_quantity::bigint*p_units_per_sale::bigint;
  if v_base_quantity>v_product.stock then raise exception 'Insufficient stock.'; end if;
  v_unit_cost:=round(v_product.cost_price*p_units_per_sale,2);
  v_total:=round(p_quantity*p_unit_price,2);
  v_profit:=round(v_total-p_quantity*v_unit_cost,2);
 
  update public.products
- set stock=stock-v_base_quantity,updated_at=now()
+ set stock=stock-v_base_quantity::integer,updated_at=now()
  where id=p_product_id and user_id=v_user_id;
 
  insert into public.sales(
