@@ -379,11 +379,10 @@
 <script>
 (function(){
  let selected='adjustments';
- const safeText=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
  function renderTabs(){
   const tabs=document.getElementById('stockHistoryTabs');if(!tabs)return;
-  const adjustments=Array.isArray(window.db?.stockAdjustments)?window.db.stockAdjustments:[];
-  const restocks=Array.isArray(window.db?.restocks)?window.db.restocks:[];
+  const adjustments=Array.isArray(db.stockAdjustments)?db.stockAdjustments:[];
+  const restocks=Array.isArray(db.restocks)?db.restocks:[];
   tabs.querySelectorAll('[data-stock-history-tab]').forEach(button=>{
    const active=button.dataset.stockHistoryTab===selected;
    button.classList.toggle('active',active);button.setAttribute('aria-selected',active?'true':'false');
@@ -393,25 +392,14 @@
   const ap=document.getElementById('stockAdjustmentPanel'),rp=document.getElementById('restockHistoryPanel');
   if(ap)ap.hidden=selected!=='adjustments';if(rp)rp.hidden=selected!=='restocks';
  }
- function renderAdjustments(){
-  const target=document.getElementById('stockAdjustmentList');if(!target)return;
-  const rows=[...(window.db?.stockAdjustments||[])].sort((a,b)=>new Date(b.date||0)-new Date(a.date||0)).slice(0,100);
-  target.innerHTML=rows.length?rows.map(a=>'<button type="button" class="stock-history-row" data-stock-history-id="'+safeText(a.id)+'" data-stock-history-kind="adjustment"><span class="row"><strong>'+safeText(a.productName||'Product')+'</strong><strong>'+(Number(a.quantityChange)>0?'+':'')+Number(a.quantityChange||0)+' units</strong></span><span class="muted">'+new Date(a.date).toLocaleString()+' · '+Number(a.previousStock||0)+' → '+Number(a.newStock||0)+' units'+(a.reason?' · '+safeText(a.reason):'')+'</span></button>').join(''):'<div class="empty">No stock adjustments recorded yet.</div>';
- }
- function refresh(){
-  renderAdjustments();
-  if(typeof window.renderRestockHistory==='function')window.renderRestockHistory();
-  renderTabs();
- }
+ const originalRender=renderStockAdjustments;
+ renderStockAdjustments=function(){originalRender();renderTabs();};
  document.getElementById('stockHistoryTabs')?.addEventListener('click',event=>{
   const button=event.target.closest('[data-stock-history-tab]');if(!button)return;
   selected=button.dataset.stockHistoryTab==='restocks'?'restocks':'adjustments';renderTabs();
  });
- window.addEventListener('load',refresh,{once:true});
- setTimeout(refresh,0);
- window.renderStockHistoryTabs=renderTabs;
-})();
-</script>
+ setTimeout(()=>{renderStockAdjustments();renderTabs();},0);
+})();</script>
 
 </body>
 </html>
