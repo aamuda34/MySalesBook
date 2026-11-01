@@ -675,17 +675,31 @@ async function imageUrlToDataUrl(url) {
   });
 }
 
+// Supabase REST applies a row cap to each request. Page through owned records
+// so long-running businesses do not silently lose older sales, expenses or stock history.
+async function fetchAllCloudRows(buildQuery,pageSize=500){
+  const rows=[];
+  for(let offset=0;;offset+=pageSize){
+    const {data,error}=await buildQuery().range(offset,offset+pageSize-1);
+    if(error)return {data:null,error};
+    const page=Array.isArray(data)?data:[];
+    rows.push(...page);
+    if(page.length<pageSize)break;
+  }
+  return {data:rows,error:null};
+}
+
 async function cloudLoadAll() {
   const user=await requireCloudUser();
   // Stock-before and stock-after are persisted in Supabase so history is complete on every device.
   // Keep cached values only as a compatibility fallback for older rows.
   const cachedRestockDetails=new Map((db.restocks||[]).map(item=>[String(item.id),item]));
   const [pr,sr,er,ar,rr,profileResult]=await Promise.all([
-    supabaseClient.from('products').select('id,name,category,cost_price,selling_price,stock,base_unit,purchase_unit,units_per_purchase,pack_unit,units_per_pack,pack_selling_price,image_path,created_at,updated_at').eq('user_id',user.id).order('created_at'),
-    supabaseClient.from('sales').select('id,product_id,product_name,quantity,unit_price,unit_cost,total,gross_profit,note,sold_at,base_quantity,sale_unit,units_per_sale').eq('user_id',user.id).order('sold_at'),
-    supabaseClient.from('expenses').select('id,description,amount,spent_at').eq('user_id',user.id).order('spent_at'),
-    supabaseClient.from('stock_adjustments').select('id,product_id,product_name,previous_stock,new_stock,quantity_change,reason,adjusted_at').eq('user_id',user.id).order('adjusted_at',{ascending:false}),
-    supabaseClient.from('stock_purchases').select('id,product_id,product_name,purchase_quantity,purchase_unit,units_per_purchase,base_quantity,cost_per_purchase_unit,total_cost,average_cost_before,average_cost_after,previous_stock,new_stock,restocked_at').eq('user_id',user.id).order('restocked_at',{ascending:false}),
+    fetchAllCloudRows(()=>supabaseClient.from('products').select('id,name,category,cost_price,selling_price,stock,base_unit,purchase_unit,units_per_purchase,pack_unit,units_per_pack,pack_selling_price,image_path,created_at,updated_at').eq('user_id',user.id).order('created_at').order('id')),
+    fetchAllCloudRows(()=>supabaseClient.from('sales').select('id,product_id,product_name,quantity,unit_price,unit_cost,total,gross_profit,note,sold_at,base_quantity,sale_unit,units_per_sale').eq('user_id',user.id).order('sold_at').order('id')),
+    fetchAllCloudRows(()=>supabaseClient.from('expenses').select('id,description,amount,spent_at').eq('user_id',user.id).order('spent_at').order('id')),
+    fetchAllCloudRows(()=>supabaseClient.from('stock_adjustments').select('id,product_id,product_name,previous_stock,new_stock,quantity_change,reason,adjusted_at').eq('user_id',user.id).order('adjusted_at',{ascending:false}).order('id',{ascending:false})),
+    fetchAllCloudRows(()=>supabaseClient.from('stock_purchases').select('id,product_id,product_name,purchase_quantity,purchase_unit,units_per_purchase,base_quantity,cost_per_purchase_unit,total_cost,average_cost_before,average_cost_after,previous_stock,new_stock,restocked_at').eq('user_id',user.id).order('restocked_at',{ascending:false}).order('id',{ascending:false})),
     supabaseClient.from('user_profiles').select('business_name,business_logo').eq('user_id',user.id).maybeSingle()
   ]);
   if(pr.error)throw pr.error;if(sr.error)throw sr.error;if(er.error)throw er.error;if(ar.error)throw ar.error;if(rr.error)throw rr.error;if(profileResult.error)throw profileResult.error;
