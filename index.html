@@ -396,7 +396,11 @@
  renderStockAdjustments=function(){originalRender();renderTabs();};
  document.getElementById('stockHistoryTabs')?.addEventListener('click',event=>{
   const button=event.target.closest('[data-stock-history-tab]');if(!button)return;
-  selected=button.dataset.stockHistoryTab==='restocks'?'restocks':'adjustments';renderTabs();
+  selected=button.dataset.stockHistoryTab==='restocks'?'restocks':'adjustments';
+  // Repaint the selected list at the moment its tab is opened. Do not rely on
+  // the adjustments renderer having run earlier or on hidden-panel contents.
+  if(selected==='restocks')renderRestockHistory();else renderStockAdjustments();
+  renderTabs();
  });
  setTimeout(()=>{renderStockAdjustments();renderTabs();},0);
 })();</script>
