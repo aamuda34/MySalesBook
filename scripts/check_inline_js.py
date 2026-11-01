@@ -249,3 +249,16 @@ print("Offline shell cache version check passed.")
 if "dates.reduce((minimum,d)=>Math.min(minimum,d.getTime()),Infinity)" not in app_js:
     raise SystemExit("All-time report must avoid spreading large date arrays into Math.min.")
 print("Large all-time report date-range check passed.")
+
+# Messenger background refreshes are bounded and do not replace loaded older messages.
+messenger_poll_checks = {
+    "conversation list queries have bounded result windows": ".order('id',{ascending:false}).limit(100)" in app_js and ".order('id',{ascending:false}).limit(300)" in app_js,
+    "quiet support refresh fetches only recent messages": "options.quiet?await query().order('created_at',{ascending:false}).order('id',{ascending:false}).limit(100)" in app_js,
+    "quiet subscriber refresh fetches only recent messages": "options.quiet?await query().order('created_at',{ascending:false}).order('id',{ascending:false}).limit(100)" in app_js,
+    "message DOM nodes carry stable IDs for deduplication": "data-message-id=\"'+escAdmin(m.id)+'\"" in app_js,
+    "quiet refresh appends only unseen messages": "target.insertAdjacentHTML('beforeend'" in app_js and "existing.has(String(m.id))" in app_js,
+}
+failed_messenger_poll = [label for label, passed in messenger_poll_checks.items() if not passed]
+if failed_messenger_poll:
+    raise SystemExit("Messenger polling checks failed: " + "; ".join(failed_messenger_poll))
+print(f"Bounded messenger polling checks passed ({len(messenger_poll_checks)} checks).")
