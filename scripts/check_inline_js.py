@@ -61,3 +61,35 @@ missing_behaviours = [
 if missing_behaviours:
     raise SystemExit("Missing critical behaviours: " + ", ".join(missing_behaviours))
 print(f"Critical offline/sync behaviour checks passed ({len(required_behaviours)} checks).")
+
+# Guard marketplace publishing, accessibility and security configuration.
+index_html = Path("index.html").read_text(encoding="utf-8")
+required_markers = {
+    "Buybook images require an active listing": "eq('is_active',true).maybeSingle()",
+    "failed Buybook image publishing cleans up the uploaded file": "Could not clean up an unpublished marketplace image",
+    "keyboard users can skip to main content": 'href="#mainContent"',
+    "reduced-motion preference is respected": "prefers-reduced-motion:reduce",
+}
+missing_markers = [label for label, marker in required_markers.items() if marker not in index_html]
+if missing_markers:
+    raise SystemExit("Missing marketplace/accessibility safeguards: " + ", ".join(missing_markers))
+
+# A browser-delivered app must never contain a Supabase service-role or secret key.
+if re.search(r"service_role|sb_secret_[A-Za-z0-9_]+", index_html, re.IGNORECASE):
+    raise SystemExit("A privileged Supabase key must never be included in the browser app.")
+
+# Verify baseline response headers remain configured in Vercel.
+import json
+vercel_config = json.loads(Path("vercel.json").read_text(encoding="utf-8"))
+header_text = json.dumps(vercel_config.get("headers", []))
+required_headers = [
+    "X-Content-Type-Options",
+    "X-Frame-Options",
+    "Referrer-Policy",
+    "Strict-Transport-Security",
+    "Permissions-Policy",
+]
+missing_headers = [name for name in required_headers if name not in header_text]
+if missing_headers:
+    raise SystemExit("Missing required security headers: " + ", ".join(missing_headers))
+print(f"Marketplace, accessibility and security checks passed ({len(required_markers) + len(required_headers) + 1} checks).")
