@@ -1405,7 +1405,7 @@ document.getElementById('restockForm').addEventListener('submit',async e=>{
  if(!Number.isSafeInteger(baseQuantity)||!Number.isSafeInteger(newStock)||newStock>2000000000||!Number.isFinite(totalCost))return alert('This purchase quantity is too large.');
  const baseCost=Math.round((totalCost/baseQuantity+Number.EPSILON)*10000)/10000,averageCostAfter=p.stock>0?Math.round((((p.stock*p.cost+baseQuantity*baseCost)/newStock)+Number.EPSILON)*10000)/10000:baseCost;
  if(!confirm('Record purchase of '+purchaseQuantity+' '+purchaseUnit+' for '+money(totalCost)+'? This adds '+baseQuantity+' units and updates average cost.'))return;
- const restock={id:crypto.randomUUID(),productId:p.id,productName:p.name,purchaseQuantity,purchaseUnit,unitsPerPurchase,costPerPurchaseUnit,date:now(),previousStock:p.stock,newStock,baseQuantity,totalCost:Math.round(purchaseQuantity*costPerPurchaseUnit*100)/100,averageCostAfter};db.restocks.push(restock);
+ const restock={id:crypto.randomUUID(),productId:p.id,productName:p.name,purchaseQuantity,purchaseUnit,unitsPerPurchase,costPerPurchaseUnit,date:now(),previousStock:p.stock,newStock,baseQuantity,totalCost,averageCostAfter};db.restocks.push(restock);
  const oldStock=p.stock,oldCost=p.cost;
  p.stock=newStock;p.cost=Math.round(averageCostAfter*10000)/10000;
  try{
