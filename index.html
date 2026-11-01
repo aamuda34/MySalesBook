@@ -2090,21 +2090,51 @@ document.getElementById('subscriberDetailsBack')?.addEventListener('click',()=>{
 document.getElementById('subscriberMessageButton')?.addEventListener('click',async()=>{const id=marketplaceSelectedBuyerId;if(!id)return;showPage('messenger');await loadMessengerConversations();await openMessengerConversation(id);});
 async function refreshHomeSubscriberCount(){const el=document.getElementById('subscriberCountHome');if(!el)return;if(!cloudUser||!supabaseClient){el.textContent='—';return;}try{const {data,error}=await supabaseClient.rpc('get_my_marketplace_subscribers');if(error)throw error;el.textContent=String((data||[]).length);}catch(_){el.textContent='—';}}
 function paintPage(name,scroll){if(!VALID_PAGES.has(name))name='home';if(name==='business-details')updateBusinessDetailsPage();document.body.classList.toggle('notifications-page-open',name==='notifications');document.body.classList.toggle('subscribers-page-open',name==='subscribers');document.body.classList.toggle('reservations-page-open',name==='reservations');document.body.classList.toggle('settings-main-page-open',name==='settings');document.body.classList.toggle('settings-detail-page-open',['settings-business','settings-sync','settings-preferences','settings-account','settings-buybook'].includes(name));document.body.classList.toggle('business-profile-page-open',name==='business-details');document.body.classList.toggle('legal-page-open',name==='settings-legal');document.body.classList.toggle('about-sellbook-page-open',name==='about-sellbook');document.body.classList.toggle('reports-page-open',name==='reports');document.body.classList.toggle('stock-page-open',name==='stock');document.body.classList.toggle('stock-history-page-open',name==='stock-history');document.body.classList.toggle('stock-history-detail-page-open',name==='stock-history-detail');document.body.classList.toggle('product-page-open',name==='products');document.body.classList.toggle('low-stock-page-open',name==='low-stock');document.body.classList.toggle('product-details-page-open',name==='product-details');document.body.classList.toggle('sales-page-open',name==='sales');document.body.classList.toggle('sales-history-page-open',name==='sales-history');document.body.classList.toggle('sale-details-page-open',name==='sale-details');document.body.classList.toggle('expenses-page-open',name==='expenses');document.querySelectorAll('.page').forEach(x=>x.classList.toggle('hidden',x.id!==name));document.querySelectorAll('nav button').forEach(x=>x.classList.toggle('active',x.dataset.page===name||(x.dataset.page==='messages'&&name==='support')||(x.dataset.page==='me'&&['me','more','reports','stock','low-stock','settings','business-details','settings-business','settings-sync','settings-preferences','settings-account','settings-legal'].includes(name))));sessionStorage.setItem('my-sales-book-current-page',name);render();renderDailySalesSummary();refreshHomeWeeklySales();refreshHomeAllTimeSummary();const homeProductCount=document.getElementById('productCountHome'),canonicalProductCount=document.getElementById('productCount'),homeProductSellingValue=document.getElementById('productSellingValueHome');if(homeProductCount)homeProductCount.textContent=canonicalProductCount?.textContent||String((db.products||[]).length);if(homeProductSellingValue){const total=(db.products||[]).reduce((sum,p)=>sum+Math.max(0,Number(p.stock)||0)*Math.max(0,Number(p.price??p.selling_price)||0),0);homeProductSellingValue.textContent=money(total);}if(name==='home')refreshHomeSubscriberCount();const fab=document.getElementById('quickSaleFab');const fabPages={home:{label:'Record a sale',title:'Record a sale'},sales:{label:'Record a sale',title:'Record a sale'},products:{label:'Add a product',title:'Add a product'},expenses:{label:'Add an expense',title:'Add an expense'}};const fabAction=fabPages[name];if(fab){fab.style.display='none';fab.hidden=true;fab.setAttribute('aria-hidden','true');if(fabAction&&name!=='home'&&!sellbookIsAdmin){fab.hidden=false;fab.style.display='flex';fab.setAttribute('aria-hidden','false');fab.setAttribute('aria-label',fabAction.label);fab.title=fabAction.title;fab.dataset.action=name;}}if(name==='support'&&cloudUser){loadUserSupport();}if(name==='feedback'&&cloudUser){loadUserSupport();}if(name==='notifications'&&cloudUser){localStorage.setItem('sellbook-notifications-seen-'+cloudUser.id,new Date().toISOString());updateUnreadBadges();}if(name==='settings-buybook'&&cloudUser){loadBuybookConnection();loadBuybookActivity();}if(name==='reservations')loadReservationsPage();if(name==='me')updateMePanel();if(scroll)window.scrollTo({top:0,behavior:'auto'});}
-// Make every in-app back arrow behave like the device Back button. Consuming the same history entry prevents a second Back from reopening the page just left.
+// Keep all page back arrows consistent. Use the actual previous app page when it
+// matches the intended parent; otherwise replace the current history entry with
+// the safe parent so Back cannot reopen the page the user just left.
 (function installUnifiedBackArrows(){
+  const parentPages={
+    'product-details':'products','sale-details':'sales-history',
+    'sales-history':'home','products':'home','sales':'home','expenses':'home',
+    'subscribers':'home','reservations':'home','low-stock':'products',
+    'stock':'me','stock-history':'stock','stock-history-detail':'stock-history',
+    'reports':'me','settings':'me','settings-business':'settings',
+    'settings-sync':'settings','settings-preferences':'settings',
+    'settings-account':'settings','settings-buybook':'settings',
+    'settings-legal':'me','about-sellbook':'me','business-details':'me',
+    'notifications':'home','support':'home','feedback':'support'
+  };
+  function intendedParent(button,current){
+    if(button.dataset.appBack)return button.dataset.appBack;
+    if(button.dataset.openPage)return button.dataset.openPage;
+    const inline=button.getAttribute('onclick')||'';
+    const match=inline.match(/showPage\(['"]([^'"]+)['"]\)/);
+    return match&&VALID_PAGES.has(match[1])?match[1]:(parentPages[current]||'home');
+  }
   document.addEventListener('click',function(event){
-    const button=event.target.closest('.products-back-button,.settings-back-button,.business-profile-back,.reports-back-button,[data-app-back]');
+    const button=event.target.closest('.products-back-button,.settings-back-button,.business-profile-back,.reports-back-button,.notifications-back-button,.support-back-button,.stock-back-button,.stock-history-back-button,.stock-history-detail-back-button,.settings-main-back-button,.about-sellbook-back-button,[data-app-back]');
     if(!button)return;
-    event.preventDefault();
-    event.stopImmediatePropagation();
-    const fallback=button.dataset.appBack||button.dataset.openPage||'home';
     const current=currentPage();
-    const canGoBack=history.state&&history.state.mySalesBookPage&&history.state.mySalesBookPage!==current;
-    if(canGoBack){history.back();return;}
-    showPage(fallback);
+    if(button.id==='subscriberDetailsBack'||button.id==='reservationDetailsBack'){
+      event.preventDefault();event.stopImmediatePropagation();
+      const isSubscriber=button.id==='subscriberDetailsBack';
+      document.getElementById(isSubscriber?'subscriberDetailsView':'reservationDetailsView')?.classList.add('hidden');
+      document.getElementById(isSubscriber?'subscribersListView':'reservationsListView')?.classList.remove('hidden');
+      return;
+    }
+    event.preventDefault();event.stopImmediatePropagation();
+    const fallback=intendedParent(button,current);
+    if(!VALID_PAGES.has(fallback)||fallback===current)return;
+    const state=history.state||{};
+    if(state.mySalesBookPage===current&&state.mySalesBookPreviousPage===fallback){
+      history.back();
+    }else{
+      showPage(fallback,{replaceHistory:true});
+    }
   },true);
 })();
-let messengerReturnPage='home';function showPage(name,options={}){if(!VALID_PAGES.has(name))return;const previous=currentPage();if(name==='messenger'&&previous!=='messenger')messengerReturnPage=previous;document.body.classList.toggle('user-support-open',name==='support'&&!sellbookIsAdmin);document.body.classList.toggle('messenger-open',name==='messenger');if(name!=='messenger')document.body.classList.remove('messenger-conversation-open');if(name==='messenger'&&cloudUser)loadMessengerConversations();if(!options.fromHistory&&previous!==name)history.pushState({mySalesBookPage:name,mySalesBookReturnPage:name==='messenger'?messengerReturnPage:undefined},'', '#'+name);paintPage(name,options.scroll!==false);}
+let messengerReturnPage='home';function showPage(name,options={}){if(!VALID_PAGES.has(name))return;const previous=currentPage();if(name==='messenger'&&previous!=='messenger')messengerReturnPage=previous;document.body.classList.toggle('user-support-open',name==='support'&&!sellbookIsAdmin);document.body.classList.toggle('messenger-open',name==='messenger');if(name!=='messenger')document.body.classList.remove('messenger-conversation-open');if(name==='messenger'&&cloudUser)loadMessengerConversations();if(!options.fromHistory&&previous!==name){const state={mySalesBookPage:name,mySalesBookPreviousPage:previous,mySalesBookReturnPage:name==='messenger'?messengerReturnPage:undefined};if(options.replaceHistory)history.replaceState(state,'','#'+name);else history.pushState(state,'','#'+name);}paintPage(name,options.scroll!==false);}
 function restorePageFromLocation(){const hash=location.hash.slice(1),saved=sessionStorage.getItem('my-sales-book-current-page'),name=VALID_PAGES.has(hash)?hash:(VALID_PAGES.has(saved)?saved:'home');document.body.classList.toggle('user-support-open',name==='support'&&!sellbookIsAdmin);document.body.classList.toggle('messenger-open',name==='messenger');paintPage(name,false);}
 // Keep Android/browser Back inside the app. Page changes have their own
 // history entries; the duplicate root entry prevents the app from closing
@@ -3297,7 +3327,7 @@ async function loadMessengerConversations(options={}){
 async function openMessengerConversation(id,options={}){
  const wasConversationOpen=document.body.classList.contains('messenger-conversation-open');
  if(!wasConversationOpen&&!options.quiet){
-  history.pushState({mySalesBookPage:'messenger',mySalesBookMessengerChat:true},'','#messenger');
+  history.pushState({mySalesBookPage:'messenger',mySalesBookPreviousPage:'messenger',mySalesBookMessengerChat:true},'','#messenger');
  }
  messengerSelectedConversation=id;document.body.classList.add('messenger-conversation-open');
  const input=document.getElementById('messengerBody'),send=document.querySelector('#messengerComposer button[type="submit"]');
