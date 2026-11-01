@@ -17,7 +17,7 @@ Deno.serve(async (req: Request) => {
     return json({ error: "Server configuration is incomplete" }, 500);
   }
 
-  const token = (req.headers.get("Authorization") || "").replace(/^Bearer\\s+/i, "");
+  const token = (req.headers.get("Authorization") || "").replace(/^Bearer\s+/i, "");
   if (!token) return json({ error: "Sign-in required" }, 401);
 
   const userClient = createClient(supabaseUrl, anonKey, {
