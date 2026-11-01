@@ -153,3 +153,20 @@ if failed_priority3:
 if "'./stock-history-tabs.js'" not in service_worker:
     raise SystemExit("Stock history tabs controller is missing from the offline app shell.")
 print(f"Priority 3 product, stock, history, offline, conflict and security checks passed ({len(priority3_checks) + 1} checks).")
+
+# Priority 4 loading and background-request regression guards.
+priority4_checks = {
+    "product photo URLs are requested in bulk batches": "createSignedUrls(paths,3600)" in app_js,
+    "product photo signing is bounded to batches of 100": "offset+=100" in app_js and "slice(offset,offset+100)" in app_js,
+    "messenger polling is reduced without disabling refresh": "},12000);" in app_js and "refreshSelected:true" in app_js,
+    "Buybook activity polling is reduced": "}},15000);" in app_js and "currentPage()==='settings-buybook'" in app_js,
+    "admin chat polling is reduced": "currentPage()==='admin'" in app_js and "}},15000);" in app_js,
+    "background unread polling is less frequent": "},30000);" in app_js and "updateUnreadBadges();" in app_js,
+    "product images remain compressed before storage": "canvas.toDataURL('image/jpeg',0.68)" in app_js,
+    "cached workspace is revealed before cloud refresh": "restoreCloudCache(user.id)" in app_js and "Showing your saved records while Sellbook checks" in app_js,
+}
+failed_priority4 = [label for label, passed in priority4_checks.items() if not passed]
+if failed_priority4:
+    raise SystemExit("Priority 4 loading/performance checks failed: " + "; ".join(failed_priority4))
+print(f"Priority 4 loading and background-request checks passed ({len(priority4_checks)} checks).")
+
