@@ -1156,31 +1156,24 @@ document.getElementById('salesSummaryPeriod')?.addEventListener('change',event=>
 function getProfile(){return db.profile||{businessName:'',businessLogo:''};}
 function renderBrand(){const p=getProfile(),name=String(p.businessName||'').trim();const meName=document.getElementById('meSellerName');if(meName){const meta=cloudUser?.user_metadata||{};const googleName=String(meta.given_name||meta.first_name||meta.full_name||meta.name||meta.display_name||'').trim();const emailName=String(cloudUser?.email||'').split('@')[0].trim();const sellerFirstName=String(googleName||emailName||'Seller').trim().split(/[\s._-]+/)[0];meName.textContent=sellerFirstName||'Seller';}document.getElementById('businessTitle').textContent=name||'Sellbook';document.getElementById('businessSubtitle').textContent=name?'Business records · Nigerian naira (₦)':'Simple business records · Nigerian naira (₦)';const logo=document.getElementById('headerBusinessLogo'),mark=document.getElementById('brandMark');if(p.businessLogo){logo.src=p.businessLogo;logo.style.display='block';mark.style.display='none';}else{logo.removeAttribute('src');logo.style.display='none';mark.style.display='grid';mark.textContent=(name||'Sellbook').split(/\s+/).slice(0,2).map(x=>x[0]||'').join('').toUpperCase()||'MS';}const input=document.getElementById('businessNameInput');if(input&&document.activeElement!==input)input.value=name;const preview=document.getElementById('businessLogoPreview');if(preview&&document.activeElement!==preview){if(p.businessLogo){preview.src=p.businessLogo;preview.style.display='block';}else{preview.removeAttribute('src');preview.style.display='none';}}}
 let storageMode='memory';
-
-function load(){try{const raw=localStorage.getItem(DBKEY);if(raw)db=normalizeDb(JSON.parse(raw));storageMode='browser';}catch(e){db=normalizeDb(db);storageMode='memory';}}
-function save(){try{db=normalizeDb(db);localStorage.setItem(DBKEY,JSON.stringify(db));storageMode='browser';return true;}catch(e){alert('Could not save records permanently. Export a backup and check browser storage permissions.');return false;}}
+// Keep the last confirmed local snapshot so failed writes cannot leave unsaved edits visible.
+let lastSavedSnapshot=JSON.stringify(normalizeDb(db));
+function load(){try{const raw=localStorage.getItem(DBKEY);if(raw)db=normalizeDb(JSON.parse(raw));else db=normalizeDb(db);lastSavedSnapshot=JSON.stringify(db);storageMode='browser';}catch(e){db=normalizeDb(db);lastSavedSnapshot=JSON.stringify(db);storageMode='memory';}}
+function save(){try{db=normalizeDb(db);const serialized=JSON.stringify(db);localStorage.setItem(DBKEY,serialized);lastSavedSnapshot=serialized;storageMode='browser';return true;}catch(e){if(lastSavedSnapshot){try{db=normalizeDb(JSON.parse(lastSavedSnapshot));}catch(restoreError){console.error('Could not restore the last saved local records:',restoreError);}}storageMode=lastSavedSnapshot?'browser':'memory';render();alert('Could not save this change permanently. Your last successfully saved records have been restored. Check device storage and try again.');return false;}}
 
 let cloudUser = null;
 let cloudReady = false;
 let workspaceReady = false;
 let cloudBusy = false;
 
-async function saveCloudChangeLocally(type, payload, options = {}) {
-  if (!cloudUser) throw Error('Sign in before saving business records.');
-  try {
-    enqueueChange(type, payload);
-    storageMode = 'cloud-offline';
-    cacheCloudData(cloudUser.id);
-    render();
-    updateSyncStatus();
-  } catch (error) {
-    throw Error('Could not save this change on the device. Free up browser storage and export a backup before trying again. ' + (error.message || ''));
-  }
-  if (navigator.onLine && options.syncNow !== false) {
-    await syncPendingChanges();
-  }
+async function saveCloudChangesLocally(changes,options={}) {
+  if(!cloudUser)throw Error('Sign in before saving business records.');
+  try { enqueueChanges(changes); storageMode='cloud-offline'; render(); updateSyncStatus(); }
+  catch(error) { throw Error('Could not safely save this change on the device. Free up browser storage and export a backup before trying again. '+(error.message||'')); }
+  if(navigator.onLine&&options.syncNow!==false)await syncPendingChanges();
   return true;
 }
+async function saveCloudChangeLocally(type,payload,options={}) { return saveCloudChangesLocally([{type,payload}],options); }
 
 function cloudMessage(text){const el=document.getElementById('accountMessage'),settings=document.getElementById('settingsAccountMessage');if(el)el.textContent=text;if(settings)settings.textContent=text;}
 
@@ -1290,28 +1283,30 @@ function updateSyncStatus() {
     }));
   }
 }
-function enqueueChange(type, payload) {
+function enqueueChanges(changes) {
   if (!cloudUser) throw Error('Sign in before saving business records.');
-  const key = cloudQueueKey(cloudUser.id);
-  const previous = readQueue(cloudUser.id);
-  const next = [...previous,{id:crypto.randomUUID(),type,payload:JSON.parse(JSON.stringify(payload)),createdAt:now(),status:'pending',error:''}];
+  if (!Array.isArray(changes) || !changes.length) return;
+  const key=cloudQueueKey(cloudUser.id),previous=readQueue(cloudUser.id);
+  const additions=changes.map(change=>({id:crypto.randomUUID(),type:change.type,payload:JSON.parse(JSON.stringify(change.payload)),createdAt:now(),status:'pending',error:''}));
+  const next=[...previous,...additions];
   try {
-    localStorage.setItem(key, JSON.stringify(next));
-    try {
-      localStorage.setItem(cloudCacheKey(cloudUser.id), JSON.stringify(db));
-    } catch (cacheError) {
-      localStorage.setItem(cloudCacheKey(cloudUser.id), JSON.stringify(slimCloudCache(cloudUser.id)));
-      cloudMessage('Saved locally. Some product photos may not be available offline because device storage is limited.');
+    // Persist the complete queue first; it is the recovery source if the app closes mid-sync.
+    localStorage.setItem(key,JSON.stringify(next));
+    try { localStorage.setItem(cloudCacheKey(cloudUser.id),JSON.stringify(db)); }
+    catch(cacheError) {
+      localStorage.setItem(cloudCacheKey(cloudUser.id),JSON.stringify(slimCloudCache(cloudUser.id)));
+      cloudMessage('Saved on this device. Some product photos may be unavailable offline because device storage is limited.');
     }
-    pendingSync = next;
+    pendingSync=next;
     updateSyncStatus();
-  } catch (error) {
-    try { localStorage.setItem(key, JSON.stringify(previous)); } catch (_) {}
-    pendingSync = previous;
+  } catch(error) {
+    try { localStorage.setItem(key,JSON.stringify(previous)); } catch(_) {}
+    pendingSync=previous;
     updateSyncStatus();
-    throw error;
+    throw Error('Could not safely store this change on your device. Free up browser storage and try again. '+(error.message||''));
   }
 }
+function enqueueChange(type,payload){return enqueueChanges([{type,payload}]);}
 function applyPendingToDb() {
   db=normalizeDb(db);
   for (const item of pendingSync) {
@@ -1460,7 +1455,16 @@ async function syncPendingChanges() {
     queue = queue.filter(item => item.status !== 'synced');
     writeQueue(queue, cloudUser.id);
     if (!queue.length) {
-      await cloudLoadAll();
+      // Every queued operation has already been acknowledged by Supabase. A failed
+      // follow-up refresh must not make callers roll back data that is already saved.
+      try { await cloudLoadAll(); }
+      catch(refreshError) {
+        storageMode='cloud-offline';
+        cacheCloudData(cloudUser.id);
+        render();
+        cloudMessage('Your changes were synchronised. Sellbook could not refresh the latest cloud copy, so it is showing the saved records on this device.');
+        console.warn('Cloud refresh after successful sync failed:',refreshError);
+      }
     } else {
       pendingSync = queue;
       applyPendingToDb();
@@ -1897,7 +1901,8 @@ async function cloudSaveProduct(product,isNew) {
   const imagePath= newImageData ? await cloudUploadProductImage(newImageData) : (product.imagePath||null);
   const row={user_id:user.id,name:product.name,category:normalizeCategory(product.category),cost_price:product.cost,selling_price:product.price,stock:product.stock,base_unit:product.baseUnit||'unit',purchase_unit:product.purchaseUnit||'unit',units_per_purchase:product.unitsPerPurchase||1,pack_unit:product.packUnit||null,units_per_pack:product.packUnit?(product.unitsPerPack||1):null,pack_selling_price:product.packUnit&&product.packPrice?product.packPrice:null,image_path:imagePath,updated_at:now()};
   const result=isNew
-    ? await supabaseClient.from('products').insert({id:product.id,...row})
+    // Retrying after a timed-out response must not create a duplicate-key conflict.
+    ? await supabaseClient.from('products').upsert({id:product.id,...row},{onConflict:'id'})
     : await supabaseClient.from('products').update(row).eq('id',product.id).eq('user_id',user.id);
   if(result.error) throw result.error;
   if(newImageData){
@@ -2370,9 +2375,9 @@ document.getElementById('restockForm').addEventListener('submit',async e=>{
   }
   e.target.reset();document.getElementById('restockPurchaseQty').value=1;document.getElementById('restockUnitsPerPurchase').value=1;document.getElementById('restockPurchaseUnit').value='unit';updateRestockPreview();
   alert('Restock recorded.');
- }catch(err){p.stock=oldStock;p.cost=oldCost;render();alert('Restock could not be saved: '+(err.message||String(err)));}
+ }catch(err){p.stock=oldStock;p.cost=oldCost;db.restocks=db.restocks.filter(item=>item.id!==restock.id);render();alert('Restock could not be saved: '+(err.message||String(err)));}
 });
-document.getElementById('stockAdjustmentForm').addEventListener('submit',async e=>{e.preventDefault();const p=db.products.find(x=>x.id===document.getElementById('adjustProduct').value),next=Number(document.getElementById('adjustNewStock').value),reason=document.getElementById('adjustReason').value.trim();if(!p)return alert('Choose a product first.');if(!Number.isSafeInteger(next)||next<0)return alert('Enter a whole-number stock quantity of zero or more.');if(next===p.stock)return alert('The new stock quantity is the same as the current quantity.');if(!confirm('Change '+p.name+' stock from '+p.stock+' to '+next+' units?'))return;const old=p.stock,oldVersion=p.updatedAt,a={id:crypto.randomUUID(),productId:p.id,productName:p.name,previousStock:old,newStock:next,quantityChange:next-old,reason,date:now()};p.stock=next;if(cloudUser){try{await saveCloudChangeLocally('product_save',{product:{...p},isNew:false});enqueueChange('stock_adjustment',{adjustment:a});db.stockAdjustments.push(a);cacheCloudData(cloudUser.id);render();updateSyncStatus();if(navigator.onLine)await syncPendingChanges();}catch(err){p.stock=old;p.updatedAt=oldVersion;db.stockAdjustments=db.stockAdjustments.filter(x=>x.id!==a.id);render();return alert(err.message||String(err));}}else{db.stockAdjustments.push(a);if(!save()){p.stock=old;db.stockAdjustments.pop();return;}render();}document.getElementById('adjustReason').value='';alert('Stock adjustment saved.');});
+document.getElementById('stockAdjustmentForm').addEventListener('submit',async e=>{e.preventDefault();const p=db.products.find(x=>x.id===document.getElementById('adjustProduct').value),next=Number(document.getElementById('adjustNewStock').value),reason=document.getElementById('adjustReason').value.trim();if(!p)return alert('Choose a product first.');if(!Number.isSafeInteger(next)||next<0)return alert('Enter a whole-number stock quantity of zero or more.');if(next===p.stock)return alert('The new stock quantity is the same as the current quantity.');if(!confirm('Change '+p.name+' stock from '+p.stock+' to '+next+' units?'))return;const old=p.stock,oldVersion=p.updatedAt,a={id:crypto.randomUUID(),productId:p.id,productName:p.name,previousStock:old,newStock:next,quantityChange:next-old,reason,date:now()};p.stock=next;if(cloudUser){try{db.stockAdjustments.push(a);await saveCloudChangesLocally([{type:'product_save',payload:{product:{...p},isNew:false}},{type:'stock_adjustment',payload:{adjustment:a}}]);}catch(err){p.stock=old;p.updatedAt=oldVersion;db.stockAdjustments=db.stockAdjustments.filter(x=>x.id!==a.id);render();return alert(err.message||String(err));}}else{db.stockAdjustments.push(a);if(!save()){p.stock=old;db.stockAdjustments.pop();return;}render();}document.getElementById('adjustReason').value='';alert('Stock adjustment saved.');});
 
 function updateSalePrice(){
  const p=db.products.find(x=>x.id===document.getElementById('saleProduct').value);
@@ -3140,6 +3145,18 @@ document.getElementById('syncNowBtn').addEventListener('click', async () => {
 window.addEventListener('online', () => {
   updateSyncStatus();
   if (cloudUser) syncPendingChanges().catch(error => cloudMessage('Automatic sync failed. Pending changes are kept: ' + (error.message || String(error))));
+});
+// Android browsers may suspend timers while Sellbook is in the background.
+// Retry the durable queue as soon as the seller returns to the app.
+document.addEventListener('visibilitychange',()=>{
+  if(!document.hidden&&cloudUser&&navigator.onLine&&readQueue(cloudUser.id).some(item=>item.status==='pending')){
+    syncPendingChanges().catch(error=>cloudMessage('Sync will retry automatically. Your saved changes remain on this device: '+(error.message||String(error))));
+  }
+});
+window.addEventListener('pageshow',()=>{
+  if(cloudUser&&navigator.onLine&&readQueue(cloudUser.id).some(item=>item.status==='pending')){
+    syncPendingChanges().catch(error=>cloudMessage('Sync will retry automatically. Your saved changes remain on this device: '+(error.message||String(error))));
+  }
 });
 window.addEventListener('offline', updateSyncStatus);
 setInterval(() => {
