@@ -2713,6 +2713,10 @@ document.getElementById('editProductForm').addEventListener('submit',async event
           Object.assign(savedProduct,updated);
           if(editRemoveProductImage){delete savedProduct.image;delete savedProduct.offlineImage;delete savedProduct.imagePath;}
         }
+        applyPendingToDb();
+        cacheCloudData(cloudUser.id);
+        render();
+        updateSyncStatus();
         saved=true;
       } catch(err) { alert(err.message || String(err)); }
     }else{
