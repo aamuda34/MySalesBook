@@ -269,3 +269,16 @@ print("Applied migration sequence and PostgREST conflict-target checks passed.")
 if "existingNodes.get(String(m.id))" not in app_js or "tick.classList.add('is-read')" not in app_js:
     raise SystemExit("Quiet messenger refresh must update read receipts for existing messages.")
 print("Live messenger receipt refresh check passed.")
+
+# Preserve the standalone-page and nested-view back-navigation behavior on Android.
+back_navigation_checks = {
+    "browser Back navigation is handled": "window.addEventListener('popstate'" in app_js,
+    "standalone page back buttons use browser history when appropriate": "history.back();" in app_js and "showPage(fallback,{replaceHistory:true})" in app_js,
+    "subscriber detail Back returns to its list": "current==='subscribers'" in app_js and "subscriberDetailsView" in app_js,
+    "reservation detail Back returns to its list": "current==='reservations'" in app_js and "reservationDetailsView" in app_js,
+    "Messenger Back closes the open conversation first": "messenger-conversation-open" in app_js and "messengerSelectedConversation=null" in app_js,
+}
+failed_back_navigation = [label for label, passed in back_navigation_checks.items() if not passed]
+if failed_back_navigation:
+    raise SystemExit("Back-navigation checks failed: " + "; ".join(failed_back_navigation))
+print(f"Standalone-page and Android Back navigation checks passed ({len(back_navigation_checks)} checks).")
