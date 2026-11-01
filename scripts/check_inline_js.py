@@ -266,3 +266,6 @@ notification_unique_migration = Path("supabase/migrations/20261101201313_use_inf
 if "drop index if exists public.app_notifications_reservation_kind_uidx" not in notification_unique_migration or "on public.app_notifications (reservation_id, kind)" not in notification_unique_migration:
     raise SystemExit("Reservation notification unique index migration sequence is incomplete.")
 print("Applied migration sequence and PostgREST conflict-target checks passed.")
+if "existingNodes.get(String(m.id))" not in app_js or "tick.classList.add('is-read')" not in app_js:
+    raise SystemExit("Quiet messenger refresh must update read receipts for existing messages.")
+print("Live messenger receipt refresh check passed.")
