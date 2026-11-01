@@ -1455,7 +1455,16 @@ async function syncPendingChanges() {
     queue = queue.filter(item => item.status !== 'synced');
     writeQueue(queue, cloudUser.id);
     if (!queue.length) {
-      await cloudLoadAll();
+      // Every queued operation has already been acknowledged by Supabase. A failed
+      // follow-up refresh must not make callers roll back data that is already saved.
+      try { await cloudLoadAll(); }
+      catch(refreshError) {
+        storageMode='cloud-offline';
+        cacheCloudData(cloudUser.id);
+        render();
+        cloudMessage('Your changes were synchronised. Sellbook could not refresh the latest cloud copy, so it is showing the saved records on this device.');
+        console.warn('Cloud refresh after successful sync failed:',refreshError);
+      }
     } else {
       pendingSync = queue;
       applyPendingToDb();
