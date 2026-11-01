@@ -1381,18 +1381,17 @@ async function syncPendingChanges() {
       try {
         const p = item.payload || {};
         if (item.type === 'product_save') {
-          let productAlreadySaved=false;
           if (!p.isNew && p.product.updatedAt) {
             const currentVersion=await currentProductVersion(p.product.id);
             if(p.product.syncUpdatedAt&&currentVersion===p.product.syncUpdatedAt){
-              // The previous request committed, but its acknowledgement was lost.
-              productAlreadySaved=true;
+              // The database write already committed. Repeat the same idempotent update
+              // so any unfinished photo publishing steps are retried as well.
               p.product.updatedAt=currentVersion;
             } else if (currentVersion!==p.product.updatedAt) {
               throw Error('Conflict: this product changed on another phone. Review the product and try again.');
             }
           }
-          if(!productAlreadySaved)await cloudSaveProduct(p.product, p.isNew);
+          await cloudSaveProduct(p.product, p.isNew);
           const newVersion=await currentProductVersion(p.product.id);
           p.product.updatedAt=newVersion;
           propagateQueuedProductVersion(queue,queueIndex,p.product.id,newVersion);
@@ -2847,8 +2846,10 @@ document.getElementById('expenseForm').addEventListener('submit',async e=>{
 const BACKUP_STATUS_KEY='my-sales-book-last-backup-v1';
 function updateBackupStatus(){
  const el=document.getElementById('backupStatus');if(!el)return;
- const stamp=localStorage.getItem(BACKUP_STATUS_KEY);
- el.textContent=stamp?'Last backup created: '+new Date(stamp).toLocaleString():'No backup created on this device yet.';
+ try{
+  const stamp=localStorage.getItem(BACKUP_STATUS_KEY);
+  el.textContent=stamp?'Last backup created: '+new Date(stamp).toLocaleString():'No backup created on this device yet.';
+ }catch(_){el.textContent='Backup history is unavailable on this device.';}
 }
 document.getElementById('exportBtn').addEventListener('click',()=>{
  try{
