@@ -14,8 +14,8 @@ if (!supabaseClient) {
   console.error('Sellbook: Supabase could not be initialized.');
 }
 const DBKEY='my-sales-book-v1';
-function roundMoney(value){const n=Number(value);if(!Number.isFinite(n))throw Error('Enter a valid monetary amount.');return Math.round((n+Number.EPSILON)*100)/100;}
-function calculateSaleAmounts(quantity,unitPrice,unitCost,unitsPerSale=1){if(!Number.isSafeInteger(quantity)||quantity<1||!Number.isSafeInteger(unitsPerSale)||unitsPerSale<1)throw Error('Sale quantity is invalid.');const total=roundMoney(quantity*roundMoney(unitPrice));const costPerSaleUnit=roundMoney(roundMoney(unitCost)*unitsPerSale);const costTotal=roundMoney(quantity*costPerSaleUnit);return {total,cost:costPerSaleUnit,costTotal,profit:roundMoney(total-costTotal)};}
+function roundMoney(value){const n=Number(value);if(!Number.isFinite(n)||Math.abs(n)>999999999999)throw Error('Enter a valid monetary amount.');return Math.round((n+Number.EPSILON)*100)/100;}
+function calculateSaleAmounts(quantity,unitPrice,unitCost,unitsPerSale=1){if(!Number.isSafeInteger(quantity)||quantity<1||!Number.isSafeInteger(unitsPerSale)||unitsPerSale<1)throw Error('Sale quantity is invalid.');const price=roundMoney(unitPrice),cost=roundMoney(unitCost);if(price<=0||cost<0)throw Error('Enter a valid selling price and product cost.');const total=roundMoney(quantity*price);const costPerSaleUnit=roundMoney(cost*unitsPerSale);const costTotal=roundMoney(quantity*costPerSaleUnit);return {total,cost:costPerSaleUnit,costTotal,profit:roundMoney(total-costTotal)};}
 const money=n=>'₦'+Number(n||0).toLocaleString('en-NG',{minimumFractionDigits:2,maximumFractionDigits:2});
 const today=()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');};
 const now=()=>new Date().toISOString();
@@ -339,14 +339,14 @@ async function syncPendingChanges() {
           const newVersion=await currentProductVersion(p.product.id);
           propagateQueuedProductVersion(queue,queueIndex,p.product.id,newVersion);
         } else if (item.type === 'sale') {
-          if (p.productUpdatedAt) {
-            const currentVersion=await currentProductVersion(p.sale.productId);
-            if (currentVersion!==p.productUpdatedAt) throw Error('Conflict: this product changed on another phone. Check stock and product details before retrying this sale.');
-          }
+          if (!p.productUpdatedAt) throw Error('This sale was saved by an older app version and needs a fresh product check. Keep it on this phone and contact Sellbook Support before retrying.');
+          const currentVersion=await currentProductVersion(p.sale.productId);
+          if (currentVersion!==p.productUpdatedAt) throw Error('Conflict: this product changed on another phone. Check stock and product details before retrying this sale.');
           const {error} = await supabaseClient.rpc('record_sale_offline', {
             p_sale_id:p.sale.id,p_product_id:p.sale.productId,p_quantity:p.sale.qty,
             p_unit_price:p.sale.price,p_note:p.sale.note||null,p_sold_at:p.sale.date,
-            p_units_per_sale:p.sale.unitsPerSale||1,p_sale_unit:p.sale.saleUnit||'unit'
+            p_units_per_sale:p.sale.unitsPerSale||1,p_sale_unit:p.sale.saleUnit||'unit',
+            p_expected_updated_at:p.productUpdatedAt
           });
           if (error) throw error;
           const newVersion=await currentProductVersion(p.sale.productId);
