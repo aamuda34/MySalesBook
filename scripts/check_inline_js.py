@@ -330,3 +330,17 @@ print("Cloud pagination helper unit tests passed (complete pages, final partial 
 if 'if (req.method === "OPTIONS")' not in reservation_notification_function or 'Access-Control-Allow-Origin' not in reservation_notification_function or 'Access-Control-Allow-Headers' not in reservation_notification_function:
     raise SystemExit("Reservation notification Edge Function must support browser CORS preflight.")
 print("Reservation notification CORS preflight check passed.")
+
+# Exercise report date parsing under Nigeria's local timezone.
+date_parser_match = re.search(r"function validDateKey\(value\)\{[^\n]*\}", app_js)
+if not date_parser_match:
+    raise SystemExit("Could not extract local report date parser for its unit test.")
+date_parser_test = "process.env.TZ='Africa/Lagos';\n" + date_parser_match.group(0) + r"""
+const assert = require('node:assert/strict');
+assert.equal(validDateKey('2026-11-01'), '2026-11-01');
+assert.equal(validDateKey('2026-11-01T23:30:00.000Z'), '2026-11-02');
+assert.equal(validDateKey('2026-02-30'), null);
+assert.equal(validDateKey('not-a-date'), null);
+"""
+subprocess.run(["node", "-e", date_parser_test], check=True)
+print("Nigeria-local report date parser unit tests passed.")
