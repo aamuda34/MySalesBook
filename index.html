@@ -1833,12 +1833,19 @@ async function cloudLoadAll() {
   if(productsWithImages.length){
     setTimeout(async()=>{
       if(!cloudUser||cloudUser.id!==user.id||!navigator.onLine)return;
-      const results=await Promise.all(productsWithImages.map(async product=>{
-        try{
-          const {data,error}=await supabaseClient.storage.from('product-images').createSignedUrl(product.imagePath,3600);
-          return !error&&data?.signedUrl?{id:product.id,image:data.signedUrl}:null;
-        }catch(_){return null;}
-      }));
+      // Keep concurrent image requests small so a large catalogue does not
+      // compete with the seller's first interactions on a mobile connection.
+      const results=[];
+      for(let offset=0;offset<productsWithImages.length;offset+=4){
+        if(!cloudUser||cloudUser.id!==user.id)return;
+        const batch=await Promise.all(productsWithImages.slice(offset,offset+4).map(async product=>{
+          try{
+            const {data,error}=await supabaseClient.storage.from('product-images').createSignedUrl(product.imagePath,3600);
+            return !error&&data?.signedUrl?{id:product.id,image:data.signedUrl}:null;
+          }catch(_){return null;}
+        }));
+        results.push(...batch);
+      }
       if(!cloudUser||cloudUser.id!==user.id)return;
       let changed=false;
       for(const result of results){
@@ -1860,14 +1867,22 @@ async function cloudLoadAll() {
     try {
       const {data:shop}=await supabaseClient.from('marketplace_shops').select('is_connected,is_active').eq('owner_id',user.id).maybeSingle();
       if(!shop?.is_connected||!shop?.is_active) return;
-      for(const product of products){
-        if (!cloudUser || cloudUser.id !== user.id || !navigator.onLine) return;
-        if(!product.imagePath) continue;
-        const {data:listing,error}=await supabaseClient.from('marketplace_listings').select('image_url').eq('product_id',product.id).eq('owner_id',user.id).maybeSingle();
-        if(error) continue;
-        if(listing&&!listing.image_url){
-          try{await cloudPublishMarketplaceImage(product,user,product.offlineImage||null,product.imagePath);}
-          catch(imageError){console.warn('Background marketplace photo publishing skipped:',product.id,imageError);}
+      const imageProducts=products.filter(product=>product.imagePath);
+      // Fetch listing image states in batches instead of making one database
+      // request per product (an N+1 request pattern).
+      for(let offset=0;offset<imageProducts.length;offset+=100){
+        if(!cloudUser||cloudUser.id!==user.id||!navigator.onLine)return;
+        const batch=imageProducts.slice(offset,offset+100);
+        const {data:listings,error}=await supabaseClient.from('marketplace_listings').select('product_id,image_url').eq('owner_id',user.id).in('product_id',batch.map(product=>product.id));
+        if(error)continue;
+        const listingByProduct=new Map((listings||[]).map(listing=>[String(listing.product_id),listing]));
+        for(const product of batch){
+          if(!cloudUser||cloudUser.id!==user.id||!navigator.onLine)return;
+          const listing=listingByProduct.get(String(product.id));
+          if(listing&&!listing.image_url){
+            try{await cloudPublishMarketplaceImage(product,user,product.offlineImage||null,product.imagePath);}
+            catch(imageError){console.warn('Background marketplace photo publishing skipped:',product.id,imageError);}
+          }
         }
       }
     } catch(imageSyncError) { console.warn('Background marketplace photo sync skipped:',imageSyncError); }
@@ -2322,7 +2337,7 @@ function render(){
   );
   document.getElementById('productList').innerHTML=filteredProducts.length?filteredProducts.map(p=>{
     const displayImage=typeof p.image==='string'&&p.image.startsWith('data:image/')?p.image:(p.offlineImage||p.image);
-    const photo=typeof displayImage==='string'&&(displayImage.startsWith('data:image/')||displayImage.startsWith('https://'))?`<img class="product-photo" src="${displayImage}" alt="${esc(p.name)} photo">`:'<div class="product-photo" aria-label="No product photo"></div>';
+    const photo=typeof displayImage==='string'&&(displayImage.startsWith('data:image/')||displayImage.startsWith('https://'))?`<img class="product-photo" src="${displayImage}" alt="${esc(p.name)} photo" loading="lazy" decoding="async" fetchpriority="low">`:'<div class="product-photo" aria-label="No product photo"></div>';
     const lowStock=Number(p.stock)<=Number(lowStockThreshold);
     return `<button type="button" class="item product-summary-item product-open-button" data-product-open="${p.id}" aria-label="View ${esc(p.name)}"><span class="item-product">${photo}<span class="item-product-details">
     <span class="row product-summary-top"><strong>${esc(p.name)}</strong><strong>${money(p.price)}</strong></span>
