@@ -1,12 +1,13 @@
 'use strict';
 
-const CACHE_NAME = 'sellbook-shell-v50';
+const CACHE_NAME = 'sellbook-shell-v51';
 // These files are required for the signed-in app shell to start offline.
 const CORE_SHELL = [
   './',
   './index.html',
   './styles.css',
   './app.js',
+  './stock-history-tabs.js',
   './supabase-config.js',
   './manifest.webmanifest'
 ];

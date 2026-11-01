@@ -126,3 +126,30 @@ if "marketplace_reservations_owner_update" not in reservation_migration or "mark
 if "grant update (status, updated_at)" not in reservation_columns_migration:
     raise SystemExit("Marketplace reservation column-level update migration is incomplete.")
 print(f"Marketplace, accessibility, security and asset-cache checks passed ({len(required_markers) + len(required_headers) + 5} checks).")
+
+# Priority 3 product and stock integrity regression guards.
+priority3_sql = Path("supabase/migrations/20261101010000_restock_stock_history_and_bounds.sql").read_text(encoding="utf-8")
+priority3_checks = {
+    "product creation enforces stock and monetary bounds": "stock>2000000000" in app_js and "enteredCost>MAX_MONEY" in app_js,
+    "product editing enforces stock and monetary bounds": "stock>2000000000||cost>MAX_MONEY" in app_js,
+    "sales enforce safe base-unit quantities": "baseQty>2000000000" in app_js,
+    "restock prevents multiplication overflow before calculation": "purchaseQuantity>Math.floor(2000000000/unitsPerPurchase)" in app_js,
+    "stock adjustment has a bounded quantity": "next>2000000000" in app_js,
+    "restock history fetches persisted stock snapshots": "previous_stock,new_stock,restocked_at" in app_js,
+    "restock history maps persisted before/after values": "previousStock:row.previous_stock" in app_js,
+    "offline restocks remain in the durable queue": "item.type==='stock_restock'" in app_js and "enqueueChange('stock_restock'" in app_js,
+    "multi-device product edits detect stale versions": "product changed on another phone" in app_js,
+    "low-stock warnings use the saved threshold": "Number(p.stock)<=lowStockThreshold" in app_js,
+    "product search and category filters are combined": "normalizeCategory(p.category)===selectedCategory" in app_js,
+    "product photos load lazily": 'loading="lazy"' in app_js,
+    "restock RPC uses bigint multiplication": "p_purchase_quantity::bigint * p_units_per_purchase::bigint" in priority3_sql,
+    "restock history persists stock before and after": "previous_stock,new_stock" in priority3_sql,
+    "restock RPC checks authenticated ownership": "auth.uid()" in priority3_sql and "user_id=v_user_id" in priority3_sql,
+    "restock RPC execution is restricted to authenticated users": "to authenticated" in priority3_sql and "from public, anon" in priority3_sql,
+}
+failed_priority3 = [label for label, passed in priority3_checks.items() if not passed]
+if failed_priority3:
+    raise SystemExit("Priority 3 product/stock checks failed: " + "; ".join(failed_priority3))
+if "'./stock-history-tabs.js'" not in service_worker:
+    raise SystemExit("Stock history tabs controller is missing from the offline app shell.")
+print(f"Priority 3 product, stock, history, offline, conflict and security checks passed ({len(priority3_checks) + 1} checks).")
