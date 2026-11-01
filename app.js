@@ -1579,7 +1579,7 @@ document.getElementById('productForm').addEventListener('submit',async e=>{
  const unitsPerPackInput=productSellingType==='pack'?Number(document.getElementById('punitsperpack').value):1;
  const cost=productSellingType==='pack'?enteredCost/unitsPerPackInput:enteredCost;
  const stock=productSellingType==='pack'?enteredStock*unitsPerPackInput:enteredStock;
- if(!name||!Number.isFinite(enteredCost)||enteredCost<0||!Number.isFinite(cost)||cost<0||!Number.isFinite(price)||price<=0||!Number.isSafeInteger(enteredStock)||enteredStock<0||!Number.isSafeInteger(stock)||stock<0)return alert('Check the product details and stock quantity.');
+ if(!name||name.length>100||!Number.isFinite(enteredCost)||enteredCost<0||enteredCost>MAX_MONEY||!Number.isFinite(cost)||cost<0||cost>MAX_MONEY||!Number.isFinite(price)||price<=0||price>MAX_MONEY||!Number.isSafeInteger(enteredStock)||enteredStock<0||!Number.isSafeInteger(stock)||stock<0||stock>2000000000)return alert('Check the product name, prices and stock quantity.');
  if(db.products.some(p=>p.name.toLowerCase()===name.toLowerCase()))return alert('A product with this name already exists.');
  const category=normalizeCategory(getSelectedCategories('product').join(' | '));
  if(!getSelectedCategories('product').length)return alert('Choose at least one product category. You can select up to three.');
@@ -1856,7 +1856,7 @@ document.getElementById('saleForm').addEventListener('submit',async e=>{
  const qty=Number(document.getElementById('saleQty').value),price=Number(document.getElementById('salePrice').value),note=document.getElementById('saleNote').value.trim(),saleAsPack=document.getElementById('saleUnit').value==='pack',unitsPerSale=saleAsPack?Number(p?.unitsPerPack||1):1,baseQty=qty*unitsPerSale,saleUnit=saleAsPack?p?.packUnit:(p?.baseUnit||'unit');
  if(!p)return alert('Choose a product.');
  if(!Number.isSafeInteger(qty)||qty<1||!Number.isSafeInteger(baseQty)||baseQty>2000000000||baseQty>p.stock)return alert('Quantity must be a whole number and cannot exceed available stock.');
- if(!Number.isFinite(price)||price<=0)return alert('Enter a valid selling price.');
+ if(!Number.isFinite(price)||price<=0||price>MAX_MONEY)return alert('Enter a valid selling price.');
  if(note.length>150)return alert('Sale note must be 150 characters or fewer.');
  const amounts=calculateSaleAmounts(qty,price,p.cost,unitsPerSale),total=amounts.total;
  if(!confirm('Record this paid sale for '+money(total)+'?'))return;
