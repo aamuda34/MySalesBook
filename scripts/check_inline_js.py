@@ -297,3 +297,33 @@ if "marketplace_store_subscriptions" not in marketplace_access_migration or "s.i
 if "marketplace_reservation_items_buyer_insert" not in marketplace_access_migration or "l.is_active = true" not in marketplace_access_migration:
     raise SystemExit("Buybook reservation items must be restricted to active listings.")
 print("Buybook reservation subscription and active-listing checks passed.")
+
+# Exercise the real paginated loader with mocked PostgREST responses.
+pagination_match = re.search(r"async function fetchAllCloudRows\(buildQuery,pageSize=500\)\{[\s\S]*?\n\}", app_js)
+if not pagination_match:
+    raise SystemExit("Could not extract the cloud pagination helper for its unit test.")
+pagination_test = pagination_match.group(0) + r"""
+const assert = require('node:assert/strict');
+(async () => {
+  const sourceRows = Array.from({length: 5}, (_, index) => ({id: index + 1}));
+  const offsets = [];
+  const result = await fetchAllCloudRows(() => ({
+    range: async (start, end) => {
+      offsets.push([start, end]);
+      return {data: sourceRows.slice(start, end + 1), error: null};
+    }
+  }), 2);
+  assert.deepEqual(result.data, sourceRows);
+  assert.equal(result.error, null);
+  assert.deepEqual(offsets, [[0, 1], [2, 3], [4, 5]]);
+
+  const expectedError = new Error('mock query failure');
+  const failed = await fetchAllCloudRows(() => ({
+    range: async () => ({data: null, error: expectedError})
+  }), 2);
+  assert.equal(failed.data, null);
+  assert.equal(failed.error, expectedError);
+})().catch(error => { console.error(error); process.exit(1); });
+"""
+subprocess.run(["node", "-e", pagination_test], check=True)
+print("Cloud pagination helper unit tests passed (complete pages, final partial page and query errors).")
