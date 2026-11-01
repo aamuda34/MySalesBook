@@ -1356,14 +1356,32 @@ document.getElementById('restockForm').addEventListener('submit',async e=>{
   if(cloudUser){
    enqueueChange('stock_restock',{restock});
    pendingSync=readQueue(cloudUser.id);
-   if(navigator.onLine) await syncPendingChanges();
-   else {storageMode='cloud-offline';cacheCloudData(cloudUser.id);render();cloudMessage('Restock saved on this phone. It will sync when you reconnect.');}
+   let synced=false;
+   if(navigator.onLine) synced=await syncPendingChanges();
+   if(!synced){
+    pendingSync=readQueue(cloudUser.id);
+    storageMode='cloud-offline';
+    cacheCloudData(cloudUser.id);
+    render();
+    renderStockAdjustments();
+    refreshStockHistoryBadges();
+    cloudMessage(navigator.onLine
+     ? 'Restock saved on this phone but is still waiting to sync. Check Sync & Data for the reason.'
+     : 'Restock saved on this phone. It will sync when you reconnect.');
+   } else {
+    renderStockAdjustments();
+    refreshStockHistoryBadges();
+   }
   }else{
    if(!save()){p.stock=oldStock;p.cost=oldCost;db.restocks=db.restocks.filter(x=>x.id!==restock.id);return;}
    render();
+   renderStockAdjustments();
+   refreshStockHistoryBadges();
   }
   e.target.reset();document.getElementById('restockPurchaseQty').value=1;document.getElementById('restockUnitsPerPurchase').value=1;document.getElementById('restockPurchaseUnit').value='unit';updateRestockPreview();
-  alert('Restock recorded.');
+  alert(cloudUser&&pendingSync.some(item=>item.type==='stock_restock'&&item.payload?.restock?.id===restock.id)
+   ? 'Restock saved on this phone. Cloud synchronization is still pending.'
+   : 'Restock recorded and saved.');
  }catch(err){p.stock=oldStock;p.cost=oldCost;db.restocks=db.restocks.filter(item=>item.id!==restock.id);render();alert('Restock could not be saved: '+(err.message||String(err)));}
  } finally {restockSubmitting=false;if(submitButton)submitButton.disabled=false;}
 });
