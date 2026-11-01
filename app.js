@@ -733,26 +733,28 @@ async function cloudLoadAll() {
   if(productsWithImages.length){
     setTimeout(async()=>{
       if(!cloudUser||cloudUser.id!==user.id||!navigator.onLine)return;
-      // Keep concurrent image requests small so a large catalogue does not
-      // compete with the seller's first interactions on a mobile connection.
-      const results=[];
-      for(let offset=0;offset<productsWithImages.length;offset+=4){
-        if(!cloudUser||cloudUser.id!==user.id)return;
-        const batch=await Promise.all(productsWithImages.slice(offset,offset+4).map(async product=>{
-          try{
-            const {data,error}=await supabaseClient.storage.from('product-images').createSignedUrl(product.imagePath,3600);
-            return !error&&data?.signedUrl?{id:product.id,image:data.signedUrl}:null;
-          }catch(_){return null;}
-        }));
-        results.push(...batch);
+      // Sign photos in bounded batches. The bulk Storage API replaces one
+      // network request per product and keeps large catalogues from flooding
+      // slower mobile connections after the first screen has rendered.
+      let changed=false;
+      for(let offset=0;offset<productsWithImages.length;offset+=100){
+        if(!cloudUser||cloudUser.id!==user.id||!navigator.onLine)return;
+        const batch=productsWithImages.slice(offset,offset+100);
+        const paths=batch.map(product=>product.imagePath);
+        try{
+          const {data,error}=await supabaseClient.storage.from('product-images').createSignedUrls(paths,3600);
+          if(error)throw error;
+          const urlsByPath=new Map((data||[]).filter(item=>item?.path&&item?.signedUrl).map(item=>[item.path,item.signedUrl]));
+          for(const product of batch){
+            const signedUrl=urlsByPath.get(product.imagePath);
+            const current=db.products.find(item=>String(item.id)===String(product.id));
+            if(signedUrl&&current&&current.image!==signedUrl){current.image=signedUrl;changed=true;}
+          }
+        }catch(imageError){
+          console.warn('Could not refresh a batch of product photo URLs:',imageError);
+        }
       }
       if(!cloudUser||cloudUser.id!==user.id)return;
-      let changed=false;
-      for(const result of results){
-        if(!result)continue;
-        const current=db.products.find(product=>String(product.id)===String(result.id));
-        if(current&&current.image!==result.image){current.image=result.image;changed=true;}
-      }
       if(changed){render();cacheCloudData(user.id);}
     },0);
   }
@@ -2571,7 +2573,7 @@ document.getElementById('messengerComposer')?.addEventListener('submit',async e=
  finally{button.disabled=false;}
 });
 if(messengerRefreshTimer)clearInterval(messengerRefreshTimer);
-messengerRefreshTimer=setInterval(()=>{if(document.visibilityState==='visible'&&currentPage()==='messenger'&&cloudUser)loadMessengerConversations({quiet:true,refreshSelected:true});},6000);
+messengerRefreshTimer=setInterval(()=>{if(document.visibilityState==='visible'&&currentPage()==='messenger'&&cloudUser)loadMessengerConversations({quiet:true,refreshSelected:true});},12000);
 
 document.getElementById('refreshSupportChat').addEventListener('click',()=>messageListOpen?loadConversationList():loadUserSupport());document.getElementById('refreshConversationList')?.addEventListener('click',loadConversationList);
 document.getElementById('messageConversationSelect')?.addEventListener('change',()=>{marketplaceSelectedBuyerId=document.getElementById('messageConversationSelect').value==='support'?null:document.getElementById('messageConversationSelect').value;loadUserSupport();});
@@ -2626,9 +2628,9 @@ document.getElementById('adminReplyForm').addEventListener('submit',async e=>{
  if(error){status.textContent='Could not send message: '+error.message;send.disabled=false;return;}
  input.value='';input.style.height='auto';status.textContent='Message sent.';await loadAdminConversation();await loadAdminUsers();send.disabled=false;
 });
-setInterval(()=>{if(cloudUser&&!document.hidden&&currentPage()==='settings-buybook'){loadBuybookActivity();}},5000);
-setInterval(()=>{if(sellbookIsAdmin&&currentPage()==='admin'&&sessionStorage.getItem('sellbook-admin-panel')==='support'){if(!document.getElementById('adminChatConversationView').classList.contains('hidden')&&document.getElementById('adminMessageUser').value)loadAdminConversation();else loadAdminUsers();}},5000);
-setInterval(()=>{if(!cloudUser||document.hidden)return;if(!sellbookIsAdmin&&currentPage()==='support')loadUserSupport();else updateUnreadBadges();},5000);
+setInterval(()=>{if(cloudUser&&!document.hidden&&currentPage()==='settings-buybook'){loadBuybookActivity();}},15000);
+setInterval(()=>{if(sellbookIsAdmin&&currentPage()==='admin'&&sessionStorage.getItem('sellbook-admin-panel')==='support'){if(!document.getElementById('adminChatConversationView').classList.contains('hidden')&&document.getElementById('adminMessageUser').value)loadAdminConversation();else loadAdminUsers();}},15000);
+setInterval(()=>{if(!cloudUser||document.hidden)return;if(!sellbookIsAdmin&&currentPage()==='support')loadUserSupport();else updateUnreadBadges();},30000);
 
 document.getElementById('notificationAudience').addEventListener('change',e=>document.getElementById('notificationUserWrap').classList.toggle('hidden',e.target.value!=='selected'));
 document.getElementById('adminNotificationForm').addEventListener('submit',async e=>{
