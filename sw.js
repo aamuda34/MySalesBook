@@ -1,22 +1,34 @@
 'use strict';
 
-const CACHE_NAME = 'sellbook-shell-v48';
-const APP_SHELL = [
+const CACHE_NAME = 'sellbook-shell-v49';
+// These files are required for the signed-in app shell to start offline.
+const CORE_SHELL = [
   './',
   './index.html',
   './supabase-config.js',
-  './manifest.webmanifest',
+  './manifest.webmanifest'
+];
+// Optional pages and artwork must never prevent the core app from being cached.
+const OPTIONAL_SHELL = [
   './icons/icon.svg',
   './privacy.html',
   './terms.html'
 ];
 
 self.addEventListener('install', event => {
-  event.waitUntil(
-    caches.open(CACHE_NAME)
-      .then(cache => cache.addAll(APP_SHELL))
-      .then(() => self.skipWaiting())
-  );
+  event.waitUntil((async () => {
+    const cache = await caches.open(CACHE_NAME);
+    // Fail installation if a core file is unavailable: activating an incomplete
+    // shell would make the app harder to recover when the device goes offline.
+    await cache.addAll(CORE_SHELL);
+    // A missing legal page or icon is non-critical and must not block offline use.
+    await Promise.all(OPTIONAL_SHELL.map(path =>
+      cache.add(path).catch(error => {
+        console.warn('Optional offline resource was not cached:', path, error);
+      })
+    ));
+    await self.skipWaiting();
+  })());
 });
 
 self.addEventListener('activate', event => {
