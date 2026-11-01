@@ -327,3 +327,6 @@ const assert = require('node:assert/strict');
 """
 subprocess.run(["node", "-e", pagination_test], check=True)
 print("Cloud pagination helper unit tests passed (complete pages, final partial page and query errors).")
+if 'if (req.method === "OPTIONS")' not in reservation_notification_function or 'Access-Control-Allow-Origin' not in reservation_notification_function or 'Access-Control-Allow-Headers' not in reservation_notification_function:
+    raise SystemExit("Reservation notification Edge Function must support browser CORS preflight.")
+print("Reservation notification CORS preflight check passed.")
