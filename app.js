@@ -677,15 +677,15 @@ async function imageUrlToDataUrl(url) {
 
 async function cloudLoadAll() {
   const user=await requireCloudUser();
-  // Preserve locally cached stock-before/after details where available. Older cloud
-  // restock rows do not store those two values, so they remain unavailable on a new device.
+  // Stock-before and stock-after are persisted in Supabase so history is complete on every device.
+  // Keep cached values only as a compatibility fallback for older rows.
   const cachedRestockDetails=new Map((db.restocks||[]).map(item=>[String(item.id),item]));
   const [pr,sr,er,ar,rr,profileResult]=await Promise.all([
     supabaseClient.from('products').select('id,name,category,cost_price,selling_price,stock,base_unit,purchase_unit,units_per_purchase,pack_unit,units_per_pack,pack_selling_price,image_path,created_at,updated_at').eq('user_id',user.id).order('created_at'),
     supabaseClient.from('sales').select('id,product_id,product_name,quantity,unit_price,unit_cost,total,gross_profit,note,sold_at,base_quantity,sale_unit,units_per_sale').eq('user_id',user.id).order('sold_at'),
     supabaseClient.from('expenses').select('id,description,amount,spent_at').eq('user_id',user.id).order('spent_at'),
     supabaseClient.from('stock_adjustments').select('id,product_id,product_name,previous_stock,new_stock,quantity_change,reason,adjusted_at').eq('user_id',user.id).order('adjusted_at',{ascending:false}),
-    supabaseClient.from('stock_purchases').select('id,product_id,product_name,purchase_quantity,purchase_unit,units_per_purchase,base_quantity,cost_per_purchase_unit,total_cost,average_cost_before,average_cost_after,restocked_at').eq('user_id',user.id).order('restocked_at',{ascending:false}),
+    supabaseClient.from('stock_purchases').select('id,product_id,product_name,purchase_quantity,purchase_unit,units_per_purchase,base_quantity,cost_per_purchase_unit,total_cost,average_cost_before,average_cost_after,previous_stock,new_stock,restocked_at').eq('user_id',user.id).order('restocked_at',{ascending:false}),
     supabaseClient.from('user_profiles').select('business_name,business_logo').eq('user_id',user.id).maybeSingle()
   ]);
   if(pr.error)throw pr.error;if(sr.error)throw sr.error;if(er.error)throw er.error;if(ar.error)throw ar.error;if(rr.error)throw rr.error;if(profileResult.error)throw profileResult.error;
@@ -713,7 +713,7 @@ async function cloudLoadAll() {
       unitsPerPurchase:Number(row.units_per_purchase),baseQuantity:Number(row.base_quantity),
       costPerPurchaseUnit:Number(row.cost_per_purchase_unit),totalCost:Number(row.total_cost),
       averageCostBefore:Number(row.average_cost_before),averageCostAfter:Number(row.average_cost_after),
-      previousStock:cached?.previousStock,newStock:cached?.newStock,date:row.restocked_at};
+      previousStock:row.previous_stock??cached?.previousStock,newStock:row.new_stock??cached?.newStock,date:row.restocked_at};
   });
   const profile=profileResult.data||fallbackProfile;
   db=normalizeDb({products,sales,expenses,stockAdjustments,restocks,profile:{businessName:profile.business_name||'',businessLogo:profile.business_logo||''}});
@@ -1398,8 +1398,12 @@ document.getElementById('restockForm').addEventListener('submit',async e=>{
  const purchaseQuantity=Number(document.getElementById('restockPurchaseQty').value),purchaseUnit=document.getElementById('restockPurchaseUnit').value.trim(),unitsPerPurchase=Number(document.getElementById('restockUnitsPerPurchase').value),costPerPurchaseUnit=Number(document.getElementById('restockCostPerPurchase').value);
  if(!p)return alert('Choose a product.');
  if(!Number.isSafeInteger(purchaseQuantity)||purchaseQuantity<1||!purchaseUnit||purchaseUnit.length>30||!Number.isSafeInteger(unitsPerPurchase)||unitsPerPurchase<1||!Number.isFinite(costPerPurchaseUnit)||costPerPurchaseUnit<0)return alert('Check the purchase quantity, unit, units per purchase, and cost.');
- const baseQuantity=purchaseQuantity*unitsPerPurchase,totalCost=Math.round(purchaseQuantity*costPerPurchaseUnit*100)/100,newStock=p.stock+baseQuantity,baseCost=Math.round((totalCost/baseQuantity+Number.EPSILON)*10000)/10000,averageCostAfter=p.stock>0?Math.round((((p.stock*p.cost+baseQuantity*baseCost)/newStock)+Number.EPSILON)*10000)/10000:baseCost;
- if(!Number.isSafeInteger(baseQuantity)||!Number.isSafeInteger(newStock)||newStock>2000000000)return alert('This purchase quantity is too large.');
+ if(purchaseQuantity>Math.floor(2000000000/unitsPerPurchase))return alert('This purchase quantity is too large.');
+ const baseQuantity=purchaseQuantity*unitsPerPurchase;
+ let totalCost;try{totalCost=roundMoney(purchaseQuantity*costPerPurchaseUnit);}catch(error){return alert(error.message||'Purchase cost is too large.');}
+ const newStock=p.stock+baseQuantity;
+ if(!Number.isSafeInteger(baseQuantity)||!Number.isSafeInteger(newStock)||newStock>2000000000||!Number.isFinite(totalCost))return alert('This purchase quantity is too large.');
+ const baseCost=Math.round((totalCost/baseQuantity+Number.EPSILON)*10000)/10000,averageCostAfter=p.stock>0?Math.round((((p.stock*p.cost+baseQuantity*baseCost)/newStock)+Number.EPSILON)*10000)/10000:baseCost;
  if(!confirm('Record purchase of '+purchaseQuantity+' '+purchaseUnit+' for '+money(totalCost)+'? This adds '+baseQuantity+' units and updates average cost.'))return;
  const restock={id:crypto.randomUUID(),productId:p.id,productName:p.name,purchaseQuantity,purchaseUnit,unitsPerPurchase,costPerPurchaseUnit,date:now(),previousStock:p.stock,newStock,baseQuantity,totalCost:Math.round(purchaseQuantity*costPerPurchaseUnit*100)/100,averageCostAfter};db.restocks.push(restock);
  const oldStock=p.stock,oldCost=p.cost;
@@ -1437,7 +1441,7 @@ document.getElementById('restockForm').addEventListener('submit',async e=>{
  }catch(err){p.stock=oldStock;p.cost=oldCost;db.restocks=db.restocks.filter(item=>item.id!==restock.id);render();alert('Restock could not be saved: '+(err.message||String(err)));}
  } finally {restockSubmitting=false;if(submitButton)submitButton.disabled=false;}
 });
-document.getElementById('stockAdjustmentForm').addEventListener('submit',async e=>{e.preventDefault();const p=db.products.find(x=>x.id===document.getElementById('adjustProduct').value),next=Number(document.getElementById('adjustNewStock').value),reason=document.getElementById('adjustReason').value.trim();if(!p)return alert('Choose a product first.');if(!Number.isSafeInteger(next)||next<0)return alert('Enter a whole-number stock quantity of zero or more.');if(next===p.stock)return alert('The new stock quantity is the same as the current quantity.');if(!confirm('Change '+p.name+' stock from '+p.stock+' to '+next+' units?'))return;const old=p.stock,oldVersion=p.updatedAt,a={id:crypto.randomUUID(),productId:p.id,productName:p.name,previousStock:old,newStock:next,quantityChange:next-old,reason,date:now()};p.stock=next;if(cloudUser){try{db.stockAdjustments.push(a);await saveCloudChangesLocally([{type:'product_save',payload:{product:{...p},isNew:false}},{type:'stock_adjustment',payload:{adjustment:a}}]);}catch(err){p.stock=old;p.updatedAt=oldVersion;db.stockAdjustments=db.stockAdjustments.filter(x=>x.id!==a.id);render();return alert(err.message||String(err));}}else{db.stockAdjustments.push(a);if(!save()){p.stock=old;db.stockAdjustments.pop();return;}render();}document.getElementById('adjustReason').value='';alert('Stock adjustment saved.');});
+document.getElementById('stockAdjustmentForm').addEventListener('submit',async e=>{e.preventDefault();const p=db.products.find(x=>x.id===document.getElementById('adjustProduct').value),next=Number(document.getElementById('adjustNewStock').value),reason=document.getElementById('adjustReason').value.trim();if(!p)return alert('Choose a product first.');if(!Number.isSafeInteger(next)||next<0||next>2000000000)return alert('Enter a whole-number stock quantity between 0 and 2,000,000,000.');if(next===p.stock)return alert('The new stock quantity is the same as the current quantity.');if(!confirm('Change '+p.name+' stock from '+p.stock+' to '+next+' units?'))return;const old=p.stock,oldVersion=p.updatedAt,a={id:crypto.randomUUID(),productId:p.id,productName:p.name,previousStock:old,newStock:next,quantityChange:next-old,reason,date:now()};p.stock=next;if(cloudUser){try{db.stockAdjustments.push(a);await saveCloudChangesLocally([{type:'product_save',payload:{product:{...p},isNew:false}},{type:'stock_adjustment',payload:{adjustment:a}}]);}catch(err){p.stock=old;p.updatedAt=oldVersion;db.stockAdjustments=db.stockAdjustments.filter(x=>x.id!==a.id);render();return alert(err.message||String(err));}}else{db.stockAdjustments.push(a);if(!save()){p.stock=old;db.stockAdjustments.pop();return;}render();}document.getElementById('adjustReason').value='';alert('Stock adjustment saved.');});
 
 function updateSalePrice(){
  const p=db.products.find(x=>x.id===document.getElementById('saleProduct').value);
@@ -1584,7 +1588,7 @@ document.getElementById('productForm').addEventListener('submit',async e=>{
  const unitsPerPack=productSellingType==='pack'?Number(document.getElementById('punitsperpack').value):1;
  const packPriceRaw=productSellingType==='pack'?document.getElementById('ppackprice').value.trim():'';
  const packPrice=packPriceRaw===''?null:Number(packPriceRaw);
- if(productSellingType==='pack'&&(!packUnit||!Number.isSafeInteger(unitsPerPack)||unitsPerPack<1||!Number.isFinite(packPrice)||packPrice<=0))return alert('Enter a pack name, the number of individual units in each pack, and a valid pack selling price.');
+ if(productSellingType==='pack'&&(!packUnit||!Number.isSafeInteger(unitsPerPack)||unitsPerPack<1||!Number.isFinite(packPrice)||packPrice<=0||packPrice>MAX_MONEY))return alert('Enter a pack name, the number of individual units in each pack, and a valid pack selling price.');
  const product={id:crypto.randomUUID(),name,category,cost,price,stock,baseUnit,packUnit,unitsPerPack,packPrice,image:pendingProductImage,createdAt:now()};
  if(cloudUser){
    try { await saveCloudChangeLocally('product_save',{product,isNew:true}); }
@@ -1721,7 +1725,7 @@ document.getElementById('editProductForm').addEventListener('submit',async event
   const cost=Number(document.getElementById('editProductCost').value);
   const price=Number(document.getElementById('editProductPrice').value);
   const stock=Number(document.getElementById('editProductStock').value);
-  if(!name||name.length>100||!Number.isFinite(cost)||cost<0||!Number.isFinite(price)||price<=0||!Number.isSafeInteger(stock)||stock<0){
+  if(!name||name.length>100||!Number.isFinite(cost)||cost<0||!Number.isFinite(price)||price<=0||!Number.isSafeInteger(stock)||stock<0||stock>2000000000||cost>MAX_MONEY||price>MAX_MONEY){
     return alert('Enter a product name, a cost price of zero or more, a selling price above zero, and a whole-number stock quantity of zero or more.');
   }
   if(db.products.some(x=>x.id!==id&&x.name.trim().toLowerCase()===name.toLowerCase()))return alert('Another product already has this name.');
@@ -1851,7 +1855,7 @@ document.getElementById('saleForm').addEventListener('submit',async e=>{
  const p=db.products.find(x=>x.id===document.getElementById('saleProduct').value);
  const qty=Number(document.getElementById('saleQty').value),price=Number(document.getElementById('salePrice').value),note=document.getElementById('saleNote').value.trim(),saleAsPack=document.getElementById('saleUnit').value==='pack',unitsPerSale=saleAsPack?Number(p?.unitsPerPack||1):1,baseQty=qty*unitsPerSale,saleUnit=saleAsPack?p?.packUnit:(p?.baseUnit||'unit');
  if(!p)return alert('Choose a product.');
- if(!Number.isSafeInteger(qty)||qty<1||!Number.isSafeInteger(baseQty)||baseQty>p.stock)return alert('Quantity must be a whole number and cannot exceed available stock.');
+ if(!Number.isSafeInteger(qty)||qty<1||!Number.isSafeInteger(baseQty)||baseQty>2000000000||baseQty>p.stock)return alert('Quantity must be a whole number and cannot exceed available stock.');
  if(!Number.isFinite(price)||price<=0)return alert('Enter a valid selling price.');
  if(note.length>150)return alert('Sale note must be 150 characters or fewer.');
  const amounts=calculateSaleAmounts(qty,price,p.cost,unitsPerSale),total=amounts.total;
