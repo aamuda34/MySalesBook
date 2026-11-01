@@ -221,3 +221,11 @@ failed_messaging_history = [label for label, passed in messaging_history_checks.
 if failed_messaging_history:
     raise SystemExit("Reservation/messaging history checks failed: " + "; ".join(failed_messaging_history))
 print(f"Reservation and messaging history pagination checks passed ({len(messaging_history_checks)} checks).")
+# Reservation decision notification retries must be idempotent.
+reservation_notification_migration = Path("supabase/migrations/20261101203000_make_reservation_notifications_idempotent.sql").read_text(encoding="utf-8")
+reservation_notification_function = Path("supabase/functions/notify-reservation-decision/index.ts").read_text(encoding="utf-8")
+if "app_notifications_reservation_kind_uidx" not in reservation_notification_migration or "reservation_id, kind" not in reservation_notification_migration:
+    raise SystemExit("Reservation notification idempotency index is missing.")
+if 'onConflict: "reservation_id,kind"' not in reservation_notification_function or "ignoreDuplicates: true" not in reservation_notification_function:
+    raise SystemExit("Reservation notification function must safely ignore duplicate retries.")
+print("Retry-safe reservation notification checks passed.")
