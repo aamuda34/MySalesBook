@@ -14,8 +14,9 @@ if (!supabaseClient) {
   console.error('Sellbook: Supabase could not be initialized.');
 }
 const DBKEY='my-sales-book-v1';
-function roundMoney(value){const n=Number(value);if(!Number.isFinite(n)||Math.abs(n)>999999999999)throw Error('Enter a valid monetary amount.');return Math.round((n+Number.EPSILON)*100)/100;}
-function calculateSaleAmounts(quantity,unitPrice,unitCost,unitsPerSale=1){if(!Number.isSafeInteger(quantity)||quantity<1||!Number.isSafeInteger(unitsPerSale)||unitsPerSale<1)throw Error('Sale quantity is invalid.');const price=roundMoney(unitPrice),cost=roundMoney(unitCost);if(price<=0||cost<0)throw Error('Enter a valid selling price and product cost.');const total=roundMoney(quantity*price);const costPerSaleUnit=roundMoney(cost*unitsPerSale);const costTotal=roundMoney(quantity*costPerSaleUnit);return {total,cost:costPerSaleUnit,costTotal,profit:roundMoney(total-costTotal)};}
+const MAX_MONEY=9999999999.99;
+function roundMoney(value){const n=Number(value);if(!Number.isFinite(n)||Math.abs(n)>MAX_MONEY)throw Error('Enter a valid monetary amount.');const rounded=Math.round((n+Number.EPSILON)*100)/100;if(Math.abs(rounded)>MAX_MONEY)throw Error('The amount is too large to save safely.');return rounded;}
+function calculateSaleAmounts(quantity,unitPrice,unitCost,unitsPerSale=1){if(!Number.isSafeInteger(quantity)||quantity<1||!Number.isSafeInteger(unitsPerSale)||unitsPerSale<1||quantity*unitsPerSale>2147483647)throw Error('Sale quantity is invalid.');const price=roundMoney(unitPrice),cost=roundMoney(unitCost);if(price<=0||cost<0)throw Error('Enter a valid selling price and product cost.');const total=roundMoney(quantity*price);const costPerSaleUnit=roundMoney(cost*unitsPerSale);const costTotal=roundMoney(quantity*costPerSaleUnit);return {total,cost:costPerSaleUnit,costTotal,profit:roundMoney(total-costTotal)};}
 const money=n=>'₦'+Number(n||0).toLocaleString('en-NG',{minimumFractionDigits:2,maximumFractionDigits:2});
 const today=()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');};
 const now=()=>new Date().toISOString();
@@ -1878,7 +1879,7 @@ document.getElementById('expenseForm').addEventListener('submit',async e=>{
  e.preventDefault();
  const name=document.getElementById('ename').value.trim(),amount=Number(document.getElementById('eamount').value);
  if(!name||!Number.isFinite(amount)||amount<=0)return alert('Enter a description and valid amount.');
- const rounded=Math.round(amount*100)/100;
+ const rounded=roundMoney(amount);
  if(cloudUser){
    const expense={id:crypto.randomUUID(),name,amount:rounded,date:now()};
    db.expenses.push(expense);
