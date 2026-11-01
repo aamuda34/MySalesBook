@@ -667,14 +667,18 @@ async function imageUrlToDataUrl(url) {
 
 async function cloudLoadAll() {
   const user=await requireCloudUser();
-  const [pr,sr,er,ar,profileResult]=await Promise.all([
+  // Preserve locally cached stock-before/after details where available. Older cloud
+  // restock rows do not store those two values, so they remain unavailable on a new device.
+  const cachedRestockDetails=new Map((db.restocks||[]).map(item=>[String(item.id),item]));
+  const [pr,sr,er,ar,rr,profileResult]=await Promise.all([
     supabaseClient.from('products').select('id,name,category,cost_price,selling_price,stock,base_unit,purchase_unit,units_per_purchase,pack_unit,units_per_pack,pack_selling_price,image_path,created_at,updated_at').eq('user_id',user.id).order('created_at'),
     supabaseClient.from('sales').select('id,product_id,product_name,quantity,unit_price,unit_cost,total,gross_profit,note,sold_at,base_quantity,sale_unit,units_per_sale').eq('user_id',user.id).order('sold_at'),
     supabaseClient.from('expenses').select('id,description,amount,spent_at').eq('user_id',user.id).order('spent_at'),
     supabaseClient.from('stock_adjustments').select('id,product_id,product_name,previous_stock,new_stock,quantity_change,reason,adjusted_at').eq('user_id',user.id).order('adjusted_at',{ascending:false}),
+    supabaseClient.from('stock_purchases').select('id,product_id,product_name,purchase_quantity,purchase_unit,units_per_purchase,base_quantity,cost_per_purchase_unit,total_cost,average_cost_before,average_cost_after,restocked_at').eq('user_id',user.id).order('restocked_at',{ascending:false}),
     supabaseClient.from('user_profiles').select('business_name,business_logo').eq('user_id',user.id).maybeSingle()
   ]);
-  if(pr.error)throw pr.error;if(sr.error)throw sr.error;if(er.error)throw er.error;if(ar.error)throw ar.error;if(profileResult.error)throw profileResult.error;
+  if(pr.error)throw pr.error;if(sr.error)throw sr.error;if(er.error)throw er.error;if(ar.error)throw ar.error;if(rr.error)throw rr.error;if(profileResult.error)throw profileResult.error;
   let fallbackProfile={business_name:'',business_logo:null};
   if(!profileResult.data){const identity=String(user.user_metadata?.business_name||user.user_metadata?.full_name||user.email?.split('@')[0]||'My').trim();fallbackProfile={business_name:(identity.endsWith('Business')?identity:identity+' Business').slice(0,100),business_logo:null};const {error}=await supabaseClient.from('user_profiles').upsert({user_id:user.id,...fallbackProfile,updated_at:now()},{onConflict:'user_id',ignoreDuplicates:true});if(error)throw error;}
   // Build the product list without waiting for one signed-photo URL per product.
@@ -692,8 +696,17 @@ async function cloudLoadAll() {
   const sales=(sr.data||[]).map(row=>({id:row.id,productId:row.product_id,name:row.product_name,qty:Number(row.quantity),price:Number(row.unit_price),cost:Number(row.unit_cost),total:Number(row.total),profit:Number(row.gross_profit),note:row.note||'',date:row.sold_at,baseQty:Number(row.base_quantity||row.quantity),saleUnit:row.sale_unit||'unit',unitsPerSale:Number(row.units_per_sale||1)}));
   const expenses=(er.data||[]).map(row=>({id:row.id,name:row.description,amount:Number(row.amount),date:row.spent_at}));
   const stockAdjustments=(ar.data||[]).map(row=>({id:row.id,productId:row.product_id,productName:row.product_name,previousStock:Number(row.previous_stock),newStock:Number(row.new_stock),quantityChange:Number(row.quantity_change),reason:row.reason||'',date:row.adjusted_at}));
+  const restocks=(rr.data||[]).map(row=>{
+    const cached=cachedRestockDetails.get(String(row.id));
+    return {id:row.id,productId:row.product_id,productName:row.product_name,
+      purchaseQuantity:Number(row.purchase_quantity),purchaseUnit:row.purchase_unit,
+      unitsPerPurchase:Number(row.units_per_purchase),baseQuantity:Number(row.base_quantity),
+      costPerPurchaseUnit:Number(row.cost_per_purchase_unit),totalCost:Number(row.total_cost),
+      averageCostBefore:Number(row.average_cost_before),averageCostAfter:Number(row.average_cost_after),
+      previousStock:cached?.previousStock,newStock:cached?.newStock,date:row.restocked_at};
+  });
   const profile=profileResult.data||fallbackProfile;
-  db=normalizeDb({products,sales,expenses,stockAdjustments,profile:{businessName:profile.business_name||'',businessLogo:profile.business_logo||''}});
+  db=normalizeDb({products,sales,expenses,stockAdjustments,restocks,profile:{businessName:profile.business_name||'',businessLogo:profile.business_logo||''}});
   storageMode='cloud';
   cloudReady=true;
   workspaceReady=true;
