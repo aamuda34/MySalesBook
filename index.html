@@ -1506,6 +1506,10 @@ async function handleCloudAuthChange() {
       // This keeps returning sellers out of a blank startup state on slow mobile connections.
       const hasCachedWorkspace = restoreCloudCache(user.id);
       if (hasCachedWorkspace) {
+        // Reveal the cached view immediately while the cloud refresh runs in the background.
+        document.getElementById('appWorkspace').classList.remove('hidden');
+        document.getElementById('accountCard').classList.add('hidden');
+        finishStartup();
         cloudMessage('Showing your saved records while Sellbook checks for the latest updates.');
       }
       try {
