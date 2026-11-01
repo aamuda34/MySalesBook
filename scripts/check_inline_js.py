@@ -177,3 +177,21 @@ print(f"Priority 4 loading and background-request checks passed ({len(priority4_
 if "if(/^\\d{4}-\\d{2}-\\d{2}$/.test(raw))" not in app_js:
     raise SystemExit("Date-only report values must be parsed without a UTC day shift.")
 print("Local date-only report boundary regression check passed.")
+
+# Priority 4/6 database lookup indexes are kept as a versioned migration.
+fk_index_migration = Path("supabase/migrations/20261101200000_add_marketplace_and_stock_fk_indexes.sql").read_text(encoding="utf-8")
+required_fk_indexes = [
+    "marketplace_listings_owner_id_idx",
+    "marketplace_messages_buyer_id_idx",
+    "marketplace_reservation_items_product_id_idx",
+    "marketplace_reservation_items_reservation_id_idx",
+    "marketplace_reservations_buyer_id_idx",
+    "marketplace_reservations_owner_id_idx",
+    "stock_purchases_product_id_idx",
+    "stock_purchases_user_id_idx",
+]
+missing_fk_indexes = [name for name in required_fk_indexes if name not in fk_index_migration]
+if missing_fk_indexes:
+    raise SystemExit("Missing foreign-key performance indexes: " + ", ".join(missing_fk_indexes))
+print(f"Marketplace and stock foreign-key index migration checks passed ({len(required_fk_indexes)} indexes).")
+
