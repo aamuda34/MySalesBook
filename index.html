@@ -1905,6 +1905,12 @@ async function cloudUploadProductImage(imageData) {
 
 async function cloudPublishMarketplaceImage(product, user, imageData, existingPath) {
   if (!product || !user) return;
+  // Do not publish/copy images for a shop that is disconnected or for a
+  // product that is no longer listed. This avoids orphaned public uploads.
+  const {data:listing,error:listingError}=await supabaseClient.from('marketplace_listings')
+    .select('product_id').eq('product_id',product.id).eq('owner_id',user.id).eq('is_active',true).maybeSingle();
+  if(listingError) throw listingError;
+  if(!listing) return;
   let blob = null, mime = 'image/jpeg', ext = 'jpg';
   if (imageData && imageData.startsWith('data:image/')) {
     const match=imageData.match(/^data:(image\/(?:jpeg|png|webp));base64,([A-Za-z0-9+/=]+)$/);
@@ -1925,9 +1931,18 @@ async function cloudPublishMarketplaceImage(product, user, imageData, existingPa
   if(uploadError) throw uploadError;
   const {data:publicData}=supabaseClient.storage.from('marketplace-product-images').getPublicUrl(path);
   const publicUrl=publicData?.publicUrl;
-  if(!publicUrl) throw Error('Could not create the marketplace image URL.');
-  const {error:updateError}=await supabaseClient.from('marketplace_listings').update({image_url:publicUrl}).eq('product_id',product.id).eq('owner_id',user.id);
-  if(updateError) throw updateError;
+  if(!publicUrl){
+    await supabaseClient.storage.from('marketplace-product-images').remove([path]);
+    throw Error('Could not create the marketplace image URL.');
+  }
+  const {error:updateError,data:updatedRows}=await supabaseClient.from('marketplace_listings')
+    .update({image_url:publicUrl}).eq('product_id',product.id).eq('owner_id',user.id).select('product_id');
+  if(updateError||!updatedRows?.length){
+    const {error:cleanupError}=await supabaseClient.storage.from('marketplace-product-images').remove([path]);
+    if(cleanupError) console.warn('Could not clean up an unpublished marketplace image:',cleanupError.message);
+    if(updateError) throw updateError;
+    throw Error('The product is no longer listed on Buybook. Its photo was not published.');
+  }
 }
 
 async function cloudSaveProduct(product,isNew) {
