@@ -2106,6 +2106,8 @@ function paintPage(name,scroll){if(!VALID_PAGES.has(name))name='home';if(name===
     'notifications':'home','support':'home','feedback':'support'
   };
   function intendedParent(button,current){
+    const previous=history.state&&history.state.mySalesBookPage===current?history.state.mySalesBookPreviousPage:null;
+    if(previous&&previous!==current&&VALID_PAGES.has(previous))return previous;
     if(button.dataset.appBack)return button.dataset.appBack;
     if(button.dataset.openPage)return button.dataset.openPage;
     const inline=button.getAttribute('onclick')||'';
