@@ -1035,7 +1035,7 @@ async function loadReservationsPage(){
   target.querySelectorAll('[data-reservation-id]').forEach(b=>b.addEventListener('click',()=>showReservationDetails(b.dataset.reservationId)));
  }catch(err){target.innerHTML='<div class="empty">Could not load reservations: '+escAdmin(err.message||'Please try again.')+'</div>';}
 }
-async async function retryReservationNotification(id,button){
+async function retryReservationNotification(id,button){
  if(!cloudUser||!supabaseClient)return;
  const reservation=marketplaceReservationsCache.find(item=>String(item.id)===String(id));
  const decision=String(reservation?.status||'').toLowerCase();
