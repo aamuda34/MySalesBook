@@ -366,5 +366,52 @@
 
 
 
+
+<style>
+.stock-history-tabs{display:grid;grid-template-columns:1fr 1fr;gap:6px;padding:5px;margin:0 0 14px;background:var(--card);border:1px solid var(--border);border-radius:14px}
+.stock-history-tab{min-height:44px;padding:9px 12px;border:0;border-radius:10px;background:transparent;color:var(--muted);font:inherit;font-size:14px;font-weight:650;display:flex;align-items:center;justify-content:center;gap:8px}
+.stock-history-tab.active{background:var(--green);color:#fff}
+.stock-history-tab span{min-width:21px;height:21px;padding:0 6px;border-radius:20px;background:rgba(128,128,128,.14);display:inline-grid;place-items:center;font-size:11px}
+.stock-history-tab.active span{background:rgba(255,255,255,.2);color:#fff}
+.stock-history-panel[hidden]{display:none!important}
+.stock-history-panel{min-height:150px}
+</style>
+<script>
+(function(){
+ let selected='adjustments';
+ const safeText=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+ function renderTabs(){
+  const tabs=document.getElementById('stockHistoryTabs');if(!tabs)return;
+  const adjustments=Array.isArray(window.db?.stockAdjustments)?window.db.stockAdjustments:[];
+  const restocks=Array.isArray(window.db?.restocks)?window.db.restocks:[];
+  tabs.querySelectorAll('[data-stock-history-tab]').forEach(button=>{
+   const active=button.dataset.stockHistoryTab===selected;
+   button.classList.toggle('active',active);button.setAttribute('aria-selected',active?'true':'false');
+   const count=button.querySelector('[data-history-count]');
+   if(count)count.textContent=String(button.dataset.stockHistoryTab==='adjustments'?adjustments.length:restocks.length);
+  });
+  const ap=document.getElementById('stockAdjustmentPanel'),rp=document.getElementById('restockHistoryPanel');
+  if(ap)ap.hidden=selected!=='adjustments';if(rp)rp.hidden=selected!=='restocks';
+ }
+ function renderAdjustments(){
+  const target=document.getElementById('stockAdjustmentList');if(!target)return;
+  const rows=[...(window.db?.stockAdjustments||[])].sort((a,b)=>new Date(b.date||0)-new Date(a.date||0)).slice(0,100);
+  target.innerHTML=rows.length?rows.map(a=>'<button type="button" class="stock-history-row" data-stock-history-id="'+safeText(a.id)+'" data-stock-history-kind="adjustment"><span class="row"><strong>'+safeText(a.productName||'Product')+'</strong><strong>'+(Number(a.quantityChange)>0?'+':'')+Number(a.quantityChange||0)+' units</strong></span><span class="muted">'+new Date(a.date).toLocaleString()+' · '+Number(a.previousStock||0)+' → '+Number(a.newStock||0)+' units'+(a.reason?' · '+safeText(a.reason):'')+'</span></button>').join(''):'<div class="empty">No stock adjustments recorded yet.</div>';
+ }
+ function refresh(){
+  renderAdjustments();
+  if(typeof window.renderRestockHistory==='function')window.renderRestockHistory();
+  renderTabs();
+ }
+ document.getElementById('stockHistoryTabs')?.addEventListener('click',event=>{
+  const button=event.target.closest('[data-stock-history-tab]');if(!button)return;
+  selected=button.dataset.stockHistoryTab==='restocks'?'restocks':'adjustments';renderTabs();
+ });
+ window.addEventListener('load',refresh,{once:true});
+ setTimeout(refresh,0);
+ window.renderStockHistoryTabs=renderTabs;
+})();
+</script>
+
 </body>
 </html>
