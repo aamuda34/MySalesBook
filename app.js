@@ -1824,11 +1824,22 @@ async function refreshAccountStatus(){
     return;
   }
 
-  const { data, error } = await supabaseClient.auth.getSession();
-  if (error) {
-    status.textContent = 'Could not check sign-in status.';
-    document.getElementById('accountMessage').textContent = error.message;
+  let data;
+  let error;
+  try {
+    ({ data, error } = await supabaseClient.auth.getSession());
+  } catch (sessionError) {
+    status.textContent = 'Could not check sign-in status. Check your connection and try again.';
+    document.getElementById('accountMessage').textContent = 'Sellbook could not verify your Google sign-in. Your saved records have not been changed.';
     document.getElementById('appWorkspace').classList.add('hidden');
+    console.warn('Supabase session check failed:', sessionError);
+    return;
+  }
+  if (error) {
+    status.textContent = 'Could not check sign-in status. Check your connection and try again.';
+    document.getElementById('accountMessage').textContent = 'Sellbook could not verify your Google sign-in. Your saved records have not been changed.';
+    document.getElementById('appWorkspace').classList.add('hidden');
+    console.warn('Supabase session check returned an error:', error);
     return;
   }
 
@@ -1836,8 +1847,8 @@ async function refreshAccountStatus(){
   status.textContent = user
     ? 'Signed in as ' + (user.email || 'Google account') + '.'
     : (!navigator.onLine
-      ? 'Internet is required for first sign-in or account creation. Connect and try again.'
-      : 'Sign in or create an account to access your private business records.');
+      ? 'Internet is required for Google sign-in. Connect and try again.'
+      : 'Sign in with Google to access your private business records.');
   signIn.classList.toggle('hidden', !!user);
   signOut.classList.toggle('hidden', !user);
   document.getElementById('emailAuthPanel').classList.toggle('hidden', !!user);
@@ -1864,30 +1875,48 @@ async function refreshAccountStatus(){
   if(user&&workspaceReady){document.getElementById('settingsAccountStatus').textContent='Signed in as '+(user.email||'Google account')+'.';document.getElementById('settingsAccountMessage').textContent=document.getElementById('accountMessage').textContent||'';}
 }
 
+let googleSignInInProgress = false;
 document.getElementById('googleSignIn').addEventListener('click', async () => {
+  const button = document.getElementById('googleSignIn');
   const message = document.getElementById('accountMessage');
-  message.textContent = 'Opening Google sign-in...';
+  if (googleSignInInProgress) return;
 
   if (!navigator.onLine) {
-    message.textContent = 'Internet is required for first sign-in. Connect to the internet and try again.';
+    message.textContent = 'Internet is required for Google sign-in. Connect to the internet and try again.';
     return;
   }
   if (!supabaseClient) {
-    message.textContent = 'Cloud connection unavailable. Check your internet connection.';
+    message.textContent = 'Cloud connection unavailable. Check your internet connection and try again.';
     return;
   }
 
-  const { error } = await supabaseClient.auth.signInWithOAuth({
-    provider: 'google',
-    options: {
-      redirectTo: new URLSearchParams(window.location.search).get('native') === '1'
-        ? 'sellbook://auth'
-        : window.location.origin + window.location.pathname + window.location.search,
-      queryParams: { prompt: 'select_account' }
-    }
-  });
+  googleSignInInProgress = true;
+  button.disabled = true;
+  button.setAttribute('aria-busy', 'true');
+  button.textContent = 'Connecting to Google…';
+  message.textContent = 'Opening secure Google sign-in. Please wait…';
 
-  if (error) message.textContent = 'Sign-in failed: ' + error.message;
+  try {
+    const { error } = await supabaseClient.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: new URLSearchParams(window.location.search).get('native') === '1'
+          ? 'sellbook://auth'
+          : window.location.origin + window.location.pathname + window.location.search,
+        queryParams: { prompt: 'select_account' }
+      }
+    });
+    if (error) throw error;
+    // Supabase redirects the browser to Google. Keep the button locked during navigation
+    // so repeated taps cannot start overlapping OAuth requests.
+  } catch (error) {
+    console.error('Google sign-in could not be started:', error);
+    message.textContent = 'Google sign-in could not be started. Check your connection and try again.';
+    googleSignInInProgress = false;
+    button.disabled = false;
+    button.removeAttribute('aria-busy');
+    button.textContent = 'Continue with Google';
+  }
 });
 
 let emailAuthMode = 'signin';
