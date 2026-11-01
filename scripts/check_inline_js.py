@@ -118,4 +118,11 @@ if missing_headers:
 for asset in ("'./app.js'", "'./styles.css'"):
     if asset not in service_worker:
         raise SystemExit(f"Extracted app asset is not included in the offline core shell: {asset}")
-print(f"Marketplace, accessibility, security and asset-cache checks passed ({len(required_markers) + len(required_headers) + 3} checks).")
+# Keep the production marketplace access-control changes reproducible in Git.
+reservation_migration = Path("supabase/migrations/20261101101455_tighten_marketplace_reservation_access.sql").read_text(encoding="utf-8")
+reservation_columns_migration = Path("supabase/migrations/20261101101525_limit_reservation_update_columns.sql").read_text(encoding="utf-8")
+if "marketplace_reservations_owner_update" not in reservation_migration or "marketplace_reservation_items_buyer_insert" not in reservation_migration:
+    raise SystemExit("Marketplace reservation RLS migration is incomplete.")
+if "grant update (status, updated_at)" not in reservation_columns_migration:
+    raise SystemExit("Marketplace reservation column-level update migration is incomplete.")
+print(f"Marketplace, accessibility, security and asset-cache checks passed ({len(required_markers) + len(required_headers) + 5} checks).")
