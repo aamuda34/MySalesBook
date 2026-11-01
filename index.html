@@ -1360,6 +1360,10 @@ function propagateQueuedProductVersion(queue, fromIndex, productId, version) {
     const later=queue[i], payload=later.payload||{};
     if (later.type==='product_save' && payload.product?.id===productId && !payload.isNew) {
       payload.product.updatedAt=version;
+      // This queued edit has not reached the server yet. Give it its own future
+      // version marker so its write advances updated_at instead of reusing an
+      // earlier sale/restock timestamp.
+      payload.product.syncUpdatedAt=now();
     } else if (later.type==='product_delete' && payload.product?.id===productId) {
       payload.product.updatedAt=version;
     } else if (later.type==='sale' && payload.sale?.productId===productId) {
