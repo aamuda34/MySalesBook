@@ -282,3 +282,10 @@ failed_back_navigation = [label for label, passed in back_navigation_checks.item
 if failed_back_navigation:
     raise SystemExit("Back-navigation checks failed: " + "; ".join(failed_back_navigation))
 print(f"Standalone-page and Android Back navigation checks passed ({len(back_navigation_checks)} checks).")
+
+# Keep email/password entry hidden until verification delivery is proven reliable.
+if 'id="emailAuthPanel" class="hidden" aria-hidden="true" style="display:none!important"' not in index_html:
+    raise SystemExit("Email/password sign-in must remain hidden until verification is validated.")
+if 'id="googleSignIn"' not in index_html or "provider: 'google'" not in app_js:
+    raise SystemExit("Google OAuth must remain the visible sign-in path.")
+print("Verified sign-in visibility safeguard passed.")
