@@ -58,8 +58,8 @@ with tempfile.TemporaryDirectory() as tmp:
         check_path.write_text(source, encoding="utf-8")
         subprocess.run(["node", "--check", str(check_path)], check=True)
 
-combined = "\\n".join(source for _, source, _ in local_scripts)
-referenced = set(re.findall(r"""getElementById\\(\\s*['"]([^'"]+)['"]\\s*\\)""", combined))
+combined = "\n".join(source for _, source, _ in local_scripts)
+referenced = set(re.findall(r"""getElementById\(\s*['"]([^'"]+)['"]\s*\)""", combined))
 missing = sorted(referenced - parser.ids)
 if missing:
     raise SystemExit("Missing HTML IDs referenced by JavaScript: " + ", ".join(missing))
