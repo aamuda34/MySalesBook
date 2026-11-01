@@ -172,6 +172,20 @@ print(f"Priority 4 loading and background-request checks passed ({len(priority4_
 
 
 
+# Cloud history must be paged so Supabase's per-request row cap cannot hide older records.
+history_paging_checks = {
+    "cloud history uses a reusable paged loader": "async function fetchAllCloudRows(buildQuery,pageSize=500)" in app_js,
+    "paged loader advances through complete pages": ".range(offset,offset+pageSize-1)" in app_js and "if(page.length<pageSize)break;" in app_js,
+    "sales use deterministic paged ordering": ".order('sold_at').order('id')" in app_js,
+    "expenses use deterministic paged ordering": ".order('spent_at').order('id')" in app_js,
+    "stock adjustments use deterministic paged ordering": ".order('adjusted_at',{ascending:false}).order('id',{ascending:false})" in app_js,
+    "restock history uses deterministic paged ordering": ".order('restocked_at',{ascending:false}).order('id',{ascending:false})" in app_js,
+}
+failed_history_paging = [label for label, passed in history_paging_checks.items() if not passed]
+if failed_history_paging:
+    raise SystemExit("Cloud history pagination checks failed: " + "; ".join(failed_history_paging))
+print(f"Complete cloud history pagination checks passed ({len(history_paging_checks)} checks).")
+
 # Date-only values (for example, YYYY-MM-DD expense dates) must remain
 # calendar dates in the seller's local timezone, not shift through UTC parsing.
 if "if(/^\\d{4}-\\d{2}-\\d{2}$/.test(raw))" not in app_js:
