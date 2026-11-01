@@ -1112,24 +1112,38 @@ function paintPage(name,scroll){if(!VALID_PAGES.has(name))name='home';if(name===
     }
   },true);
 })();
+function refreshStockHistoryBadges(){
+ const tabs=document.getElementById('stockHistoryTabs');if(!tabs)return;
+ const adjustments=Array.isArray(db.stockAdjustments)?db.stockAdjustments:[];
+ const restocks=Array.isArray(db.restocks)?db.restocks:[];
+ tabs.querySelectorAll('[data-stock-history-tab]').forEach(button=>{
+  const count=button.querySelector('[data-history-count]');if(count)count.textContent=String(button.dataset.stockHistoryTab==='adjustments'?adjustments.length:restocks.length);
+ });
+}
 async function refreshStockHistoryFromCloud(){
- if(!cloudUser||!navigator.onLine||storageMode==='local')return;
+ if(!cloudUser||!navigator.onLine||storageMode==='local'){renderStockAdjustments();refreshStockHistoryBadges();return;}
  const uid=cloudUser.id;
  try{
   const result=await supabaseClient.from('stock_purchases').select('id,product_id,product_name,purchase_quantity,purchase_unit,units_per_purchase,base_quantity,cost_per_purchase_unit,total_cost,average_cost_before,average_cost_after,restocked_at').eq('user_id',uid).order('restocked_at',{ascending:false});
   if(result.error)throw result.error;
   if(!cloudUser||cloudUser.id!==uid)return;
-  const oldRows=new Map((db.restocks||[]).map(x=>[String(x.id),x]));
-  const rows=(result.data||[]).map(x=>{const old=oldRows.get(String(x.id));return {id:x.id,productId:x.product_id,productName:x.product_name,purchaseQuantity:Number(x.purchase_quantity),purchaseUnit:x.purchase_unit,unitsPerPurchase:Number(x.units_per_purchase),baseQuantity:Number(x.base_quantity),costPerPurchaseUnit:Number(x.cost_per_purchase_unit),totalCost:Number(x.total_cost),averageCostBefore:Number(x.average_cost_before),averageCostAfter:Number(x.average_cost_after),previousStock:old?.previousStock,newStock:old?.newStock,date:x.restocked_at};});
-  const ids=new Set(rows.map(x=>String(x.id)));
-  for(const item of pendingSync||[]){const x=item.payload?.restock;if(item.type==='stock_restock'&&item.status!=='synced'&&x&&!ids.has(String(x.id)))rows.push(x);}
-  db.restocks=rows;
-  renderRestockHistory();
-  if(typeof renderStockHistoryTabs==='function')renderStockHistoryTabs();
+  const previous=new Map((db.restocks||[]).map(row=>[String(row.id),row]));
+  const remote=(result.data||[]).map(row=>{const old=previous.get(String(row.id));return {id:row.id,productId:row.product_id,productName:row.product_name,purchaseQuantity:Number(row.purchase_quantity),purchaseUnit:row.purchase_unit,unitsPerPurchase:Number(row.units_per_purchase),baseQuantity:Number(row.base_quantity),costPerPurchaseUnit:Number(row.cost_per_purchase_unit),totalCost:Number(row.total_cost),averageCostBefore:Number(row.average_cost_before),averageCostAfter:Number(row.average_cost_after),previousStock:old?.previousStock,newStock:old?.newStock,date:row.restocked_at};});
+  const ids=new Set(remote.map(row=>String(row.id)));
+  for(const item of pendingSync||[]){const row=item.payload?.restock;if(item.type==='stock_restock'&&item.status!=='synced'&&row&&!ids.has(String(row.id)))remote.push(row);}
+  db.restocks=remote;
+  renderStockAdjustments();
+  refreshStockHistoryBadges();
   cacheCloudData(uid);
- }catch(error){console.warn('Restock history refresh failed',error);}
+ }catch(error){
+  console.warn('Restock history refresh failed:',error);
+  cloudMessage('Restock history could not be refreshed. Your saved records have not been changed.');
+  renderStockAdjustments();
+  refreshStockHistoryBadges();
+ }
 }
-let messengerReturnPage='home';function showPage(name,options={}){if(!VALID_PAGES.has(name))return;const previous=currentPage();if(name==='messenger'&&previous!=='messenger')messengerReturnPage=previous;document.body.classList.toggle('user-support-open',name==='support'&&!sellbookIsAdmin);document.body.classList.toggle('messenger-open',name==='messenger');if(name!=='messenger')document.body.classList.remove('messenger-conversation-open');if(name==='messenger'&&cloudUser)loadMessengerConversations();if(name==='stock-history')void refreshStockHistoryFromCloud();if(!options.fromHistory&&previous!==name){const previousForHistory=options.replaceHistory?(history.state&&history.state.mySalesBookPreviousPage):previous;const state={mySalesBookPage:name,mySalesBookPreviousPage:previousForHistory,mySalesBookReturnPage:name==='messenger'?messengerReturnPage:undefined};if(options.replaceHistory)history.replaceState(state,'','#'+name);else history.pushState(state,'','#'+name);}paintPage(name,options.scroll!==false);}
+
+let messengerReturnPage='home';function showPage(name,options={}){if(!VALID_PAGES.has(name))return;const previous=currentPage();if(name==='messenger'&&previous!=='messenger')messengerReturnPage=previous;document.body.classList.toggle('user-support-open',name==='support'&&!sellbookIsAdmin);document.body.classList.toggle('messenger-open',name==='messenger');if(name!=='messenger')document.body.classList.remove('messenger-conversation-open');if(name==='messenger'&&cloudUser)loadMessengerConversations();if(name==='stock-history'){renderStockAdjustments();refreshStockHistoryBadges();void refreshStockHistoryFromCloud();}if(!options.fromHistory&&previous!==name){const previousForHistory=options.replaceHistory?(history.state&&history.state.mySalesBookPreviousPage):previous;const state={mySalesBookPage:name,mySalesBookPreviousPage:previousForHistory,mySalesBookReturnPage:name==='messenger'?messengerReturnPage:undefined};if(options.replaceHistory)history.replaceState(state,'','#'+name);else history.pushState(state,'','#'+name);}paintPage(name,options.scroll!==false);}
 function restorePageFromLocation(){const hash=location.hash.slice(1),saved=sessionStorage.getItem('my-sales-book-current-page'),name=VALID_PAGES.has(hash)?hash:(VALID_PAGES.has(saved)?saved:'home');document.body.classList.toggle('user-support-open',name==='support'&&!sellbookIsAdmin);document.body.classList.toggle('messenger-open',name==='messenger');paintPage(name,false);}
 // Keep Android/browser Back inside the app. Page changes have their own
 // history entries; the duplicate root entry prevents the app from closing
