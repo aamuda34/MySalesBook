@@ -1136,7 +1136,7 @@ async function refreshStockHistoryFromCloud(){
  const uid=cloudUser.id;
  try{
   const result=await supabaseClient.from('stock_purchases')
-   .select('id,product_id,product_name,purchase_quantity,purchase_unit,units_per_purchase,base_quantity,cost_per_purchase_unit,total_cost,average_cost_before,average_cost_after,restocked_at')
+   .select('id,product_id,product_name,purchase_quantity,purchase_unit,units_per_purchase,base_quantity,cost_per_purchase_unit,total_cost,average_cost_before,average_cost_after,previous_stock,new_stock,restocked_at')
    .eq('user_id',uid).order('restocked_at',{ascending:false}).limit(500);
   if(result.error)throw result.error;
   if(!cloudUser||cloudUser.id!==uid)return;
@@ -1156,7 +1156,7 @@ async function refreshStockHistoryFromCloud(){
     unitsPerPurchase:Number(row.units_per_purchase),baseQuantity:Number(row.base_quantity),
     costPerPurchaseUnit:Number(row.cost_per_purchase_unit),totalCost:Number(row.total_cost),
     averageCostBefore:Number(row.average_cost_before),averageCostAfter:Number(row.average_cost_after),
-    previousStock:old.previousStock,newStock:old.newStock,date:row.restocked_at});
+    previousStock:row.previous_stock??old.previousStock,newStock:row.new_stock??old.newStock,date:row.restocked_at});
   }
   for(const item of readQueue(uid)){
    const row=item.payload?.restock;
@@ -1381,8 +1381,8 @@ function updateRestockPreview(){
  const p=db.products.find(x=>x.id===document.getElementById('restockProduct').value);
  const qty=Number(document.getElementById('restockPurchaseQty').value),units=Number(document.getElementById('restockUnitsPerPurchase').value),cost=Number(document.getElementById('restockCostPerPurchase').value);
  const out=document.getElementById('restockPreview');
- if(!p||!Number.isSafeInteger(qty)||qty<1||!Number.isSafeInteger(units)||units<1||!Number.isFinite(cost)||cost<0){out.textContent='Choose a product and enter valid purchase details.';return;}
- const baseQty=qty*units,total=qty*cost,newStock=p.stock+baseQty,baseCost=total/baseQty,avg=p.stock>0?((p.stock*p.cost+baseQty*baseCost)/newStock):baseCost;
+ if(!p||!Number.isSafeInteger(qty)||qty<1||!Number.isSafeInteger(units)||units<1||!Number.isFinite(cost)||cost<0||qty>Math.floor(2000000000/units)){out.textContent='Choose a product and enter valid purchase details within the stock limit.';return;}
+ const baseQty=qty*units,total=qty*cost,newStock=p.stock+baseQty;if(!Number.isSafeInteger(newStock)||newStock>2000000000||!Number.isFinite(total)||total>MAX_MONEY){out.textContent='This purchase exceeds the safe stock or cost limit.';return;}const baseCost=total/baseQty,avg=p.stock>0?((p.stock*p.cost+baseQty*baseCost)/newStock):baseCost;
  out.textContent='Adds '+baseQty+' units · Total purchase cost '+money(total)+' · New stock '+newStock+' · New average cost '+money(avg)+' per smallest unit.';
 }
 ['restockProduct','restockPurchaseQty','restockPurchaseUnit','restockUnitsPerPurchase','restockCostPerPurchase'].forEach(id=>document.getElementById(id).addEventListener('input',updateRestockPreview));
