@@ -1502,6 +1502,12 @@ async function handleCloudAuthChange() {
       if (storageMode !== 'cloud') localSnapshot = snapshotLocalRecords();
       cloudUser = user;
       pendingSync = readQueue(user.id);
+      // Paint this account's last saved workspace immediately, then refresh it from Supabase.
+      // This keeps returning sellers out of a blank startup state on slow mobile connections.
+      const hasCachedWorkspace = restoreCloudCache(user.id);
+      if (hasCachedWorkspace) {
+        cloudMessage('Showing your saved records while Sellbook checks for the latest updates.');
+      }
       try {
         await cloudLoadAll();
         coreWorkspaceLoaded = true;
