@@ -246,3 +246,6 @@ print("Reservation notification authentication parsing check passed.")
 if "const CACHE_NAME = 'sellbook-shell-v52';" not in service_worker:
     raise SystemExit("The service-worker shell cache must be versioned for the pending app update.")
 print("Offline shell cache version check passed.")
+if "dates.reduce((minimum,d)=>Math.min(minimum,d.getTime()),Infinity)" not in app_js:
+    raise SystemExit("All-time report must avoid spreading large date arrays into Math.min.")
+print("Large all-time report date-range check passed.")
