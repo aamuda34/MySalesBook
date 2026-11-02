@@ -798,3 +798,8 @@ body.subscribers-page-open #subscribers,body.reservations-page-open #reservation
 .stock-history-tabs .stock-history-tab.active{border-color:#14532d;background:#14532d;color:#fff}
 .stock-history-tabs .stock-history-tab [data-history-count]{font-size:10px;font-weight:700;opacity:.85}
 .stock-history-tabs .stock-history-tab:focus-visible{outline:2px solid #8fc69d;outline-offset:2px}
+
+/* Keep Product History pills tightly wrapped around their labels. */
+#stockHistoryTabs.stock-history-tabs{display:flex!important;align-items:center;justify-content:flex-start;flex-wrap:wrap;gap:5px;width:100%;}
+#stockHistoryTabs.stock-history-tabs>.stock-history-tab{display:inline-flex!important;flex:0 0 auto!important;flex-grow:0!important;width:max-content!important;min-width:0!important;max-width:max-content!important;min-height:26px;padding:3px 7px!important;gap:3px;font-size:10px;line-height:1.15;white-space:nowrap;}
+#stockHistoryTabs.stock-history-tabs>.stock-history-tab [data-history-count]{font-size:9px;}
