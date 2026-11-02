@@ -2675,6 +2675,7 @@ function setAdminAccess(isAdmin){
  if(!sellbookIsAdmin&&currentPage()==='admin')showPage('home');
 }
 function showAdminPanel(name){
+ if(!supabaseClient||!cloudUser||!sellbookIsAdmin)return;
  const allowed=new Set(['overview','traffic','users','feedback','support','notifications']);
  if(!allowed.has(name))name='overview';
  document.querySelectorAll('[data-admin-panel-content]').forEach(p=>p.classList.toggle('hidden',p.dataset.adminPanelContent!==name));
@@ -2689,6 +2690,7 @@ function showAdminPanel(name){
 document.querySelectorAll('[data-admin-panel]').forEach(b=>b.addEventListener('click',()=>showAdminPanel(b.dataset.adminPanel)));
 function formatAdminNaira(value){return new Intl.NumberFormat('en-NG',{style:'currency',currency:'NGN',maximumFractionDigits:0}).format(Number(value)||0);}
 async function loadAdminTraffic(){
+ if(!supabaseClient||!cloudUser||!sellbookIsAdmin)return;
  const chart=document.getElementById('adminTrafficChart');if(chart)chart.textContent='Loading traffic…';
  const {data,error}=await supabaseClient.rpc('sellbook_admin_platform_metrics');
  if(error){if(chart)chart.textContent='Traffic metrics unavailable: '+error.message;return;}
@@ -2724,6 +2726,7 @@ recordSellbookVisit();
  showAdminPanel(sessionStorage.getItem('sellbook-admin-panel')||'overview');
 }
 async function loadAdminUsers(){
+ if(!supabaseClient||!cloudUser||!sellbookIsAdmin)return;
  const target=document.getElementById('adminUsersList');if(target)target.textContent='Loading users…';
  const list=document.getElementById('adminChatUserList');if(list&&!list.children.length)list.innerHTML='<div class="empty">Loading users…</div>';
  const {data,error}=await supabaseClient.rpc('sellbook_admin_users');
@@ -2744,6 +2747,7 @@ async function loadAdminUsers(){
 }
 
 async function loadAdminFeedback(){
+ if(!supabaseClient||!cloudUser||!sellbookIsAdmin)return;
  const target=document.getElementById('adminFeedbackList');target.textContent='Loading feedback…';
  const {data,error}=await supabaseClient.from('user_feedback').select('id,user_id,category,subject,message,status,admin_reply,created_at').order('created_at',{ascending:false}).limit(100);
  if(error){target.textContent='Could not load feedback: '+error.message;return;}
@@ -2755,6 +2759,7 @@ async function loadAdminFeedback(){
  }));
 }
 async function loadAdminNotifications(){
+ if(!supabaseClient||!cloudUser||!sellbookIsAdmin)return;
  const target=document.getElementById('adminNotificationsList');
  const {data,error}=await supabaseClient.from('app_notifications').select('id,title,body,kind,recipient_id,created_at').order('created_at',{ascending:false}).limit(20);
  if(error){target.textContent='Could not load notifications: '+error.message;return;}
