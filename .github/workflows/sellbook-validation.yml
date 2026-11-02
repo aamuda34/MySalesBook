@@ -61,27 +61,27 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          grep -q 'identity_fingerprint text not null unique' supabase/migrations/20261102160000_add_privacy_minimised_unique_identity_bindings.sql
-          grep -q 'on delete cascade' supabase/migrations/20261102160000_add_privacy_minimised_unique_identity_bindings.sql
-          grep -q 'grant execute on function public.claim_verified_identity' supabase/migrations/20261102160000_add_privacy_minimised_unique_identity_bindings.sql
-          grep -q "Daily identity verification attempt limit reached" supabase/migrations/20261102162000_reserve_identity_attempts_with_atomic_rate_limit.sql
-          grep -q 'pg_advisory_xact_lock' supabase/migrations/20261102162000_reserve_identity_attempts_with_atomic_rate_limit.sql
-          grep -q 'grant execute on function public.begin_identity_verification_attempt' supabase/migrations/20261102162000_reserve_identity_attempts_with_atomic_rate_limit.sql
-          ! grep -Eiq '^[[:space:]]*rollback[[:space:]]*;' supabase/migrations/20261102160000_add_privacy_minimised_unique_identity_bindings.sql
-          ! grep -Eiq '^[[:space:]]*rollback[[:space:]]*;' supabase/migrations/20261102162000_reserve_identity_attempts_with_atomic_rate_limit.sql
+          grep -q 'identity_fingerprint text not null unique' supabase/migrations/20261102121054_add_privacy_minimised_unique_identity_bindings.sql
+          grep -q 'on delete cascade' supabase/migrations/20261102121054_add_privacy_minimised_unique_identity_bindings.sql
+          grep -q 'grant execute on function public.claim_verified_identity' supabase/migrations/20261102121054_add_privacy_minimised_unique_identity_bindings.sql
+          grep -q "Daily identity verification attempt limit reached" supabase/migrations/20261102121454_reserve_identity_attempts_with_atomic_rate_limit.sql
+          grep -q 'pg_advisory_xact_lock' supabase/migrations/20261102121454_reserve_identity_attempts_with_atomic_rate_limit.sql
+          grep -q 'grant execute on function public.begin_identity_verification_attempt' supabase/migrations/20261102121454_reserve_identity_attempts_with_atomic_rate_limit.sql
+          ! grep -Eiq '^[[:space:]]*rollback[[:space:]]*;' supabase/migrations/20261102121054_add_privacy_minimised_unique_identity_bindings.sql
+          ! grep -Eiq '^[[:space:]]*rollback[[:space:]]*;' supabase/migrations/20261102121454_reserve_identity_attempts_with_atomic_rate_limit.sql
 
       - name: Verify private identity attempt access and retention
         shell: bash
         run: |
           set -euo pipefail
           test -s supabase/migrations/20261102131900_secure_identity_attempt_access_via_service_rpc.sql
-          test -s supabase/migrations/20261102132000_fix_identity_attempt_finish_result_boolean.sql
+          test -s supabase/migrations/20261102132311_fix_identity_attempt_finish_result_boolean.sql
           grep -q 'public.purge_identity_verification_attempts' supabase/migrations/20261102131900_secure_identity_attempt_access_via_service_rpc.sql
           grep -q 'public.attach_identity_liveness_session' supabase/migrations/20261102131900_secure_identity_attempt_access_via_service_rpc.sql
           grep -q 'public.get_identity_verification_attempt' supabase/migrations/20261102131900_secure_identity_attempt_access_via_service_rpc.sql
           grep -q 'public.finish_identity_verification_attempt' supabase/migrations/20261102131900_secure_identity_attempt_access_via_service_rpc.sql
-          grep -q 'revoke all on function public.finish_identity_verification_attempt' supabase/migrations/20261102132000_fix_identity_attempt_finish_result_boolean.sql
-          grep -q 'return coalesce(v_existing_state = p_state, false)' supabase/migrations/20261102132000_fix_identity_attempt_finish_result_boolean.sql
+          grep -q 'revoke all on function public.finish_identity_verification_attempt' supabase/migrations/20261102132311_fix_identity_attempt_finish_result_boolean.sql
+          grep -q 'return coalesce(v_existing_state = p_state, false)' supabase/migrations/20261102132311_fix_identity_attempt_finish_result_boolean.sql
           grep -q 'purge_identity_verification_attempts' supabase/functions/sellbook-identity/index.ts
           grep -q 'attach_identity_liveness_session' supabase/functions/sellbook-identity/index.ts
           grep -q 'get_identity_verification_attempt' supabase/functions/sellbook-identity/index.ts
@@ -95,9 +95,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test -s supabase/migrations/20261102132100_allow_account_deletion_after_admin_notifications.sql
-          grep -qi 'alter column created_by drop not null' supabase/migrations/20261102132100_allow_account_deletion_after_admin_notifications.sql
-          grep -qi 'on delete set null' supabase/migrations/20261102132100_allow_account_deletion_after_admin_notifications.sql
+          test -s supabase/migrations/20261102132753_allow_account_deletion_after_admin_notifications.sql
+          grep -qi 'alter column created_by drop not null' supabase/migrations/20261102132753_allow_account_deletion_after_admin_notifications.sql
+          grep -qi 'on delete set null' supabase/migrations/20261102132753_allow_account_deletion_after_admin_notifications.sql
           grep -q "const buckets=\['marketplace-product-images','product-images'\]" app.js
           grep -q "rpc('get_app_pin_status')" app.js
           grep -q "rpc('delete_my_account')" app.js
@@ -125,13 +125,13 @@ jobs:
           grep -q "securityPinExpiresAt" app.js
           grep -q "securityPinGate" index.html
           grep -q "sellbook-shell-v68" sw.js
-          ! grep -Eiq '^[[:space:]]*rollback[[:space:]]*;' supabase/migrations/20261102143000_add_server_verified_sellbook_pin.sql
-          grep -q 'enforce_sellbook_pin_before_write' supabase/migrations/20261102145000_gate_privileged_pin_write_paths.sql
-          grep -q 'if not exists (' supabase/migrations/20261102145000_gate_privileged_pin_write_paths.sql
-          grep -q 'from private.user_app_pins' supabase/migrations/20261102145000_gate_privileged_pin_write_paths.sql
-          ! grep -Eiq '^[[:space:]]*rollback[[:space:]]*;' supabase/migrations/20261102145000_gate_privileged_pin_write_paths.sql
-          grep -q "'expires_at',v_expires_at" supabase/migrations/20261102151500_expose_pin_expiry_and_strengthen_pin_rules.sql
-          grep -q "Choose a less predictable six-digit PIN" supabase/migrations/20261102151500_expose_pin_expiry_and_strengthen_pin_rules.sql
-          ! grep -Eiq '^[[:space:]]*rollback[[:space:]]*;' supabase/migrations/20261102151500_expose_pin_expiry_and_strengthen_pin_rules.sql
-          grep -q "v_locked_until<=now()" supabase/migrations/20261102153000_reset_pin_attempts_after_lockout.sql
-          ! grep -Eiq '^[[:space:]]*rollback[[:space:]]*;' supabase/migrations/20261102153000_reset_pin_attempts_after_lockout.sql
+          ! grep -Eiq '^[[:space:]]*rollback[[:space:]]*;' supabase/migrations/20261102114807_add_server_verified_sellbook_pin.sql
+          grep -q 'enforce_sellbook_pin_before_write' supabase/migrations/20261102115450_gate_privileged_pin_write_paths.sql
+          grep -q 'if not exists (' supabase/migrations/20261102115450_gate_privileged_pin_write_paths.sql
+          grep -q 'from private.user_app_pins' supabase/migrations/20261102115450_gate_privileged_pin_write_paths.sql
+          ! grep -Eiq '^[[:space:]]*rollback[[:space:]]*;' supabase/migrations/20261102115450_gate_privileged_pin_write_paths.sql
+          grep -q "'expires_at',v_expires_at" supabase/migrations/20261102115954_expose_pin_expiry_and_strengthen_pin_rules.sql
+          grep -q "Choose a less predictable six-digit PIN" supabase/migrations/20261102115954_expose_pin_expiry_and_strengthen_pin_rules.sql
+          ! grep -Eiq '^[[:space:]]*rollback[[:space:]]*;' supabase/migrations/20261102115954_expose_pin_expiry_and_strengthen_pin_rules.sql
+          grep -q "v_locked_until<=now()" supabase/migrations/20261102120333_reset_pin_attempts_after_lockout.sql
+          ! grep -Eiq '^[[:space:]]*rollback[[:space:]]*;' supabase/migrations/20261102120333_reset_pin_attempts_after_lockout.sql
