@@ -88,6 +88,13 @@ jobs:
           grep -q 'finish_identity_verification_attempt' supabase/functions/sellbook-identity/index.ts
           grep -q 'verification.type === "nin"' supabase/functions/sellbook-identity/index.ts
           grep -q 'verification.service === "nin_face_match"' supabase/functions/sellbook-identity/index.ts
+          grep -q 'duplicateCheck?.status' supabase/functions/sellbook-identity/index.ts
+          grep -q 'duplicateFaceStatus === "clear"' supabase/functions/sellbook-identity/index.ts
+          grep -q 'duplicateFaceStatus === "returning"' supabase/functions/sellbook-identity/index.ts
+          grep -q 'duplicateFaceStatus === "other_id"' supabase/functions/sellbook-identity/index.ts
+          grep -q 'duplicateFaceStatus === "flagged"' supabase/functions/sellbook-identity/index.ts
+          grep -q 'duplicate_face_check_unavailable' supabase/functions/sellbook-identity/index.ts
+          grep -q 'identity_face_already_linked' supabase/functions/sellbook-identity/index.ts
           ! grep -q '.from("identity_verification_attempts")' supabase/functions/sellbook-identity/index.ts
           ! grep -q 'Access-Control-Allow-Origin: "*"' supabase/functions/sellbook-identity/index.ts
 
