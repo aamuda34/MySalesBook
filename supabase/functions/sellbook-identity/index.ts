@@ -395,6 +395,12 @@ Deno.serve(async (request: Request) => {
 
     const matches = verification.field_matches as Record<string, unknown> | undefined;
     const faceMatch = verification.face_match as Record<string, unknown> | undefined;
+    const duplicateCheck = verification.duplicate_check as Record<string, unknown> | undefined;
+    const duplicateFaceStatus = typeof duplicateCheck?.status === "string"
+      ? duplicateCheck.status
+      : null;
+    const duplicateFaceClear = duplicateFaceStatus === "clear" || duplicateFaceStatus === "returning";
+    const duplicateFaceConflict = duplicateFaceStatus === "other_id" || duplicateFaceStatus === "flagged";
     const verified =
       verification.type === "nin" &&
       verification.service === "nin_face_match" &&
@@ -403,7 +409,8 @@ Deno.serve(async (request: Request) => {
       faceMatch?.liveness === "passed" &&
       matches?.first_name === true &&
       matches?.last_name === true &&
-      matches?.date_of_birth === true;
+      matches?.date_of_birth === true &&
+      duplicateFaceClear;
 
     if (!verified) {
       await supabaseAdmin.rpc("finish_identity_verification_attempt", {
@@ -413,6 +420,22 @@ Deno.serve(async (request: Request) => {
         p_face_match_reference: faceMatchReference,
         p_provider_verification_reference: String(verification.id || "").slice(0, 180) || null,
       });
+
+      // Bytid's duplicate-face service is mandatory for the one-person/one-account
+      // policy. A missing result must fail closed rather than silently bypass checks.
+      if (duplicateFaceConflict) {
+        return json(409, {
+          error: "identity_face_already_linked",
+          message: "This live face is already associated with another identity. Contact Sellbook support for a manual review.",
+        });
+      }
+      if (!duplicateFaceClear) {
+        return json(503, {
+          error: "duplicate_face_check_unavailable",
+          message: "Sellbook could not confirm that this face is unique. Identity verification is temporarily unavailable; please try again later.",
+        });
+      }
+
       // Never return names, ID numbers, registry data, match scores or photos to the client.
       return json(422, {
         error: "identity_not_verified",
