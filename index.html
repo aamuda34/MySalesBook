@@ -54,6 +54,25 @@
  <button type="button" id="securityPinForgot" class="security-pin-forgot">Forgot your PIN? Sign in again to reset it.</button>
  <p id="securityPinMessage" class="muted" role="status" aria-live="polite"></p>
 </section>
+<section id="identityVerificationGate" class="card hidden" aria-labelledby="identityVerificationTitle" style="max-width:560px;margin:24px auto">
+ <div class="security-pin-icon" aria-hidden="true">◎</div>
+ <h2 id="identityVerificationTitle">Verify your identity</h2>
+ <p class="muted">To protect Sellbook accounts, complete a live face check and verify your identity details. Each verified identity can be linked to only one active account.</p>
+ <p id="identityVerificationMessage" class="muted" role="status" aria-live="polite">Checking identity verification…</p><button type="button" id="identityVerificationRetry" class="secondary" style="width:100%;margin-top:8px">Retry identity status</button>
+ <div id="identityVerificationStartPanel" class="hidden">
+  <label style="display:flex;gap:10px;align-items:flex-start;margin:16px 0"><input id="identityVerificationConsent" type="checkbox" style="width:auto;margin-top:4px"><span>I consent to Sellbook sending the identity details I submit to its identity-verification provider for a live face match and duplicate-identity check. I understand the check is required to use Sellbook when identity verification is enabled.</span></label>
+  <button type="button" id="identityVerificationStart" class="primary" style="width:100%">Start face verification</button>
+ </div>
+ <form id="identityVerificationForm" class="hidden" novalidate>
+  <p class="muted">Complete the live camera check first. When you return to Sellbook, enter the matching identity details below.</p>
+  <label for="identityFirstName">First name (as on your identity record)</label><input id="identityFirstName" autocomplete="given-name" maxlength="80" required>
+  <label for="identityLastName">Last name (as on your identity record)</label><input id="identityLastName" autocomplete="family-name" maxlength="80" required>
+  <label for="identityDateOfBirth">Date of birth</label><input id="identityDateOfBirth" type="date" autocomplete="bday" required>
+  <label for="identityNin">NIN (11 digits)</label><input id="identityNin" inputmode="numeric" autocomplete="off" minlength="11" maxlength="11" pattern="[0-9]{11}" required>
+  <button type="submit" id="identityVerificationSubmit" class="primary" style="width:100%">Verify identity</button>
+ </form>
+ <p class="muted" style="font-size:12px">Sellbook does not display your NIN or provider match scores. Verification data is used only for identity checks and account uniqueness enforcement.</p>
+</section>
 <div id="appWorkspace" class="hidden">
 <nav aria-label="Main navigation">
 <button class="active" data-page="home"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1z"/></svg></span><span>Home</span></button>
