@@ -740,3 +740,11 @@ body.subscribers-page-open #subscribers,body.reservations-page-open #reservation
 .products-page-header .page-history-button svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;}
 .products-page-header .page-history-button:focus-visible{outline:3px solid #a7d9b4;outline-offset:2px;}
 .products-page-header .page-history-button:active{transform:scale(.95);}
+
+/* Keep history shortcuts visible in both standalone page headers. */
+#products .products-page-header,
+#sales .sales-page-header{display:flex!important;align-items:center!important;gap:8px!important;width:100%;}
+#products .products-page-header .page-history-button,
+#sales .sales-page-header .page-history-button{display:grid!important;visibility:visible!important;opacity:1!important;position:relative!important;flex:0 0 40px!important;width:40px!important;height:40px!important;min-width:40px!important;margin-left:auto!important;padding:9px!important;align-items:center!important;justify-content:center!important;border:1px solid #d5e5d9!important;border-radius:50%!important;background:#edf6ef!important;color:#14532d!important;}
+#products .products-page-header .page-history-button svg,
+#sales .sales-page-header .page-history-button svg{display:block!important;width:20px!important;height:20px!important;fill:none!important;stroke:#14532d!important;stroke-width:1.9!important;stroke-linecap:round!important;stroke-linejoin:round!important;}
