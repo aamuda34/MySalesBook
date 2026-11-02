@@ -479,9 +479,71 @@ function restoreLocalRecords() {
 
 let securityPinGateVisible=false;
 let securityPinGateMode='verify';
+let securityPinExpiresAt=0;
+let securityPinExpiryTimer=null;
+let securityPinStatusCheckInFlight=false;
+
+function armSecurityPinExpiry(expiresAt){
+ const parsed=Date.parse(expiresAt||'');
+ if(!Number.isFinite(parsed)||parsed<=Date.now()){
+  lockSellbookForPin('Your security PIN session has expired. Enter your PIN again.');
+  return false;
+ }
+ securityPinExpiresAt=parsed;
+ if(securityPinExpiryTimer)clearTimeout(securityPinExpiryTimer);
+ securityPinExpiryTimer=setTimeout(()=>{
+  lockSellbookForPin('Your security PIN session has expired. Enter your PIN again.');
+ },Math.min(Math.max(parsed-Date.now(),0),2147483647));
+ return true;
+}
+function lockSellbookForPin(message){
+ securityPinExpiresAt=0;
+ if(securityPinExpiryTimer){clearTimeout(securityPinExpiryTimer);securityPinExpiryTimer=null;}
+ document.getElementById('appWorkspace')?.classList.add('hidden');
+ showSecurityPinGate('verify',message);
+}
+async function recheckSellbookPinStatus(){
+ if(!cloudUser||!supabaseClient||securityPinGateVisible||securityPinStatusCheckInFlight)return;
+ if(securityPinExpiresAt&&Date.now()>=securityPinExpiresAt){
+  lockSellbookForPin('Your security PIN session has expired. Enter your PIN again.');
+  return;
+ }
+ if(!navigator.onLine)return;
+ securityPinStatusCheckInFlight=true;
+ try{
+  const {data,error}=await supabaseClient.rpc('get_app_pin_status');
+  if(error)throw error;
+  if(data?.has_pin!==true){
+   showSecurityPinGate('setup','A security PIN is required before your business records can open.');
+   return;
+  }
+  if(data?.verified!==true){
+   lockSellbookForPin('Your security PIN session is no longer valid. Enter your PIN again.');
+   return;
+  }
+  armSecurityPinExpiry(data.expires_at);
+ }catch(error){
+  // If the server cannot confirm a still-valid PIN session, do not leave
+  // cached private rows visible while online. Offline use remains available
+  // only until the previously-issued server expiry timer fires.
+  if(navigator.onLine){
+   lockSellbookForPin('Sellbook could not confirm your PIN session. Reconnect and verify your PIN again.');
+   document.getElementById('securityPinMessage').textContent=error.message||'PIN verification service is unavailable.';
+  }
+ }finally{
+  securityPinStatusCheckInFlight=false;
+ }
+}
+window.setInterval(recheckSellbookPinStatus,60000);
+window.addEventListener('focus',()=>recheckSellbookPinStatus());
+document.addEventListener('visibilitychange',()=>{
+ if(!document.hidden)recheckSellbookPinStatus();
+});
 function showSecurityPinGate(mode='verify',message=''){
  securityPinGateVisible=true;
  securityPinGateMode=mode;
+ if(securityPinExpiryTimer){clearTimeout(securityPinExpiryTimer);securityPinExpiryTimer=null;}
+ securityPinExpiresAt=0;
  const gate=document.getElementById('securityPinGate');
  const confirmWrap=document.getElementById('securityPinConfirmWrap');
  const forgot=document.getElementById('securityPinForgot');
@@ -538,7 +600,11 @@ async function ensureSellbookPinAccess(){
   showSecurityPinGate('setup','A security PIN is required before your business records can open.');
   return false;
  }
- if(data?.verified===true){hideSecurityPinGate();return true;}
+ if(data?.verified===true){
+  hideSecurityPinGate();
+  if(!armSecurityPinExpiry(data.expires_at))return false;
+  return true;
+ }
  showSecurityPinGate('verify','Enter your PIN to unlock your business records.');
  return false;
 }
@@ -667,7 +733,16 @@ async function handleCloudAuthChange() {
       }
     } else {
       hideSecurityPinGate();
-      restoreLocalRecords();
+      securityPinExpiresAt=0;
+      if(securityPinExpiryTimer){clearTimeout(securityPinExpiryTimer);securityPinExpiryTimer=null;}
+      if(sessionStorage.getItem('sellbook-pin-reset-after-auth')==='yes'){
+        // Do not render the previous account's local snapshot during PIN recovery.
+        workspaceReady=false;
+        document.getElementById('appWorkspace').classList.add('hidden');
+        document.getElementById('accountCard').classList.remove('hidden');
+      }else{
+        restoreLocalRecords();
+      }
       coreWorkspaceLoaded = true;
       finishStartup();
       cloudMessage('Sign in to access your private business records.');
