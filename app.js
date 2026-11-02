@@ -719,10 +719,14 @@ async function checkIdentityGate(user) {
     const record=identityStatusRecord(payload);
     if(payload.configured!==true) {
       gate.classList.add('hidden');
-      // Do not block existing users while paid provider credentials are absent.
-      // Production enforcement activates automatically once live checks are configured.
+      const setupStatus=document.getElementById('identitySetupStatus');
+      if(setupStatus) {
+        setupStatus.classList.remove('hidden');
+        setupStatus.textContent='Face verification is not active yet. Sellbook needs a live identity-provider key, the required server secrets, and duplicate-face detection enabled before one-person/one-account enforcement can begin. Existing account access remains available until that setup is complete.';
+      }
       return false;
     }
+    document.getElementById('identitySetupStatus')?.classList.add('hidden');
     if(record.verified===true) {
       gate.classList.add('hidden');
       sessionStorage.removeItem('sellbook-identity-attempt-'+user.id);
