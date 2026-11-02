@@ -976,7 +976,7 @@ async function cloudAction(action) {
   }
 }
 
-async function requireCloudUser(expectedUserId=null) {
+async function requireCloudUser(expectedUserId=cloudUser?.id||null) {
   if (!supabaseClient) throw Error('Cloud connection is unavailable.');
   const {data,error}=await supabaseClient.auth.getUser();
   if(error) throw error;
@@ -1013,7 +1013,8 @@ async function fetchAllCloudRows(buildQuery,pageSize=500){
 }
 
 async function cloudLoadAll() {
-  const user=await requireCloudUser();
+  const expectedUserId=cloudUser?.id||null;
+  const user=await requireCloudUser(expectedUserId);
   const loadEpoch=accountSessionEpoch;
   // Stock-before and stock-after are persisted in Supabase so history is complete on every device.
   // Keep cached values only as a compatibility fallback for older rows.
