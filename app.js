@@ -1148,7 +1148,10 @@ function paintPage(name,scroll){if(!VALID_PAGES.has(name))name='home';if(name===
   document.addEventListener('click',function(event){
     const button=event.target.closest('.products-back-button,.settings-back-button,.business-profile-back,.reports-back-button,.notifications-back-button,.support-back-button,.stock-back-button,.stock-history-back-button,.stock-history-detail-back-button,.settings-main-back-button,.about-sellbook-back-button,[data-app-back]');
     if(!button)return;
-    const current=currentPage();
+    // Resolve the page from the clicked arrow's own section, not from a
+    // global first-visible-page lookup. This prevents stale/overlapping page
+    // visibility during re-render from assigning the wrong parent destination.
+    const current=button.closest('.page')?.id||currentPage();
     if(button.id==='subscriberDetailsBack'||button.id==='reservationDetailsBack'){
       event.preventDefault();event.stopImmediatePropagation();
       const isSubscriber=button.id==='subscriberDetailsBack';
