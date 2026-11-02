@@ -55,6 +55,14 @@ jobs:
           grep -q 'claim_and_finish_verified_identity' supabase/functions/sellbook-identity/index.ts
           grep -q 'crypto.subtle' supabase/functions/sellbook-identity/index.ts
           grep -q 'SELLBOOK_IDENTITY_LIVE_ENABLED' supabase/functions/sellbook-identity/index.ts
+          grep -q 'SELLBOOK_IDENTITY_ENVIRONMENT' supabase/functions/sellbook-identity/index.ts
+          grep -q 'SELLBOOK_IDENTITY_SANDBOX_ENABLED' supabase/functions/sellbook-identity/index.ts
+          grep -q 'identityEnvironment !== "staging"' supabase/functions/sellbook-identity/index.ts
+          grep -q 'identityEnvironment !== "production"' supabase/functions/sellbook-identity/index.ts
+          grep -q 'sandbox_identity_checks_disabled' supabase/functions/sellbook-identity/index.ts
+          grep -q 'Sandbox responses can be simulated and must never verify real production' supabase/functions/sellbook-identity/index.ts
+          grep -q 'Do not activate the frontend identity gate while this function is undeployed' supabase/functions/sellbook-identity/README.md
+          grep -q 'separate staging Supabase project' supabase/functions/sellbook-identity/README.md
           grep -q 'duplicate_reference' supabase/functions/sellbook-identity/index.ts
 
       - name: Verify privacy-minimised identity schema
