@@ -3346,6 +3346,14 @@ if (supabaseClient) {
       cloudMessage('Choose a new password to finish recovering your account.');
     }
     if (event === 'SIGNED_IN' || event === 'SIGNED_OUT' || event === 'INITIAL_SESSION' || event === 'TOKEN_REFRESHED') {
+      const nextUserId=session?.user?.id||null;
+      if((cloudUser?.id||null)!==nextUserId){
+        // Invalidate in-flight requests immediately, before the deferred auth
+        // handler starts. This prevents an old account response from repainting
+        // private data during a rapid sign-out/sign-in transition.
+        cloudUser=null;
+        clearAccountScopedUiState();
+      }
       setTimeout(() => handleCloudAuthChange(), 0);
     }
   });
