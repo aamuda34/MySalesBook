@@ -49,7 +49,7 @@ jobs:
         run: |
           set -euo pipefail
           test -s supabase/functions/sellbook-identity/index.ts
-          npx --yes esbuild@0.25.0 supabase/functions/sellbook-identity/index.ts --format=esm --external:jsr:* --external:npm:* --outfile=/tmp/sellbook-identity-check.js
+          npx --yes esbuild@0.25.0 supabase/functions/sellbook-identity/index.ts --bundle --format=esm --external:jsr:* --external:npm:* --outfile=/tmp/sellbook-identity-check.js
           grep -q 'get_identity_verification_status' supabase/functions/sellbook-identity/index.ts
           grep -q 'begin_identity_verification_attempt' supabase/functions/sellbook-identity/index.ts
           grep -q 'claim_verified_identity' supabase/functions/sellbook-identity/index.ts
