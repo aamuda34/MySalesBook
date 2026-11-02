@@ -21,3 +21,5 @@ jobs:
         run: node scripts/check_sync_safety.js
       - name: Test business profile rendering and responsive content
         run: node scripts/check_business_profile_render.js
+      - name: Test app-wide typography and spacing system
+        run: node scripts/check_design_system.js
