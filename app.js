@@ -2691,9 +2691,20 @@ document.getElementById('googleSignOut').addEventListener('click', async () => {
 
 let sellbookIsAdmin=false;
 let adminUsersCache=[];
+let adminAccessEpoch=0;
+function adminRequestIsCurrent(userId,epoch){
+ return !!sellbookIsAdmin &&
+   !!userId &&
+   cloudUser?.id===userId &&
+   adminAccessEpoch===epoch;
+}
 function escAdmin(value){return String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 function setAdminAccess(isAdmin){
- sellbookIsAdmin=!!isAdmin;
+ const next=!!isAdmin;
+ // Invalidate all in-flight admin reads/writes when access is removed or changes.
+ if(sellbookIsAdmin!==next||!next)adminAccessEpoch++;
+ sellbookIsAdmin=next;
+ if(!sellbookIsAdmin)adminUsersCache=[];
  document.body.classList.toggle('admin-mode',sellbookIsAdmin);
  document.getElementById('adminMenuTile')?.classList.toggle('hidden',!sellbookIsAdmin);
  if(sellbookIsAdmin&&currentPage()!=='admin'&&currentPage()!=='support')showPage('admin');
