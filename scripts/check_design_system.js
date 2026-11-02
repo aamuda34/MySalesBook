@@ -47,7 +47,7 @@ let escaped = false;
 for (const char of designRules) {
   if (quote) {
     if (escaped) escaped = false;
-    else if (char === '\\\\') escaped = true;
+    else if (char.charCodeAt(0) === 92) escaped = true;
     else if (char === quote) quote = null;
     continue;
   }
