@@ -433,8 +433,12 @@ async function syncPendingChanges() {
           propagateQueuedProductVersion(queue,queueIndex,p.product.id,newVersion);
         } else if (item.type === 'sale') {
           if (!p.productUpdatedAt) throw Error('This sale was saved by an older app version and needs a fresh product check. Keep it on this phone and contact Sellbook Support before retrying.');
-          const currentVersion=await currentProductVersion(p.sale.productId,syncUserId);
-          if (currentVersion!==p.productUpdatedAt) throw Error('Conflict: this product changed on another phone. Check stock and product details before retrying this sale.');
+          // The database RPC performs both the version check and the stock deduction
+          // under a row lock, and checks p_sale_id for an existing committed sale
+          // before checking the version. This makes a retry after a lost network
+          // acknowledgement safe without allowing a stale sale to overdraw stock.
+          // A separate client-side version read here would incorrectly turn a
+          // successfully committed sale into a conflict on the retry.
           const {error} = await supabaseClient.rpc('record_sale_offline', {
             p_sale_id:p.sale.id,p_product_id:p.sale.productId,p_quantity:p.sale.qty,
             p_unit_price:p.sale.price,p_note:p.sale.note||null,p_sold_at:p.sale.date,
