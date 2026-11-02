@@ -905,7 +905,7 @@ document.getElementById('ninVerificationForm')?.addEventListener('submit',async 
   await loadAccountTiers();
   if(currentPage()==='settings-buybook')await loadBuybookConnection();
  }catch(error){
-  const terminalCodes=['invalid_nin','valid_first_and_last_name_required','valid_date_of_birth_required','verification_attempt_not_found','verification_attempt_not_pending','verification_attempt_expired','identity_not_verified','identity_already_verified','identity_already_linked','identity_claim_failed'];
+  const terminalCodes=['invalid_nin','valid_first_and_last_name_required','valid_date_of_birth_required','verification_attempt_not_found','verification_attempt_not_pending','verification_attempt_expired','identity_not_found','identity_not_verified','identity_already_verified','identity_already_linked','identity_claim_failed','nin_registry_unavailable'];
   if(terminalCodes.includes(error.code))sessionStorage.removeItem(attemptKey);
   if(error.code==='price_changed'&&Number.isFinite(Number(error.details?.nin_price))){
    accountTierProviderPrice=Number(error.details.nin_price);
@@ -919,8 +919,13 @@ document.getElementById('ninVerificationForm')?.addEventListener('submit',async 
    setNinVerificationMessage('The provider fee changed before the check started. Nothing was charged. Review the updated fee and accept it to continue.');
   }else if(error.code==='identity_already_linked'){
    setNinVerificationMessage('This NIN is already linked to another Sellbook account. Contact Sellbook Support if you believe this is a mistake.');
+  }else if(error.code==='identity_not_found'){
+   const charged=Number(error.details?.amount_charged);
+   setNinVerificationMessage('The NIN was not found in the registry. Check the number and try again.'+(Number.isFinite(charged)&&charged>0?' Provider charge for this lookup: '+formatNairaFee(charged)+'.':''));
   }else if(error.code==='identity_not_verified'){
-   setNinVerificationMessage('The NIN details did not match the registry. Check your name, date of birth and NIN, then try again.');
+   const charged=Number(error.details?.amount_charged);
+   setNinVerificationMessage('The NIN record was found, but the submitted details did not match. Check your name and date of birth.'+(Number.isFinite(charged)&&charged>0?' Provider charge for this lookup: '+formatNairaFee(charged)+'.':''));
+
   }else if(error.code==='daily_attempt_limit_reached'){
    setNinVerificationMessage('You have reached today’s verification attempt limit. Please try again after the limit resets.');
   }else{
