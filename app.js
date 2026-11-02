@@ -302,8 +302,8 @@ function applyPendingToDb() {
     }
   }
 }
-async function currentProductVersion(productId) {
-  const user = await requireCloudUser();
+async function currentProductVersion(productId,expectedUserId=cloudUser?.id) {
+  const user = await requireCloudUser(expectedUserId);
   const {data,error} = await supabaseClient.from('products').select('updated_at').eq('id',productId).eq('user_id',user.id).maybeSingle();
   if (error) throw error;
   if (!data) throw Error('Conflict: this product no longer exists in your account.');
@@ -330,17 +330,20 @@ function propagateQueuedProductVersion(queue, fromIndex, productId, version) {
 
 async function syncPendingChanges() {
   if (!cloudUser || !navigator.onLine || syncingQueue || !supabaseClient) return false;
+  const syncUserId=cloudUser.id,syncEpoch=accountSessionEpoch;
+  const sessionCurrent=()=>accountRequestIsCurrent(syncUserId,syncEpoch);
   syncingQueue = true;
   try {
-    let queue = readQueue(cloudUser.id);
+    let queue = readQueue(syncUserId);
     for (let queueIndex=0;queueIndex<queue.length;queueIndex++) {
+      if(!sessionCurrent())return false;
       const item=queue[queueIndex];
       if (item.status === 'conflict') continue;
       try {
         const p = item.payload || {};
         if (item.type === 'product_save') {
           if (!p.isNew && p.product.updatedAt) {
-            const currentVersion=await currentProductVersion(p.product.id);
+            const currentVersion=await currentProductVersion(p.product.id,syncUserId);
             if(p.product.syncUpdatedAt&&currentVersion===p.product.syncUpdatedAt){
               // The database write already committed. Repeat the same idempotent update
               // so any unfinished photo publishing steps are retried as well.
@@ -349,8 +352,8 @@ async function syncPendingChanges() {
               throw Error('Conflict: this product changed on another phone. Review the product and try again.');
             }
           }
-          await cloudSaveProduct(p.product, p.isNew);
-          const newVersion=await currentProductVersion(p.product.id);
+          await cloudSaveProduct(p.product, p.isNew, syncUserId);
+          const newVersion=await currentProductVersion(p.product.id,syncUserId);
           p.product.updatedAt=newVersion;
           propagateQueuedProductVersion(queue,queueIndex,p.product.id,newVersion);
         } else if (item.type === 'stock_restock') {
@@ -359,25 +362,25 @@ async function syncPendingChanges() {
           if(error)throw error;
           // Restocking updates products.updated_at. Advance later queued changes for
           // this product so a sale made after the restock does not look stale.
-          const newVersion=await currentProductVersion(r.productId);
+          const newVersion=await currentProductVersion(r.productId,syncUserId);
           propagateQueuedProductVersion(queue,queueIndex,r.productId,newVersion);
         } else if (item.type === 'product_delete') {
           if (p.product.updatedAt) {
-            const currentVersion=await currentProductVersion(p.product.id);
+            const currentVersion=await currentProductVersion(p.product.id,syncUserId);
             if (currentVersion!==p.product.updatedAt) throw Error('Conflict: this product changed on another phone. Review it before deleting.');
           }
-          await cloudDeleteProduct(p.product);
+          await cloudDeleteProduct(p.product,syncUserId);
         } else if (item.type === 'product_remove_image') {
           if (p.product.updatedAt) {
-            const currentVersion=await currentProductVersion(p.product.id);
+            const currentVersion=await currentProductVersion(p.product.id,syncUserId);
             if (currentVersion!==p.product.updatedAt) throw Error('Conflict: this product changed on another phone. Review it before removing its photo.');
           }
-          await cloudRemoveProductImage(p.product);
-          const newVersion=await currentProductVersion(p.product.id);
+          await cloudRemoveProductImage(p.product,syncUserId);
+          const newVersion=await currentProductVersion(p.product.id,syncUserId);
           propagateQueuedProductVersion(queue,queueIndex,p.product.id,newVersion);
         } else if (item.type === 'sale') {
           if (!p.productUpdatedAt) throw Error('This sale was saved by an older app version and needs a fresh product check. Keep it on this phone and contact Sellbook Support before retrying.');
-          const currentVersion=await currentProductVersion(p.sale.productId);
+          const currentVersion=await currentProductVersion(p.sale.productId,syncUserId);
           if (currentVersion!==p.productUpdatedAt) throw Error('Conflict: this product changed on another phone. Check stock and product details before retrying this sale.');
           const {error} = await supabaseClient.rpc('record_sale_offline', {
             p_sale_id:p.sale.id,p_product_id:p.sale.productId,p_quantity:p.sale.qty,
@@ -386,10 +389,10 @@ async function syncPendingChanges() {
             p_expected_updated_at:p.productUpdatedAt
           });
           if (error) throw error;
-          const newVersion=await currentProductVersion(p.sale.productId);
+          const newVersion=await currentProductVersion(p.sale.productId,syncUserId);
           propagateQueuedProductVersion(queue,queueIndex,p.sale.productId,newVersion);
         } else if (item.type === 'sale_import') {
-          const user = await requireCloudUser();
+          const user = await requireCloudUser(syncUserId);
           const sale = p.sale;
           const {error} = await supabaseClient.from('sales').upsert({
             id:sale.id,user_id:user.id,product_id:sale.productId,product_name:sale.name,
@@ -398,7 +401,7 @@ async function syncPendingChanges() {
           }, {onConflict:'id',ignoreDuplicates:true});
           if (error) throw error;
         } else if (item.type === 'expense') {
-          const user = await requireCloudUser();
+          const user = await requireCloudUser(syncUserId);
           const {error} = await supabaseClient.from('expenses').upsert({
             id:p.expense.id,user_id:user.id,description:p.expense.name,
             amount:p.expense.amount,spent_at:p.expense.date
@@ -415,26 +418,29 @@ async function syncPendingChanges() {
           const {error}=await supabaseClient.from('user_profiles').upsert({user_id:user.id,business_name:String(profile.businessName||'').slice(0,100),business_logo:profile.businessLogo||null,updated_at:now()},{onConflict:'user_id'});
           if(error)throw error;
         }
+        if(!sessionCurrent())return false;
         item.status = 'synced';
         item.error = '';
-        writeQueue(queue, cloudUser.id);
+        writeQueue(queue, syncUserId);
       } catch (error) {
+        if(!sessionCurrent())return false;
         item.error = error.message || String(error);
         item.status = /insufficient stock|product not found|belongs to another account|duplicate key|unique constraint|conflict/i.test(item.error)
           ? 'conflict' : 'pending';
-        writeQueue(queue, cloudUser.id);
+        writeQueue(queue, syncUserId);
         break;
       }
     }
+    if(!sessionCurrent())return false;
     queue = queue.filter(item => item.status !== 'synced');
-    writeQueue(queue, cloudUser.id);
+    writeQueue(queue, syncUserId);
     if (!queue.length) {
       // Every queued operation has already been acknowledged by Supabase. A failed
       // follow-up refresh must not make callers roll back data that is already saved.
       try { await cloudLoadAll(); }
       catch(refreshError) {
         storageMode='cloud-offline';
-        cacheCloudData(cloudUser.id);
+        cacheCloudData(syncUserId);
         render();
         cloudMessage('Your changes were synchronised. Sellbook could not refresh the latest cloud copy, so it is showing the saved records on this device.');
         console.warn('Cloud refresh after successful sync failed:',refreshError);
@@ -444,7 +450,7 @@ async function syncPendingChanges() {
       applyPendingToDb();
       storageMode = 'cloud-offline';
       render();
-      cacheCloudData(cloudUser.id);
+      cacheCloudData(syncUserId);
       const firstError = queue.find(item => item.error)?.error;
       cloudMessage('Some changes are still waiting to sync. Your local copies are kept.' + (firstError ? ' Problem: ' + firstError : ''));
     }
@@ -966,11 +972,12 @@ async function cloudAction(action) {
   }
 }
 
-async function requireCloudUser() {
+async function requireCloudUser(expectedUserId=null) {
   if (!supabaseClient) throw Error('Cloud connection is unavailable.');
   const {data,error}=await supabaseClient.auth.getUser();
   if(error) throw error;
   if(!data.user) throw Error('Sign in with Google before saving cloud records.');
+  if(expectedUserId&&data.user.id!==expectedUserId)throw Error('Your Sellbook account changed during this operation. Please retry from the current account.');
   cloudUser=data.user;
   return data.user;
 }
@@ -1121,9 +1128,9 @@ async function cloudLoadAll() {
   return true;
 }
 
-async function cloudUploadProductImage(imageData) {
+async function cloudUploadProductImage(imageData,expectedUserId=cloudUser?.id) {
   if(!imageData||!imageData.startsWith('data:image/')) return null;
-  const user=await requireCloudUser();
+  const user=await requireCloudUser(expectedUserId);
   const match=imageData.match(/^data:(image\/(?:jpeg|png|webp));base64,([A-Za-z0-9+/=]+)$/);
   if(!match) throw Error('Choose a JPEG, PNG, or WebP photo.');
   const mime=match[1];
@@ -1177,12 +1184,12 @@ async function cloudPublishMarketplaceImage(product, user, imageData, existingPa
   }
 }
 
-async function cloudSaveProduct(product,isNew) {
-  const user=await requireCloudUser();
+async function cloudSaveProduct(product,isNew,expectedUserId=cloudUser?.id) {
+  const user=await requireCloudUser(expectedUserId);
   // Keep the original photo data before replacing it with a signed private-bucket URL.
   // The original data is the most reliable source for publishing the matching Buybook photo.
   const newImageData=product.image&&product.image.startsWith('data:image/')?product.image:null;
-  const imagePath= newImageData ? await cloudUploadProductImage(newImageData) : (product.imagePath||null);
+  const imagePath= newImageData ? await cloudUploadProductImage(newImageData,expectedUserId) : (product.imagePath||null);
   const row={user_id:user.id,name:product.name,category:normalizeCategory(product.category),cost_price:product.cost,selling_price:product.price,stock:product.stock,base_unit:product.baseUnit||'unit',purchase_unit:product.purchaseUnit||'unit',units_per_purchase:product.unitsPerPurchase||1,pack_unit:product.packUnit||null,units_per_pack:product.packUnit?(product.unitsPerPack||1):null,pack_selling_price:product.packUnit&&product.packPrice?product.packPrice:null,image_path:imagePath,updated_at:product.syncUpdatedAt||now()};
   const result=isNew
     // Retrying after a timed-out response must not create a duplicate-key conflict.
@@ -1273,8 +1280,8 @@ async function resolveQueuedProductConflict(queueItem,choice) {
   await syncPendingChanges();
 }
 
-async function cloudRemoveProductImage(product) {
-  const user=await requireCloudUser();
+async function cloudRemoveProductImage(product,expectedUserId=cloudUser?.id) {
+  const user=await requireCloudUser(expectedUserId);
   const oldPath=product.imagePath||null;
   const {error}=await supabaseClient.from('products').update({image_path:null,updated_at:now()}).eq('id',product.id).eq('user_id',user.id);
   if(error) throw error;
@@ -1287,8 +1294,8 @@ async function cloudRemoveProductImage(product) {
   product.imagePath='';
 }
 
-async function cloudDeleteProduct(product) {
-  const user=await requireCloudUser();
+async function cloudDeleteProduct(product,expectedUserId=cloudUser?.id) {
+  const user=await requireCloudUser(expectedUserId);
   const {error}=await supabaseClient.from('products').delete().eq('id',product.id).eq('user_id',user.id);
   if(error) throw error;
   if(product.imagePath){
@@ -2760,6 +2767,7 @@ function setAdminAccess(isAdmin){
 }
 function clearAccountScopedUiState(){
  accountSessionEpoch++;
+ pendingSync=[];
  setAdminAccess(false);
  setUnreadBadge('notificationBadge',0);
  setUnreadBadge('messageBadge',0);
