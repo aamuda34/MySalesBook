@@ -2698,7 +2698,11 @@ function setAdminAccess(isAdmin){
  // Invalidate all in-flight admin reads/writes when access is removed or changes.
  if(sellbookIsAdmin!==next||!next)adminAccessEpoch++;
  sellbookIsAdmin=next;
- if(!sellbookIsAdmin)adminUsersCache=[];
+ if(!sellbookIsAdmin){
+  adminUsersCache=[];
+  adminConversationRequestId++;
+  adminConversationLoading=false;
+ }
  document.body.classList.toggle('admin-mode',sellbookIsAdmin);
  document.getElementById('adminMenuTile')?.classList.toggle('hidden',!sellbookIsAdmin);
  if(sellbookIsAdmin&&currentPage()!=='admin'&&currentPage()!=='support')showPage('admin');
@@ -2706,8 +2710,6 @@ function setAdminAccess(isAdmin){
 }
 function clearAccountScopedUiState(){
  setAdminAccess(false);
- adminConversationRequestId++;
- adminConversationLoading=false;
  marketplaceSubscribersCache=[];
  marketplaceSelectedBuyerId=null;
  marketplaceReservationsCache=[];
