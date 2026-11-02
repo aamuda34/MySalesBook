@@ -144,6 +144,15 @@ jobs:
           grep -Fq 'let adminAccessEpoch=0;' app.js
           grep -Fq 'function adminRequestIsCurrent(userId,epoch)' app.js
           grep -Fq 'function clearAccountScopedUiState()' app.js
+          grep -Fq 'let authTransitionPending = false;' app.js
+          grep -Fq 'if (authTransition) { authTransitionPending = true; return; }' app.js
+          grep -Fq 'if(authTransitionPending){' app.js
+          grep -Fq 'async function requireCloudUser(expectedUserId=cloudUser?.id||null)' app.js
+          grep -Fq 'const syncUserId=cloudUser.id,syncEpoch=accountSessionEpoch;' app.js
+          grep -Fq 'const sessionCurrent=()=>accountRequestIsCurrent(syncUserId,syncEpoch);' app.js
+          grep -Fq 'if(!sessionCurrent())return false;' app.js
+          grep -Fq 'const expectedUserId=cloudUser?.id||null;' app.js
+          grep -Fq 'if(!accountRequestIsCurrent(user.id,loadEpoch))return false;' app.js
           grep -Fq 'let accountSessionEpoch = 0;' app.js
           grep -Fq 'function accountRequestIsCurrent(userId, epoch)' app.js
           grep -Fq 'let marketplaceActivityRequestId=0;' app.js
