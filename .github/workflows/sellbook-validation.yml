@@ -51,3 +51,14 @@ jobs:
           grep -q '<link rel="manifest" href="./manifest.webmanifest">' index.html
           grep -q 'display' manifest.webmanifest
           grep -Eq "const CACHE_NAME = 'sellbook-shell-v[0-9]+'" sw.js
+
+      - name: Verify PIN gate wiring and migration safety
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -q "get_app_pin_status" app.js
+          grep -q "set_app_pin" app.js
+          grep -q "verify_app_pin" app.js
+          grep -q "securityPinGate" index.html
+          grep -q "sellbook-shell-v68" sw.js
+          ! grep -Eiq '^[[:space:]]*rollback[[:space:]]*;' supabase/migrations/20261102143000_add_server_verified_sellbook_pin.sql
