@@ -146,6 +146,10 @@ jobs:
           grep -Fq 'function clearAccountScopedUiState()' app.js
           grep -Fq 'messengerSelectedConversation=null;' app.js
           grep -Fq 'marketplaceReservationsCache=[];' app.js
+          grep -Fq 'let adminConversationRequestId=0;' app.js
+          grep -Fq 'if(adminConversationRequestId===requestId)adminConversationLoading=false;' app.js
+          grep -Fq 'adminConversationRequestId++;' app.js
+          grep -Fq 'if(!adminRequestIsCurrent(requestedUserId,requestEpoch))return;' app.js
           grep -Fq 'if(!supabaseClient||!cloudUser||!sellbookIsAdmin)return;' app.js
           grep -Fq 'if(!adminRequestIsCurrent(requestedUserId,requestEpoch))return;' app.js
 
