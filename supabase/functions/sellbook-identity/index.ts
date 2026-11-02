@@ -113,7 +113,7 @@ Deno.serve(async (request: Request) => {
   }
 
   const authorization = request.headers.get("Authorization") || "";
-  const bearer = authorization.match(/^Bearer\\s+(.+)$/i)?.[1];
+  const bearer = authorization.match(/^Bearer\s+(.+)$/i)?.[1];
   if (!bearer) return json(401, { error: "authentication_required" });
 
   const supabaseUser = getClient(request, publishableKey);
@@ -229,7 +229,13 @@ Deno.serve(async (request: Request) => {
 
     const livenessId = String(liveness.id || "");
     const livenessUrl = String(liveness.url || "");
-    if (!livenessId || !/^https:\\/\\//i.test(livenessUrl)) {
+    let livenessUrlIsSecure = false;
+    try {
+      livenessUrlIsSecure = new URL(livenessUrl).protocol === "https:";
+    } catch (_) {
+      livenessUrlIsSecure = false;
+    }
+    if (!livenessId || !livenessUrlIsSecure) {
       await supabaseAdmin.from("identity_verification_attempts")
         .update({ state: "failed", completed_at: new Date().toISOString() })
         .eq("attempt_id", attemptId)
