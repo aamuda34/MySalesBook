@@ -52,7 +52,7 @@ jobs:
           npx --yes esbuild@0.25.0 supabase/functions/sellbook-identity/index.ts --bundle --format=esm --external:jsr:* --external:npm:* --outfile=/tmp/sellbook-identity-check.js
           grep -q 'get_identity_verification_status' supabase/functions/sellbook-identity/index.ts
           grep -q 'begin_identity_verification_attempt' supabase/functions/sellbook-identity/index.ts
-          grep -q 'claim_verified_identity' supabase/functions/sellbook-identity/index.ts
+          grep -q 'claim_and_finish_verified_identity' supabase/functions/sellbook-identity/index.ts
           grep -q 'crypto.subtle' supabase/functions/sellbook-identity/index.ts
           grep -q 'SELLBOOK_IDENTITY_LIVE_ENABLED' supabase/functions/sellbook-identity/index.ts
           grep -q 'duplicate_reference' supabase/functions/sellbook-identity/index.ts
@@ -86,9 +86,9 @@ jobs:
           grep -q 'attach_identity_liveness_session' supabase/functions/sellbook-identity/index.ts
           grep -q 'get_identity_verification_attempt' supabase/functions/sellbook-identity/index.ts
           grep -q 'finish_identity_verification_attempt' supabase/functions/sellbook-identity/index.ts
-          test -s supabase/migrations/20261102162000_claim_and_finish_verified_identity_atomically.sql
-          grep -q 'claim_and_finish_verified_identity' supabase/migrations/20261102162000_claim_and_finish_verified_identity_atomically.sql
-          grep -q 'revoke all on function public.claim_and_finish_verified_identity' supabase/migrations/20261102162000_claim_and_finish_verified_identity_atomically.sql
+          test -s supabase/migrations/20261102153253_claim_and_finish_verified_identity_atomically.sql
+          grep -q 'claim_and_finish_verified_identity' supabase/migrations/20261102153253_claim_and_finish_verified_identity_atomically.sql
+          grep -q 'revoke all on function public.claim_and_finish_verified_identity' supabase/migrations/20261102153253_claim_and_finish_verified_identity_atomically.sql
           grep -q 'claim_and_finish_verified_identity' supabase/functions/sellbook-identity/index.ts
           grep -q 'attempt_finalized' supabase/functions/sellbook-identity/index.ts
           grep -q 'verification.type === "nin"' supabase/functions/sellbook-identity/index.ts
