@@ -1153,3 +1153,13 @@ body:has(#me.page:not(.hidden)) #appWorkspace>main{padding-top:0!important;}
 @media(max-width:480px){.security-pin-gate{margin:20px 0 24px;padding:20px}}
 
 .security-pin-cancel{display:block;width:100%;margin-top:6px;min-height:44px;border:1px solid var(--border);border-radius:12px;background:transparent;color:var(--text);font:inherit;font-weight:650}
+
+
+/* Messenger standalone page header and return navigation. */
+#messenger .messenger-main-heading{display:flex;align-items:center;gap:10px;min-height:58px;padding:0 2px;border-bottom:1px solid var(--border)}
+#messenger .messenger-page-back{width:40px;height:40px;flex:0 0 40px;display:grid;place-items:center;padding:0;border:0;border-radius:50%;background:transparent;color:var(--ink)}
+#messenger .messenger-page-back svg{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+#messenger .messenger-page-title{flex:1;min-width:0}
+#messenger .messenger-page-title .page-title{margin:0;font-size:21px;font-weight:700;color:var(--ink)}
+#messenger .messenger-page-title .page-intro{margin:2px 0 0;font-size:12px}
+#messenger .messenger-page-back:active{transform:scale(.96)}
