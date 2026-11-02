@@ -2439,8 +2439,13 @@ document.getElementById('deleteAccountBtn').addEventListener('click', async () =
     // Accounts that have not created a PIN may still delete their own account.
     const {data:pinStatus,error:pinStatusError}=await supabaseClient.rpc('get_app_pin_status');
     if(pinStatusError) throw pinStatusError;
-    if(pinStatus?.has_pin===true&&pinStatus?.verified!==true){
-      throw Error('Your Sellbook PIN session has expired. Verify your PIN again, then retry account deletion.');
+    const pinExpiry=Date.parse(pinStatus?.expires_at||'');
+    if(pinStatus?.has_pin===true&&(
+      pinStatus?.verified!==true||
+      !Number.isFinite(pinExpiry)||
+      pinExpiry<=Date.now()+10*60*1000
+    )){
+      throw Error('Verify your Sellbook PIN again before account deletion. Your current PIN session must remain valid while your stored photos are removed.');
     }
 
     // Product photos and their separate public Buybook copies live in two buckets.
