@@ -25,7 +25,24 @@ let db={products:[],sales:[],expenses:[],stockAdjustments:[],restocks:[],profile
 function normalizeDb(v){return {products:Array.isArray(v?.products)?v.products:[],sales:Array.isArray(v?.sales)?v.sales:[],expenses:Array.isArray(v?.expenses)?v.expenses:[],stockAdjustments:Array.isArray(v?.stockAdjustments)?v.stockAdjustments:[],restocks:Array.isArray(v?.restocks)?v.restocks:[],productAdditions:Array.isArray(v?.productAdditions)?v.productAdditions:[],profile:v?.profile&&typeof v.profile==='object'?v.profile:{businessName:'',businessLogo:''}};}
 let lowStockThreshold=Number(localStorage.getItem('my-sales-book-low-stock-v1')||5);if(!Number.isSafeInteger(lowStockThreshold)||lowStockThreshold<0)lowStockThreshold=5;
 
-function applyTheme(){document.body.classList.remove('dark');}
+const THEME_PREFERENCE_KEY='my-sales-book-theme-v1';
+function applyTheme(){
+ const preference=localStorage.getItem(THEME_PREFERENCE_KEY)==='dark'?'dark':'light';
+ document.body.classList.toggle('dark',preference==='dark');
+ const themeColor=document.querySelector('meta[name="theme-color"]');
+ if(themeColor)themeColor.setAttribute('content',preference==='dark'?'#100b18':'#14532d');
+ const control=document.getElementById('themePreference');
+ if(control&&control.value!==preference)control.value=preference;
+}
+const themePreferenceControl=document.getElementById('themePreference');
+if(themePreferenceControl){
+ themePreferenceControl.value=localStorage.getItem(THEME_PREFERENCE_KEY)==='dark'?'dark':'light';
+ themePreferenceControl.addEventListener('change',()=>{
+  const selected=themePreferenceControl.value==='dark'?'dark':'light';
+  localStorage.setItem(THEME_PREFERENCE_KEY,selected);
+  applyTheme();
+ });
+}
 function safeDate(value){const d=new Date(value);return Number.isNaN(d.getTime())?new Date(0):d;}
 function dateKey(value){const d=safeDate(value);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
 function validDateKey(value){if(value==null||value==='')return null;const raw=String(value);if(/^\d{4}-\d{2}-\d{2}$/.test(raw)){const [year,month,day]=raw.split('-').map(Number);const check=new Date(year,month-1,day);return check.getFullYear()===year&&check.getMonth()===month-1&&check.getDate()===day?raw:null;}const d=new Date(value);if(!Number.isFinite(d.getTime()))return null;return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
