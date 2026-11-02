@@ -2435,13 +2435,47 @@ document.getElementById('deleteAccountBtn').addEventListener('click', async () =
     const user = await requireCloudUser();
     const pendingBeforeDelete = readQueue(user.id).filter(item => item.status !== 'synced');
     if (pendingBeforeDelete.length && !confirm('There are ' + pendingBeforeDelete.length + ' unsynchronised change(s). Deleting the account will also remove this account\'s local cache and pending queue. Continue?')) return;
-    const {data:files,error:listError} = await supabaseClient.storage.from('product-images').list(user.id,{limit:1000});
-    if (listError) throw listError;
-    const paths = (files||[]).filter(file=>file.name && !file.id?.endsWith('/')).map(file=>user.id+'/'+file.name);
-    if (paths.length) {
-      const {error:removeError} = await supabaseClient.storage.from('product-images').remove(paths);
-      if (removeError) throw removeError;
+    // Recheck the server-side PIN immediately before touching stored photos.
+    // Accounts that have not created a PIN may still delete their own account.
+    const {data:pinStatus,error:pinStatusError}=await supabaseClient.rpc('get_app_pin_status');
+    if(pinStatusError) throw pinStatusError;
+    if(pinStatus?.has_pin===true&&pinStatus?.verified!==true){
+      throw Error('Your Sellbook PIN session has expired. Verify your PIN again, then retry account deletion.');
     }
+
+    // Product photos and their separate public Buybook copies live in two buckets.
+    // List all pages so large product catalogues are not left with orphaned images.
+    const buckets=['marketplace-product-images','product-images'];
+    const pathsByBucket={};
+    for(const bucket of buckets){
+      const paths=[];
+      let offset=0;
+      for(let page=0;page<100;page++){
+        const {data:files,error:listError}=await supabaseClient.storage.from(bucket).list(user.id,{
+          limit:1000,
+          offset,
+          sortBy:{column:'name',order:'asc'}
+        });
+        if(listError) throw Error('Could not list your '+bucket+' files. No account records were deleted.');
+        const pageFiles=files||[];
+        paths.push(...pageFiles.filter(file=>file?.id&&file?.name).map(file=>user.id+'/'+file.name));
+        if(pageFiles.length<1000) break;
+        offset+=pageFiles.length;
+        if(page===99) throw Error('This account has too many stored photos to safely finish deletion in one attempt. Contact Sellbook support.');
+      }
+      pathsByBucket[bucket]=paths;
+    }
+
+    // Remove in small batches supported by Storage while the verified session
+    // still owns both folders. Any storage error aborts before account rows are deleted.
+    for(const bucket of buckets){
+      const paths=pathsByBucket[bucket];
+      for(let offset=0;offset<paths.length;offset+=100){
+        const {error:removeError}=await supabaseClient.storage.from(bucket).remove(paths.slice(offset,offset+100));
+        if(removeError) throw Error('Could not finish removing your '+bucket+' files. Your account has not yet been deleted. Retry deletion or contact Sellbook support.');
+      }
+    }
+
     const { error } = await supabaseClient.rpc('delete_my_account');
     if (error) throw error;
     localStorage.removeItem(cloudCacheKey(user.id));
