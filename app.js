@@ -3013,19 +3013,31 @@ async function loadUserSupport(){
  await updateUnreadBadges();
 }
 document.getElementById('userFeedbackForm').addEventListener('submit',async e=>{
- e.preventDefault();if(!cloudUser)return document.getElementById('feedbackFormStatus').textContent='Please sign in first.';
+ e.preventDefault();if(!cloudUser||!supabaseClient)return document.getElementById('feedbackFormStatus').textContent='Please sign in first.';
+ const requestedUserId=cloudUser.id,requestEpoch=accountSessionEpoch,current=()=>accountRequestIsCurrent(requestedUserId,requestEpoch);
  const status=document.getElementById('feedbackFormStatus');status.textContent='Sending…';
- const {error}=await supabaseClient.from('user_feedback').insert({user_id:cloudUser.id,category:document.getElementById('feedbackCategory').value,subject:document.getElementById('feedbackSubject').value.trim(),message:document.getElementById('feedbackMessage').value.trim()});
- if(error){status.textContent='Could not send feedback: '+error.message;return;}e.target.reset();status.textContent='Feedback sent. Thank you.';await loadUserSupport();
+ try{
+  const {error}=await supabaseClient.from('user_feedback').insert({user_id:requestedUserId,category:document.getElementById('feedbackCategory').value,subject:document.getElementById('feedbackSubject').value.trim(),message:document.getElementById('feedbackMessage').value.trim()});
+  if(!current())return;
+  if(error){status.textContent='Could not send feedback: '+error.message;return;}
+  e.target.reset();status.textContent='Feedback sent. Thank you.';await loadUserSupport();
+ }catch(error){if(current())status.textContent='Could not send feedback: '+(error.message||'Please try again.');}
 });
 document.getElementById('supportMessageForm').addEventListener('submit',async e=>{
- e.preventDefault();if(!cloudUser)return document.getElementById('supportMessageStatus').textContent='Please sign in first.';
- const form=e.target,body=document.getElementById('supportMessageBody'),status=document.getElementById('supportMessageStatus'),button=form.querySelector('button[type="submit"]'),message=body.value.trim(),chosen=document.getElementById('messageConversationSelect')?.value||'support';if(!message)return;
- button.disabled=true;status.textContent='Sending…';let error;
- if(chosen==='support'){({error}=await supabaseClient.from('support_messages').insert({sender_id:cloudUser.id,recipient_id:null,body:message}));}
- else{({error}=await supabaseClient.from('marketplace_messages').insert({owner_id:cloudUser.id,buyer_id:chosen,sender_id:cloudUser.id,body:message}));}
- button.disabled=false;if(error){status.textContent='Could not send message: '+error.message;return;}
- form.reset();body.style.height='auto';status.textContent='';await loadUserSupport();
+ e.preventDefault();if(!cloudUser||!supabaseClient)return document.getElementById('supportMessageStatus').textContent='Please sign in first.';
+ const requestedUserId=cloudUser.id,requestEpoch=accountSessionEpoch,chosenConversation= document.getElementById('messageConversationSelect')?.value||'support';
+ const current=()=>accountRequestIsCurrent(requestedUserId,requestEpoch)&&String(document.getElementById('messageConversationSelect')?.value||'support')===String(chosenConversation);
+ const form=e.target,body=document.getElementById('supportMessageBody'),status=document.getElementById('supportMessageStatus'),button=form.querySelector('button[type="submit"]'),message=body.value.trim();if(!message)return;
+ button.disabled=true;status.textContent='Sending…';
+ try{
+  let error;
+  if(chosenConversation==='support')({error}=await supabaseClient.from('support_messages').insert({sender_id:requestedUserId,recipient_id:null,body:message}));
+  else ({error}=await supabaseClient.from('marketplace_messages').insert({owner_id:requestedUserId,buyer_id:chosenConversation,sender_id:requestedUserId,body:message}));
+  if(!current())return;
+  if(error){status.textContent='Could not send message: '+error.message;return;}
+  form.reset();body.style.height='auto';status.textContent='';await loadUserSupport();
+ }catch(error){if(current())status.textContent='Could not send message: '+(error.message||'Please try again.');}
+ finally{button.disabled=false;}
 });
 
 let messengerSelectedConversation=null;
