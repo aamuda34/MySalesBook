@@ -133,15 +133,48 @@ let recoveryMode = window.location.hash.includes('type=recovery');
 const cloudCacheKey = userId => 'my-sales-book-cloud-cache-v1:' + userId;
 const cloudQueueKey = userId => 'my-sales-book-sync-queue-v1:' + userId;
 
+const queueRecoveryKey = userId => cloudQueueKey(userId) + ':recovery';
+const queueReadErrors = new Map();
 function readQueue(userId=cloudUser?.id) {
   if (!userId) return [];
+  const key=cloudQueueKey(userId);
+  let raw=null;
   try {
-    const value = JSON.parse(localStorage.getItem(cloudQueueKey(userId)) || '[]');
-    return Array.isArray(value) ? value : [];
-  } catch (_) { return []; }
+    raw=localStorage.getItem(key);
+    if(raw===null){queueReadErrors.delete(userId);return [];}
+    const value=JSON.parse(raw);
+    if(!Array.isArray(value)||value.some(item=>!item||typeof item!=='object'||typeof item.id!=='string'||typeof item.type!=='string'||!item.payload||typeof item.payload!=='object')){
+      throw Error('The saved sync queue has an invalid structure.');
+    }
+    queueReadErrors.delete(userId);
+    return value;
+  } catch (error) {
+    queueReadErrors.set(userId,error);
+    // Preserve the exact bytes that failed parsing/validation before any later
+    // app action can overwrite the queue. Replace a stale recovery copy so it
+    // always matches the current original queue. The original key is untouched.
+    try {
+      const backupKey=queueRecoveryKey(userId);
+      if(raw===null)raw=localStorage.getItem(key);
+      if(raw!==null&&localStorage.getItem(backupKey)!==raw)localStorage.setItem(backupKey,raw);
+    } catch(backupError) {
+      console.error('Sellbook could not create a second copy of the damaged sync queue:',backupError);
+    }
+    return [];
+  }
+}
+function downloadQueueRecovery(userId) {
+  if(!userId)return;
+  const raw=localStorage.getItem(queueRecoveryKey(userId))??localStorage.getItem(cloudQueueKey(userId));
+  if(raw===null)return cloudMessage('The original sync queue is unavailable on this device.');
+  const blob=new Blob([raw],{type:'application/json'});
+  const url=URL.createObjectURL(blob),a=document.createElement('a');
+  a.href=url;a.download='sellbook-sync-recovery-'+today()+'.json';a.click();
+  setTimeout(()=>URL.revokeObjectURL(url),1000);
 }
 function writeQueue(queue, userId=cloudUser?.id) {
   if (!userId) throw Error('Sign in to keep changes attached to your account.');
+  if(queueReadErrors.has(userId))throw Error('Sellbook could not read the existing unsynchronised queue. The original data has been preserved. Download the recovery file and contact Sellbook Support before making further cloud changes.');
   localStorage.setItem(cloudQueueKey(userId), JSON.stringify(queue));
   pendingSync = queue;
   updateSyncStatus();
@@ -197,13 +230,20 @@ function updateSyncStatus() {
   if (!el || !button) return;
   const waiting = pendingSync.filter(item => item.status !== 'synced').length;
   const conflicts = pendingSync.filter(item => item.status === 'conflict').length;
+  const queueRecoveryRequired=!!cloudUser&&queueReadErrors.has(cloudUser.id);
   el.textContent = !cloudUser ? 'Sign in to sync your business records.' :
+    queueRecoveryRequired ? 'The saved sync queue needs recovery. Sellbook has stopped syncing to protect your unsynchronised records.' :
     conflicts ? conflicts + ' change(s) need attention. ' + waiting + ' change(s) remain unsynchronised.' :
     !navigator.onLine ? (waiting ? waiting + ' change(s) waiting to sync. Offline.' : 'Offline. Showing the last saved cloud records.') :
     waiting ? waiting + ' change(s) waiting to sync.' : 'All changes synchronised.';
-  button.disabled = !cloudUser || !navigator.onLine || syncingQueue;
+  button.disabled = !cloudUser || queueRecoveryRequired || !navigator.onLine || syncingQueue;
   const details = document.getElementById('syncDetails');
   if (details) {
+    if(queueRecoveryRequired){
+      details.innerHTML='<div class="item"><strong>Unsynchronised data protected</strong><p>The original sync queue was not overwritten. Download its preserved copy and contact Sellbook Support before clearing browser data or switching devices.</p><button type="button" id="downloadSyncRecovery">Download recovery file</button></div>';
+      details.querySelector('#downloadSyncRecovery')?.addEventListener('click',()=>downloadQueueRecovery(cloudUser?.id));
+      return;
+    }
     details.innerHTML = pendingSync.filter(item=>item.status!=='synced').slice(0,10).map(item=>{
       const payload=item.payload||{};
       const label=item.type==='product_save'?'Product: '+(payload.product?.name||'item'):
@@ -234,6 +274,7 @@ function enqueueChanges(changes) {
   if (!cloudUser) throw Error('Sign in before saving business records.');
   if (!Array.isArray(changes) || !changes.length) return;
   const key=cloudQueueKey(cloudUser.id),previous=readQueue(cloudUser.id);
+  if(queueReadErrors.has(cloudUser.id))throw Error('The existing unsynchronised queue could not be read. Download the recovery file and contact Sellbook Support before adding more cloud changes.');
   const additions=changes.map(change=>{
     const payload=JSON.parse(JSON.stringify(change.payload));
     // A stable timestamp makes a product update safe to retry if the server committed
@@ -365,23 +406,39 @@ async function syncPendingChanges() {
           const newVersion=await currentProductVersion(r.productId,syncUserId);
           propagateQueuedProductVersion(queue,queueIndex,r.productId,newVersion);
         } else if (item.type === 'product_delete') {
-          if (p.product.updatedAt) {
-            const currentVersion=await currentProductVersion(p.product.id,syncUserId);
-            if (currentVersion!==p.product.updatedAt) throw Error('Conflict: this product changed on another phone. Review it before deleting.');
-          }
+          const {data:currentProduct,error:versionError}=await supabaseClient.from('products').select('updated_at').eq('id',p.product.id).eq('user_id',syncUserId).maybeSingle();
+          if(versionError)throw versionError;
+          // A retry after a successful delete but a lost acknowledgement must be safe.
+          // A missing row means the requested delete has already completed.
+          if(currentProduct&&p.product.updatedAt&&currentProduct.updated_at!==p.product.updatedAt)throw Error('Conflict: this product changed on another phone. Review it before deleting.');
           await cloudDeleteProduct(p.product,syncUserId);
         } else if (item.type === 'product_remove_image') {
-          if (p.product.updatedAt) {
-            const currentVersion=await currentProductVersion(p.product.id,syncUserId);
-            if (currentVersion!==p.product.updatedAt) throw Error('Conflict: this product changed on another phone. Review it before removing its photo.');
+          const {data:currentProduct,error:versionError}=await supabaseClient.from('products').select('updated_at,image_path').eq('id',p.product.id).eq('user_id',syncUserId).maybeSingle();
+          if(versionError)throw versionError;
+          if(!currentProduct)throw Error('Conflict: this product no longer exists in your account.');
+          if(p.product.updatedAt&&currentProduct.updated_at!==p.product.updatedAt){
+            // The image update may have committed even though the phone did not
+            // receive its acknowledgement. Do not erase a newer image from
+            // another device; only finish cleanup when the cloud pointer is empty.
+            if(currentProduct.image_path===null&&p.product.imagePath){
+              const {error:cleanupError}=await supabaseClient.storage.from('product-images').remove([p.product.imagePath]);
+              if(cleanupError)throw cleanupError;
+            }else{
+              throw Error('Conflict: this product changed on another phone. Review it before removing its photo.');
+            }
+          }else{
+            await cloudRemoveProductImage(p.product,syncUserId);
           }
-          await cloudRemoveProductImage(p.product,syncUserId);
           const newVersion=await currentProductVersion(p.product.id,syncUserId);
           propagateQueuedProductVersion(queue,queueIndex,p.product.id,newVersion);
         } else if (item.type === 'sale') {
           if (!p.productUpdatedAt) throw Error('This sale was saved by an older app version and needs a fresh product check. Keep it on this phone and contact Sellbook Support before retrying.');
-          const currentVersion=await currentProductVersion(p.sale.productId,syncUserId);
-          if (currentVersion!==p.productUpdatedAt) throw Error('Conflict: this product changed on another phone. Check stock and product details before retrying this sale.');
+          // The database RPC performs both the version check and the stock deduction
+          // under a row lock, and checks p_sale_id for an existing committed sale
+          // before checking the version. This makes a retry after a lost network
+          // acknowledgement safe without allowing a stale sale to overdraw stock.
+          // A separate client-side version read here would incorrectly turn a
+          // successfully committed sale into a conflict on the retry.
           const {error} = await supabaseClient.rpc('record_sale_offline', {
             p_sale_id:p.sale.id,p_product_id:p.sale.productId,p_quantity:p.sale.qty,
             p_unit_price:p.sale.price,p_note:p.sale.note||null,p_sold_at:p.sale.date,
@@ -417,6 +474,9 @@ async function syncPendingChanges() {
           const user=await requireCloudUser(syncUserId),profile=p.profile||{};
           const {error}=await supabaseClient.from('user_profiles').upsert({user_id:user.id,business_name:String(profile.businessName||'').slice(0,100),business_logo:profile.businessLogo||null,updated_at:now()},{onConflict:'user_id'});
           if(error)throw error;
+        } else {
+          // Never mark an unrecognised future/legacy operation as synchronised.
+          throw Error('Unsupported queued change type "'+String(item.type||'unknown')+'". Keep this device data and contact Sellbook Support before clearing the sync queue.');
         }
         if(!sessionCurrent())return false;
         item.status = 'synced';
@@ -425,7 +485,7 @@ async function syncPendingChanges() {
       } catch (error) {
         if(!sessionCurrent())return false;
         item.error = error.message || String(error);
-        item.status = /insufficient stock|product not found|belongs to another account|duplicate key|unique constraint|conflict/i.test(item.error)
+        item.status = /insufficient stock|product not found|belongs to another account|duplicate key|unique constraint|conflict|unsupported queued change/i.test(item.error)
           ? 'conflict' : 'pending';
         writeQueue(queue, syncUserId);
         break;
