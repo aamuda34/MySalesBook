@@ -211,13 +211,14 @@ body.admin-conversation-open #backAdminChatList{font-size:15px}
 /* Floating action and subscriber picker for starting a new chat */
 #messenger .messenger-new-chat{position:fixed;z-index:35;right:22px;bottom:calc(86px + env(safe-area-inset-bottom));width:58px;height:58px;border:0;border-radius:50%;display:grid;place-items:center;background:var(--green);color:#fff;box-shadow:0 5px 18px rgba(0,0,0,.22)}
 #messenger .messenger-new-chat svg{width:27px;height:27px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
-#messenger .messenger-picker-overlay{position:fixed;z-index:100;inset:0;background:rgba(0,0,0,.48);display:flex;align-items:flex-end;justify-content:center}
+#messenger .messenger-picker-overlay{position:fixed;z-index:3200;inset:0;background:var(--page);display:flex;align-items:stretch;justify-content:center}
 #messenger .messenger-picker-overlay.hidden{display:none}
-#messenger .messenger-picker-sheet{width:100%;max-width:560px;max-height:82dvh;display:flex;flex-direction:column;background:var(--surface);color:var(--ink);border-radius:20px 20px 0 0;padding:18px 14px calc(16px + env(safe-area-inset-bottom));box-shadow:0 -8px 35px rgba(0,0,0,.2)}
+#messenger .messenger-picker-sheet{width:100%;max-width:none;height:100%;max-height:none;display:flex;flex-direction:column;background:var(--surface);color:var(--ink);border-radius:0;padding:calc(14px + env(safe-area-inset-top)) 14px calc(16px + env(safe-area-inset-bottom));box-shadow:none}
 #messenger .messenger-picker-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:0 4px 12px}
 #messenger .messenger-picker-heading h3{margin:0;color:var(--green);font-size:20px}
 #messenger .messenger-picker-heading p{margin:4px 0 0;color:var(--muted);font-size:13px}
-#messenger #closeMessengerSubscriberPicker{border:0;border-radius:50%;width:38px;height:38px;background:var(--soft);color:var(--ink);font-size:26px}
+#messenger #closeMessengerSubscriberPicker{display:grid;place-items:center;flex:0 0 40px;border:0;border-radius:50%;width:40px;height:40px;padding:0;background:var(--soft);color:var(--ink)}
+#messenger #closeMessengerSubscriberPicker svg{width:23px;height:23px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 #messenger #messengerSubscriberSearch{width:100%;padding:12px 15px;border:1px solid var(--border);border-radius:24px;background:var(--soft);color:var(--ink);margin-bottom:10px}
 #messenger .messenger-picker-list{overflow-y:auto;min-height:100px}
 #messenger .messenger-picker-row{width:100%;display:flex;align-items:center;gap:12px;padding:12px 8px;text-align:left;border:0;border-bottom:1px solid var(--border);background:transparent;color:var(--ink)}
@@ -1068,68 +1069,13 @@ body.dark :where(.sales-history-row small,.sales-history-row-main small,
 .expense-history-row small,.expense-item small,.sale-history-item small){color:#c5bdcf!important}
 
 
-/* Keep primary navigation visible on the Messenger homepage only. */
+/* Messenger is a standalone page on mobile: hide the app navigation on both
+   the conversation list and an individual chat. */
 @media(max-width:600px){
-  body.messenger-open #appWorkspace>nav{
-    position:fixed!important;
-    left:0!important;
-    right:0!important;
-    bottom:0!important;
-    z-index:3010!important;
-    display:grid!important;
-    grid-template-columns:repeat(3,minmax(0,1fr))!important;
-    gap:6px!important;
-    width:100%!important;
-    height:calc(72px + env(safe-area-inset-bottom))!important;
-    margin:0!important;
-    padding:7px 12px calc(7px + env(safe-area-inset-bottom))!important;
-    background:var(--surface)!important;
-    border-top:1px solid var(--border)!important;
-    box-shadow:0 -3px 14px rgba(0,0,0,.08)!important;
-    visibility:visible!important;
-  }
-  body.messenger-open #appWorkspace>nav button{
-    min-width:0!important;
-    padding:5px 4px!important;
-    display:flex!important;
-    flex-direction:column!important;
-    align-items:center!important;
-    justify-content:center!important;
-    gap:3px!important;
-    background:transparent!important;
-    color:var(--muted)!important;
-  }
-  body.messenger-open #appWorkspace>nav button.active{
-    color:var(--green)!important;
-    background:transparent!important;
-  }
-  body.messenger-open #appWorkspace>nav .nav-icon svg{width:22px;height:22px}
-  body.messenger-open #messenger{
-    inset:0 0 calc(72px + env(safe-area-inset-bottom)) 0!important;
-    height:auto!important;
-    max-height:none!important;
-  }
-  body.messenger-open.messenger-conversation-open #messengerChatCard{
-    inset:0 0 calc(72px + env(safe-area-inset-bottom)) 0!important;
-    height:auto!important;
-    max-height:none!important;
-  }
+  body.messenger-open #appWorkspace>nav{display:none!important;visibility:hidden!important}
+  body.messenger-open #messenger{inset:0!important;height:100dvh!important;max-height:100dvh!important}
+  body.messenger-open.messenger-conversation-open #messengerChatCard{inset:0!important;height:100dvh!important;max-height:100dvh!important}
   body.messenger-open #quickSaleFab{display:none!important}
-}
-
-
-/* An individual Messenger conversation is a focused full-screen chat:
-   hide the main navigation and let the conversation use the full viewport. */
-@media(max-width:600px){
-  body.messenger-open.messenger-conversation-open #appWorkspace>nav{
-    display:none!important;
-    visibility:hidden!important;
-  }
-  body.messenger-open.messenger-conversation-open #messengerChatCard{
-    inset:0!important;
-    height:100dvh!important;
-    max-height:100dvh!important;
-  }
 }
 
 /* First-name label at the top-left of the Me panel. */
