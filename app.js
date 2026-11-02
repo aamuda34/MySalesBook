@@ -1182,7 +1182,7 @@ function paintPage(name,scroll){if(!VALID_PAGES.has(name))name='home';if(name===
     return match&&VALID_PAGES.has(match[1])?match[1]:(parentPages[current]||'home');
   }
   document.addEventListener('click',function(event){
-    const button=event.target.closest('.products-back-button,.settings-back-button,.business-profile-back,.reports-back-button,.notifications-back-button,.support-back-button,.stock-back-button,.stock-history-back-button,.stock-history-detail-back-button,.settings-main-back-button,.about-sellbook-back-button,.legal-page-back,[data-app-back],[aria-label^="Back"],[aria-label^="Go back"]');
+    const button=event.target.closest('.products-back-button,.settings-back-button,.business-profile-back,.reports-back-button,.notifications-back-button,.support-back-button,.stock-back-button,.stock-history-back-button,.stock-history-detail-back-button,.settings-main-back-button,.about-sellbook-back-button,.legal-page-back,[data-app-back]');
     if(!button)return;
     // Resolve the page from the clicked arrow's own section, not from a
     // global first-visible-page lookup. This prevents stale/overlapping page
