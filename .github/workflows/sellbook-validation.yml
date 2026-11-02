@@ -145,6 +145,9 @@ jobs:
           grep -Fq 'function adminRequestIsCurrent(userId,epoch)' app.js
           grep -Fq 'function clearAccountScopedUiState()' app.js
           grep -Fq 'let authTransitionPending = false;' app.js
+          grep -Fq 'const nextUserId=session?.user?.id||null;' app.js
+          grep -Fq 'if((cloudUser?.id||null)!==nextUserId){' app.js
+          grep -Fq 'cloudUser=null;' app.js
           grep -Fq 'if (authTransition) { authTransitionPending = true; return; }' app.js
           grep -Fq 'if(authTransitionPending){' app.js
           grep -Fq 'async function requireCloudUser(expectedUserId=cloudUser?.id||null)' app.js
