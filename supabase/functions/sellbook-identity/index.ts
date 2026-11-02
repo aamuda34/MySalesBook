@@ -106,15 +106,41 @@ Deno.serve(async (request: Request) => {
     return json(405, { error: "method_not_allowed" });
   }
 
-  const apiKey = Deno.env.get("BYTID_API_KEY");
-  const hmacSecret = Deno.env.get("SELLBOOK_IDENTITY_HMAC_SECRET");
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
   const publishableKey = getPublishableKey();
-  const secretKey = getSecretKey();
+  if (!supabaseUrl || !publishableKey) {
+    return json(503, { error: "supabase_function_configuration_missing" });
+  }
 
-  // No identity calls (and therefore no biometric or paid checks) can happen
-  // until the project owner explicitly configures the provider and HMAC secrets.
-  if (!apiKey || !hmacSecret || !supabaseUrl || !publishableKey || !secretKey) {
+  const authorization = request.headers.get("Authorization") || "";
+  const bearer = authorization.match(/^Bearer\\s+(.+)$/i)?.[1];
+  if (!bearer) return json(401, { error: "authentication_required" });
+
+  const supabaseUser = getClient(request, publishableKey);
+  const { data: userResult, error: userError } = await supabaseUser.auth.getUser(bearer);
+  const user = userResult?.user;
+  if (userError || !user) return json(401, { error: "invalid_session" });
+
+  let body: Record<string, unknown>;
+  try {
+    body = await request.json();
+  } catch (_) {
+    return json(400, { error: "invalid_json" });
+  }
+
+  const action = body.action;
+  if (action === "status") {
+    const { data, error } = await supabaseUser.rpc("get_identity_verification_status");
+    if (error) return json(503, { error: "identity_status_unavailable" });
+    return json(200, { data });
+  }
+
+  const apiKey = Deno.env.get("BYTID_API_KEY");
+  const hmacSecret = Deno.env.get("SELLBOOK_IDENTITY_HMAC_SECRET");
+  const secretKey = getSecretKey();
+  // No provider call can happen until both the provider key and HMAC secret
+  // are configured. A live key also requires an explicit owner-side live switch.
+  if (!apiKey || !hmacSecret || hmacSecret.length < 32 || !secretKey) {
     return json(503, {
       error: "identity_verification_not_configured",
       message: "Sellbook identity verification is not enabled yet.",
@@ -132,32 +158,9 @@ Deno.serve(async (request: Request) => {
     return json(503, { error: "invalid_provider_environment" });
   }
 
-  const authorization = request.headers.get("Authorization") || "";
-  const bearer = authorization.match(/^Bearer\s+(.+)$/i)?.[1];
-  if (!bearer) return json(401, { error: "authentication_required" });
-
-  const supabaseUser = getClient(request, publishableKey);
-  const { data: userResult, error: userError } = await supabaseUser.auth.getUser(bearer);
-  const user = userResult?.user;
-  if (userError || !user) return json(401, { error: "invalid_session" });
-
   const supabaseAdmin = createClient(supabaseUrl, secretKey, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
-
-  let body: Record<string, unknown>;
-  try {
-    body = await request.json();
-  } catch (_) {
-    return json(400, { error: "invalid_json" });
-  }
-
-  const action = body.action;
-  if (action === "status") {
-    const { data, error } = await supabaseUser.rpc("get_identity_verification_status");
-    if (error) return json(503, { error: "identity_status_unavailable" });
-    return json(200, { data });
-  }
 
   if (body.consent_accepted !== true || body.consent_version !== CONSENT_VERSION) {
     return json(400, {
@@ -180,7 +183,35 @@ Deno.serve(async (request: Request) => {
     const redirectUrl = new URL("/", APP_ORIGIN);
     redirectUrl.searchParams.set("identity_verification", "return");
 
-    const reference = "sellbook-" + user.id + "-" + crypto.randomUUID();
+    const attemptId = crypto.randomUUID();
+    const reference = "sellbook-" + user.id + "-" + attemptId;
+
+    // The database reserves an attempt under an account-scoped advisory lock.
+    // This prevents parallel start requests from generating multiple billable sessions.
+    const { data: reservedAttempt, error: reserveError } = await supabaseAdmin.rpc(
+      "begin_identity_verification_attempt",
+      {
+        p_user_id: user.id,
+        p_attempt_id: attemptId,
+        p_provider_reference: reference,
+        p_consent_version: CONSENT_VERSION,
+      },
+    );
+
+    if (reserveError || !reservedAttempt?.attempt_id) {
+      const message = reserveError?.message || "could_not_reserve_attempt";
+      if (message.includes("Daily identity verification attempt limit")) {
+        return json(429, { error: "daily_attempt_limit_reached" });
+      }
+      if (message.includes("already in progress")) {
+        return json(409, { error: "verification_already_in_progress" });
+      }
+      if (message.includes("already has a verified identity")) {
+        return json(409, { error: "identity_already_verified" });
+      }
+      return json(503, { error: "could_not_reserve_verification_attempt" });
+    }
+
     let liveness: Record<string, unknown>;
     try {
       liveness = await bytidRequest("/liveness/sessions", apiKey, "POST", {
@@ -188,38 +219,34 @@ Deno.serve(async (request: Request) => {
         redirect_url: redirectUrl.toString(),
       });
     } catch (error) {
-      // Do not log or return provider payloads which could contain identity data.
+      await supabaseAdmin.from("identity_verification_attempts")
+        .update({ state: "failed", completed_at: new Date().toISOString() })
+        .eq("attempt_id", attemptId)
+        .eq("user_id", user.id);
       const code = (error as Error).message || "provider_error";
       return json(502, { error: "liveness_session_failed", provider_code: code });
     }
 
     const livenessId = String(liveness.id || "");
     const livenessUrl = String(liveness.url || "");
-    if (!livenessId || !/^https:\/\//i.test(livenessUrl)) {
+    if (!livenessId || !/^https:\\/\\//i.test(livenessUrl)) {
+      await supabaseAdmin.from("identity_verification_attempts")
+        .update({ state: "failed", completed_at: new Date().toISOString() })
+        .eq("attempt_id", attemptId)
+        .eq("user_id", user.id);
       return json(502, { error: "invalid_liveness_response" });
     }
 
-    // Retire any abandoned previous attempt before creating this one.
-    await supabaseAdmin
+    const { data: attempt, error: updateError } = await supabaseAdmin
       .from("identity_verification_attempts")
-      .update({ state: "expired" })
+      .update({ liveness_session_id: livenessId })
+      .eq("attempt_id", attemptId)
       .eq("user_id", user.id)
-      .eq("state", "pending");
-
-    const { data: attempt, error: insertError } = await supabaseAdmin
-      .from("identity_verification_attempts")
-      .insert({
-        user_id: user.id,
-        provider_reference: reference,
-        liveness_session_id: livenessId,
-        state: "pending",
-        expires_at: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
-      })
       .select("attempt_id,expires_at")
       .single();
 
-    if (insertError || !attempt) {
-      return json(503, { error: "could_not_store_verification_attempt" });
+    if (updateError || !attempt) {
+      return json(503, { error: "could_not_store_verification_session" });
     }
 
     return json(200, {
@@ -228,6 +255,7 @@ Deno.serve(async (request: Request) => {
         verification_url: livenessUrl,
         expires_at: attempt.expires_at,
         environment: isLiveKey ? "live" : "sandbox",
+        attempts_remaining_today: reservedAttempt.attempts_remaining_today,
       },
     });
   }
@@ -250,13 +278,18 @@ Deno.serve(async (request: Request) => {
 
     const { data: attempt, error: attemptError } = await supabaseAdmin
       .from("identity_verification_attempts")
-      .select("attempt_id,provider_reference,liveness_session_id,state,expires_at")
+      .select("attempt_id,provider_reference,liveness_session_id,state,expires_at,consent_version")
       .eq("attempt_id", attemptId)
       .eq("user_id", user.id)
       .maybeSingle();
 
     if (attemptError || !attempt) return json(404, { error: "verification_attempt_not_found" });
-    if (attempt.state !== "pending") return json(409, { error: "verification_attempt_not_pending" });
+    if (attempt.state !== "pending" || !attempt.liveness_session_id) {
+      return json(409, { error: "verification_attempt_not_pending" });
+    }
+    if (attempt.consent_version !== CONSENT_VERSION) {
+      return json(400, { error: "identity_consent_version_mismatch" });
+    }
     if (new Date(attempt.expires_at).getTime() <= Date.now()) {
       await supabaseAdmin.from("identity_verification_attempts")
         .update({ state: "expired", completed_at: new Date().toISOString() })
