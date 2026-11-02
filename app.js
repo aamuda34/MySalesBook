@@ -542,8 +542,11 @@ document.addEventListener('visibilitychange',()=>{
 function showSecurityPinGate(mode='verify',message=''){
  securityPinGateVisible=true;
  securityPinGateMode=mode;
- if(securityPinExpiryTimer){clearTimeout(securityPinExpiryTimer);securityPinExpiryTimer=null;}
- securityPinExpiresAt=0;
+ if(mode!=='change'){
+  if(securityPinExpiryTimer){clearTimeout(securityPinExpiryTimer);securityPinExpiryTimer=null;}
+  securityPinExpiresAt=0;
+ }
+ document.getElementById('securityPinCancel')?.classList.toggle('hidden',mode!=='change');
  const gate=document.getElementById('securityPinGate');
  const confirmWrap=document.getElementById('securityPinConfirmWrap');
  const forgot=document.getElementById('securityPinForgot');
@@ -661,6 +664,16 @@ document.getElementById('securityPinForgot')?.addEventListener('click',async()=>
 document.getElementById('changeSecurityPinButton')?.addEventListener('click',()=>{
  if(!cloudUser||!supabaseClient)return;
  showSecurityPinGate('change','Your current session has already passed PIN verification. Enter a new six-digit PIN twice.');
+});
+document.getElementById('securityPinCancel')?.addEventListener('click',()=>{
+ if(securityPinGateMode!=='change')return;
+ if(!securityPinExpiresAt||securityPinExpiresAt<=Date.now()){
+  lockSellbookForPin('Your security PIN session has expired. Enter your PIN again.');
+  return;
+ }
+ hideSecurityPinGate();
+ document.getElementById('appWorkspace')?.classList.remove('hidden');
+ recheckSellbookPinStatus();
 });
 
 async function handleCloudAuthChange() {
