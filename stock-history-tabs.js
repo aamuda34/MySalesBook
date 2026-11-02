@@ -19,7 +19,9 @@
  renderStockAdjustments=function(){originalRender();renderTabs();};
  document.getElementById('stockHistoryTabs')?.addEventListener('click',event=>{
   const button=event.target.closest('[data-stock-history-tab]');if(!button)return;
-  selected=button.dataset.stockHistoryTab==='restocks'?'restocks':'adjustments';
+  const key=button.dataset.stockHistoryTab;
+  if(!['added','adjustments','restocks'].includes(key))return;
+  selected=key;
   // Repaint the selected list at the moment its tab is opened. Do not rely on
   // the adjustments renderer having run earlier or on hidden-panel contents.
   if(selected==='added')renderProductCreationHistory();else if(selected==='restocks')renderRestockHistory();else renderStockAdjustments();
