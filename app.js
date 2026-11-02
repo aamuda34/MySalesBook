@@ -2477,7 +2477,7 @@ document.getElementById('deleteAccountBtn').addEventListener('click', async () =
       const paths=pathsByBucket[bucket];
       for(let offset=0;offset<paths.length;offset+=100){
         const {error:removeError}=await supabaseClient.storage.from(bucket).remove(paths.slice(offset,offset+100));
-        if(removeError) throw Error('Could not finish removing your '+bucket+' files. Your account has not yet been deleted. Retry deletion or contact Sellbook support.');
+        if(removeError) throw Error('Could not finish removing your '+bucket+' files. Your account and sales data are still present, but some photos may already have been removed. Retry deletion or contact Sellbook support.');
       }
     }
 
