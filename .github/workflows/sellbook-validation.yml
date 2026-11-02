@@ -146,6 +146,8 @@ jobs:
           grep -Fq 'function clearAccountScopedUiState()' app.js
           grep -Fq 'let authTransitionPending = false;' app.js
           grep -Fq 'const nextUserId=session?.user?.id||null;' app.js
+          grep -Fq "document.getElementById('appWorkspace')?.classList.add('hidden');" app.js
+          grep -Fq "document.getElementById('accountCard')?.classList.add('hidden');" app.js
           grep -Fq 'if((cloudUser?.id||null)!==nextUserId){' app.js
           grep -Fq 'cloudUser=null;' app.js
           grep -Fq 'if (authTransition) { authTransitionPending = true; return; }' app.js
