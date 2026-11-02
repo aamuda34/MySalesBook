@@ -155,14 +155,38 @@ Deno.serve(async (request: Request) => {
   }
 
   const isLiveKey = apiKey.startsWith("uvk_live_");
-  if (isLiveKey && Deno.env.get("SELLBOOK_IDENTITY_LIVE_ENABLED") !== "true") {
+  const isSandboxKey = apiKey.startsWith("uvk_test_");
+  const identityEnvironment = Deno.env.get("SELLBOOK_IDENTITY_ENVIRONMENT") || "production";
+
+  if (!isLiveKey && !isSandboxKey) {
+    return json(503, { error: "invalid_provider_environment" });
+  }
+  // Sandbox responses can be simulated and must never verify real production
+  // accounts. Sandbox keys are accepted only by an explicitly labelled staging
+  // deployment with a separate opt-in.
+  if (
+    isSandboxKey &&
+    (
+      identityEnvironment !== "staging" ||
+      Deno.env.get("SELLBOOK_IDENTITY_SANDBOX_ENABLED") !== "true"
+    )
+  ) {
     return json(503, {
-      error: "live_identity_checks_disabled",
-      message: "Paid live identity checks have not been enabled by the Sellbook owner.",
+      error: "sandbox_identity_checks_disabled",
+      message: "Sandbox identity checks are available only in an explicitly enabled staging environment.",
     });
   }
-  if (!apiKey.startsWith("uvk_test_") && !isLiveKey) {
-    return json(503, { error: "invalid_provider_environment" });
+  if (
+    isLiveKey &&
+    (
+      identityEnvironment !== "production" ||
+      Deno.env.get("SELLBOOK_IDENTITY_LIVE_ENABLED") !== "true"
+    )
+  ) {
+    return json(503, {
+      error: "live_identity_checks_disabled",
+      message: "Paid live identity checks have not been enabled for the production environment.",
+    });
   }
 
   const supabaseAdmin = createClient(supabaseUrl, secretKey, {
