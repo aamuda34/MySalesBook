@@ -751,7 +751,7 @@ async function checkIdentityGate(user) {
     gate.classList.remove('hidden');
     document.getElementById('identityVerificationStartPanel')?.classList.add('hidden');
     document.getElementById('identityVerificationForm')?.classList.add('hidden');
-    setIdentityGateMessage('Sellbook could not confirm your identity-verification status. Your records are protected. Check your connection and retry. Details: '+(error.message||'service unavailable'));
+    console.warn('Sellbook identity status could not be confirmed:',error); setIdentityGateMessage('Sellbook could not confirm your identity-verification status. Your records are protected. Check your connection and retry.');
     return true;
   }
 }
