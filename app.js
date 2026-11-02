@@ -1162,7 +1162,15 @@ function paintPage(name,scroll){if(!VALID_PAGES.has(name))name='home';if(name===
     'notifications':'home','support':'home','feedback':'support'
   };
   function intendedParent(button,current){
-    // Explicit page parents on back buttons are authoritative. History state can
+    // The Buybook connection page can be opened from either Settings or the
+    // Home connect shortcut. Prefer its real navigation origin when available;
+    // fall back to Settings after a direct URL/PWA restore.
+    if(current==='settings-buybook'){
+      const previous=history.state&&history.state.mySalesBookPage===current?history.state.mySalesBookPreviousPage:null;
+      if(previous&&previous!==current&&['settings','home','me'].includes(previous))return previous;
+      return 'settings';
+    }
+    // Explicit page parents on other back buttons are authoritative. History state can
     // be stale after PWA restoration or tab switches, so never let it redirect
     // a page-specific back arrow to an unrelated screen.
     if(button.dataset.appBack&&VALID_PAGES.has(button.dataset.appBack))return button.dataset.appBack;
