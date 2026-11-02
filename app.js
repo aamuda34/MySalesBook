@@ -791,8 +791,8 @@ async function loadAccountTiers(){
    else providerNote.textContent='Current NIN lookup fee: '+formatNairaFee(accountTierProviderPrice)+'. The fee is displayed before the check is submitted.';
   }
   if(connectButton){
-   connectButton.disabled=!verified;
-   connectButton.textContent=connected?'Open Buybook connection':(verified?'Connect to Buybook':'Complete Tier 2 first');
+   connectButton.disabled=!(verified||connected);
+   connectButton.textContent=connected?'Manage existing Buybook connection':(verified?'Connect to Buybook':'Complete Tier 2 first');
   }
   const fee=document.getElementById('ninVerificationPrice');
   if(fee)fee.textContent=accountTierProviderPriceAvailable?'Current provider fee: '+formatNairaFee(accountTierProviderPrice):'Current provider fee is unavailable.';
@@ -801,7 +801,7 @@ async function loadAccountTiers(){
   const legacyNote=document.getElementById('legacyBuybookTierNotice');
   if(legacyNote){
    legacyNote.classList.toggle('hidden',!legacy);
-   if(legacy)legacyNote.textContent='Your existing Buybook connection has been kept active during this change. Complete Tier 2 NIN verification to bring it into the new tier sequence. Disconnecting it before verification will prevent reconnecting until Tier 2 is complete.';
+   if(legacy)legacyNote.textContent='Your existing Buybook connection has been kept active during this change. Existing listings can continue updating, but new products will not be published until Tier 2 NIN verification is complete. Disconnecting before verification will prevent reconnecting until Tier 2 is complete.';
   }
   if(!verified&&ninForm)ninForm.classList.add('hidden');
   return tier;
@@ -833,7 +833,7 @@ document.getElementById('showNinVerificationButton')?.addEventListener('click',(
  document.getElementById('identityFirstName')?.focus();
 });
 document.getElementById('openBuybookTierButton')?.addEventListener('click',()=>{
- if(accountTierSnapshot?.tier2_complete===true)showPage('settings-buybook');
+ if(accountTierSnapshot?.tier2_complete===true||accountTierSnapshot?.buybook_connected===true)showPage('settings-buybook');
  else{
   const note=document.getElementById('accountTierProgress');
   if(note)note.textContent='Complete Tier 2 NIN verification before connecting to Buybook. Your basic Sellbook account remains available.';
@@ -963,6 +963,11 @@ async function handleCloudAuthChange() {
     if (!user || cloudUser?.id !== user.id) {
       // Clear the old identity before the admin reset can repaint the screen.
       cloudUser = null;
+      accountTierSnapshot = null;
+      accountTierProviderConfigured = false;
+      accountTierProviderPrice = null;
+      accountTierProviderPriceAvailable = false;
+      accountTierLoadId++;
       clearAccountScopedUiState();
     }
 
@@ -1154,7 +1159,6 @@ async function loadBuybookConnection() {
   if(connected&&tierResult.data?.legacy_buybook_connection===true){
    status.textContent='Existing Buybook connection · Complete Tier 2 to finish the new account tiers.';
   }
-  if(connected)await loadBuybookActivity();
  }catch(error){
   if(!current())return;
   buybookConnectionState=null;
