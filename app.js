@@ -2395,7 +2395,7 @@ function setAdminAccess(isAdmin){
  sellbookIsAdmin=!!isAdmin;
  document.body.classList.toggle('admin-mode',sellbookIsAdmin);
  document.getElementById('adminMenuTile')?.classList.toggle('hidden',!sellbookIsAdmin);
- if(sellbookIsAdmin&&currentPage()!=='admin'&&currentPage()!=='support'&&cloudUser?.email?.toLowerCase()==='aamuda34@gmail.com')showPage('admin');
+ if(sellbookIsAdmin&&currentPage()!=='admin'&&currentPage()!=='support')showPage('admin');
  if(!sellbookIsAdmin&&currentPage()==='admin')showPage('home');
 }
 function showAdminPanel(name){
@@ -2452,7 +2452,7 @@ async function loadAdminUsers(){
  const list=document.getElementById('adminChatUserList');if(list&&!list.children.length)list.innerHTML='<div class="empty">Loading users…</div>';
  const {data,error}=await supabaseClient.rpc('sellbook_admin_users');
  if(error){if(target)target.textContent='Could not load users: '+error.message;if(list)list.innerHTML='<div class="empty">Could not load chats: '+escAdmin(error.message)+'</div>';return;}
- adminUsersCache=(data||[]).filter(u=>u.user_id!==cloudUser?.id&&(u.email||'').toLowerCase()!=='aamuda34@gmail.com');
+ adminUsersCache=(data||[]).filter(u=>u.user_id!==cloudUser?.id);
  const opts='<option value="">Choose a user</option>'+adminUsersCache.map(u=>'<option value="'+escAdmin(u.user_id)+'">'+escAdmin(u.email||'No email')+'</option>').join('');
  const chatSelect=document.getElementById('adminMessageUser'),previousUser=chatSelect.value;chatSelect.innerHTML=opts;
  document.getElementById('notificationUser').innerHTML=opts;
