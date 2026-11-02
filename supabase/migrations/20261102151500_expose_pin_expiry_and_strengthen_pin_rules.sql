@@ -84,6 +84,9 @@ begin
     set pin_hash=extensions.crypt(p_pin,extensions.gen_salt('bf',12)),
         failed_attempts=0,locked_until=null,updated_at=now()
     where user_id=v_user_id;
+    -- A changed PIN revokes every prior device/session unlock; only the session
+    -- performing the change is re-authorized below.
+    delete from private.user_app_pin_sessions where user_id=v_user_id;
   end if;
 
   insert into private.user_app_pin_sessions(user_id,session_id,verified_at,expires_at)
