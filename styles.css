@@ -1013,3 +1013,34 @@ body.dark :where(hr){border-color:var(--border)}
 body.dark :where(svg){color:inherit}
 body.dark :where(button:disabled){opacity:.58}
 body.dark :where(:focus-visible){outline-color:#70d99a}
+
+/* Unified dark-mode page canvas, cards, tabs and text contrast. */
+html:has(body.dark),html:has(body.dark) body{background:#100f16!important}
+body.dark{min-height:100vh!important;background:#100f16!important;color:#f4f0f8!important}
+body.dark #appWorkspace,body.dark #mainContent,body.dark main,body.dark .page,body.dark .page.active,body.dark .page:not(.hidden),body.dark .stock-history-panel,body.dark .legal-content{background:transparent!important;color:#f4f0f8!important}
+body.dark .page{min-height:calc(100vh - 120px)}
+body.dark :where(.me-summary-card,.me-profile-card,.me-quick-tools,.me-menu-card,.me-menu-row,.me-quick-tool,.me-top-icon,.stock-history-tabs,.stock-history-tab,.stock-history-panel,.notifications-page-header,.notification-category-pills,#userNotificationsCard,.buybook-connection-bar,#buybookSellerActivity,.marketplace-subscriber-button,.marketplace-reservation,.settings-menu-list,.settings-menu-item,.settings-group,.settings-row,.settings-item,.card,.panel,.list-card,.product-card,.sale-card,.expense-card,.report-card,.history-item,.conversation-list-button,.chat-card,.chat-topline,.chat-composer,.chat-transcript,.messenger-filter-row,.messenger-filter,.legal-tabs,.legal-card,.legal-intro-card,.business-profile-content,.business-details-row,.product-type-picker,.price-calculator,.entry-form-overlay,.modal,.dialog,.popover,.dropdown-menu){background-color:#1c1a25!important;color:#f4f0f8!important;border-color:#393545!important}
+body.dark :where(.me-summary-card,.me-profile-card,.me-quick-tools,.me-menu-card,#buybookSellerActivity,.card,.panel,.list-card,.product-card,.sale-card,.expense-card,.report-card,.history-item,.chat-card,.legal-card){box-shadow:0 3px 14px rgba(0,0,0,.22)!important}
+body.dark :where(.me-summary-heading,.me-summary-heading span,.me-business-stats small,.me-business-stats strong,.me-profile-copy strong,.me-menu-row strong,.me-quick-tool strong,.me-menu-section h3,.me-footer-note,.page-title,.page-intro,.section-heading,.settings-page-heading h2,.notifications-page-header h1,.stock-history-detail-heading h2,.business-profile-page-heading h2){color:#f4f0f8!important;-webkit-text-fill-color:#f4f0f8!important}
+body.dark .me-summary-card,body.dark .me-summary-card *{color:#f4f0f8!important}
+body.dark :where(.me-business-stats small,.me-footer-note,.muted,.empty,.page-intro,.help-text,.hint,.subtext,.secondary-text,.chat-status,.conversation-preview,.legal-updated,.legal-small-note){color:#c5bdcf!important;-webkit-text-fill-color:#c5bdcf!important}
+body.dark .stock-history-tabs{background:#17151f!important;border:1px solid #393545!important;border-radius:18px!important}
+body.dark .stock-history-tab{background:#292536!important;color:#e9e3f1!important;border:1px solid #494258!important;opacity:1!important;box-shadow:none!important}
+body.dark .stock-history-tab.active{background:#176b3d!important;color:#fff!important;border-color:#23834d!important}
+body.dark .stock-history-tab [data-history-count]{background:rgba(255,255,255,.16)!important;color:#fff!important;opacity:1!important}
+body.dark :where(.notification-category,.messenger-filter,.legal-tab){background:#292536!important;color:#e9e3f1!important;border:1px solid #494258!important;opacity:1!important}
+body.dark :where(.notification-category.active,.messenger-filter.active,.legal-tab.active){background:#176b3d!important;color:#fff!important;border-color:#23834d!important}
+body.dark :where(.me-top-icon,.me-profile-avatar,.tile-icon,.me-row-icon){background:#292536!important;color:#b9f2ce!important;border-color:#494258!important}
+body.dark :where(.me-top-icon svg,.me-profile-avatar svg,.me-row-icon svg,.tile-icon svg,.products-back-button svg,.notifications-back-button svg,.settings-back-button svg,.settings-main-back-button svg){color:#b9f2ce!important;stroke:currentColor!important}
+body.dark :where(.me-chevron,.me-profile-chevron,.settings-chevron,.products-back-button,.notifications-back-button,.settings-back-button,.settings-main-back-button,.stock-history-detail-back-button){color:#b9f2ce!important}
+body.dark :where(#buybookConnectionStatus,.success-text,.positive-text,.profit-text,.green-text,.text-green,.money-positive,.sales-highlight,.summary-positive){color:#8fe0ad!important;-webkit-text-fill-color:#8fe0ad!important}
+body.dark :where(button:not(.primary):not(.danger):not(.active):not(.selected),[role=button]:not(.active):not(.selected)){color:#f4f0f8}
+body.dark :where(button:disabled){color:#bdb5c7!important;opacity:.72!important}
+body.dark :where(input,select,textarea){background:#12111a!important;color:#f4f0f8!important;border-color:#514b60!important}
+body.dark :where(input::placeholder,textarea::placeholder){color:#aaa2b8!important;opacity:1!important}
+body.dark :where(.buybook-connection-bar .danger,.danger){background:#492326!important;color:#ffd7d9!important;border-color:#71343a!important}
+body.dark :where(.status-pill,.reservation-status,.badge,.badge-neutral){background:#263b30!important;color:#b9f2ce!important;border-color:#365a43!important}
+body.dark :where(.business-details-row,.me-menu-row,.me-business-stats>div,.stock-history-panel,.chat-topline,.chat-composer,.notification-item){border-color:#393545!important}
+body.dark :where(svg){color:inherit}
+body.dark :where(a){color:#a8e9bd!important}
+body.dark :where(:focus-visible){outline:2px solid #80dba0!important;outline-offset:2px}
