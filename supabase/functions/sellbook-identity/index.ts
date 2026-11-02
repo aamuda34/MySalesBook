@@ -344,10 +344,30 @@ Deno.serve(async (request: Request) => {
         reference: faceMatchReference,
       });
     } catch (error) {
-      return json(502, {
-        error: "identity_face_match_failed",
-        provider_code: (error as Error).message || "provider_error",
-      });
+      const providerCode = (error as Error).message || "provider_error";
+      if (providerCode === "duplicate_reference") {
+        // A timeout may happen after Bytid has completed the check. Reuse the
+        // same idempotency reference and recover its original result rather
+        // than making a new billable face-match request.
+        try {
+          const recovered = await bytidRequest(
+            "/verifications?reference=" + encodeURIComponent(faceMatchReference),
+            apiKey,
+            "GET",
+          );
+          const items = Array.isArray(recovered?.items) ? recovered.items : [];
+          const original = items.find((item: Record<string, unknown>) => item.reference === faceMatchReference);
+          if (original) verification = original;
+          else return json(503, { error: "identity_result_recovery_pending" });
+        } catch (_) {
+          return json(503, { error: "identity_result_recovery_pending" });
+        }
+      } else {
+        return json(502, {
+          error: "identity_face_match_failed",
+          provider_code: providerCode,
+        });
+      }
     }
 
     const matches = verification.field_matches as Record<string, unknown> | undefined;
