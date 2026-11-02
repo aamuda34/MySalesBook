@@ -125,6 +125,12 @@ jobs:
           grep -q 'offset+=pageFiles.length' app.js
           grep -q 'paths.slice(offset,offset+100)' app.js
 
+      - name: Verify visit tracking is not redundantly triggered by admin navigation
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(grep -Fc 'recordSellbookVisit();' app.js)" -eq 1
+
       - name: Verify admin data access requires a verified admin session
         shell: bash
         run: |
