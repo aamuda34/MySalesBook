@@ -1139,3 +1139,17 @@ body.dark :where(.sales-history-row small,.sales-history-row-main small,
 /* Me is a standalone panel: hide the Home greeting/header while retaining the Me topbar and main navigation. */
 body:has(#me.page:not(.hidden))>.seller-welcome-header{display:none!important;}
 body:has(#me.page:not(.hidden)) #appWorkspace>main{padding-top:0!important;}
+
+
+/* Server-verified Sellbook PIN gate */
+.security-pin-gate{max-width:440px;margin:clamp(28px,9vh,90px) auto 24px;text-align:left;padding:24px}
+.security-pin-icon{width:48px;height:48px;border-radius:16px;display:grid;place-items:center;margin-bottom:18px;background:rgba(20,83,45,.10);color:var(--green);font-size:24px}
+.security-pin-gate h2{margin:0 0 8px}
+.security-pin-gate form{display:grid;gap:10px;margin-top:20px}
+.security-pin-gate input{width:100%;min-height:52px;text-align:center;letter-spacing:.45em;font-size:22px;font-weight:750}
+.security-pin-gate form button{width:100%;margin-top:8px;min-height:48px}
+.security-pin-forgot{display:block;width:100%;margin-top:14px;padding:12px 6px;border:0;background:transparent;color:var(--green);font:inherit;font-weight:650}
+.security-pin-gate [hidden],.security-pin-gate .hidden{display:none!important}
+@media(max-width:480px){.security-pin-gate{margin:20px 0 24px;padding:20px}}
+
+.security-pin-cancel{display:block;width:100%;margin-top:6px;min-height:44px;border:1px solid var(--border);border-radius:12px;background:transparent;color:var(--text);font:inherit;font-weight:650}

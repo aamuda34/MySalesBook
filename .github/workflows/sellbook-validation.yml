@@ -51,3 +51,27 @@ jobs:
           grep -q '<link rel="manifest" href="./manifest.webmanifest">' index.html
           grep -q 'display' manifest.webmanifest
           grep -Eq "const CACHE_NAME = 'sellbook-shell-v[0-9]+'" sw.js
+
+      - name: Verify PIN gate wiring and migration safety
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -q "get_app_pin_status" app.js
+          grep -q "set_app_pin" app.js
+          grep -q "verify_app_pin" app.js
+          grep -q "recheckSellbookPinStatus" app.js
+          grep -q "armSecurityPinExpiry" app.js
+          grep -q "securityPinCancel" index.html
+          grep -q "securityPinExpiresAt" app.js
+          grep -q "securityPinGate" index.html
+          grep -q "sellbook-shell-v68" sw.js
+          ! grep -Eiq '^[[:space:]]*rollback[[:space:]]*;' supabase/migrations/20261102143000_add_server_verified_sellbook_pin.sql
+          grep -q 'enforce_sellbook_pin_before_write' supabase/migrations/20261102145000_gate_privileged_pin_write_paths.sql
+          grep -q 'if not exists (' supabase/migrations/20261102145000_gate_privileged_pin_write_paths.sql
+          grep -q 'from private.user_app_pins' supabase/migrations/20261102145000_gate_privileged_pin_write_paths.sql
+          ! grep -Eiq '^[[:space:]]*rollback[[:space:]]*;' supabase/migrations/20261102145000_gate_privileged_pin_write_paths.sql
+          grep -q "'expires_at',v_expires_at" supabase/migrations/20261102151500_expose_pin_expiry_and_strengthen_pin_rules.sql
+          grep -q "Choose a less predictable six-digit PIN" supabase/migrations/20261102151500_expose_pin_expiry_and_strengthen_pin_rules.sql
+          ! grep -Eiq '^[[:space:]]*rollback[[:space:]]*;' supabase/migrations/20261102151500_expose_pin_expiry_and_strengthen_pin_rules.sql
+          grep -q "v_locked_until<=now()" supabase/migrations/20261102153000_reset_pin_attempts_after_lockout.sql
+          ! grep -Eiq '^[[:space:]]*rollback[[:space:]]*;' supabase/migrations/20261102153000_reset_pin_attempts_after_lockout.sql
