@@ -11,7 +11,7 @@ const marker = 'SELLBOOK APP-WIDE SCREEN LAYOUT';
 const start = css.indexOf(marker);
 assert.ok(start >= 0, 'The screen-by-screen layout layer is missing.');
 const layer = css.slice(start);
-const pageIds = [...html.matchAll(/<section\\b[^>]*\\bid="([^"]+)"[^>]*class="[^"]*\\bpage\\b[^"]*"/g)]
+const pageIds = [...html.matchAll(/<section\b[^>]*\bid="([^"]+)"[^>]*class="[^"]*\bpage\b[^"]*"/g)]
   .map(match => match[1]);
 const expectedPages = [
   'home','subscribers','reservations','products','product-details','sales',
@@ -77,7 +77,7 @@ for (const [label, token] of requiredLayoutRules) {
   assert.ok(layer.includes(token), 'Missing responsive layout safeguard: ' + label);
 }
 
-const cacheVersion = Number((sw.match(/const CACHE_NAME = 'sellbook-shell-v(\\d+)';/) || [])[1] || 0);
+const cacheVersion = Number((sw.match(/const CACHE_NAME = 'sellbook-shell-v(\d+)';/) || [])[1] || 0);
 assert.ok(cacheVersion >= 80, 'Offline shell cache must be refreshed for the complete layout release.');
 
 const rules = layer.replace(/\/\*[\s\S]*?\*\//g, '');
