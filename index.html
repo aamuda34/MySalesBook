@@ -37,6 +37,22 @@
 <div class="photo-actions"><button type="button" id="toggleEmailAuth">Create account</button><button type="button" id="resetPasswordBtn">Forgot password?</button></div></div>
 <form id="recoveryPasswordForm" class="hidden"><label for="recoveryPassword">Choose a new password</label><input id="recoveryPassword" type="password" minlength="8" autocomplete="new-password" required><button type="submit" class="primary">Save new password</button></form>
 <p id="accountMessage" class="muted" aria-live="polite"></p></section>
+<section id="securityPinGate" class="card security-pin-gate hidden" aria-labelledby="securityPinTitle">
+ <div class="security-pin-icon" aria-hidden="true">●</div>
+ <h2 id="securityPinTitle">Enter your Sellbook PIN</h2>
+ <p id="securityPinSubtitle" class="muted">Your business records are locked until you verify your six-digit PIN.</p>
+ <form id="securityPinForm" novalidate>
+  <label for="securityPinInput">Six-digit PIN</label>
+  <input id="securityPinInput" type="password" inputmode="numeric" pattern="[0-9]{6}" minlength="6" maxlength="6" autocomplete="current-password" required>
+  <div id="securityPinConfirmWrap" class="hidden">
+   <label for="securityPinConfirm">Confirm six-digit PIN</label>
+   <input id="securityPinConfirm" type="password" inputmode="numeric" pattern="[0-9]{6}" minlength="6" maxlength="6" autocomplete="new-password">
+  </div>
+  <button type="submit" id="securityPinSubmit" class="primary">Unlock Sellbook</button>
+ </form>
+ <button type="button" id="securityPinForgot" class="security-pin-forgot">Forgot your PIN? Sign in again to reset it.</button>
+ <p id="securityPinMessage" class="muted" role="status" aria-live="polite"></p>
+</section>
 <div id="appWorkspace" class="hidden">
 <nav aria-label="Main navigation">
 <button class="active" data-page="home"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1z"/></svg></span><span>Home</span></button>
