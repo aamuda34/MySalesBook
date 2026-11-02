@@ -137,9 +137,18 @@ Deno.serve(async (request: Request) => {
 
   const action = body.action;
   if (action === "status") {
+    const apiKey = Deno.env.get("BYTID_API_KEY");
+    const hmacSecret = Deno.env.get("SELLBOOK_IDENTITY_HMAC_SECRET");
+    const secretKey = getSecretKey();
+    const environment = Deno.env.get("SELLBOOK_IDENTITY_ENVIRONMENT") || "production";
+    const liveConfigured = !!apiKey && apiKey.startsWith("uvk_live_") &&
+      !!hmacSecret && hmacSecret.length >= 32 && !!secretKey &&
+      environment === "production" &&
+      Deno.env.get("SELLBOOK_IDENTITY_LIVE_ENABLED") === "true";
     const { data, error } = await supabaseUser.rpc("get_identity_verification_status");
     if (error) return json(503, { error: "identity_status_unavailable" });
-    return json(200, { data });
+    // Sandbox keys must never activate identity enforcement against production users.
+    return json(200, { data, configured: liveConfigured, environment: liveConfigured ? "live" : "not_configured" });
   }
 
   const apiKey = Deno.env.get("BYTID_API_KEY");
