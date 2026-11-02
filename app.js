@@ -542,8 +542,8 @@ async function ensureSellbookPinAccess(){
  showSecurityPinGate('verify','Enter your PIN to unlock your business records.');
  return false;
 }
-document.getElementById('securityPinInput')?.addEventListener('input',event=>{event.target.value=event.target.value.replace(/\\D/g,'').slice(0,6);});
-document.getElementById('securityPinConfirm')?.addEventListener('input',event=>{event.target.value=event.target.value.replace(/\\D/g,'').slice(0,6);});
+document.getElementById('securityPinInput')?.addEventListener('input',event=>{event.target.value=Array.from(event.target.value).filter(ch=>ch>='0'&&ch<='9').slice(0,6).join('');});
+document.getElementById('securityPinConfirm')?.addEventListener('input',event=>{event.target.value=Array.from(event.target.value).filter(ch=>ch>='0'&&ch<='9').slice(0,6).join('');});
 document.getElementById('securityPinForm')?.addEventListener('submit',async event=>{
  event.preventDefault();
  if(!cloudUser||!supabaseClient)return;
@@ -551,9 +551,9 @@ document.getElementById('securityPinForm')?.addEventListener('submit',async even
  const confirmation=document.getElementById('securityPinConfirm').value;
  const status=document.getElementById('securityPinMessage');
  const button=document.getElementById('securityPinSubmit');
- if(!/^\\d{6}$/.test(pin)){status.textContent='Enter exactly six digits.';return;}
- if(securityPinGateMode==='setup'&&pin!==confirmation){status.textContent='The two PIN entries do not match.';return;}
- button.disabled=true;button.textContent=securityPinGateMode==='setup'?'Creating…':'Verifying…';
+ if(pin.length!==6||!Array.from(pin).every(ch=>ch>='0'&&ch<='9')){status.textContent='Enter exactly six digits.';return;}
+ if((securityPinGateMode==='setup'||securityPinGateMode==='change')&&pin!==confirmation){status.textContent='The two PIN entries do not match.';return;}
+ button.disabled=true;button.textContent=(securityPinGateMode==='setup'||securityPinGateMode==='change')?'Saving…':'Verifying…';
  status.textContent='Checking your PIN securely…';
  try{
   const settingPin=securityPinGateMode==='setup'||securityPinGateMode==='change';
