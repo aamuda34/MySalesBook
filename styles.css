@@ -1106,22 +1106,15 @@ body.dark :where(.sales-history-row small,.sales-history-row-main small,
     background:transparent!important;
   }
   body.messenger-open #appWorkspace>nav .nav-icon svg{width:22px;height:22px}
-  body.messenger-open #appWorkspace>main{
-    bottom:calc(72px + env(safe-area-inset-bottom))!important;
-    height:calc(100dvh - 72px - env(safe-area-inset-bottom))!important;
-  }
   body.messenger-open #messenger{
-    inset:0 0 0 0!important;
-    height:100%!important;
-    max-height:100%!important;
+    inset:0 0 calc(72px + env(safe-area-inset-bottom)) 0!important;
+    height:auto!important;
+    max-height:none!important;
   }
   body.messenger-open.messenger-conversation-open #messengerChatCard{
-    inset:0 0 0 0!important;
-    height:100%!important;
-    max-height:100%!important;
-  }
-  body.messenger-open #messenger .messenger-new-chat{
-    bottom:calc(16px + env(safe-area-inset-bottom))!important;
+    inset:0 0 calc(72px + env(safe-area-inset-bottom)) 0!important;
+    height:auto!important;
+    max-height:none!important;
   }
   body.messenger-open #quickSaleFab{display:none!important}
 }
