@@ -924,3 +924,92 @@ body.dark .settings-summary-icon svg,body.dark .settings-icon-button svg{
  stroke:currentColor;
 }
 body.dark .theme-preference-group #themePreference{background:#17121e!important;color:var(--ink)!important}
+
+
+/* Dark mode contrast system — centralised overrides for every Sellbook surface. */
+body.dark{
+ color-scheme:dark;
+ --page:#100f16;--ink:#f2eff8;--text:#f2eff8;--muted:#c0b9cc;
+ --surface:#1b1924;--border:#393545;--soft:#292536;
+ --green:#36a866;--green-dark:#23834d;
+ background:var(--page)!important;color:var(--ink)!important;
+}
+body.dark :where(header,.seller-welcome-header,#appWorkspace,main,.page,.settings-panel,.settings-group){
+ color:var(--ink);
+}
+body.dark :where(header,.seller-welcome-header){
+ background:#17151f!important;color:var(--ink)!important;border-color:var(--border)!important;
+}
+body.dark :where(.card,.stat,.settings-accordion,.settings-panel,.settings-menu-item,
+.conversation-list-button,.marketplace-subscriber-button,.chat-card,.chat-topline,
+.chat-composer,.admin-chat-card,.product-type-picker,.price-calculator,.entry-form-overlay,
+dialog,.modal,.popover,.dropdown-menu,.notification-item,.history-item,.legal-card){
+ background:var(--surface)!important;color:var(--ink)!important;border-color:var(--border)!important;
+}
+body.dark :where(h1,h2,h3,h4,h5,h6,p,span,strong,b,em,label,small,li,dt,dd,th,td,
+.page-title,.section-heading,.item,.item-product-details,.settings-summary-icon,
+.settings-accordion summary,.conversation-preview,.marketplace-reservation,
+.products-total-count,.products-total-count strong,.chart-label,.chart-value){
+ color:var(--ink);
+}
+body.dark :where(.muted,.page-intro,.photo-help,.price-suggestion,.settings-menu-item small,
+.settings-accordion summary small,.conversation-list-button small,.conversation-list-button .conversation-time,
+.marketplace-subscriber-button small,.chat-status,.legal-updated span,.legal-footer,
+.chart-label,.chart-value,.products-total-count){
+ color:var(--muted)!important;
+}
+body.dark :where(input:not([type=checkbox]):not([type=radio]),select,textarea){
+ background:#12111a!important;color:var(--ink)!important;border-color:#514b60!important;
+ caret-color:var(--ink);
+}
+body.dark :where(input,textarea)::placeholder{color:#aaa2b8!important;opacity:1}
+body.dark :where(input[type=checkbox],input[type=radio]){accent-color:#36a866}
+body.dark :where(button:not(.primary):not(.active):not(.selected):not(.danger):not(.quick-sale-fab)){
+ color:var(--ink);
+}
+body.dark :where(nav,nav button){background:#17151f!important;border-color:var(--border)!important}
+body.dark nav button{color:#e5deef!important}
+body.dark nav button.active,
+body.dark :where(button.primary,.primary,.selected,.active,.quick-sale-fab,
+.settings-summary-icon,.business-logo-edit-button,.chat-message.from-user,
+.admin-chat-unread){
+ background:#176b3d!important;color:#fff!important;border-color:#23834d!important;
+}
+body.dark :where(.settings-back-button,.products-back-button,.notifications-back-button,
+.notifications-refresh-button,.product-edit-icon,.chat-feedback-link){
+ background:#292536!important;color:#b9f2ce!important;border-color:#494258!important;
+}
+body.dark :where(.stat small,.empty,footer,.muted){color:var(--muted)!important}
+body.dark :where(.item,.settings-group,.settings-accordion[open]>summary,
+.chat-topline,.chat-composer,.admin-chat-user-row){border-color:var(--border)!important}
+body.dark :where(.danger,.photo-actions button.danger){
+ background:#492326!important;color:#ffd7d9!important;border-color:#71343a!important;
+}
+body.dark :where(.low-stock-badge){background:#49351c!important;color:#ffe0a3!important}
+body.dark :where(.status-pill){background:#263b30!important;color:#b9f2ce!important}
+body.dark :where(.legal-intro-card){background:#202b25!important;border-color:#344b3b!important}
+body.dark :where(.legal-intro-card h3){color:#b9f2ce!important}
+body.dark :where(.legal-intro-card p){color:#e1e9e2!important}
+body.dark :where(.legal-tabs){background:#211f2b!important}
+body.dark :where(.legal-tab){color:#e4ddef!important}
+body.dark :where(.legal-tab.active){background:#176b3d!important;color:#fff!important}
+body.dark :where(.category-choice,.category-suggestions button,.markup-options button,
+.photo-actions button,.product-type-options button){
+ background:#292536!important;color:#e9e3f1!important;border-color:#494258!important;
+}
+body.dark :where(.category-choice:has(input:checked),.product-type-options button.selected,
+.markup-options button.selected){background:#176b3d!important;color:#fff!important;border-color:#36a866!important}
+body.dark :where(.chat-message.from-support){background:#292536!important;color:var(--ink)!important;border-color:var(--border)!important}
+body.dark :where(.admin-chat-transcript){background:#15131d!important;background-image:none!important}
+body.dark :where(.admin-chat-bubble.from-admin){background:#244b34!important;color:#f0fff4!important}
+body.dark :where(.admin-chat-bubble:not(.from-admin)){background:#292536!important;color:var(--ink)!important}
+body.dark :where(.progress-track){background:#353141!important}
+body.dark :where(.progress-fill,.chart-bar){background:linear-gradient(180deg,#55c982,#176b3d)!important}
+body.dark :where(.product-photo,.photo-preview,.edit-photo-preview){background:#292536!important;border-color:var(--border)!important}
+body.dark :where(.product-image-lightbox){background:rgba(5,4,10,.94)!important}
+body.dark :where(.dialog-actions button:not(.primary)){background:#292536!important;color:var(--ink)!important}
+body.dark :where(a){color:#9de7b7}
+body.dark :where(hr){border-color:var(--border)}
+body.dark :where(svg){color:inherit}
+body.dark :where(button:disabled){opacity:.58}
+body.dark :where(:focus-visible){outline-color:#70d99a}
