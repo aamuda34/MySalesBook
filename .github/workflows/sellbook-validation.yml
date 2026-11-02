@@ -86,6 +86,11 @@ jobs:
           grep -q 'attach_identity_liveness_session' supabase/functions/sellbook-identity/index.ts
           grep -q 'get_identity_verification_attempt' supabase/functions/sellbook-identity/index.ts
           grep -q 'finish_identity_verification_attempt' supabase/functions/sellbook-identity/index.ts
+          test -s supabase/migrations/20261102162000_claim_and_finish_verified_identity_atomically.sql
+          grep -q 'claim_and_finish_verified_identity' supabase/migrations/20261102162000_claim_and_finish_verified_identity_atomically.sql
+          grep -q 'revoke all on function public.claim_and_finish_verified_identity' supabase/migrations/20261102162000_claim_and_finish_verified_identity_atomically.sql
+          grep -q 'claim_and_finish_verified_identity' supabase/functions/sellbook-identity/index.ts
+          grep -q 'attempt_finalized' supabase/functions/sellbook-identity/index.ts
           grep -q 'verification.type === "nin"' supabase/functions/sellbook-identity/index.ts
           grep -q 'verification.service === "nin_face_match"' supabase/functions/sellbook-identity/index.ts
           grep -q 'duplicateCheck?.status' supabase/functions/sellbook-identity/index.ts
