@@ -138,8 +138,9 @@ const queueReadErrors = new Map();
 function readQueue(userId=cloudUser?.id) {
   if (!userId) return [];
   const key=cloudQueueKey(userId);
+  let raw=null;
   try {
-    const raw=localStorage.getItem(key);
+    raw=localStorage.getItem(key);
     if(raw===null){queueReadErrors.delete(userId);return [];}
     const value=JSON.parse(raw);
     if(!Array.isArray(value)||value.some(item=>!item||typeof item!=='object'||typeof item.id!=='string'||typeof item.type!=='string'||!item.payload||typeof item.payload!=='object')){
@@ -149,14 +150,13 @@ function readQueue(userId=cloudUser?.id) {
     return value;
   } catch (error) {
     queueReadErrors.set(userId,error);
-    // Keep the original bytes before any later app action can overwrite the queue.
-    // If storage is full, the original queue key is still left untouched.
+    // Preserve the exact bytes that failed parsing/validation before any later
+    // app action can overwrite the queue. Replace a stale recovery copy so it
+    // always matches the current original queue. The original key is untouched.
     try {
       const backupKey=queueRecoveryKey(userId);
-      if(!localStorage.getItem(backupKey)){
-        const raw=localStorage.getItem(key);
-        if(raw!==null)localStorage.setItem(backupKey,raw);
-      }
+      if(raw===null)raw=localStorage.getItem(key);
+      if(raw!==null&&localStorage.getItem(backupKey)!==raw)localStorage.setItem(backupKey,raw);
     } catch(backupError) {
       console.error('Sellbook could not create a second copy of the damaged sync queue:',backupError);
     }
