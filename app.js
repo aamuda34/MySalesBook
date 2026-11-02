@@ -2722,7 +2722,6 @@ async function loadAdminDashboard(){
  if(metricsError){document.getElementById('adminPlatformProducts').textContent='—';document.getElementById('adminPlatformSales').textContent='—';document.getElementById('adminPlatformSalesValue').textContent='Unavailable';}
  else{document.getElementById('adminPlatformProducts').textContent=metrics.total_products??0;document.getElementById('adminPlatformSales').textContent=metrics.total_sales??0;document.getElementById('adminPlatformSalesValue').textContent=formatAdminNaira(metrics.sales_value);}
  await document.querySelectorAll('[data-open-page="settings-buybook"]').forEach(el=>el.addEventListener('click',()=>loadBuybookConnection()));
-recordSellbookVisit();
  showAdminPanel(sessionStorage.getItem('sellbook-admin-panel')||'overview');
 }
 async function loadAdminUsers(){
