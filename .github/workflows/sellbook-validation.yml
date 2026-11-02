@@ -70,6 +70,25 @@ jobs:
           ! grep -Eiq '^[[:space:]]*rollback[[:space:]]*;' supabase/migrations/20261102160000_add_privacy_minimised_unique_identity_bindings.sql
           ! grep -Eiq '^[[:space:]]*rollback[[:space:]]*;' supabase/migrations/20261102162000_reserve_identity_attempts_with_atomic_rate_limit.sql
 
+      - name: Verify private identity attempt access and retention
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s supabase/migrations/20261102131900_secure_identity_attempt_access_via_service_rpc.sql
+          test -s supabase/migrations/20261102132000_fix_identity_attempt_finish_result_boolean.sql
+          grep -q 'public.purge_identity_verification_attempts' supabase/migrations/20261102131900_secure_identity_attempt_access_via_service_rpc.sql
+          grep -q 'public.attach_identity_liveness_session' supabase/migrations/20261102131900_secure_identity_attempt_access_via_service_rpc.sql
+          grep -q 'public.get_identity_verification_attempt' supabase/migrations/20261102131900_secure_identity_attempt_access_via_service_rpc.sql
+          grep -q 'public.finish_identity_verification_attempt' supabase/migrations/20261102131900_secure_identity_attempt_access_via_service_rpc.sql
+          grep -q 'revoke all on function public.finish_identity_verification_attempt' supabase/migrations/20261102132000_fix_identity_attempt_finish_result_boolean.sql
+          grep -q 'return coalesce(v_existing_state = p_state, false)' supabase/migrations/20261102132000_fix_identity_attempt_finish_result_boolean.sql
+          grep -q 'purge_identity_verification_attempts' supabase/functions/sellbook-identity/index.ts
+          grep -q 'attach_identity_liveness_session' supabase/functions/sellbook-identity/index.ts
+          grep -q 'get_identity_verification_attempt' supabase/functions/sellbook-identity/index.ts
+          grep -q 'finish_identity_verification_attempt' supabase/functions/sellbook-identity/index.ts
+          ! grep -q '.from("identity_verification_attempts")' supabase/functions/sellbook-identity/index.ts
+          ! grep -q 'Access-Control-Allow-Origin: "*"' supabase/functions/sellbook-identity/index.ts
+
       - name: Check key PWA metadata and cache version
         shell: bash
         run: |
