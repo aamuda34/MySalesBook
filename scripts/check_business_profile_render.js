@@ -8,16 +8,16 @@ const app = fs.readFileSync('app.js', 'utf8');
 const html = fs.readFileSync('index.html', 'utf8');
 const css = fs.readFileSync('styles.css', 'utf8');
 
-const allIds = [...html.matchAll(/\\bid=["']([^"']+)["']/g)].map(match => match[1]);
+const allIds = [...html.matchAll(/\bid=["']([^"']+)["']/g)].map(match => match[1]);
 const duplicateIds = [...new Set(allIds.filter((id, index) => allIds.indexOf(id) !== index))];
 assert.deepEqual(duplicateIds, [], 'HTML must not contain duplicate IDs.');
 
 const pageIds = new Set(
-  [...html.matchAll(/<section\\b[^>]*\\bid=["']([^"']+)["'][^>]*class=["'][^"']*\\bpage\\b[^"']*["']/g)]
+  [...html.matchAll(/<section\b[^>]*\bid=["']([^"']+)["'][^>]*class=["'][^"']*\bpage\b[^"']*["']/g)]
     .map(match => match[1])
 );
 const navigationTargets = [
-  ...html.matchAll(/\\bdata-(?:open-page|app-back)=["']([^"']+)["']/g)
+  ...html.matchAll(/\bdata-(?:open-page|app-back)=["']([^"']+)["']/g)
 ].map(match => match[1]);
 const missingPages = [...new Set(navigationTargets.filter(target => !pageIds.has(target)))];
 assert.deepEqual(missingPages, [], 'Every static page navigation/back target must resolve to a page section.');
