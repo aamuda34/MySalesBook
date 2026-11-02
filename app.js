@@ -693,6 +693,114 @@ document.getElementById('securityPinCancel')?.addEventListener('click',()=>{
  recheckSellbookPinStatus();
 });
 
+async function requestSellbookIdentity(action, extra={}) {
+  if(!supabaseClient) throw new Error('Sellbook identity verification is unavailable right now.');
+  const result=await supabaseClient.functions.invoke('sellbook-identity',{body:{action,...extra}});
+  if(result.error) {
+    const payload=result.data||{};
+    throw new Error(payload.message||payload.error||result.error.message||'Identity verification request failed.');
+  }
+  if(result.data?.error) throw new Error(result.data.message||result.data.error);
+  return result.data||{};
+}
+function identityStatusRecord(payload) {
+  const value=payload?.data;
+  return Array.isArray(value)?(value[0]||{}):(value||{});
+}
+function setIdentityGateMessage(message) {
+  const el=document.getElementById('identityVerificationMessage');
+  if(el)el.textContent=message;
+}
+async function checkIdentityGate(user) {
+  const gate=document.getElementById('identityVerificationGate');
+  if(!gate||!user||!supabaseClient)return false;
+  try {
+    const payload=await requestSellbookIdentity('status');
+    const record=identityStatusRecord(payload);
+    if(payload.configured!==true) {
+      gate.classList.add('hidden');
+      // Do not block existing users while paid provider credentials are absent.
+      // Production enforcement activates automatically once live checks are configured.
+      return false;
+    }
+    if(record.verified===true) {
+      gate.classList.add('hidden');
+      sessionStorage.removeItem('sellbook-identity-attempt-'+user.id);
+      return false;
+    }
+    document.getElementById('appWorkspace')?.classList.add('hidden');
+    document.getElementById('accountCard')?.classList.add('hidden');
+    gate.classList.remove('hidden');
+    document.getElementById('identityVerificationStartPanel')?.classList.remove('hidden');
+    const attempt=sessionStorage.getItem('sellbook-identity-attempt-'+user.id);
+    const returning=new URLSearchParams(location.search).get('identity_verification')==='return';
+    if(attempt&&returning) {
+      document.getElementById('identityVerificationStartPanel')?.classList.add('hidden');
+      document.getElementById('identityVerificationForm')?.classList.remove('hidden');
+      setIdentityGateMessage('Live camera check returned to Sellbook. Enter your identity details to finish verification.');
+    } else {
+      document.getElementById('identityVerificationForm')?.classList.add('hidden');
+      setIdentityGateMessage('Identity verification is required before you can access your business records.');
+    }
+    return true;
+  } catch(error) {
+    // Do not expose private workspace data if enforcement is configured but its
+    // verification status cannot be confirmed. The user can retry the status check.
+    document.getElementById('appWorkspace')?.classList.add('hidden');
+    document.getElementById('accountCard')?.classList.add('hidden');
+    gate.classList.remove('hidden');
+    document.getElementById('identityVerificationStartPanel')?.classList.add('hidden');
+    document.getElementById('identityVerificationForm')?.classList.add('hidden');
+    setIdentityGateMessage('Sellbook could not confirm your identity-verification status. Your records are protected. Check your connection and retry. Details: '+(error.message||'service unavailable'));
+    return true;
+  }
+}
+document.getElementById('identityVerificationStart')?.addEventListener('click',async()=>{
+  const user=cloudUser;
+  if(!user||!supabaseClient)return;
+  if(!document.getElementById('identityVerificationConsent')?.checked){setIdentityGateMessage('Please read and accept the identity-verification consent before continuing.');return;}
+  const button=document.getElementById('identityVerificationStart');
+  button.disabled=true;button.textContent='Preparing secure verification…';
+  try {
+    const payload=await requestSellbookIdentity('start',{consent_accepted:true,consent_version:'sellbook-identity-consent-v1'});
+    const data=payload.data||{};
+    if(!data.attempt_id||!data.verification_url||new URL(data.verification_url).protocol!=='https:')throw new Error('The verification provider returned an invalid secure session.');
+    sessionStorage.setItem('sellbook-identity-attempt-'+user.id,data.attempt_id);
+    window.location.assign(data.verification_url);
+  } catch(error) {
+    setIdentityGateMessage(error.message||'Could not start verification. Please try again later.');
+    button.disabled=false;button.textContent='Start face verification';
+  }
+});
+document.getElementById('identityVerificationForm')?.addEventListener('submit',async(event)=>{
+  event.preventDefault();
+  const user=cloudUser;
+  if(!user||!supabaseClient)return;
+  const attemptId=sessionStorage.getItem('sellbook-identity-attempt-'+user.id);
+  if(!attemptId){setIdentityGateMessage('Your verification session has expired. Start a new face verification.');document.getElementById('identityVerificationForm')?.classList.add('hidden');document.getElementById('identityVerificationStartPanel')?.classList.remove('hidden');return;}
+  const button=document.getElementById('identityVerificationSubmit');
+  const nin=document.getElementById('identityNin').value.trim();
+  if(!/^[0-9]{11}$/.test(nin)){setIdentityGateMessage('Enter your 11-digit NIN.');return;}
+  button.disabled=true;button.textContent='Checking identity…';
+  try {
+    const payload=await requestSellbookIdentity('verify',{
+      attempt_id:attemptId,nin,
+      first_name:document.getElementById('identityFirstName').value.trim(),
+      last_name:document.getElementById('identityLastName').value.trim(),
+      date_of_birth:document.getElementById('identityDateOfBirth').value
+    });
+    if(payload.data?.verified!==true)throw new Error('Sellbook could not confirm your identity.');
+    sessionStorage.removeItem('sellbook-identity-attempt-'+user.id);
+    const url=new URL(location.href);url.searchParams.delete('identity_verification');history.replaceState(history.state,'',url.pathname+url.search+url.hash);
+    document.getElementById('identityVerificationGate')?.classList.add('hidden');
+    setIdentityGateMessage('Identity verified successfully.');
+    await handleCloudAuthChange();
+  } catch(error) {
+    setIdentityGateMessage(error.message||'Identity verification failed. Please check the details and try again.');
+  } finally {button.disabled=false;button.textContent='Verify identity';}
+});
+document.getElementById('identityVerificationRetry')?.addEventListener('click',()=>cloudUser&&checkIdentityGate(cloudUser));
+
 async function handleCloudAuthChange() {
   if (authTransition) { authTransitionPending = true; return; }
   authTransition = true;
@@ -729,6 +837,13 @@ async function handleCloudAuthChange() {
 
     if (user) {
       cloudUser = user;
+      // Identity enforcement runs before any private workspace or cached records are shown.
+      const identityBlocked = await checkIdentityGate(user);
+      if (identityBlocked) {
+        coreWorkspaceLoaded = true;
+        finishStartup();
+        return;
+      }
       // Every authenticated Sellbook session must pass the server-side PIN gate
       // before any private business rows are loaded or rendered.
       const pinAllowed = await ensureSellbookPinAccess();
