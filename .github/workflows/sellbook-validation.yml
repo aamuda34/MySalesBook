@@ -112,6 +112,13 @@ jobs:
           grep -q 'offset+=pageFiles.length' app.js
           grep -q 'paths.slice(offset,offset+100)' app.js
 
+      - name: Verify admin data access requires a verified admin session
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -Fq "if(!supabaseClient||!cloudUser||!sellbookIsAdmin)return;" app.js
+          test "$(grep -Fc "if(!supabaseClient||!cloudUser||!sellbookIsAdmin)return;" app.js)" -ge 5
+
       - name: Check key PWA metadata and cache version
         shell: bash
         run: |
