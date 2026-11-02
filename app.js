@@ -1398,7 +1398,7 @@ function renderProductCreationHistory(){
  target.innerHTML=rows.length?rows.map(row=>'<button type="button" class="stock-history-row" data-stock-history-id="'+esc(String(row.productId||row.id))+'" data-stock-history-kind="added"><span class="row"><strong>'+esc(row.productName||'Product')+'</strong><strong>'+Number(row.initialStock||0).toLocaleString('en-NG')+' units</strong></span><span class="muted">Added '+safeDate(row.addedAt).toLocaleString()+' · Cost '+money(row.cost)+' · Selling '+money(row.price)+'</span></button>').join(''):'<div class="empty">No products added in this history yet. New products will appear here from now on; earlier product details cannot be reconstructed reliably.</div>';
 }
 function renderStockHistoryDetail(kind,id){
- const row=(kind==='added'?(db.productAdditions||[]):kind==='restock'?(db.restocks||[]):(db.stockAdjustments||[])).find(x=>String(x.productId||x.id)===String(id));
+ const row=(kind==='added'?(db.productAdditions||[]):kind==='restock'?(db.restocks||[]):(db.stockAdjustments||[])).find(x=>String(kind==='added'?(x.productId||x.id):x.id)===String(id));
  const target=document.getElementById('stockHistoryDetailContent');if(!target||!row)return;
  const fields=kind==='added'?[
   ['Type','Product added'],['Product',row.productName||'Product'],['Date and time',safeDate(row.addedAt).toLocaleString()],
