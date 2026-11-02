@@ -2731,9 +2731,21 @@ async function recordSellbookVisit(){
  await supabaseClient.rpc('record_sellbook_visit',{p_session_key:key});}catch(e){console.warn('Visit tracking unavailable',e);}
 }
 async function verifyAdminAccess(){
- if(!supabaseClient||!cloudUser){setAdminAccess(false);return false;}
- try{const {data,error}=await supabaseClient.rpc('is_sellbook_admin');if(error)throw error;setAdminAccess(data===true);return data===true;}
- catch(e){setAdminAccess(false);return false;}
+ const expectedUserId=cloudUser?.id||null;
+ if(!supabaseClient||!expectedUserId){setAdminAccess(false);return false;}
+ try{
+  const {data,error}=await supabaseClient.rpc('is_sellbook_admin');
+  if(error)throw error;
+  // Ignore a late response from the previous account after a fast sign-out
+  // or account switch. Admin state belongs to one authenticated user only.
+  if(cloudUser?.id!==expectedUserId)return false;
+  const allowed=data===true;
+  setAdminAccess(allowed);
+  return allowed;
+ }catch(e){
+  if(cloudUser?.id===expectedUserId)setAdminAccess(false);
+  return false;
+ }
 }
 async function loadAdminDashboard(){
  if(!await verifyAdminAccess()){cloudMessage('This account is not authorised for Sellbook administration.');return;}
