@@ -1134,3 +1134,8 @@ body.dark :where(.sales-history-row small,.sales-history-row-main small,
 
 /* First-name label at the top-left of the Me panel. */
 .me-user-first-name{margin-right:auto;min-width:0;font-size:20px;font-weight:750;letter-spacing:-.25px;color:var(--ink);text-transform:uppercase;overflow-wrap:anywhere}
+
+
+/* Me is a standalone panel: hide the Home greeting/header while retaining the Me topbar and main navigation. */
+body:has(#me.page:not(.hidden))>.seller-welcome-header{display:none!important;}
+body:has(#me.page:not(.hidden)) #appWorkspace>main{padding-top:0!important;}
