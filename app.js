@@ -3045,28 +3045,66 @@ document.getElementById('backAdminChatList').addEventListener('click',backToAdmi
 document.getElementById('refreshAdminChatConversation').addEventListener('click',loadAdminConversation);
 let adminConversationLoading=false;
 async function loadAdminConversation(){
- if(adminConversationLoading)return;adminConversationLoading=true;
- const uid=document.getElementById('adminMessageUser').value,target=document.getElementById('adminSupportMessages'),input=document.getElementById('adminReplyBody'),send=document.querySelector('#adminReplyForm button[type="submit"]');
- if(!uid){target.innerHTML='<div class="empty">Choose a user to view messages.</div>';input.disabled=true;send.disabled=true;adminConversationLoading=false;return;}
- const user=adminUsersCache.find(u=>u.user_id===uid);document.getElementById('adminChatContactName').textContent=user?.email||'Sellbook user';document.getElementById('adminChatContactStatus').textContent='Online chat · messages update automatically';input.disabled=false;send.disabled=false;
- const firstLoad=!target.dataset.loaded;
- if(firstLoad)target.innerHTML='<div class="empty">Loading conversation…</div>';
- const wasNearBottom=target.scrollHeight-target.scrollTop-target.clientHeight<100;
- let {data,error}=await supabaseClient.from('support_messages').select('id,sender_id,recipient_id,body,created_at,delivered_at,read_at').or('sender_id.eq.'+uid+',recipient_id.eq.'+uid).order('created_at',{ascending:true}).limit(200);
- if(error){target.innerHTML='<div class="empty">Could not load conversation: '+escAdmin(error.message)+'</div>';adminConversationLoading=false;return;}
- const unread=(data||[]).filter(m=>m.sender_id===uid&&!m.read_at).map(m=>m.id);
- if(unread.length){
-  const now=new Date().toISOString();
-  const {data:updated,error:updateError}=await supabaseClient.from('support_messages').update({delivered_at:now,read_at:now}).in('id',unread).select('id');
-  if(!updateError){const fresh=await supabaseClient.from('support_messages').select('id,sender_id,recipient_id,body,created_at,delivered_at,read_at').or('sender_id.eq.'+uid+',recipient_id.eq.'+uid).order('created_at',{ascending:true}).limit(200);if(!fresh.error)data=fresh.data;else console.error('Could not refresh admin chat receipts:',fresh.error.message);await loadAdminUsers();}
+ if(adminConversationLoading||!supabaseClient||!cloudUser||!sellbookIsAdmin)return;
+ const requestedUserId=cloudUser.id,requestEpoch=adminAccessEpoch;
+ const current=()=>adminRequestIsCurrent(requestedUserId,requestEpoch);
+ adminConversationLoading=true;
+ const target=document.getElementById('adminSupportMessages');
+ const input=document.getElementById('adminReplyBody');
+ const send=document.querySelector('#adminReplyForm button[type="submit"]');
+ try{
+  const uid=document.getElementById('adminMessageUser').value;
+  if(!uid){target.innerHTML='<div class="empty">Choose a user to view messages.</div>';input.disabled=true;send.disabled=true;return;}
+  const user=adminUsersCache.find(u=>u.user_id===uid);
+  document.getElementById('adminChatContactName').textContent=user?.email||'Sellbook user';
+  document.getElementById('adminChatContactStatus').textContent='Online chat · messages update automatically';
+  input.disabled=false;send.disabled=false;
+  const firstLoad=!target.dataset.loaded;
+  if(firstLoad)target.innerHTML='<div class="empty">Loading conversation…</div>';
+  const wasNearBottom=target.scrollHeight-target.scrollTop-target.clientHeight<100;
+
+  let {data,error}=await supabaseClient.from('support_messages')
+   .select('id,sender_id,recipient_id,body,created_at,delivered_at,read_at')
+   .or('sender_id.eq.'+uid+',recipient_id.eq.'+uid)
+   .order('created_at',{ascending:true}).limit(200);
+  if(!current())return;
+  if(error){target.innerHTML='<div class="empty">Could not load conversation: '+escAdmin(error.message)+'</div>';return;}
+
+  const unread=(data||[]).filter(m=>m.sender_id===uid&&!m.read_at).map(m=>m.id);
+  if(unread.length){
+   const stamp=new Date().toISOString();
+   const {error:updateError}=await supabaseClient.from('support_messages')
+    .update({delivered_at:stamp,read_at:stamp}).in('id',unread).select('id');
+   if(!current())return;
+   if(!updateError){
+    const fresh=await supabaseClient.from('support_messages')
+     .select('id,sender_id,recipient_id,body,created_at,delivered_at,read_at')
+     .or('sender_id.eq.'+uid+',recipient_id.eq.'+uid)
+     .order('created_at',{ascending:true}).limit(200);
+    if(!current())return;
+    if(!fresh.error)data=fresh.data;
+    else console.error('Could not refresh admin chat receipts:',fresh.error.message);
+    await loadAdminUsers();
+    if(!current())return;
+   }
+  }
+
+  if(!current())return;
+  const messages=data||[];
+  const conversationHtml=messages.length?messages.map(m=>{
+   const mine=m.sender_id===requestedUserId;
+   const receipt=mine?(m.read_at?'✓✓ Opened':m.delivered_at?'✓✓ Delivered':'✓ Sent'):'';
+   return '<div class="admin-chat-bubble '+(mine?'from-admin':'from-user')+'">'+escAdmin(m.body)+'<span class="chat-time">'+escAdmin(new Date(m.created_at).toLocaleString([], {dateStyle:'medium',timeStyle:'short'}))+(receipt?' · '+receipt:'')+'</span></div>';
+  }).join(''):'<div class="empty">No messages yet. You can send the first message below.</div>';
+  if(target.innerHTML!==conversationHtml)target.innerHTML=conversationHtml;
+  target.dataset.loaded='true';
+  if(wasNearBottom)target.scrollTop=target.scrollHeight;
+  if(current())await updateUnreadBadges();
+ }catch(error){
+  if(current())target.innerHTML='<div class="empty">Could not load conversation: '+escAdmin(error.message||'Please try again.')+'</div>';
+ }finally{
+  adminConversationLoading=false;
  }
- const messages=data||[];
- const conversationHtml=messages.length?messages.map(m=>{const mine=m.sender_id===cloudUser.id;const receipt=mine?(m.read_at?'✓✓ Opened':m.delivered_at?'✓✓ Delivered':'✓ Sent'):'';return '<div class="admin-chat-bubble '+(mine?'from-admin':'from-user')+'">'+escAdmin(m.body)+'<span class="chat-time">'+escAdmin(new Date(m.created_at).toLocaleString([], {dateStyle:'medium',timeStyle:'short'}))+(receipt?' · '+receipt:'')+'</span></div>';}).join(''):'<div class="empty">No messages yet. You can send the first message below.</div>';
- if(target.innerHTML!==conversationHtml)target.innerHTML=conversationHtml;
- target.dataset.loaded='true';
- if(wasNearBottom)target.scrollTop=target.scrollHeight;
- await updateUnreadBadges();
- adminConversationLoading=false;
 }
 document.getElementById('adminReplyForm').addEventListener('submit',async e=>{
  e.preventDefault();if(!sellbookIsAdmin)return;
