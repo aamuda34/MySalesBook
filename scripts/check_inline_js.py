@@ -243,7 +243,7 @@ print(f"Buybook activity and notification recovery checks passed ({len(buybook_r
 if 'replace(/^Bearer\\s+/i, "")' not in reservation_notification_function:
     raise SystemExit("Reservation notification must correctly extract the bearer token.")
 print("Reservation notification authentication parsing check passed.")
-if "const CACHE_NAME = 'sellbook-shell-v63';" not in service_worker:
+if "const CACHE_NAME = 'sellbook-shell-v64';" not in service_worker:
     raise SystemExit("The service-worker shell cache must be versioned for the pending app update.")
 print("Offline shell cache version check passed.")
 if "dates.reduce((minimum,d)=>Math.min(minimum,d.getTime()),Infinity)" not in app_js:
