@@ -3005,7 +3005,43 @@ async function loadAdminNotifications(){
  localStorage.setItem('sellbook-notifications-seen-'+requestedUserId,new Date().toISOString());
  target.innerHTML=(data||[]).length?data.map(n=>'<div class="item"><strong>'+escAdmin(n.title)+'</strong><div class="muted">'+escAdmin(n.kind)+' · '+(n.recipient_id?'Specific user':'All users')+' · '+escAdmin(new Date(n.created_at).toLocaleString())+'</div><p>'+escAdmin(n.body)+'</p></div>').join(''):'<div class="empty">No notifications published yet.</div>';
 }
-function updateBusinessDetailsPage(){const name=(document.getElementById('businessTitle')?.textContent||'Sellbook').trim();const nameEls=['businessDetailsName','businessDetailsBusinessName'];nameEls.forEach(id=>{const el=document.getElementById(id);if(el)el.textContent=name;});const email=document.getElementById('businessDetailsEmail');if(email)email.textContent=cloudUser?.email||'Not signed in';const registered=document.getElementById('businessDetailsRegistered');if(registered){const raw=cloudUser?.created_at||cloudUser?.createdAt;registered.textContent=raw&&!Number.isNaN(new Date(raw).getTime())?new Date(raw).toLocaleDateString(undefined,{day:'numeric',month:'long',year:'numeric'}):'Not available for this device';}const status=document.getElementById('businessDetailsStatus');if(status)status.textContent=cloudUser?'Registered account':'Device profile';}
+function updateBusinessDetailsPage(){
+ const profile=getProfile();
+ const businessName=String(profile.businessName||'').trim();
+ const nameEl=document.getElementById('businessDetailsBusinessName');
+ if(nameEl)nameEl.textContent=businessName||'Not set';
+ const legacyNameEl=document.getElementById('businessDetailsName');
+ if(legacyNameEl)legacyNameEl.textContent=businessName||'Not set';
+
+ const logo=document.getElementById('businessDetailsLogo');
+ const avatar=document.getElementById('businessDetailsAvatar');
+ const avatarIcon=avatar?.querySelector('svg');
+ const logoUrl=String(profile.businessLogo||'').trim();
+ if(logo&&avatarIcon){
+  if(logoUrl){
+   logo.src=logoUrl;
+   logo.classList.remove('hidden');
+   avatarIcon.classList.add('hidden');
+  }else{
+   logo.removeAttribute('src');
+   logo.classList.add('hidden');
+   avatarIcon.classList.remove('hidden');
+  }
+ }
+
+ const email=document.getElementById('businessDetailsEmail');
+ if(email)email.textContent=cloudUser?.email||'Not signed in';
+ const registered=document.getElementById('businessDetailsRegistered');
+ if(registered){
+  const raw=cloudUser?.created_at||cloudUser?.createdAt;
+  const date=raw?new Date(raw):null;
+  registered.textContent=date&&!Number.isNaN(date.getTime())
+   ?date.toLocaleDateString(undefined,{day:'numeric',month:'long',year:'numeric'})
+   :'Not available for this device';
+ }
+ const status=document.getElementById('businessDetailsStatus');
+ if(status)status.textContent=cloudUser?'Registered account':'Device profile';
+}
 function updateMePanel(){const profile=getProfile();const name=String(profile.businessName||'').trim()||'Sellbook';const b=document.getElementById('meBusinessName');if(b)b.textContent=name;}
 function setUnreadBadge(id,count){const el=document.getElementById(id);if(!el)return;const n=Math.max(0,Number(count)||0);el.textContent=n>99?'99+':String(n);el.classList.toggle('hidden',n===0);}
 async function updateUnreadBadges(){
