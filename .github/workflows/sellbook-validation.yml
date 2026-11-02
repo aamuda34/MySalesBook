@@ -1,0 +1,53 @@
+name: Sellbook validation
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sellbook-validation-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: Validate app shell and JavaScript syntax
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out exact revision
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Verify required application files exist
+        shell: bash
+        run: |
+          set -euo pipefail
+          for file in index.html app.js styles.css sw.js manifest.webmanifest supabase-config.js; do
+            test -s "$file" || { echo "Missing or empty required file: $file"; exit 1; }
+          done
+
+      - name: Check JavaScript syntax
+        run: |
+          node --check app.js
+          node --check sw.js
+          node --check stock-history-tabs.js
+
+      - name: Validate web app manifest JSON
+        run: node -e "JSON.parse(require('node:fs').readFileSync('manifest.webmanifest', 'utf8')); console.log('Manifest JSON is valid')"
+
+      - name: Check key PWA metadata and cache version
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -q '<link rel="manifest" href="./manifest.webmanifest">' index.html
+          grep -q 'display' manifest.webmanifest
+          grep -Eq "const CACHE_NAME = 'sellbook-shell-v[0-9]+'" sw.js
