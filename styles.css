@@ -748,3 +748,46 @@ body.subscribers-page-open #subscribers,body.reservations-page-open #reservation
 #sales .sales-page-header .page-history-button{display:grid!important;visibility:visible!important;opacity:1!important;position:relative!important;flex:0 0 40px!important;width:40px!important;height:40px!important;min-width:40px!important;margin-left:auto!important;padding:9px!important;align-items:center!important;justify-content:center!important;border:1px solid #d5e5d9!important;border-radius:50%!important;background:#edf6ef!important;color:#14532d!important;}
 #products .products-page-header .page-history-button svg,
 #sales .sales-page-header .page-history-button svg{display:block!important;width:20px!important;height:20px!important;fill:none!important;stroke:#14532d!important;stroke-width:1.9!important;stroke-linecap:round!important;stroke-linejoin:round!important;}
+
+
+/* Compact pill-shaped selectors for Product History categories. */
+.stock-history-tabs{
+ display:flex;
+ align-items:center;
+ flex-wrap:wrap;
+ gap:6px;
+ margin:10px 0 14px;
+}
+.stock-history-tabs .stock-history-tab{
+ display:inline-flex;
+ align-items:center;
+ justify-content:center;
+ gap:4px;
+ width:auto;
+ min-width:0;
+ min-height:28px;
+ padding:4px 9px;
+ border:1px solid #d5e5d9;
+ border-radius:999px;
+ background:#f3f6f3;
+ color:#315b3d;
+ font-size:11px;
+ font-weight:650;
+ line-height:1.2;
+ white-space:nowrap;
+ box-shadow:none;
+}
+.stock-history-tabs .stock-history-tab.active{
+ border-color:#14532d;
+ background:#14532d;
+ color:#fff;
+}
+.stock-history-tabs .stock-history-tab [data-history-count]{
+ font-size:10px;
+ font-weight:700;
+ opacity:.85;
+}
+.stock-history-tabs .stock-history-tab:focus-visible{
+ outline:2px solid #8fc69d;
+ outline-offset:2px;
+}
