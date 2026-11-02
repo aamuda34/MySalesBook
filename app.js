@@ -699,6 +699,7 @@ let accountTierSnapshot=null;
 let accountTierProviderConfigured=false;
 let accountTierProviderPrice=null;
 let accountTierProviderPriceAvailable=false;
+let accountTierNinNotFoundFee=null;
 let accountTierLoadId=0;
 
 async function requestSellbookIdentity(action,extra={}){
@@ -767,7 +768,8 @@ async function loadAccountTiers(){
   if(tierResult.error)throw tierResult.error;
   const tier=tierResult.data||{};
   accountTierSnapshot=tier;
-  accountTierProviderConfigured=identityResult.configured===true;
+  accountTierProviderConfigured=identityResult.nin_configured===true;
+  accountTierNinNotFoundFee=Number.isFinite(Number(identityResult.nin_not_found_fee))?Number(identityResult.nin_not_found_fee):null;
   accountTierProviderPrice=Number.isFinite(Number(identityResult.nin_price))?Number(identityResult.nin_price):null;
   accountTierProviderPriceAvailable=identityResult.price_available===true&&accountTierProviderPrice!==null&&identityResult.currency==='NGN';
   const verified=tier.tier2_complete===true;
@@ -788,16 +790,16 @@ async function loadAccountTiers(){
    if(verified)providerNote.textContent='Your NIN verification is complete. You do not need to repeat it.';
    else if(!accountTierProviderConfigured)providerNote.textContent='NIN verification is not configured for live checks yet. You can continue using all basic Sellbook features.';
    else if(!accountTierProviderPriceAvailable)providerNote.textContent='Sellbook could not confirm the current NIN lookup fee. No verification request has been made. Please try again later.';
-   else providerNote.textContent='Current NIN lookup fee: '+formatNairaFee(accountTierProviderPrice)+'. The fee is displayed before the check is submitted.';
+   else providerNote.textContent='Current NIN lookup fee: '+formatNairaFee(accountTierProviderPrice)+' if the record is found'+(accountTierNinNotFoundFee!==null?'; a not-found NIN lookup may cost '+formatNairaFee(accountTierNinNotFoundFee):'')+'. The check will not start until you accept the fee details.';
   }
   if(connectButton){
    connectButton.disabled=!(verified||connected);
    connectButton.textContent=connected?'Manage existing Buybook connection':(verified?'Connect to Buybook':'Complete Tier 2 first');
   }
   const fee=document.getElementById('ninVerificationPrice');
-  if(fee)fee.textContent=accountTierProviderPriceAvailable?'Current provider fee: '+formatNairaFee(accountTierProviderPrice):'Current provider fee is unavailable.';
+  if(fee)fee.textContent=accountTierProviderPriceAvailable?'NIN found: '+formatNairaFee(accountTierProviderPrice)+(accountTierNinNotFoundFee!==null?' · NIN not found: '+formatNairaFee(accountTierNinNotFoundFee):''):'Current provider fee is unavailable.';
   const consentText=document.getElementById('ninVerificationConsentText');
-  if(consentText)consentText.textContent=accountTierProviderPriceAvailable?'I agree to send my NIN and the details above to the identity provider for a NIN registry lookup. I understand the displayed provider fee of '+formatNairaFee(accountTierProviderPrice)+' may be incurred by Sellbook when a record is found.':'I agree to send my NIN and the details above to the identity provider for a NIN registry lookup.';
+  if(consentText)consentText.textContent=accountTierProviderPriceAvailable?'I agree to send my NIN and the details above to the identity provider for a registry lookup. I understand that a successful lookup costs '+formatNairaFee(accountTierProviderPrice)+(accountTierNinNotFoundFee!==null?' and a not-found lookup may cost '+formatNairaFee(accountTierNinNotFoundFee):'')+'.':'I agree to send my NIN and the details above to the identity provider for a NIN registry lookup.';
   const legacyNote=document.getElementById('legacyBuybookTierNotice');
   if(legacyNote){
    legacyNote.classList.toggle('hidden',!legacy);
@@ -913,7 +915,7 @@ document.getElementById('ninVerificationForm')?.addEventListener('submit',async 
    const consent=document.getElementById('ninVerificationConsent');
    if(consent)consent.checked=false;
    const consentText=document.getElementById('ninVerificationConsentText');
-   if(consentText)consentText.textContent='I agree to send my NIN and details for a NIN registry lookup at the updated provider fee of '+formatNairaFee(accountTierProviderPrice)+'.';
+   if(consentText)consentText.textContent='I agree to send my NIN and details for a registry lookup. A successful lookup costs '+formatNairaFee(accountTierProviderPrice)+(accountTierNinNotFoundFee!==null?' and a not-found lookup may cost '+formatNairaFee(accountTierNinNotFoundFee):'')+'.';
    setNinVerificationMessage('The provider fee changed before the check started. Nothing was charged. Review the updated fee and accept it to continue.');
   }else if(error.code==='identity_already_linked'){
    setNinVerificationMessage('This NIN is already linked to another Sellbook account. Contact Sellbook Support if you believe this is a mistake.');
