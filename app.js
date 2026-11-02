@@ -26,22 +26,33 @@ function normalizeDb(v){return {products:Array.isArray(v?.products)?v.products:[
 let lowStockThreshold=Number(localStorage.getItem('my-sales-book-low-stock-v1')||5);if(!Number.isSafeInteger(lowStockThreshold)||lowStockThreshold<0)lowStockThreshold=5;
 
 const THEME_PREFERENCE_KEY='my-sales-book-theme-v1';
+const systemThemeQuery=window.matchMedia('(prefers-color-scheme: dark)');
+function getThemePreference(){
+ const saved=localStorage.getItem(THEME_PREFERENCE_KEY);
+ return saved==='light'||saved==='dark'?saved:'system';
+}
 function applyTheme(){
- const preference=localStorage.getItem(THEME_PREFERENCE_KEY)==='dark'?'dark':'light';
- document.body.classList.toggle('dark',preference==='dark');
+ const preference=getThemePreference();
+ const useDark=preference==='dark'||(preference==='system'&&systemThemeQuery.matches);
+ document.body.classList.toggle('dark',useDark);
  const themeColor=document.querySelector('meta[name="theme-color"]');
- if(themeColor)themeColor.setAttribute('content',preference==='dark'?'#100b18':'#14532d');
+ if(themeColor)themeColor.setAttribute('content',useDark?'#100b18':'#14532d');
  const control=document.getElementById('themePreference');
  if(control&&control.value!==preference)control.value=preference;
 }
 const themePreferenceControl=document.getElementById('themePreference');
 if(themePreferenceControl){
- themePreferenceControl.value=localStorage.getItem(THEME_PREFERENCE_KEY)==='dark'?'dark':'light';
+ themePreferenceControl.value=getThemePreference();
  themePreferenceControl.addEventListener('change',()=>{
-  const selected=themePreferenceControl.value==='dark'?'dark':'light';
+  const selected=['system','light','dark'].includes(themePreferenceControl.value)?themePreferenceControl.value:'system';
   localStorage.setItem(THEME_PREFERENCE_KEY,selected);
   applyTheme();
  });
+}
+if(systemThemeQuery.addEventListener){
+ systemThemeQuery.addEventListener('change',()=>{if(getThemePreference()==='system')applyTheme();});
+}else if(systemThemeQuery.addListener){
+ systemThemeQuery.addListener(()=>{if(getThemePreference()==='system')applyTheme();});
 }
 function safeDate(value){const d=new Date(value);return Number.isNaN(d.getTime())?new Date(0):d;}
 function dateKey(value){const d=safeDate(value);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
