@@ -474,9 +474,7 @@ function restoreLocalRecords() {
   cloudReady = false;
   workspaceReady = false;
   cloudUser = null;
-  setAdminAccess(false);
-  marketplaceSubscribersCache = [];
-  marketplaceSelectedBuyerId = null;
+  clearAccountScopedUiState();
   render();
 }
 
@@ -709,9 +707,7 @@ async function handleCloudAuthChange() {
     // A session can change accounts without a full page reload. Clear any
     // previous administrator privilege before the new identity is checked.
     if (!user || cloudUser?.id !== user.id) {
-      setAdminAccess(false);
-      marketplaceSubscribersCache = [];
-      marketplaceSelectedBuyerId = null;
+      clearAccountScopedUiState();
     }
 
     if (user) {
@@ -761,9 +757,7 @@ async function handleCloudAuthChange() {
       // cannot expose the old account's offline snapshot. Clear its identity
       // and administrator state explicitly nonetheless.
       cloudUser = null;
-      setAdminAccess(false);
-      marketplaceSubscribersCache = [];
-      marketplaceSelectedBuyerId = null;
+      clearAccountScopedUiState();
       hideSecurityPinGate();
       securityPinExpiresAt=0;
       if(securityPinExpiryTimer){clearTimeout(securityPinExpiryTimer);securityPinExpiryTimer=null;}
@@ -821,9 +815,7 @@ async function handleCloudAuthChange() {
       // If session lookup failed while signed out, never retain the previous
       // account identity or admin UI as an offline fallback.
       cloudUser = null;
-      setAdminAccess(false);
-      marketplaceSubscribersCache = [];
-      marketplaceSelectedBuyerId = null;
+      clearAccountScopedUiState();
       workspaceReady = false;
       document.getElementById('appWorkspace').classList.add('hidden');
       cloudMessage('Cloud connection failed: ' + (err.message || String(err)) + '. Sign in again when internet is available.');
@@ -2709,6 +2701,18 @@ function setAdminAccess(isAdmin){
  document.getElementById('adminMenuTile')?.classList.toggle('hidden',!sellbookIsAdmin);
  if(sellbookIsAdmin&&currentPage()!=='admin'&&currentPage()!=='support')showPage('admin');
  if(!sellbookIsAdmin&&currentPage()==='admin')showPage('home');
+}
+function clearAccountScopedUiState(){
+ setAdminAccess(false);
+ marketplaceSubscribersCache=[];
+ marketplaceSelectedBuyerId=null;
+ marketplaceReservationsCache=[];
+ marketplaceSelectedReservationId=null;
+ adminUsersCache=[];
+ userNotificationsCache=[];
+ messengerSelectedConversation=null;
+ messengerConversationCache=[];
+ adminConversationLoading=false;
 }
 function showAdminPanel(name){
  if(!supabaseClient||!cloudUser||!sellbookIsAdmin)return;
