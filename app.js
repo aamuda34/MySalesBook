@@ -2916,7 +2916,7 @@ async function loadConversationList(){
 
 async function loadUserSupport(){
  if(!cloudUser||!supabaseClient)return;
- const requestedUserId=requestedUserId,requestEpoch=accountSessionEpoch;
+ const requestedUserId=cloudUser.id,requestEpoch=accountSessionEpoch;
  const current=()=>accountRequestIsCurrent(requestedUserId,requestEpoch);
  const feedback=document.getElementById('userFeedbackList'),messages=document.getElementById('userSupportMessages'),selector=document.getElementById('messageConversationSelect');
  const [fr,mr,sr]=await Promise.all([
