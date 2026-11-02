@@ -34,6 +34,7 @@ begin
     'locked_until',case when v_locked_until>now() then v_locked_until else null end,
     'attempts_remaining',case
       when v_locked_until is not null and v_locked_until>now() then 0
+      when v_locked_until is not null and v_locked_until<=now() then 5
       else greatest(5-coalesce(v_failed_attempts,0),0)
     end
   );
