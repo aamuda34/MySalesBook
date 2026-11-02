@@ -905,7 +905,7 @@ document.getElementById('ninVerificationForm')?.addEventListener('submit',async 
   await loadAccountTiers();
   if(currentPage()==='settings-buybook')await loadBuybookConnection();
  }catch(error){
-  const terminalCodes=['invalid_nin','valid_first_and_last_name_required','valid_date_of_birth_required','verification_attempt_not_found','verification_attempt_not_pending','verification_attempt_expired','identity_not_found','identity_not_verified','identity_already_verified','identity_already_linked','identity_claim_failed','nin_registry_unavailable'];
+  const terminalCodes=['invalid_nin','valid_first_and_last_name_required','valid_date_of_birth_required','verification_attempt_not_found','verification_attempt_not_pending','verification_attempt_expired','verification_session_expired','identity_not_found','identity_not_verified','identity_already_verified','identity_already_linked','identity_claim_failed','nin_registry_unavailable'];
   if(terminalCodes.includes(error.code))sessionStorage.removeItem(attemptKey);
   if(error.code==='price_changed'&&Number.isFinite(Number(error.details?.nin_price))){
    accountTierProviderPrice=Number(error.details.nin_price);
