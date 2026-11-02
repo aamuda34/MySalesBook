@@ -1,7 +1,3 @@
--- Finalize the unique identity claim and its audit attempt in one transaction.
--- If either operation fails, PostgreSQL rolls both back so the account cannot be
--- left identity-bound while the corresponding attempt remains pending.
-
 create or replace function public.claim_and_finish_verified_identity(
   p_user_id uuid,
   p_attempt_id uuid,
