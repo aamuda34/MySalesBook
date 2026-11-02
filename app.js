@@ -1170,19 +1170,19 @@ function paintPage(name,scroll){if(!VALID_PAGES.has(name))name='home';if(name===
       if(previous&&previous!==current&&['settings','home','me'].includes(previous))return previous;
       return 'settings';
     }
-    // Explicit page parents on other back buttons are authoritative. History state can
-    // be stale after PWA restoration or tab switches, so never let it redirect
-    // a page-specific back arrow to an unrelated screen.
-    if(button.dataset.appBack&&VALID_PAGES.has(button.dataset.appBack))return button.dataset.appBack;
-    if(button.dataset.openPage&&VALID_PAGES.has(button.dataset.openPage))return button.dataset.openPage;
+    // Prefer the page the user actually came from, consistently across the app.
+    // Explicit button targets and inline handlers are fallbacks only: they may be
+    // static defaults that ignore the user's real navigation path.
     const previous=history.state&&history.state.mySalesBookPage===current?history.state.mySalesBookPreviousPage:null;
     if(previous&&previous!==current&&VALID_PAGES.has(previous))return previous;
+    if(button.dataset.appBack&&VALID_PAGES.has(button.dataset.appBack))return button.dataset.appBack;
+    if(button.dataset.openPage&&VALID_PAGES.has(button.dataset.openPage))return button.dataset.openPage;
     const inline=button.getAttribute('onclick')||'';
     const match=inline.match(/showPage\(['"]([^'"]+)['"]\)/);
     return match&&VALID_PAGES.has(match[1])?match[1]:(parentPages[current]||'home');
   }
   document.addEventListener('click',function(event){
-    const button=event.target.closest('.products-back-button,.settings-back-button,.business-profile-back,.reports-back-button,.notifications-back-button,.support-back-button,.stock-back-button,.stock-history-back-button,.stock-history-detail-back-button,.settings-main-back-button,.about-sellbook-back-button,[data-app-back]');
+    const button=event.target.closest('.products-back-button,.settings-back-button,.business-profile-back,.reports-back-button,.notifications-back-button,.support-back-button,.stock-back-button,.stock-history-back-button,.stock-history-detail-back-button,.settings-main-back-button,.about-sellbook-back-button,.legal-page-back,[data-app-back],[aria-label^="Back"],[aria-label^="Go back"]');
     if(!button)return;
     // Resolve the page from the clicked arrow's own section, not from a
     // global first-visible-page lookup. This prevents stale/overlapping page
