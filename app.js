@@ -1165,25 +1165,6 @@ function paintPage(name,scroll){if(!VALID_PAGES.has(name))name='home';if(name===
     showPage(fallback,{replaceHistory:true});
   },true);
 })();
-// Product History category tabs are delegated so every tab remains usable
-// after the history lists are refreshed or re-rendered.
-document.getElementById('stockHistoryTabs')?.addEventListener('click',event=>{
- const button=event.target.closest('[data-stock-history-tab]');
- if(!button||!event.currentTarget.contains(button))return;
- const key=button.dataset.stockHistoryTab;
- const panels={added:'productCreationHistoryPanel',adjustments:'stockAdjustmentPanel',restocks:'restockHistoryPanel'};
- if(!Object.prototype.hasOwnProperty.call(panels,key))return;
- event.currentTarget.querySelectorAll('[data-stock-history-tab]').forEach(tab=>{
-  const active=tab===button;
-  tab.classList.toggle('active',active);
-  tab.setAttribute('aria-selected',String(active));
-  tab.setAttribute('tabindex',active?'0':'-1');
- });
- Object.entries(panels).forEach(([name,id])=>{
-  const panel=document.getElementById(id);
-  if(panel)panel.hidden=name!==key;
- });
-});
 function refreshStockHistoryBadges(){
  const tabs=document.getElementById('stockHistoryTabs');if(!tabs)return;
  const counts={added:(db.productAdditions||[]).length,adjustments:(db.stockAdjustments||[]).length,restocks:(db.restocks||[]).length};
