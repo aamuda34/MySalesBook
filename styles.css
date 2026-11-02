@@ -1209,3 +1209,719 @@ button.primary,button.danger,form button:not([aria-label]){min-height:44px}
 @media(min-width:600px){
   #appWorkspace>main{padding-left:20px;padding-right:20px}
 }
+
+
+
+/* ==========================================================================
+   SELLBOOK APP-WIDE SCREEN LAYOUT
+   A calm, consistent mobile-first layout for every seller-facing screen.
+   Presentation only: no data, navigation, permissions or business logic changes.
+   ========================================================================== */
+
+/* Shared page frame and predictable content width. */
+#appWorkspace>main{
+  width:100%;
+  max-width:800px;
+  margin-inline:auto;
+  padding-left:16px;
+  padding-right:16px;
+}
+#appWorkspace>main>.page{
+  width:100%;
+  min-width:0;
+  padding-bottom:24px;
+}
+#appWorkspace>main>#admin{max-width:960px;margin-inline:auto}
+#appWorkspace .page .card{
+  min-width:0;
+  margin:0 0 12px;
+  padding:16px;
+  border:1px solid var(--border);
+  border-radius:16px;
+  background:var(--surface);
+  box-shadow:0 2px 9px rgba(20,45,28,.045);
+}
+#appWorkspace .page .card:last-child{margin-bottom:0}
+#appWorkspace .page .section-heading{
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  margin:0 0 12px;
+}
+#appWorkspace .page .section-heading h2{margin:0;min-width:0}
+#appWorkspace .page .page-intro{
+  max-width:58ch;
+  margin:0 0 14px;
+  color:var(--muted);
+  font-size:13px;
+  line-height:1.5;
+}
+#appWorkspace .page .empty{
+  padding:22px 12px;
+  line-height:1.5;
+  text-align:center;
+}
+#appWorkspace .page .muted{line-height:1.45}
+#appWorkspace .page button:focus-visible,
+#appWorkspace .page a:focus-visible{
+  outline:2px solid var(--green);
+  outline-offset:2px;
+}
+
+/* One header pattern for all standalone pages. */
+.products-page-header,
+.reports-page-heading,
+.stock-page-heading,
+.stock-history-page-heading,
+.stock-history-detail-heading,
+.settings-main-page-heading,
+.settings-page-heading,
+.legal-page-heading,
+.about-sellbook-page-heading,
+.business-profile-page-heading,
+.notifications-page-header,
+#messenger .messenger-main-heading,
+#support .support-page-heading{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  min-height:56px;
+  height:auto;
+  padding:4px 2px 10px;
+  margin:0 0 14px;
+  border:0;
+  border-bottom:1px solid var(--border);
+  background:transparent;
+  box-shadow:none;
+}
+.products-page-header h1,
+.reports-page-heading .page-title,
+.stock-page-heading .page-title,
+.stock-history-page-heading .page-title,
+.stock-history-detail-heading .page-title,
+.settings-main-page-heading .page-title,
+.settings-page-heading .page-title,
+.legal-page-heading .page-title,
+.about-sellbook-page-heading .page-title,
+.business-profile-page-heading h2,
+.notifications-page-header h1,
+#messenger .messenger-page-title .page-title,
+#support .support-page-heading .page-title{
+  flex:1;
+  min-width:0;
+  margin:0;
+  font-size:21px;
+  line-height:1.25;
+  font-weight:700;
+  letter-spacing:-.02em;
+}
+.products-back-button,
+.reports-back-button,
+.stock-back-button,
+.stock-history-back-button,
+.stock-history-detail-back-button,
+.settings-main-back-button,
+.settings-back-button,
+.legal-page-back,
+.about-sellbook-back-button,
+.business-profile-back,
+.notifications-back-button,
+#messenger .messenger-page-back,
+#support .support-back-button{
+  display:grid;
+  place-items:center;
+  width:40px;
+  height:40px;
+  min-height:40px;
+  flex:0 0 40px;
+  padding:0;
+  margin:0;
+  border:0;
+  border-radius:12px;
+  background:var(--soft);
+  color:var(--green);
+}
+.products-back-button svg,
+.business-profile-back svg,
+.notifications-back-button svg,
+#messenger .messenger-page-back svg,
+#support .support-back-button svg{
+  width:22px;
+  height:22px;
+}
+.page-history-button,
+.stock-history-open-button,
+.notifications-refresh-button,
+#messenger .messenger-header-action,
+#support #refreshSupportChat{
+  display:grid;
+  place-items:center;
+  width:40px;
+  height:40px;
+  min-height:40px;
+  flex:0 0 40px;
+  padding:0;
+  margin:0;
+  border:1px solid var(--border);
+  border-radius:12px;
+  background:var(--surface);
+  color:var(--green);
+}
+
+/* 01 — Home dashboard: one clear financial summary, then useful actions. */
+#home .home-sales-board{
+  padding:20px;
+  margin:4px 0 14px;
+  border-radius:20px;
+  box-shadow:0 6px 18px rgba(20,83,45,.14);
+}
+#home .home-sales-label{font-size:14px;gap:8px}
+#home .home-sales-amount{
+  margin-top:6px;
+  font-size:clamp(28px,7vw,34px);
+  line-height:1.12;
+  font-weight:800;
+  letter-spacing:-.035em;
+  overflow-wrap:anywhere;
+}
+#home .home-sales-board-top{align-items:flex-start}
+#home .home-add-sales{
+  min-height:40px;
+  padding:9px 12px;
+  border-radius:999px;
+  font-size:13px;
+  white-space:nowrap;
+}
+#home .home-sales-board-bottom{
+  display:flex;
+  gap:16px;
+  margin-top:18px;
+  padding-top:14px;
+  border-top:1px solid rgba(255,255,255,.22);
+}
+#home .home-board-metric{min-width:0}
+#home .home-sales-subs-label{font-size:12px;line-height:1.3;opacity:.86}
+#home .home-sales-subs-value{
+  margin-top:4px;
+  font-size:17px;
+  line-height:1.2;
+  font-weight:750;
+  overflow-wrap:anywhere;
+}
+#home .recent-sales-strip{
+  min-height:64px;
+  padding:24px 13px 10px;
+  gap:9px;
+  margin-top:-22px;
+  margin-bottom:14px;
+  border-radius:0 0 14px 14px;
+  background:var(--soft);
+}
+#home .recent-sales-strip-content{gap:6px;min-width:0}
+#home .recent-sales-strip-content strong{font-size:13px}
+#home .recent-sales-strip-content span{font-size:12px;min-width:0}
+#home .recent-sales-history{font-size:12px;font-weight:700}
+#home .quick-actions{
+  margin:0 0 14px;
+  padding:8px 5px;
+  border-radius:16px;
+}
+#home .quick-actions button{min-height:78px;gap:7px}
+#home .quick-actions .quick-icon{width:40px;height:40px;border-radius:12px}
+#home .quick-actions strong{font-size:13px;line-height:1.25}
+#home .getting-started-card{margin-top:0;padding:15px;border-radius:16px}
+#home .getting-started-heading{margin-bottom:10px}
+#home .getting-started-step{min-height:54px}
+#home .getting-started-step-copy strong{font-size:13px}
+#home .getting-started-step-copy small{font-size:12px}
+#home .getting-started-footnote{font-size:12px}
+
+/* 02 — Products and product details. */
+#products .products-page-header{margin-bottom:12px}
+#products .page-intro{margin-bottom:12px}
+#products .dashboard-grid{margin-top:8px!important;margin-bottom:10px}
+#products .low-stock-entry-button{
+  min-height:40px;
+  padding:8px 14px;
+  border-radius:999px;
+  font-size:13px;
+}
+#products .product-list-filters{
+  display:grid;
+  grid-template-columns:minmax(0,1.35fr) minmax(112px,.9fr);
+  gap:8px;
+  margin:12px 0;
+}
+#products .product-list-filters input,
+#products .product-list-filters select{
+  width:100%;
+  min-width:0;
+  min-height:44px;
+  padding:10px 12px;
+  font-size:14px;
+}
+#products .products-list-heading{
+  align-items:center;
+  flex-wrap:wrap;
+  margin:14px 0 8px;
+}
+#products .products-list-heading h2{font-size:17px}
+#products .product-open-button{
+  min-height:82px;
+  padding:12px 2px;
+  gap:12px;
+  border-bottom:1px solid var(--border);
+}
+#products .product-open-button .product-photo{width:64px;height:64px;border-radius:12px}
+#products .product-open-button .item-product-details{min-width:0}
+#products .product-open-button .item-product-details strong{
+  display:block;
+  font-size:14px;
+  line-height:1.35;
+  overflow-wrap:anywhere;
+}
+#products .product-open-button .item-product-details .muted{
+  font-size:12px;
+  line-height:1.4;
+}
+#products #productFormCard{margin-top:12px}
+#products .product-type-picker{padding:14px}
+#products .product-type-options{gap:8px}
+#products .product-type-options button{min-height:46px;font-size:13px}
+#products .category-choice{min-height:42px}
+#product-details .product-details-photo{
+  max-height:360px;
+  border-radius:16px;
+  background:var(--soft);
+}
+#product-details .product-details-name{font-size:21px;line-height:1.25}
+#product-details .product-details-title-row{margin:14px 0 8px}
+#product-details .product-details-edit-icon{width:40px;height:40px;flex-basis:40px}
+#product-details .card{padding:15px}
+
+/* 03 — Sales overview and 04 — Sales history. */
+#sales .today-sales-summary{padding:15px}
+#sales .sales-summary-heading{align-items:center;margin-bottom:12px}
+#sales .sales-summary-heading h2{font-size:17px}
+#sales .today-sales-summary .stats{gap:8px}
+#sales .today-sales-summary .stat{
+  padding:11px 9px;
+  border-radius:12px;
+}
+#sales .today-sales-summary .stat small{font-size:12px;line-height:1.3}
+#sales .today-sales-summary .stat strong{font-size:clamp(14px,3.8vw,20px);line-height:1.2}
+#sales .daily-sales-row{min-height:48px;padding:12px 0}
+#sales .daily-sales-row span{font-size:13px}
+#sales .daily-sales-row strong{font-size:14px}
+#sales-history .sales-history-filters{
+  padding:14px;
+  margin:0 0 10px;
+  gap:10px;
+  border-radius:16px;
+  background:var(--surface);
+  border-color:var(--border);
+}
+#sales-history .sales-history-search{min-width:0}
+#sales-history .sales-history-filters label{
+  margin:0 0 6px;
+  color:var(--muted);
+  font-size:12px;
+  font-weight:650;
+}
+#sales-history .sales-history-filters input{
+  min-height:44px;
+  border-radius:10px;
+  border-color:var(--border);
+  font-size:14px;
+}
+#sales-history .sales-history-filters button{
+  min-height:40px;
+  border-radius:10px;
+  font-size:13px;
+}
+#sales-history .sales-history-list{padding:0 2px}
+#sales-history .sales-history-row{
+  min-height:72px;
+  padding:13px 4px;
+  gap:10px;
+}
+#sales-history .sales-history-row .row{gap:8px}
+#sales-history .sales-history-row .row strong:first-child{
+  min-width:0;
+  overflow-wrap:anywhere;
+  font-size:14px;
+  line-height:1.35;
+}
+#sales-history .sales-history-row .row strong:last-child{
+  flex:0 0 auto;
+  font-size:14px;
+}
+#sales-history .sales-history-row .muted{font-size:12px;line-height:1.45}
+
+/* 05 — Expenses. */
+#expenses .expense-period-card{padding:16px}
+#expenses .expense-period-select-label{font-size:13px;margin-bottom:8px}
+#expenses .expense-period-select{min-height:42px}
+#expenses .expense-period-total{gap:6px;margin-top:14px}
+#expenses .expense-period-total small{font-size:13px}
+#expenses .expense-period-total strong{
+  font-size:clamp(27px,7vw,34px);
+  line-height:1.15;
+  letter-spacing:-.025em;
+}
+#expenses .expense-history-filters{
+  padding:12px;
+  border:1px solid var(--border);
+  border-radius:12px;
+  background:var(--page);
+}
+#expenses #expenseList .item{padding:14px 2px}
+#expenses #expenseList .item .row{align-items:flex-start;gap:10px}
+#expenses #expenseList .item .row strong{font-size:14px;line-height:1.35}
+#expenses #expenseList .item .muted{margin-top:5px;font-size:12px}
+
+/* 06 — Reports. */
+#reports .stats{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+#reports .stat{min-width:0;padding:13px;border-radius:13px}
+#reports .stat small{font-size:12px;line-height:1.35}
+#reports .stat strong{font-size:clamp(17px,4.6vw,22px);overflow-wrap:anywhere}
+#reports .chart-wrap{min-width:0;overflow-x:auto}
+#reports .chart-bars{min-width:280px;height:190px;gap:8px}
+#reports .chart-label,#reports .chart-value{font-size:11px}
+#reports .progress-row{grid-template-columns:minmax(74px,1fr) minmax(50px,1.7fr) auto;gap:9px}
+#reports .progress-row strong{font-size:13px}
+
+/* 07 — Stock management, low-stock list and stock history. */
+#stock .card h2{font-size:17px;margin:0 0 13px}
+#stock form{display:grid;gap:0}
+#stock form button{margin-top:14px}
+#stock .stats{gap:9px}
+#stock .stat{padding:12px}
+#stock #restockPreview{
+  padding:10px 12px;
+  margin-top:10px;
+  border-radius:10px;
+  background:var(--soft);
+  font-size:13px;
+}
+#low-stock .card{padding:15px}
+#low-stock .low-stock-product,
+#low-stock .low-stock-row{
+  padding:13px 0;
+  border-bottom:1px solid var(--border);
+}
+#stock-history .stock-history-tabs{
+  display:flex;
+  flex-wrap:nowrap;
+  gap:7px;
+  overflow-x:auto;
+  padding:4px 1px 12px;
+  margin:0 0 8px;
+  scrollbar-width:none;
+  overscroll-behavior-x:contain;
+}
+#stock-history .stock-history-tabs::-webkit-scrollbar{display:none}
+#stock-history .stock-history-tab{
+  min-height:40px;
+  flex:0 0 auto;
+  padding:8px 13px;
+  font-size:12px;
+  border-radius:999px;
+}
+#stock-history .stock-history-panel{min-width:0}
+#stock-history .stock-history-row{
+  display:block;
+  width:100%;
+  min-height:68px;
+  padding:13px 12px;
+  margin:0 0 8px;
+  border:1px solid var(--border);
+  border-radius:12px;
+  background:var(--surface);
+  color:var(--ink);
+  text-align:left;
+}
+#stock-history .stock-history-row .row{gap:9px;align-items:flex-start}
+#stock-history .stock-history-row .row strong{font-size:13px;line-height:1.35}
+#stock-history .stock-history-row .muted{display:block;margin-top:6px;font-size:12px}
+
+/* 08 — Subscribers and 09 — Reservations. */
+#subscribers #subscribersListView,
+#reservations #reservationsListView{margin-top:8px!important}
+#subscribers #subscribersPageList,
+#reservations #reservationsPageList{padding:12px}
+#subscribers #subscriberDetailsView,
+#reservations #reservationDetailsView{margin-top:8px!important}
+#subscribers #subscriberDetailsView .section-heading,
+#reservations #reservationDetailsView .section-heading{align-items:center}
+#subscribers #subscriberDetailsView .section-heading h2,
+#reservations #reservationDetailsView .section-heading h2{font-size:17px}
+#subscribers #subscriberMessageButton,
+#reservations #reservationMessageButton{min-height:46px}
+#subscribers .marketplace-subscriber-list{gap:8px}
+#subscribers .marketplace-subscriber-button{min-height:68px;padding:12px;border-radius:13px}
+#reservations .marketplace-reservation{
+  padding:14px 2px;
+  border-bottom:1px solid var(--border);
+}
+#reservations .marketplace-reservation .reservation-top{gap:10px}
+#reservations .marketplace-reservation .reservation-top strong{font-size:14px}
+#reservations .marketplace-reservation p{font-size:13px;line-height:1.45}
+
+/* 10 — Notifications. */
+#notifications .notification-category-pills{
+  gap:7px;
+  padding:2px 1px 12px;
+  margin-bottom:6px;
+}
+#notifications .notification-category{
+  min-height:38px;
+  padding:8px 13px;
+  font-size:12px;
+}
+#notifications #userNotificationsCard{padding:12px}
+#notifications #userNotificationsList .notification-item{
+  padding:14px 4px;
+  border-bottom:1px solid var(--border);
+}
+
+/* 11 — Me: a clean account hub with clear grouped actions. */
+#me.me-page{
+  gap:12px!important;
+  padding:4px 0 24px!important;
+  background:var(--page)!important;
+}
+#me .me-topbar{
+  min-height:48px;
+  padding:5px 2px 0!important;
+}
+#me .me-user-first-name{
+  max-width:calc(100% - 110px);
+  font-size:19px;
+  line-height:1.25;
+  text-transform:none;
+}
+#me .me-topbar-actions{gap:8px}
+#me .me-top-icon{
+  width:42px;
+  height:42px;
+  border-radius:13px;
+  background:var(--surface);
+  border:1px solid var(--border);
+  box-shadow:none;
+}
+#me .me-profile-card{
+  width:100%!important;
+  min-height:76px;
+  margin:0!important;
+  padding:12px 14px;
+  border:1px solid var(--border);
+  border-radius:16px;
+  background:var(--surface);
+  box-shadow:none;
+}
+#me .me-profile-avatar{width:52px;height:52px;flex-basis:52px}
+#me .me-profile-copy{flex:1;min-width:0}
+#me .me-profile-copy strong{font-size:16px;line-height:1.3}
+#me .me-profile-chevron{font-size:23px}
+#me .me-summary-card{
+  padding:16px;
+  border:1px solid var(--border);
+  border-radius:16px;
+  background:var(--surface);
+  box-shadow:none;
+}
+#me .me-summary-heading{font-size:15px;font-weight:700}
+#me .me-business-stats{gap:8px;margin-top:13px}
+#me .me-business-stats>div{min-width:0}
+#me .me-business-stats small{font-size:12px;line-height:1.35}
+#me .me-business-stats strong{font-size:clamp(16px,4.4vw,21px);overflow-wrap:anywhere}
+#me .me-quick-tools{
+  gap:9px;
+  padding:0;
+  background:transparent;
+  box-shadow:none;
+}
+#me .me-quick-tool{
+  min-height:82px;
+  padding:12px 8px;
+  border:1px solid var(--border);
+  border-radius:14px;
+  background:var(--surface);
+}
+#me .me-quick-tool .tile-icon{font-size:21px}
+#me .me-quick-tool strong{font-size:13px}
+#me .me-menu-section{margin-top:2px}
+#me .me-menu-section h3{margin:0 0 9px;font-size:14px}
+#me .me-menu-card{
+  padding:0 12px;
+  border:1px solid var(--border);
+  border-radius:16px;
+  background:var(--surface);
+  box-shadow:none;
+}
+#me .me-menu-row{
+  min-height:58px;
+  padding:10px 2px;
+  gap:11px;
+  border-bottom:1px solid var(--border);
+}
+#me .me-menu-row:last-child{border-bottom:0}
+#me .me-row-icon{width:34px;height:34px;flex:0 0 34px;border-radius:10px}
+#me .me-menu-row strong{font-size:14px;font-weight:600}
+#me .me-footer-note{padding:8px 0 0;font-size:12px}
+
+/* 12 — Settings menu and all settings detail pages. */
+#settings .settings-menu-list{gap:8px}
+#settings .settings-menu-item{
+  min-height:62px;
+  padding:11px 13px;
+  border:1px solid var(--border);
+  border-radius:14px;
+  background:var(--surface);
+}
+#settings .settings-summary-icon{width:38px;height:38px;border-radius:11px}
+#settings .settings-menu-item strong{font-size:14px}
+#settings .settings-chevron{font-size:22px}
+#settings-business .business-logo-editor{padding:6px 0 12px}
+#settings-business #businessNameInput{min-height:48px}
+#settings-sync .settings-group,
+#settings-preferences .settings-group,
+#settings-account .settings-group{
+  padding:14px 0;
+  border-top:1px solid var(--border);
+}
+#settings-sync .settings-group h3{font-size:16px}
+#settings-sync .photo-actions{gap:8px}
+#settings-sync .photo-actions button{min-height:44px}
+#settings-preferences .markup-options{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:7px}
+#settings-preferences .markup-options button{min-height:40px;padding:8px 4px;font-size:13px}
+#settings-account .settings-group button{min-height:46px}
+#settings-buybook .buybook-connection-bar{
+  padding:12px;
+  margin-bottom:14px;
+  border-radius:12px;
+  background:var(--soft);
+}
+#settings-buybook .buybook-connection-bar strong{font-size:14px}
+#settings-buybook form{display:grid;gap:0}
+#settings-buybook form button{margin-top:14px}
+#settings-buybook textarea{min-height:96px}
+#settings-buybook #buybookSellerActivity{margin-top:12px}
+#settings-buybook #buybookSellerActivity h3{font-size:15px}
+
+/* 13 — Messenger and 14 — Support. */
+#messenger .messenger-main-heading{margin-bottom:12px}
+#messenger .messenger-page-title .page-intro{margin:2px 0 0;font-size:12px}
+#messenger .messenger-list-card{
+  padding:10px 0 0!important;
+  border-radius:16px;
+}
+#messenger .messenger-search{
+  min-height:46px;
+  margin:0 12px 10px!important;
+  width:calc(100% - 24px);
+  font-size:14px;
+}
+#messenger .messenger-filter-row{
+  gap:7px;
+  padding:0 12px 11px;
+}
+#messenger .messenger-filter{
+  min-height:36px;
+  padding:8px 13px;
+  font-size:12px;
+}
+#messenger .conversation-list-button{
+  min-height:74px!important;
+  max-height:none!important;
+  padding:12px!important;
+}
+#messenger .messenger-new-chat{width:54px;height:54px}
+#messenger .chat-card{border-radius:16px}
+#messenger .chat-topline{padding:12px}
+#messenger .chat-transcript{padding:14px 12px}
+#messenger .chat-composer{padding:10px}
+#support .support-page-heading{margin-bottom:12px}
+#support #conversationListView{padding:12px}
+#support .conversation-list-button{min-height:68px;border-radius:12px}
+#support #supportConversationView{border-radius:16px}
+#feedback .page-title{margin:12px 0 6px}
+#feedback .page-intro{margin-bottom:14px}
+#feedback #userFeedbackForm{display:grid;gap:0}
+
+/* 15 — Privacy, terms, About and Business Profile. */
+#settings-legal .legal-intro-card{padding:15px;border-radius:14px}
+#settings-legal .legal-tabs{position:sticky;top:0;z-index:3;padding:4px;border-radius:12px}
+#settings-legal .legal-tab{min-height:42px;font-size:13px}
+#settings-legal .legal-card{padding:16px;margin-bottom:10px}
+#settings-legal .legal-card h3{font-size:15px;line-height:1.35}
+#settings-legal .legal-card p,
+#settings-legal .legal-card li{font-size:13px;line-height:1.55}
+#about-sellbook .card{padding:18px}
+#about-sellbook .card:first-of-type{padding:24px 18px}
+#business-details .business-profile-page-heading{margin-bottom:16px}
+#business-details .business-profile-content{
+  padding:18px 14px;
+  border:1px solid var(--border);
+  border-radius:16px;
+  background:var(--surface);
+}
+#business-details .business-details-avatar{margin-bottom:18px}
+#business-details .business-details-row{padding:14px 2px;gap:10px}
+#business-details .business-details-row>span{font-size:13px}
+#business-details .business-details-row>strong{font-size:14px}
+
+/* 16 — More tools and 17 — platform administration. */
+#more .menu-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+#more .menu-tile{
+  min-height:118px;
+  padding:15px;
+  border:1px solid var(--border);
+  border-radius:15px;
+  background:var(--surface);
+  text-align:left;
+}
+#more .menu-tile strong{font-size:14px}
+#more .menu-tile span:last-child{font-size:12px;line-height:1.4}
+#admin .admin-toolbar{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}
+#admin .admin-panel-nav{
+  display:flex;
+  gap:7px;
+  overflow-x:auto;
+  padding:4px 1px 12px;
+  scrollbar-width:none;
+}
+#admin .admin-panel-nav::-webkit-scrollbar{display:none}
+#admin .admin-panel-tab{min-height:38px;flex:0 0 auto;padding:8px 13px;border-radius:999px}
+#admin .admin-panel .stats{grid-template-columns:repeat(2,minmax(0,1fr))}
+#admin .admin-panel .stat{min-width:0}
+#admin .admin-chat-card{border-radius:15px}
+
+/* Narrow-device safeguards: prevent squeezed columns and unreadable totals. */
+@media(max-width:380px){
+  #appWorkspace>main{padding-left:12px;padding-right:12px}
+  #appWorkspace .page .card{padding:13px}
+  #home .home-sales-board{padding:17px 15px}
+  #home .home-sales-board-bottom{gap:10px}
+  #home .home-sales-subs-value{font-size:15px}
+  #home .home-add-sales{padding:8px 9px;font-size:12px}
+  #home .quick-actions button{min-height:72px}
+  #products .product-list-filters{grid-template-columns:1fr}
+  #sales .today-sales-summary .stats{grid-template-columns:repeat(2,minmax(0,1fr))}
+  #me .me-business-stats{grid-template-columns:repeat(2,minmax(0,1fr))}
+  #settings-preferences .markup-options{grid-template-columns:repeat(3,minmax(0,1fr))}
+  #reports .stats{grid-template-columns:repeat(2,minmax(0,1fr))}
+  #business-details .business-profile-content{padding:14px 10px}
+  #business-details .business-details-row{grid-template-columns:minmax(0,.8fr) minmax(0,1.2fr)}
+}
+@media(min-width:600px){
+  #appWorkspace>main{padding-left:20px;padding-right:20px}
+  #products .product-open-button{padding:14px 4px}
+  #products .product-open-button .product-photo{width:72px;height:72px}
+  #sales .today-sales-summary .stats{grid-template-columns:repeat(3,minmax(0,1fr))}
+  #reports .stats{grid-template-columns:repeat(4,minmax(0,1fr))}
+}
+body.dark #appWorkspace .page .card{
+  box-shadow:0 3px 14px rgba(0,0,0,.18);
+}
