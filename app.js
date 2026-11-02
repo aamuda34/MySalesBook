@@ -707,6 +707,8 @@ async function handleCloudAuthChange() {
     // A session can change accounts without a full page reload. Clear any
     // previous administrator privilege before the new identity is checked.
     if (!user || cloudUser?.id !== user.id) {
+      // Clear the old identity before the admin reset can repaint the screen.
+      cloudUser = null;
       clearAccountScopedUiState();
     }
 
