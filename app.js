@@ -3081,11 +3081,22 @@ document.getElementById('messengerBackToChats')?.addEventListener('click',()=>{i
 document.getElementById('messengerBody')?.addEventListener('input',e=>{e.target.style.height='auto';e.target.style.height=Math.min(e.target.scrollHeight,120)+'px';});
 document.getElementById('messengerBody')?.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();document.getElementById('messengerComposer')?.requestSubmit();}});
 document.getElementById('messengerComposer')?.addEventListener('submit',async e=>{
- e.preventDefault();if(!cloudUser||!messengerSelectedConversation)return;
+ e.preventDefault();if(!cloudUser||!supabaseClient||!messengerSelectedConversation)return;
+ const requestedUserId=cloudUser.id,requestEpoch=accountSessionEpoch,conversationId=messengerSelectedConversation;
+ const current=()=>accountRequestIsCurrent(requestedUserId,requestEpoch)&&String(messengerSelectedConversation)===String(conversationId);
  const input=document.getElementById('messengerBody'),status=document.getElementById('messengerStatus'),button=e.currentTarget.querySelector('button[type="submit"]'),body=input.value.trim();if(!body)return;
  button.disabled=true;status.textContent='Sending…';
- try{let result;if(messengerSelectedConversation==='support')result=await supabaseClient.from('support_messages').insert({sender_id:cloudUser.id,recipient_id:null,body});else result=await supabaseClient.from('marketplace_messages').insert({owner_id:cloudUser.id,buyer_id:messengerSelectedConversation,sender_id:cloudUser.id,body});if(result.error)throw result.error;input.value='';input.style.height='auto';status.textContent='';await openMessengerConversation(messengerSelectedConversation);await loadMessengerConversations();}
- catch(err){status.textContent='Message not sent: '+(err.message||'Please try again.');}
+ try{
+  let result;
+  if(conversationId==='support')result=await supabaseClient.from('support_messages').insert({sender_id:requestedUserId,recipient_id:null,body});
+  else result=await supabaseClient.from('marketplace_messages').insert({owner_id:requestedUserId,buyer_id:conversationId,sender_id:requestedUserId,body});
+  if(!current())return;
+  if(result.error)throw result.error;
+  input.value='';input.style.height='auto';status.textContent='';
+  await openMessengerConversation(conversationId);
+  if(!current())return;
+  await loadMessengerConversations();
+ }catch(err){if(current())status.textContent='Message not sent: '+(err.message||'Please try again.');}
  finally{button.disabled=false;}
 });
 if(messengerRefreshTimer)clearInterval(messengerRefreshTimer);
