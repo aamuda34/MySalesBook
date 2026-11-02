@@ -2880,9 +2880,11 @@ let userNotificationsCache=[];let userNotificationCategory='all';
 function renderUserNotifications(){const target=document.getElementById('userNotificationsList');if(!target)return;const rows=userNotificationCategory==='all'?userNotificationsCache:userNotificationsCache.filter(n=>String(n.kind||'').toLowerCase()===userNotificationCategory);target.innerHTML=rows.length?rows.map(n=>'<div class="item"><strong>'+escAdmin(n.title)+'</strong><div class="muted">'+escAdmin(({reservation:'Reservation',update:'Update',announcement:'Announcement',support:'Support',maintenance:'Maintenance'})[String(n.kind||'').toLowerCase()]||n.kind||'Notification')+' · '+escAdmin(new Date(n.created_at).toLocaleString())+'</div><p>'+escAdmin(n.body)+'</p></div>').join(''):'<div class="empty">'+(userNotificationCategory==='all'?'No notifications yet.':'No '+escAdmin(userNotificationCategory==='reservation'?'reservation':userNotificationCategory)+' notifications yet.')+'</div>';}
 async function loadUserNotifications(){
  const target=document.getElementById('userNotificationsList');if(!target)return;
- if(!cloudUser){userNotificationsCache=[];target.textContent='Sign in to view app announcements.';return;}
+ if(!cloudUser||!supabaseClient){userNotificationsCache=[];target.textContent='Sign in to view app announcements.';return;}
+ const requestedUserId=cloudUser.id,requestEpoch=accountSessionEpoch;
  target.textContent='Loading notifications…';
- const {data,error}=await supabaseClient.from('app_notifications').select('id,title,body,kind,created_at').or('recipient_id.is.null,recipient_id.eq.'+cloudUser.id).order('created_at',{ascending:false}).limit(100);
+ const {data,error}=await supabaseClient.from('app_notifications').select('id,title,body,kind,created_at').or('recipient_id.is.null,recipient_id.eq.'+requestedUserId).order('created_at',{ascending:false}).limit(100);
+ if(!accountRequestIsCurrent(requestedUserId,requestEpoch))return;
  if(error){target.textContent='Could not load notifications: '+error.message;return;}
  userNotificationsCache=data||[];renderUserNotifications();
 }
