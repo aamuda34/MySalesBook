@@ -1417,7 +1417,17 @@ function showSubscriberDetails(id,options={}){
 }
 document.getElementById('subscriberDetailsBack')?.addEventListener('click',()=>{if(history.state?.mySalesBookPage==='subscribers'&&history.state?.mySalesBookSubview==='subscriber-details'){history.back();return;}document.getElementById('subscriberDetailsView')?.classList.add('hidden');document.getElementById('subscribersListView')?.classList.remove('hidden');});
 document.getElementById('subscriberMessageButton')?.addEventListener('click',async()=>{const id=marketplaceSelectedBuyerId;if(!id)return;showPage('messenger');await loadMessengerConversations();await openMessengerConversation(id);});
-async function refreshHomeSubscriberCount(){const el=document.getElementById('subscriberCountHome');if(!el)return;if(!cloudUser||!supabaseClient){el.textContent='—';return;}try{const {data,error}=await supabaseClient.rpc('get_my_marketplace_subscribers');if(error)throw error;el.textContent=String((data||[]).length);}catch(_){el.textContent='—';}}
+async function refreshHomeSubscriberCount(){
+ const el=document.getElementById('subscriberCountHome');if(!el)return;
+ if(!cloudUser||!supabaseClient){el.textContent='—';return;}
+ const requestedUserId=cloudUser.id,requestEpoch=accountSessionEpoch;
+ try{
+  const {data,error}=await supabaseClient.rpc('get_my_marketplace_subscribers');
+  if(!accountRequestIsCurrent(requestedUserId,requestEpoch))return;
+  if(error)throw error;
+  el.textContent=String((data||[]).length);
+ }catch(_){if(accountRequestIsCurrent(requestedUserId,requestEpoch))el.textContent='—';}
+}
 function paintPage(name,scroll){if(!VALID_PAGES.has(name))name='home';if(name==='business-details')updateBusinessDetailsPage();document.body.classList.toggle('notifications-page-open',name==='notifications');document.body.classList.toggle('subscribers-page-open',name==='subscribers');document.body.classList.toggle('reservations-page-open',name==='reservations');document.body.classList.toggle('settings-main-page-open',name==='settings');document.body.classList.toggle('settings-detail-page-open',['settings-business','settings-sync','settings-preferences','settings-account','settings-buybook'].includes(name));document.body.classList.toggle('business-profile-page-open',name==='business-details');document.body.classList.toggle('legal-page-open',name==='settings-legal');document.body.classList.toggle('about-sellbook-page-open',name==='about-sellbook');document.body.classList.toggle('reports-page-open',name==='reports');document.body.classList.toggle('stock-page-open',name==='stock');document.body.classList.toggle('stock-history-page-open',name==='stock-history');document.body.classList.toggle('stock-history-detail-page-open',name==='stock-history-detail');document.body.classList.toggle('product-page-open',name==='products');document.body.classList.toggle('low-stock-page-open',name==='low-stock');document.body.classList.toggle('product-details-page-open',name==='product-details');document.body.classList.toggle('sales-page-open',name==='sales');document.body.classList.toggle('sales-history-page-open',name==='sales-history');document.body.classList.toggle('sale-details-page-open',name==='sale-details');document.body.classList.toggle('expenses-page-open',name==='expenses');document.querySelectorAll('.page').forEach(x=>x.classList.toggle('hidden',x.id!==name));document.querySelectorAll('nav button').forEach(x=>x.classList.toggle('active',x.dataset.page===name||(x.dataset.page==='messages'&&name==='support')||(x.dataset.page==='me'&&['me','more','reports','stock','low-stock','settings','business-details','settings-business','settings-sync','settings-preferences','settings-account','settings-legal'].includes(name))));sessionStorage.setItem('my-sales-book-current-page',name);render();renderDailySalesSummary();refreshHomeWeeklySales();const homeProductCount=document.getElementById('productCountHome'),homeProductSellingValue=document.getElementById('productSellingValueHome');if(homeProductCount)homeProductCount.textContent=String((db.products||[]).length);if(homeProductSellingValue){const total=(db.products||[]).reduce((sum,p)=>sum+Math.max(0,Number(p.stock)||0)*Math.max(0,Number(p.price??p.selling_price)||0),0);homeProductSellingValue.textContent=money(total);}if(name==='home')refreshHomeSubscriberCount();const fab=document.getElementById('quickSaleFab');const fabPages={home:{label:'Record a sale',title:'Record a sale'},sales:{label:'Record a sale',title:'Record a sale'},products:{label:'Add a product',title:'Add a product'},expenses:{label:'Add an expense',title:'Add an expense'}};const fabAction=fabPages[name];if(fab){fab.style.display='none';fab.hidden=true;fab.setAttribute('aria-hidden','true');if(fabAction&&name!=='home'&&!sellbookIsAdmin){fab.hidden=false;fab.style.display='flex';fab.setAttribute('aria-hidden','false');fab.setAttribute('aria-label',fabAction.label);fab.title=fabAction.title;fab.dataset.action=name;}}if(name==='support'&&cloudUser){loadUserSupport();}if(name==='feedback'&&cloudUser){loadUserSupport();}if(name==='notifications'&&cloudUser){localStorage.setItem('sellbook-notifications-seen-'+cloudUser.id,new Date().toISOString());updateUnreadBadges();}if(name==='settings-buybook'&&cloudUser){loadBuybookConnection();loadBuybookActivity();}if(name==='reservations')loadReservationsPage();if(name==='me')updateMePanel();if(scroll)window.scrollTo({top:0,behavior:'auto'});}
 // Keep all page back arrows consistent. Use the actual previous app page when it
 // matches the intended parent; otherwise replace the current history entry with
@@ -3076,12 +3086,16 @@ async function openMessengerSubscriberPicker(){
  const overlay=document.getElementById('messengerSubscriberPicker'),list=document.getElementById('messengerSubscriberPickerList');
  overlay?.classList.remove('hidden');list.innerHTML='<div class="empty">Loading subscribers…</div>';
  if(!cloudUser||!supabaseClient){list.innerHTML='<div class="empty">Please sign in to see subscribed buyers.</div>';return;}
+ const requestedUserId=cloudUser.id,requestEpoch=accountSessionEpoch;
+ const current=()=>accountRequestIsCurrent(requestedUserId,requestEpoch);
  try{
-  const {data,error}=await supabaseClient.rpc('get_my_marketplace_subscribers');if(error)throw error;
+  const {data,error}=await supabaseClient.rpc('get_my_marketplace_subscribers');
+  if(!current())return;
+  if(error)throw error;
   marketplaceSubscribersCache=data||[];
   if(!marketplaceSubscribersCache.length){list.innerHTML='<div class="empty">No subscribed buyers yet. Buyers who subscribe to your shop on Buybook will appear here.</div>';return;}
   renderMessengerSubscriberPicker();
- }catch(err){list.innerHTML='<div class="empty">Could not load subscribers: '+escAdmin(err.message||'Please try again.')+'</div>';}
+ }catch(err){if(current())list.innerHTML='<div class="empty">Could not load subscribers: '+escAdmin(err.message||'Please try again.')+'</div>';}
 }
 function renderMessengerSubscriberPicker(){
  const list=document.getElementById('messengerSubscriberPickerList');if(!list)return;
