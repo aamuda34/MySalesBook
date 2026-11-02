@@ -396,6 +396,8 @@ Deno.serve(async (request: Request) => {
     const matches = verification.field_matches as Record<string, unknown> | undefined;
     const faceMatch = verification.face_match as Record<string, unknown> | undefined;
     const verified =
+      verification.type === "nin" &&
+      verification.service === "nin_face_match" &&
       verification.status === "verified" &&
       faceMatch?.status === "matched" &&
       faceMatch?.liveness === "passed" &&
