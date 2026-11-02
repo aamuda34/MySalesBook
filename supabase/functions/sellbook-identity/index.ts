@@ -444,45 +444,42 @@ Deno.serve(async (request: Request) => {
     }
 
     const fingerprint = await hmacFingerprint(nin, hmacSecret);
+    const providerReference = String(verification.id || "").slice(0, 180) || null;
     const { data: claimResult, error: claimError } = await supabaseAdmin.rpc(
-      "claim_verified_identity",
+      "claim_and_finish_verified_identity",
       {
         p_user_id: user.id,
+        p_attempt_id: attemptId,
         p_identity_fingerprint: fingerprint,
-        p_provider: "bytid",
-        p_provider_reference: String(verification.id || "").slice(0, 180) || null,
+        p_provider_reference: providerReference,
         p_consent_version: CONSENT_VERSION,
+        p_face_match_reference: faceMatchReference,
       },
     );
 
-    if (claimError || claimResult?.verified !== true) {
+    if (
+      claimError ||
+      claimResult?.verified !== true ||
+      claimResult?.attempt_finalized !== true
+    ) {
+      // This fallback is idempotent. If the atomic transaction committed but
+      // its response was lost, the attempt is already verified and this RPC
+      // cannot downgrade it to rejected. If the transaction rolled back, it
+      // releases the pending attempt so the user can start again.
       await supabaseAdmin.rpc("finish_identity_verification_attempt", {
         p_user_id: user.id,
         p_attempt_id: attemptId,
         p_state: "rejected",
         p_face_match_reference: faceMatchReference,
+        p_provider_verification_reference: providerReference,
       });
       const duplicate = (claimError?.message || "").includes("already linked to another active account");
-      return json(duplicate ? 409 : 422, {
+      return json(duplicate ? 409 : 503, {
         error: duplicate ? "identity_already_linked" : "identity_claim_failed",
         message: duplicate
           ? "This verified identity is already linked to another active account."
-          : "Sellbook could not securely save this identity verification. Contact support.",
+          : "Sellbook could not securely finalize identity verification. Please retry or contact support.",
       });
-    }
-
-    const { data: finished, error: finishError } = await supabaseAdmin.rpc(
-      "finish_identity_verification_attempt",
-      {
-        p_user_id: user.id,
-        p_attempt_id: attemptId,
-        p_state: "verified",
-        p_face_match_reference: faceMatchReference,
-        p_provider_verification_reference: String(verification.id || "").slice(0, 180) || null,
-      },
-    );
-    if (finishError || finished !== true) {
-      return json(503, { error: "could_not_finalize_verification_attempt" });
     }
 
     return json(200, {
