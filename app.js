@@ -495,10 +495,12 @@ function showSecurityPinGate(mode='verify',message=''){
  document.getElementById('appWorkspace')?.classList.add('hidden');
  document.getElementById('accountCard')?.classList.add('hidden');
  document.getElementById('authLoading')?.style.setProperty('display','none');
- if(mode==='setup'){
-  title.textContent='Create your Sellbook PIN';
-  subtitle.textContent='Create a six-digit PIN to protect your private sales, products, stock and expenses on this account.';
-  submit.textContent='Create PIN';
+ if(mode==='setup'||mode==='change'){
+  title.textContent=mode==='setup'?'Create your Sellbook PIN':'Change your Sellbook PIN';
+  subtitle.textContent=mode==='setup'
+   ?'Create a six-digit PIN to protect your private sales, products, stock and expenses on this account.'
+   :'Choose a new six-digit PIN for this account.';
+  submit.textContent=mode==='setup'?'Create PIN':'Save new PIN';
   confirmWrap.classList.remove('hidden');
   forgot.classList.add('hidden');
   input.autocomplete='new-password';
@@ -548,8 +550,10 @@ document.getElementById('securityPinForm')?.addEventListener('submit',async even
  button.disabled=true;button.textContent=securityPinGateMode==='setup'?'Creating…':'Verifying…';
  status.textContent='Checking your PIN securely…';
  try{
-  const {data,error}=await supabaseClient.rpc(securityPinGateMode==='setup'?'set_app_pin':'verify_app_pin',{p_pin:pin});
+  const settingPin=securityPinGateMode==='setup'||securityPinGateMode==='change';
+  const {data,error}=await supabaseClient.rpc(settingPin?'set_app_pin':'verify_app_pin',{p_pin:pin});
   if(error)throw error;
+  if(data?.requires_setup===true){showSecurityPinGate('setup','Create a new six-digit PIN to secure this account.');return;}
   if(data?.verified!==true){
    const locked=data?.locked_until?(' Locked until '+new Date(data.locked_until).toLocaleTimeString()+'.'):'';
    status.textContent=(data?.message||'The PIN could not be verified.')+(Number.isFinite(Number(data?.attempts_remaining))?' Attempts remaining: '+data.attempts_remaining+'.':'')+locked;
@@ -562,7 +566,7 @@ document.getElementById('securityPinForm')?.addEventListener('submit',async even
   status.textContent='PIN operation failed: '+(error.message||'Please try again.');
  }finally{
   button.disabled=false;
-  button.textContent=securityPinGateMode==='setup'?'Create PIN':'Unlock Sellbook';
+  button.textContent=(securityPinGateMode==='setup'||securityPinGateMode==='change')?(securityPinGateMode==='setup'?'Create PIN':'Save new PIN'):'Unlock Sellbook';
  }
 });
 document.getElementById('securityPinForgot')?.addEventListener('click',async()=>{
@@ -582,12 +586,17 @@ document.getElementById('securityPinForgot')?.addEventListener('click',async()=>
   document.getElementById('securityPinMessage').textContent='Could not start PIN recovery: '+(error.message||'Please try again.');
  }finally{button.disabled=false;}
 });
+document.getElementById('changeSecurityPinButton')?.addEventListener('click',()=>{
+ if(!cloudUser||!supabaseClient)return;
+ showSecurityPinGate('change','Your current session has already passed PIN verification. Enter a new six-digit PIN twice.');
+});
 
 async function handleCloudAuthChange() {
   if (authTransition) return;
   authTransition = true;
   let activeUser = null;
   let coreWorkspaceLoaded = false;
+  let pinCheckCompleted = false;
   // Never leave the full-screen startup indicator spinning indefinitely on a slow connection.
   const loadingWatchdog = setTimeout(() => {
     document.body.classList.remove('auth-initializing');
@@ -620,6 +629,7 @@ async function handleCloudAuthChange() {
         finishStartup();
         return;
       }
+      pinCheckCompleted = true;
       if (storageMode !== 'cloud') localSnapshot = snapshotLocalRecords();
       pendingSync = readQueue(user.id);
       // Paint this account's last saved workspace immediately, then refresh it from Supabase.
@@ -650,6 +660,7 @@ async function handleCloudAuthChange() {
         cloudMessage('Showing your last saved copy while Sellbook reconnects. Changes will be kept on this device until they can sync.');
       }
     } else {
+      hideSecurityPinGate();
       restoreLocalRecords();
       coreWorkspaceLoaded = true;
       finishStartup();
@@ -666,6 +677,19 @@ async function handleCloudAuthChange() {
     }
   } catch (err) {
     cloudReady = false;
+    // Fail closed if PIN status or reauthentication could not be confirmed.
+    // Do not render an offline cache until the server says this auth session is PIN-verified.
+    if (activeUser && !pinCheckCompleted) {
+      cloudUser = activeUser;
+      document.getElementById('appWorkspace').classList.add('hidden');
+      document.getElementById('accountCard').classList.add('hidden');
+      showSecurityPinGate('verify','Sellbook could not confirm this session\'s PIN status. Reconnect and verify again.');
+      document.getElementById('securityPinMessage').textContent=err.message||'PIN verification service is unavailable.';
+      coreWorkspaceLoaded = true;
+      finishStartup();
+      console.error('Sellbook PIN gate check failed:',err);
+      return;
+    }
     if (activeUser) {
       cloudUser = activeUser;
       const restored = restoreCloudCache(activeUser.id);
