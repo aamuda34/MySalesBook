@@ -59,6 +59,10 @@ jobs:
           grep -q "get_app_pin_status" app.js
           grep -q "set_app_pin" app.js
           grep -q "verify_app_pin" app.js
+          grep -q "recheckSellbookPinStatus" app.js
+          grep -q "armSecurityPinExpiry" app.js
+          grep -q "securityPinCancel" index.html
+          grep -q "securityPinExpiresAt" app.js
           grep -q "securityPinGate" index.html
           grep -q "sellbook-shell-v68" sw.js
           ! grep -Eiq '^[[:space:]]*rollback[[:space:]]*;' supabase/migrations/20261102143000_add_server_verified_sellbook_pin.sql
