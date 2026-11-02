@@ -1044,3 +1044,25 @@ body.dark :where(.business-details-row,.me-menu-row,.me-business-stats>div,.stoc
 body.dark :where(svg){color:inherit}
 body.dark :where(a){color:#a8e9bd!important}
 body.dark :where(:focus-visible){outline:2px solid #80dba0!important;outline-offset:2px}
+
+/* Fix remaining light filter panels and low-contrast form labels in dark mode. */
+body.dark :where(.filters,.sales-history-filters,.filter-wide,.filter-input,
+.expense-period-card,.expense-period-select,.expense-period-select-label,
+.sales-history-search,.product-list-filters,.date-filters,.history-filters,
+.form-section,.form-card,.form-field,.field-group,.filter-card,.search-filter-card){
+ background:#1c1a25!important;color:#f4f0f8!important;border-color:#393545!important;
+}
+body.dark :where(label,.expense-period-select-label,.sales-history-filters label,
+.filters label,.filter-wide label,.filter-input label,.form-field label,
+.field-group label){color:#cfc6dc!important;-webkit-text-fill-color:#cfc6dc!important;opacity:1!important}
+body.dark :where(.sales-history-filters input,.sales-history-filters select,
+.filters input,.filters select,.filter-input input,.filter-input select,
+.expense-period-select,.date-filters input,.date-filters select){
+ background:#17141f!important;color:#f4f0f8!important;border:1px solid #51475e!important;
+}
+body.dark :where(.sales-history-row,.sales-history-row-main,.expense-history-row,
+.expense-item,.sale-history-item){background:transparent!important;color:#f4f0f8!important;border-color:#393545!important}
+body.dark :where(.sales-history-row strong,.sales-history-row-main strong,
+.expense-history-row strong,.expense-item strong,.sale-history-item strong){color:#f4f0f8!important}
+body.dark :where(.sales-history-row small,.sales-history-row-main small,
+.expense-history-row small,.expense-item small,.sale-history-item small){color:#c5bdcf!important}
