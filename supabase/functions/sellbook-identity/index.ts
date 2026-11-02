@@ -183,6 +183,12 @@ Deno.serve(async (request: Request) => {
     const redirectUrl = new URL("/", APP_ORIGIN);
     redirectUrl.searchParams.set("identity_verification", "return");
 
+    // Retain only a short verification audit window; old provider session IDs
+    // and references are removed after 30 days.
+    await supabaseAdmin.from("identity_verification_attempts")
+      .delete()
+      .lt("created_at", new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString());
+
     const attemptId = crypto.randomUUID();
     const reference = "sellbook-" + user.id + "-" + attemptId;
 
@@ -220,7 +226,7 @@ Deno.serve(async (request: Request) => {
       });
     } catch (error) {
       await supabaseAdmin.from("identity_verification_attempts")
-        .update({ state: "failed", completed_at: new Date().toISOString() })
+        .update({ state: "failed", liveness_session_id: null, completed_at: new Date().toISOString() })
         .eq("attempt_id", attemptId)
         .eq("user_id", user.id);
       const code = (error as Error).message || "provider_error";
@@ -298,7 +304,7 @@ Deno.serve(async (request: Request) => {
     }
     if (new Date(attempt.expires_at).getTime() <= Date.now()) {
       await supabaseAdmin.from("identity_verification_attempts")
-        .update({ state: "expired", completed_at: new Date().toISOString() })
+        .update({ state: "expired", liveness_session_id: null, completed_at: new Date().toISOString() })
         .eq("attempt_id", attemptId)
         .eq("user_id", user.id);
       return json(410, { error: "verification_attempt_expired" });
@@ -321,7 +327,7 @@ Deno.serve(async (request: Request) => {
     if (liveness.status !== "passed" || liveness.usable_for_face_match !== true) {
       if (liveness.status === "failed" || liveness.status === "expired") {
         await supabaseAdmin.from("identity_verification_attempts")
-          .update({ state: "rejected", completed_at: new Date().toISOString() })
+          .update({ state: "rejected", liveness_session_id: null, completed_at: new Date().toISOString() })
           .eq("attempt_id", attemptId)
           .eq("user_id", user.id);
       }
@@ -384,6 +390,7 @@ Deno.serve(async (request: Request) => {
       await supabaseAdmin.from("identity_verification_attempts")
         .update({
           state: "rejected",
+          liveness_session_id: null,
           face_match_reference: faceMatchReference,
           provider_verification_reference: String(verification.id || "").slice(0, 180) || null,
           completed_at: new Date().toISOString(),
