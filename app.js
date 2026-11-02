@@ -466,13 +466,17 @@ function snapshotLocalRecords() {
 }
 
 function restoreLocalRecords() {
-  // Never carry the previous cloud account's sync indicators into the local workspace.
+  // Never carry the previous cloud account's sync indicators or admin privileges
+  // into the local workspace after sign-out.
   pendingSync = [];
   db = normalizeDb(localSnapshot || {products: [], sales: [], expenses: []});
   storageMode = 'browser';
   cloudReady = false;
   workspaceReady = false;
   cloudUser = null;
+  setAdminAccess(false);
+  marketplaceSubscribersCache = [];
+  marketplaceSelectedBuyerId = null;
   render();
 }
 
@@ -702,6 +706,14 @@ async function handleCloudAuthChange() {
     const user = data.session?.user || null;
     activeUser = user;
 
+    // A session can change accounts without a full page reload. Clear any
+    // previous administrator privilege before the new identity is checked.
+    if (!user || cloudUser?.id !== user.id) {
+      setAdminAccess(false);
+      marketplaceSubscribersCache = [];
+      marketplaceSelectedBuyerId = null;
+    }
+
     if (user) {
       cloudUser = user;
       // Every authenticated Sellbook session must pass the server-side PIN gate
@@ -745,6 +757,13 @@ async function handleCloudAuthChange() {
         cloudMessage('Showing your last saved copy while Sellbook reconnects. Changes will be kept on this device until they can sync.');
       }
     } else {
+      // The local PIN-recovery sign-out path skips restoreLocalRecords so it
+      // cannot expose the old account's offline snapshot. Clear its identity
+      // and administrator state explicitly nonetheless.
+      cloudUser = null;
+      setAdminAccess(false);
+      marketplaceSubscribersCache = [];
+      marketplaceSelectedBuyerId = null;
       hideSecurityPinGate();
       securityPinExpiresAt=0;
       if(securityPinExpiryTimer){clearTimeout(securityPinExpiryTimer);securityPinExpiryTimer=null;}
@@ -799,6 +818,12 @@ async function handleCloudAuthChange() {
         refreshAccountStatus().catch(error => console.warn('Account status refresh failed:', error));
       }
     } else {
+      // If session lookup failed while signed out, never retain the previous
+      // account identity or admin UI as an offline fallback.
+      cloudUser = null;
+      setAdminAccess(false);
+      marketplaceSubscribersCache = [];
+      marketplaceSelectedBuyerId = null;
       workspaceReady = false;
       document.getElementById('appWorkspace').classList.add('hidden');
       cloudMessage('Cloud connection failed: ' + (err.message || String(err)) + '. Sign in again when internet is available.');
