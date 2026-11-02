@@ -32,7 +32,7 @@ jobs:
       - name: Install Wrangler
         run: npm install --global wrangler@4
 
-      - name: Normalize Cloudflare credentials
+      - name: Validate Cloudflare credentials
         shell: bash
         run: |
           set -euo pipefail
@@ -48,24 +48,5 @@ jobs:
             echo "CLOUDFLARE_ACCOUNT_ID=$ACCOUNT"
           } >> "$GITHUB_ENV"
 
-      - name: Create the Pages project if it does not exist
-        shell: bash
-        run: |
-          set -euo pipefail
-          if ! wrangler pages project list --json | node -e '
-            let s = "";
-            process.stdin.on("data", d => s += d);
-            process.stdin.on("end", () => {
-              try {
-                const projects = JSON.parse(s);
-                process.exit(projects.some(p => p.name === "sellbook-backup") ? 0 : 1);
-              } catch {
-                process.exit(1);
-              }
-            });
-          '; then
-            wrangler pages project create sellbook-backup --production-branch main
-          fi
-
-      - name: Deploy the same Sellbook revision
+      - name: Deploy Sellbook to the existing backup project
         run: wrangler pages deploy . --project-name=sellbook-backup --branch=main
