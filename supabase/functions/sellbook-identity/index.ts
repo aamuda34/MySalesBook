@@ -6,12 +6,19 @@ const CONSENT_VERSION = "sellbook-identity-consent-v1";
 const APP_ORIGIN = Deno.env.get("SELLBOOK_PUBLIC_URL") || "https://my-sales-book.vercel.app";
 
 function json(status: number, body: Record<string, unknown>) {
+  let allowedOrigin = "https://my-sales-book.vercel.app";
+  try {
+    allowedOrigin = new URL(APP_ORIGIN).origin;
+  } catch (_) {
+    // Keep the production origin as the safe fallback if an invalid URL is configured.
+  }
   return new Response(JSON.stringify(body), {
     status,
     headers: {
       "Content-Type": "application/json",
       "Cache-Control": "no-store",
-      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Origin": allowedOrigin,
+      "Vary": "Origin",
       "Access-Control-Allow-Headers": "authorization, apikey, content-type, x-client-info",
       "Access-Control-Allow-Methods": "POST, OPTIONS",
     },
@@ -185,9 +192,10 @@ Deno.serve(async (request: Request) => {
 
     // Retain only a short verification audit window; old provider session IDs
     // and references are removed after 30 days.
-    await supabaseAdmin.from("identity_verification_attempts")
-      .delete()
-      .lt("created_at", new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString());
+    const { error: purgeError } = await supabaseAdmin.rpc("purge_identity_verification_attempts", {
+      p_before: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
+    });
+    if (purgeError) return json(503, { error: "identity_retention_cleanup_unavailable" });
 
     const attemptId = crypto.randomUUID();
     const reference = "sellbook-" + user.id + "-" + attemptId;
@@ -225,10 +233,11 @@ Deno.serve(async (request: Request) => {
         redirect_url: redirectUrl.toString(),
       });
     } catch (error) {
-      await supabaseAdmin.from("identity_verification_attempts")
-        .update({ state: "failed", liveness_session_id: null, completed_at: new Date().toISOString() })
-        .eq("attempt_id", attemptId)
-        .eq("user_id", user.id);
+      await supabaseAdmin.rpc("finish_identity_verification_attempt", {
+        p_user_id: user.id,
+        p_attempt_id: attemptId,
+        p_state: "failed",
+      });
       const code = (error as Error).message || "provider_error";
       return json(502, { error: "liveness_session_failed", provider_code: code });
     }
@@ -242,20 +251,22 @@ Deno.serve(async (request: Request) => {
       livenessUrlIsSecure = false;
     }
     if (!livenessId || !livenessUrlIsSecure) {
-      await supabaseAdmin.from("identity_verification_attempts")
-        .update({ state: "failed", liveness_session_id: null, completed_at: new Date().toISOString() })
-        .eq("attempt_id", attemptId)
-        .eq("user_id", user.id);
+      await supabaseAdmin.rpc("finish_identity_verification_attempt", {
+        p_user_id: user.id,
+        p_attempt_id: attemptId,
+        p_state: "failed",
+      });
       return json(502, { error: "invalid_liveness_response" });
     }
 
-    const { data: attempt, error: updateError } = await supabaseAdmin
-      .from("identity_verification_attempts")
-      .update({ liveness_session_id: livenessId })
-      .eq("attempt_id", attemptId)
-      .eq("user_id", user.id)
-      .select("attempt_id,expires_at")
-      .single();
+    const { data: attempt, error: updateError } = await supabaseAdmin.rpc(
+      "attach_identity_liveness_session",
+      {
+        p_user_id: user.id,
+        p_attempt_id: attemptId,
+        p_liveness_session_id: livenessId,
+      },
+    );
 
     if (updateError || !attempt) {
       return json(503, { error: "could_not_store_verification_session" });
@@ -283,17 +294,21 @@ Deno.serve(async (request: Request) => {
     if (firstName.length < 1 || firstName.length > 80 || lastName.length < 1 || lastName.length > 80) {
       return json(400, { error: "valid_first_and_last_name_required" });
     }
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(dob) || Number.isNaN(Date.parse(dob))) {
+    const parsedDob = new Date(dob + "T00:00:00.000Z");
+    if (
+      !/^\d{4}-\d{2}-\d{2}$/.test(dob) ||
+      Number.isNaN(parsedDob.getTime()) ||
+      parsedDob.toISOString().slice(0, 10) !== dob ||
+      parsedDob.getTime() >= Date.now()
+    ) {
       return json(400, { error: "valid_date_of_birth_required" });
     }
     if (!/^[0-9a-f-]{36}$/i.test(attemptId)) return json(400, { error: "invalid_attempt_id" });
 
-    const { data: attempt, error: attemptError } = await supabaseAdmin
-      .from("identity_verification_attempts")
-      .select("attempt_id,provider_reference,liveness_session_id,state,expires_at,consent_version")
-      .eq("attempt_id", attemptId)
-      .eq("user_id", user.id)
-      .maybeSingle();
+    const { data: attempt, error: attemptError } = await supabaseAdmin.rpc(
+      "get_identity_verification_attempt",
+      { p_user_id: user.id, p_attempt_id: attemptId },
+    );
 
     if (attemptError || !attempt) return json(404, { error: "verification_attempt_not_found" });
     if (attempt.state !== "pending" || !attempt.liveness_session_id) {
@@ -303,10 +318,11 @@ Deno.serve(async (request: Request) => {
       return json(400, { error: "identity_consent_version_mismatch" });
     }
     if (new Date(attempt.expires_at).getTime() <= Date.now()) {
-      await supabaseAdmin.from("identity_verification_attempts")
-        .update({ state: "expired", liveness_session_id: null, completed_at: new Date().toISOString() })
-        .eq("attempt_id", attemptId)
-        .eq("user_id", user.id);
+      await supabaseAdmin.rpc("finish_identity_verification_attempt", {
+        p_user_id: user.id,
+        p_attempt_id: attemptId,
+        p_state: "expired",
+      });
       return json(410, { error: "verification_attempt_expired" });
     }
 
@@ -326,10 +342,11 @@ Deno.serve(async (request: Request) => {
 
     if (liveness.status !== "passed" || liveness.usable_for_face_match !== true) {
       if (liveness.status === "failed" || liveness.status === "expired") {
-        await supabaseAdmin.from("identity_verification_attempts")
-          .update({ state: "rejected", liveness_session_id: null, completed_at: new Date().toISOString() })
-          .eq("attempt_id", attemptId)
-          .eq("user_id", user.id);
+        await supabaseAdmin.rpc("finish_identity_verification_attempt", {
+          p_user_id: user.id,
+          p_attempt_id: attemptId,
+          p_state: "rejected",
+        });
       }
       return json(409, {
         error: "liveness_not_passed",
@@ -387,16 +404,13 @@ Deno.serve(async (request: Request) => {
       matches?.date_of_birth === true;
 
     if (!verified) {
-      await supabaseAdmin.from("identity_verification_attempts")
-        .update({
-          state: "rejected",
-          liveness_session_id: null,
-          face_match_reference: faceMatchReference,
-          provider_verification_reference: String(verification.id || "").slice(0, 180) || null,
-          completed_at: new Date().toISOString(),
-        })
-        .eq("attempt_id", attemptId)
-        .eq("user_id", user.id);
+      await supabaseAdmin.rpc("finish_identity_verification_attempt", {
+        p_user_id: user.id,
+        p_attempt_id: attemptId,
+        p_state: "rejected",
+        p_face_match_reference: faceMatchReference,
+        p_provider_verification_reference: String(verification.id || "").slice(0, 180) || null,
+      });
       // Never return names, ID numbers, registry data, match scores or photos to the client.
       return json(422, {
         error: "identity_not_verified",
@@ -417,15 +431,12 @@ Deno.serve(async (request: Request) => {
     );
 
     if (claimError || claimResult?.verified !== true) {
-      await supabaseAdmin.from("identity_verification_attempts")
-        .update({
-          state: "rejected",
-          liveness_session_id: null,
-          face_match_reference: faceMatchReference,
-          completed_at: new Date().toISOString(),
-        })
-        .eq("attempt_id", attemptId)
-        .eq("user_id", user.id);
+      await supabaseAdmin.rpc("finish_identity_verification_attempt", {
+        p_user_id: user.id,
+        p_attempt_id: attemptId,
+        p_state: "rejected",
+        p_face_match_reference: faceMatchReference,
+      });
       const duplicate = (claimError?.message || "").includes("already linked to another active account");
       return json(duplicate ? 409 : 422, {
         error: duplicate ? "identity_already_linked" : "identity_claim_failed",
@@ -435,16 +446,19 @@ Deno.serve(async (request: Request) => {
       });
     }
 
-    await supabaseAdmin.from("identity_verification_attempts")
-      .update({
-        state: "verified",
-        liveness_session_id: null,
-        face_match_reference: faceMatchReference,
-        provider_verification_reference: String(verification.id || "").slice(0, 180) || null,
-        completed_at: new Date().toISOString(),
-      })
-      .eq("attempt_id", attemptId)
-      .eq("user_id", user.id);
+    const { data: finished, error: finishError } = await supabaseAdmin.rpc(
+      "finish_identity_verification_attempt",
+      {
+        p_user_id: user.id,
+        p_attempt_id: attemptId,
+        p_state: "verified",
+        p_face_match_reference: faceMatchReference,
+        p_provider_verification_reference: String(verification.id || "").slice(0, 180) || null,
+      },
+    );
+    if (finishError || finished !== true) {
+      return json(503, { error: "could_not_finalize_verification_attempt" });
+    }
 
     return json(200, {
       data: {
