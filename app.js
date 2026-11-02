@@ -531,9 +531,15 @@ async function ensureSellbookPinAccess(){
  }
  const {data,error}=await supabaseClient.rpc('get_app_pin_status');
  if(error)throw error;
+ // No PIN is an enrollment state, not an unlocked state. The database RLS
+ // helper allows pre-enrollment accounts to migrate safely, but the new UI
+ // requires PIN creation before loading any private rows.
+ if(data?.has_pin!==true){
+  showSecurityPinGate('setup','A security PIN is required before your business records can open.');
+  return false;
+ }
  if(data?.verified===true){hideSecurityPinGate();return true;}
- showSecurityPinGate(data?.has_pin?'verify':'setup',
-  data?.has_pin?'Enter your PIN to unlock your business records.':'A security PIN is required before your business records can open.');
+ showSecurityPinGate('verify','Enter your PIN to unlock your business records.');
  return false;
 }
 document.getElementById('securityPinInput')?.addEventListener('input',event=>{event.target.value=event.target.value.replace(/\\D/g,'').slice(0,6);});
@@ -2254,7 +2260,7 @@ document.getElementById('googleSignIn').addEventListener('click', async () => {
         redirectTo: new URLSearchParams(window.location.search).get('native') === '1'
           ? 'sellbook://auth'
           : window.location.origin + window.location.pathname + window.location.search,
-        queryParams: { prompt: sessionStorage.getItem('sellbook-pin-reset-after-auth')==='yes'?'select_account':'select_account' }
+        queryParams: { prompt: 'select_account' }
       }
     });
     if (error) throw error;
