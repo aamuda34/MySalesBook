@@ -1,3 +1,38 @@
+-- An account without an enrolled PIN is not verified. This prevents older clients
+-- and SECURITY DEFINER RPCs from operating on private seller data before PIN setup.
+create or replace function private.is_sellbook_pin_verified()
+returns boolean
+language plpgsql
+stable
+security definer
+set search_path to ''
+as $function$
+declare
+  v_user_id uuid := auth.uid();
+  v_session_text text := auth.jwt()->>'session_id';
+  v_session_id uuid;
+begin
+  if v_user_id is null then return false; end if;
+  if not exists (
+    select 1 from private.user_app_pins p where p.user_id = v_user_id
+  ) then
+    return false;
+  end if;
+  if v_session_text is null or v_session_text !~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' then
+    return false;
+  end if;
+  v_session_id := v_session_text::uuid;
+  return exists (
+    select 1 from private.user_app_pin_sessions s
+    where s.user_id = v_user_id
+      and s.session_id = v_session_id
+      and s.expires_at > now()
+  );
+end;
+$function$;
+revoke all on function private.is_sellbook_pin_verified() from public, anon;
+grant execute on function private.is_sellbook_pin_verified() to authenticated;
+
 -- Add a write-time PIN guard for SECURITY DEFINER ledger RPCs and seller-only RPCs.
 create or replace function private.enforce_sellbook_pin_before_write()
 returns trigger
