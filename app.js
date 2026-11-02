@@ -2706,6 +2706,8 @@ function setAdminAccess(isAdmin){
 }
 function clearAccountScopedUiState(){
  setAdminAccess(false);
+ adminConversationRequestId++;
+ adminConversationLoading=false;
  marketplaceSubscribersCache=[];
  marketplaceSelectedBuyerId=null;
  marketplaceReservationsCache=[];
@@ -3050,8 +3052,10 @@ function backToAdminChatList(){
 document.getElementById('backAdminChatList').addEventListener('click',backToAdminChatList);
 document.getElementById('refreshAdminChatConversation').addEventListener('click',loadAdminConversation);
 let adminConversationLoading=false;
+let adminConversationRequestId=0;
 async function loadAdminConversation(){
  if(adminConversationLoading||!supabaseClient||!cloudUser||!sellbookIsAdmin)return;
+ const requestId=++adminConversationRequestId;
  const requestedUserId=cloudUser.id,requestEpoch=adminAccessEpoch;
  const current=()=>adminRequestIsCurrent(requestedUserId,requestEpoch);
  adminConversationLoading=true;
@@ -3109,7 +3113,7 @@ async function loadAdminConversation(){
  }catch(error){
   if(current())target.innerHTML='<div class="empty">Could not load conversation: '+escAdmin(error.message||'Please try again.')+'</div>';
  }finally{
-  adminConversationLoading=false;
+  if(adminConversationRequestId===requestId)adminConversationLoading=false;
  }
 }
 document.getElementById('adminReplyForm').addEventListener('submit',async e=>{
