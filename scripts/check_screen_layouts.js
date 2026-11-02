@@ -56,7 +56,7 @@ const expectedSelectors = [
   '#more .menu-grid',
   '#admin .admin-panel-nav',
   '.products-page-header',
-  '.sale-details-page-open',
+  '#sale-details .sale-details-content',
   '#stock-history-detail'
 ];
 for (const selector of expectedSelectors) {
