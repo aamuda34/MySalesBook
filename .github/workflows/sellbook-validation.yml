@@ -62,3 +62,5 @@ jobs:
           grep -q "securityPinGate" index.html
           grep -q "sellbook-shell-v68" sw.js
           ! grep -Eiq '^[[:space:]]*rollback[[:space:]]*;' supabase/migrations/20261102143000_add_server_verified_sellbook_pin.sql
+          grep -q 'enforce_sellbook_pin_before_write' supabase/migrations/20261102145000_gate_privileged_pin_write_paths.sql
+          ! grep -Eiq '^[[:space:]]*rollback[[:space:]]*;' supabase/migrations/20261102145000_gate_privileged_pin_write_paths.sql
