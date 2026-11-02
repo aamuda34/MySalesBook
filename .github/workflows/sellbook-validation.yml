@@ -73,3 +73,5 @@ jobs:
           grep -q "'expires_at',v_expires_at" supabase/migrations/20261102151500_expose_pin_expiry_and_strengthen_pin_rules.sql
           grep -q "Choose a less predictable six-digit PIN" supabase/migrations/20261102151500_expose_pin_expiry_and_strengthen_pin_rules.sql
           ! grep -Eiq '^[[:space:]]*rollback[[:space:]]*;' supabase/migrations/20261102151500_expose_pin_expiry_and_strengthen_pin_rules.sql
+          grep -q "v_locked_until<=now()" supabase/migrations/20261102153000_reset_pin_attempts_after_lockout.sql
+          ! grep -Eiq '^[[:space:]]*rollback[[:space:]]*;' supabase/migrations/20261102153000_reset_pin_attempts_after_lockout.sql
