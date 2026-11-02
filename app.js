@@ -1365,16 +1365,19 @@ async function loadReservationsPage(){
 }
 async function retryReservationNotification(id,button){
  if(!cloudUser||!supabaseClient)return;
+ const requestedUserId=cloudUser.id,requestEpoch=accountSessionEpoch,current=()=>accountRequestIsCurrent(requestedUserId,requestEpoch);
  const reservation=marketplaceReservationsCache.find(item=>String(item.id)===String(id));
  const decision=String(reservation?.status||'').toLowerCase();
  if(!reservation||!['approved','rejected'].includes(decision))return;
  const original=button?.textContent;if(button){button.disabled=true;button.textContent='Sending…';}
  try{
   const result=await supabaseClient.functions.invoke('notify-reservation-decision',{body:{reservation_id:id,decision}});
+  if(!current())return;
   if(result.error)throw result.error;
   if(typeof showToast==='function')showToast('Buyer notification sent.');else alert('Buyer notification sent.');
   if(button){button.textContent='Notification sent';button.disabled=true;}
  }catch(err){
+  if(!current())return;
   if(typeof showToast==='function')showToast('Notification could not be sent. Please try again.');else alert('Notification could not be sent: '+(err.message||'Please try again.'));
   if(button){button.disabled=false;button.textContent=original||'Resend buyer notification';}
  }
@@ -1388,6 +1391,7 @@ async function updateReservationDecision(id,decision,button){
  if(!reservation||String(reservation.status||'pending').toLowerCase()!=='pending')return;
  const label=decision==='approved'?'Approve this reservation?':'Reject this reservation?';
  if(!confirm(label+' The buyer will be able to see the updated status in Buybook.'))return;
+ if(!current())return;
  const original=button?.textContent;if(button){button.disabled=true;button.textContent='Saving…';}
  try{
   const {data,error}=await supabaseClient.from('marketplace_reservations').update({status:decision,updated_at:new Date().toISOString()}).eq('id',id).eq('owner_id',requestedUserId).eq('status','pending').select('id,status').maybeSingle();
