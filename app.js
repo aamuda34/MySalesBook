@@ -476,6 +476,113 @@ function restoreLocalRecords() {
   render();
 }
 
+
+let securityPinGateVisible=false;
+let securityPinGateMode='verify';
+function showSecurityPinGate(mode='verify',message=''){
+ securityPinGateVisible=true;
+ securityPinGateMode=mode;
+ const gate=document.getElementById('securityPinGate');
+ const confirmWrap=document.getElementById('securityPinConfirmWrap');
+ const forgot=document.getElementById('securityPinForgot');
+ const title=document.getElementById('securityPinTitle');
+ const subtitle=document.getElementById('securityPinSubtitle');
+ const submit=document.getElementById('securityPinSubmit');
+ const input=document.getElementById('securityPinInput');
+ const confirmInput=document.getElementById('securityPinConfirm');
+ if(!gate)return;
+ gate.classList.remove('hidden');
+ document.getElementById('appWorkspace')?.classList.add('hidden');
+ document.getElementById('accountCard')?.classList.add('hidden');
+ document.getElementById('authLoading')?.style.setProperty('display','none');
+ if(mode==='setup'){
+  title.textContent='Create your Sellbook PIN';
+  subtitle.textContent='Create a six-digit PIN to protect your private sales, products, stock and expenses on this account.';
+  submit.textContent='Create PIN';
+  confirmWrap.classList.remove('hidden');
+  forgot.classList.add('hidden');
+  input.autocomplete='new-password';
+ }else{
+  title.textContent='Enter your Sellbook PIN';
+  subtitle.textContent='Your business records are locked until you verify your six-digit PIN.';
+  submit.textContent='Unlock Sellbook';
+  confirmWrap.classList.add('hidden');
+  forgot.classList.remove('hidden');
+  input.autocomplete='current-password';
+ }
+ input.value='';confirmInput.value='';
+ document.getElementById('securityPinMessage').textContent=message||'';
+ setTimeout(()=>input.focus(),40);
+}
+function hideSecurityPinGate(){
+ securityPinGateVisible=false;
+ document.getElementById('securityPinGate')?.classList.add('hidden');
+}
+async function ensureSellbookPinAccess(){
+ if(!cloudUser||!supabaseClient)throw Error('Sign in before verifying your Sellbook PIN.');
+ if(sessionStorage.getItem('sellbook-pin-reset-after-auth')==='yes'){
+  const reset=await supabaseClient.rpc('reset_app_pin_after_reauth');
+  if(reset.error)throw reset.error;
+  sessionStorage.removeItem('sellbook-pin-reset-after-auth');
+  showSecurityPinGate('setup','Your identity was re-authenticated. Create a new six-digit PIN.');
+  return false;
+ }
+ const {data,error}=await supabaseClient.rpc('get_app_pin_status');
+ if(error)throw error;
+ if(data?.verified===true){hideSecurityPinGate();return true;}
+ showSecurityPinGate(data?.has_pin?'verify':'setup',
+  data?.has_pin?'Enter your PIN to unlock your business records.':'A security PIN is required before your business records can open.');
+ return false;
+}
+document.getElementById('securityPinInput')?.addEventListener('input',event=>{event.target.value=event.target.value.replace(/\\D/g,'').slice(0,6);});
+document.getElementById('securityPinConfirm')?.addEventListener('input',event=>{event.target.value=event.target.value.replace(/\\D/g,'').slice(0,6);});
+document.getElementById('securityPinForm')?.addEventListener('submit',async event=>{
+ event.preventDefault();
+ if(!cloudUser||!supabaseClient)return;
+ const pin=document.getElementById('securityPinInput').value;
+ const confirmation=document.getElementById('securityPinConfirm').value;
+ const status=document.getElementById('securityPinMessage');
+ const button=document.getElementById('securityPinSubmit');
+ if(!/^\\d{6}$/.test(pin)){status.textContent='Enter exactly six digits.';return;}
+ if(securityPinGateMode==='setup'&&pin!==confirmation){status.textContent='The two PIN entries do not match.';return;}
+ button.disabled=true;button.textContent=securityPinGateMode==='setup'?'Creating…':'Verifying…';
+ status.textContent='Checking your PIN securely…';
+ try{
+  const {data,error}=await supabaseClient.rpc(securityPinGateMode==='setup'?'set_app_pin':'verify_app_pin',{p_pin:pin});
+  if(error)throw error;
+  if(data?.verified!==true){
+   const locked=data?.locked_until?(' Locked until '+new Date(data.locked_until).toLocaleTimeString()+'.'):'';
+   status.textContent=(data?.message||'The PIN could not be verified.')+(Number.isFinite(Number(data?.attempts_remaining))?' Attempts remaining: '+data.attempts_remaining+'.':'')+locked;
+   return;
+  }
+  document.getElementById('securityPinForm').reset();
+  hideSecurityPinGate();
+  await handleCloudAuthChange();
+ }catch(error){
+  status.textContent='PIN operation failed: '+(error.message||'Please try again.');
+ }finally{
+  button.disabled=false;
+  button.textContent=securityPinGateMode==='setup'?'Create PIN':'Unlock Sellbook';
+ }
+});
+document.getElementById('securityPinForgot')?.addEventListener('click',async()=>{
+ if(!supabaseClient||!navigator.onLine){document.getElementById('securityPinMessage').textContent='Connect to the internet before resetting your PIN.';return;}
+ const button=document.getElementById('securityPinForgot');button.disabled=true;
+ document.getElementById('securityPinMessage').textContent='Signing out so you can securely sign in again…';
+ try{
+  sessionStorage.setItem('sellbook-pin-reset-after-auth','yes');
+  const {error}=await supabaseClient.auth.signOut({scope:'local'});
+  if(error)throw error;
+  hideSecurityPinGate();
+  document.getElementById('accountCard')?.classList.remove('hidden');
+  document.getElementById('accountMessage').textContent='Sign in again with Google to reset your PIN. The reset is allowed only immediately after a fresh sign-in.';
+  await refreshAccountStatus();
+ }catch(error){
+  sessionStorage.removeItem('sellbook-pin-reset-after-auth');
+  document.getElementById('securityPinMessage').textContent='Could not start PIN recovery: '+(error.message||'Please try again.');
+ }finally{button.disabled=false;}
+});
+
 async function handleCloudAuthChange() {
   if (authTransition) return;
   authTransition = true;
@@ -502,8 +609,18 @@ async function handleCloudAuthChange() {
     activeUser = user;
 
     if (user) {
-      if (storageMode !== 'cloud') localSnapshot = snapshotLocalRecords();
       cloudUser = user;
+      // Every authenticated Sellbook session must pass the server-side PIN gate
+      // before any private business rows are loaded or rendered.
+      const pinAllowed = await ensureSellbookPinAccess();
+      if (!pinAllowed) {
+        document.getElementById('appWorkspace').classList.add('hidden');
+        document.getElementById('accountCard').classList.add('hidden');
+        coreWorkspaceLoaded = true;
+        finishStartup();
+        return;
+      }
+      if (storageMode !== 'cloud') localSnapshot = snapshotLocalRecords();
       pendingSync = readQueue(user.id);
       // Paint this account's last saved workspace immediately, then refresh it from Supabase.
       // This keeps returning sellers out of a blank startup state on slow mobile connections.
@@ -2061,7 +2178,8 @@ async function refreshAccountStatus(){
   signOut.classList.toggle('hidden', !user);
   document.getElementById('emailAuthPanel').classList.toggle('hidden', !!user);
   document.getElementById('accountManagePanel').classList.toggle('hidden', !user);
-  document.getElementById('accountCard').classList.toggle('hidden',!!user&&workspaceReady&&!recoveryMode);
+  document.getElementById('securityPinGate')?.classList.toggle('hidden',!securityPinGateVisible);
+  document.getElementById('accountCard').classList.toggle('hidden',!!user&&(securityPinGateVisible||(workspaceReady&&!recoveryMode)));
   document.getElementById('settingsAccountStatus').textContent=user?'Signed in as '+(user.email||'Google account')+'.':'Not signed in.';
   document.getElementById('settingsAccountMessage').textContent=document.getElementById('accountMessage').textContent||'';
   if (recoveryMode) {
@@ -2077,9 +2195,10 @@ async function refreshAccountStatus(){
   const importOwner = localStorage.getItem('my-sales-book-legacy-import-owner-v1');
   const alreadyImported = user && (localStorage.getItem('my-sales-book-imported-v1:' + user.id) === 'yes' || (importOwner && importOwner !== user.id));
   importButton.classList.toggle('hidden', !user || !hasLocal || alreadyImported);
-  document.getElementById('appWorkspace').classList.toggle('hidden', !user || !workspaceReady);
+  document.getElementById('appWorkspace').classList.toggle('hidden', !user || !workspaceReady || securityPinGateVisible);
   // The current page controls the floating + button; do not force it visible here.
-  document.getElementById('accountCard').classList.toggle('hidden',!!user&&workspaceReady&&!recoveryMode);
+  document.getElementById('securityPinGate')?.classList.toggle('hidden',!securityPinGateVisible);
+  document.getElementById('accountCard').classList.toggle('hidden',!!user&&(securityPinGateVisible||(workspaceReady&&!recoveryMode)));
   if(user&&workspaceReady){document.getElementById('settingsAccountStatus').textContent='Signed in as '+(user.email||'Google account')+'.';document.getElementById('settingsAccountMessage').textContent=document.getElementById('accountMessage').textContent||'';}
 }
 
@@ -2111,7 +2230,7 @@ document.getElementById('googleSignIn').addEventListener('click', async () => {
         redirectTo: new URLSearchParams(window.location.search).get('native') === '1'
           ? 'sellbook://auth'
           : window.location.origin + window.location.pathname + window.location.search,
-        queryParams: { prompt: 'select_account' }
+        queryParams: { prompt: sessionStorage.getItem('sellbook-pin-reset-after-auth')==='yes'?'select_account':'select_account' }
       }
     });
     if (error) throw error;
