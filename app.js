@@ -852,9 +852,12 @@ async function loadBuybookConnection() {
     if(disconnect)disconnect.classList.toggle('hidden',!connected);
     if(activity)activity.classList.toggle('hidden',!connected);
   };
-  if(!cloudUser){setConnectionView(false);status.textContent='Sign in to Sellbook to connect to Buybook.';if(activity)activity.classList.add('hidden');return;}
+  if(!cloudUser||!supabaseClient){setConnectionView(false);status.textContent='Sign in to Sellbook to connect to Buybook.';if(activity)activity.classList.add('hidden');return;}
+  const requestedUserId=cloudUser.id,requestEpoch=accountSessionEpoch;
+  const current=()=>accountRequestIsCurrent(requestedUserId,requestEpoch);
   status.textContent='Checking Buybook connection…';
-  const {data,error}=await supabaseClient.from('marketplace_shops').select('name,description,phone,address,city,state,is_connected,is_active').eq('owner_id',cloudUser.id).maybeSingle();
+  const {data,error}=await supabaseClient.from('marketplace_shops').select('name,description,phone,address,city,state,is_connected,is_active').eq('owner_id',requestedUserId).maybeSingle();
+  if(!current())return;
   if(error){buybookConnectionState=null;setConnectionView(false);buybookConnectionState=null;renderGettingStarted();status.textContent='Could not check Buybook connection. Please try again.';console.error(error);return;}
   const connected=!!(data&&data.is_connected&&data.is_active);
   if(data){
@@ -865,8 +868,10 @@ async function loadBuybookConnection() {
     document.getElementById('buybookCity').value=data.city||'';
     document.getElementById('buybookState').value=data.state||'Osun';
   }else{
-    document.getElementById('buybookShopName').value=db.profile?.businessName||cloudUser.user_metadata?.business_name||cloudUser.user_metadata?.full_name||'';
+    document.getElementById('buybookShopName').value=db.profile?.businessName||'';
+    if(!db.profile?.businessName&&cloudUser?.id===requestedUserId)document.getElementById('buybookShopName').value=cloudUser.user_metadata?.business_name||cloudUser.user_metadata?.full_name||'';
   }
+  if(!current())return;
   setConnectionView(connected);
   if(connected) await loadBuybookActivity();
 }
