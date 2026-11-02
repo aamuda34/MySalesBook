@@ -408,13 +408,13 @@ async function syncPendingChanges() {
           }, {onConflict:'id',ignoreDuplicates:true});
           if (error) throw error;
         } else if(item.type==='stock_adjustment'){
-          const user=await requireCloudUser(),a=p.adjustment;
+          const user=await requireCloudUser(syncUserId),a=p.adjustment;
           const blocked=queue.slice(0,queueIndex).some(q=>q.status==='conflict'&&q.type==='product_save'&&q.payload?.product?.id===a.productId);
           if(blocked)throw Error('Conflict: this stock adjustment is waiting for a product change to be reviewed on this device.');
           const {error}=await supabaseClient.from('stock_adjustments').upsert({id:a.id,user_id:user.id,product_id:a.productId,product_name:a.productName,previous_stock:a.previousStock,new_stock:a.newStock,quantity_change:a.quantityChange,reason:a.reason||'',adjusted_at:a.date},{onConflict:'id',ignoreDuplicates:true});
           if(error)throw error;
         } else if(item.type==='profile_save'){
-          const user=await requireCloudUser(),profile=p.profile||{};
+          const user=await requireCloudUser(syncUserId),profile=p.profile||{};
           const {error}=await supabaseClient.from('user_profiles').upsert({user_id:user.id,business_name:String(profile.businessName||'').slice(0,100),business_logo:profile.businessLogo||null,updated_at:now()},{onConflict:'user_id'});
           if(error)throw error;
         }
@@ -437,8 +437,12 @@ async function syncPendingChanges() {
     if (!queue.length) {
       // Every queued operation has already been acknowledged by Supabase. A failed
       // follow-up refresh must not make callers roll back data that is already saved.
-      try { await cloudLoadAll(); }
+      try {
+        const refreshed=await cloudLoadAll();
+        if(refreshed===false||!sessionCurrent())return false;
+      }
       catch(refreshError) {
+        if(!sessionCurrent())return false;
         storageMode='cloud-offline';
         cacheCloudData(syncUserId);
         render();
