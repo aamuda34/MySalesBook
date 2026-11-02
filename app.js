@@ -1134,10 +1134,13 @@ function paintPage(name,scroll){if(!VALID_PAGES.has(name))name='home';if(name===
     'notifications':'home','support':'home','feedback':'support'
   };
   function intendedParent(button,current){
+    // Explicit page parents on back buttons are authoritative. History state can
+    // be stale after PWA restoration or tab switches, so never let it redirect
+    // a page-specific back arrow to an unrelated screen.
+    if(button.dataset.appBack&&VALID_PAGES.has(button.dataset.appBack))return button.dataset.appBack;
+    if(button.dataset.openPage&&VALID_PAGES.has(button.dataset.openPage))return button.dataset.openPage;
     const previous=history.state&&history.state.mySalesBookPage===current?history.state.mySalesBookPreviousPage:null;
     if(previous&&previous!==current&&VALID_PAGES.has(previous))return previous;
-    if(button.dataset.appBack)return button.dataset.appBack;
-    if(button.dataset.openPage)return button.dataset.openPage;
     const inline=button.getAttribute('onclick')||'';
     const match=inline.match(/showPage\(['"]([^'"]+)['"]\)/);
     return match&&VALID_PAGES.has(match[1])?match[1]:(parentPages[current]||'home');
@@ -1156,14 +1159,31 @@ function paintPage(name,scroll){if(!VALID_PAGES.has(name))name='home';if(name===
     event.preventDefault();event.stopImmediatePropagation();
     const fallback=intendedParent(button,current);
     if(!VALID_PAGES.has(fallback)||fallback===current)return;
-    const state=history.state||{};
-    if(state.mySalesBookPage===current&&state.mySalesBookPreviousPage===fallback){
-      history.back();
-    }else{
-      showPage(fallback,{replaceHistory:true});
-    }
+    // Navigate directly to the declared parent. Calling history.back() here
+    // is unreliable when Android's installed-PWA history stack has been
+    // restored or when an earlier page entry was replaced.
+    showPage(fallback,{replaceHistory:true});
   },true);
 })();
+// Product History category tabs are delegated so every tab remains usable
+// after the history lists are refreshed or re-rendered.
+document.getElementById('stockHistoryTabs')?.addEventListener('click',event=>{
+ const button=event.target.closest('[data-stock-history-tab]');
+ if(!button||!event.currentTarget.contains(button))return;
+ const key=button.dataset.stockHistoryTab;
+ const panels={added:'productCreationHistoryPanel',adjustments:'stockAdjustmentPanel',restocks:'restockHistoryPanel'};
+ if(!Object.prototype.hasOwnProperty.call(panels,key))return;
+ event.currentTarget.querySelectorAll('[data-stock-history-tab]').forEach(tab=>{
+  const active=tab===button;
+  tab.classList.toggle('active',active);
+  tab.setAttribute('aria-selected',String(active));
+  tab.setAttribute('tabindex',active?'0':'-1');
+ });
+ Object.entries(panels).forEach(([name,id])=>{
+  const panel=document.getElementById(id);
+  if(panel)panel.hidden=name!==key;
+ });
+});
 function refreshStockHistoryBadges(){
  const tabs=document.getElementById('stockHistoryTabs');if(!tabs)return;
  const counts={added:(db.productAdditions||[]).length,adjustments:(db.stockAdjustments||[]).length,restocks:(db.restocks||[]).length};
