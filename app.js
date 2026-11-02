@@ -2813,22 +2813,32 @@ async function loadAdminUsers(){
 
 async function loadAdminFeedback(){
  if(!supabaseClient||!cloudUser||!sellbookIsAdmin)return;
+ const requestedUserId=cloudUser.id,requestEpoch=adminAccessEpoch;
  const target=document.getElementById('adminFeedbackList');target.textContent='Loading feedback…';
  const {data,error}=await supabaseClient.from('user_feedback').select('id,user_id,category,subject,message,status,admin_reply,created_at').order('created_at',{ascending:false}).limit(100);
+ if(!adminRequestIsCurrent(requestedUserId,requestEpoch))return;
  if(error){target.textContent='Could not load feedback: '+error.message;return;}
  target.innerHTML=(data||[]).length?data.map(f=>'<div class="item"><div class="row"><strong>'+escAdmin(f.subject)+'</strong><span class="status-pill">'+escAdmin(f.status)+'</span></div><div class="muted">'+escAdmin(f.category)+' · '+escAdmin(f.user_id)+' · '+escAdmin(new Date(f.created_at).toLocaleString())+'</div><p>'+escAdmin(f.message)+'</p><label>Status</label><select data-feedback-status="'+escAdmin(f.id)+'"><option value="new" '+(f.status==='new'?'selected':'')+'>New</option><option value="in_review" '+(f.status==='in_review'?'selected':'')+'>In review</option><option value="resolved" '+(f.status==='resolved'?'selected':'')+'>Resolved</option><option value="declined" '+(f.status==='declined'?'selected':'')+'>Declined</option></select><label>Reply to user</label><textarea data-feedback-reply="'+escAdmin(f.id)+'" rows="2" maxlength="4000" style="width:100%;padding:10px;border:1px solid #ccd6ce;border-radius:8px;font:inherit">'+escAdmin(f.admin_reply||'')+'</textarea><button type="button" data-save-feedback="'+escAdmin(f.id)+'" style="margin-top:8px">Save / send reply</button></div>').join(''):'<div class="empty">No feedback has been submitted yet.</div>';
  target.querySelectorAll('[data-save-feedback]').forEach(b=>b.addEventListener('click',async()=>{
+  if(!adminRequestIsCurrent(requestedUserId,requestEpoch))return;
   const id=b.dataset.saveFeedback,status=target.querySelector('[data-feedback-status="'+id+'"]').value,reply=target.querySelector('[data-feedback-reply="'+id+'"]').value.trim();
-  b.disabled=true;const {error}=await supabaseClient.from('user_feedback').update({status,admin_reply:reply||null,replied_at:reply?new Date().toISOString():null,updated_at:new Date().toISOString()}).eq('id',id);
-  b.disabled=false;if(error){alert('Could not save feedback: '+error.message);return;}await loadAdminFeedback();await loadUserSupport();
+  b.disabled=true;
+  const {error}=await supabaseClient.from('user_feedback').update({status,admin_reply:reply||null,replied_at:reply?new Date().toISOString():null,updated_at:new Date().toISOString()}).eq('id',id);
+  if(!adminRequestIsCurrent(requestedUserId,requestEpoch))return;
+  b.disabled=false;
+  if(error){alert('Could not save feedback: '+error.message);return;}
+  await loadAdminFeedback();
+  if(cloudUser?.id===requestedUserId)await loadUserSupport();
  }));
 }
 async function loadAdminNotifications(){
  if(!supabaseClient||!cloudUser||!sellbookIsAdmin)return;
+ const requestedUserId=cloudUser.id,requestEpoch=adminAccessEpoch;
  const target=document.getElementById('adminNotificationsList');
  const {data,error}=await supabaseClient.from('app_notifications').select('id,title,body,kind,recipient_id,created_at').order('created_at',{ascending:false}).limit(20);
+ if(!adminRequestIsCurrent(requestedUserId,requestEpoch))return;
  if(error){target.textContent='Could not load notifications: '+error.message;return;}
- localStorage.setItem('sellbook-notifications-seen-'+cloudUser.id,new Date().toISOString());
+ localStorage.setItem('sellbook-notifications-seen-'+requestedUserId,new Date().toISOString());
  target.innerHTML=(data||[]).length?data.map(n=>'<div class="item"><strong>'+escAdmin(n.title)+'</strong><div class="muted">'+escAdmin(n.kind)+' · '+(n.recipient_id?'Specific user':'All users')+' · '+escAdmin(new Date(n.created_at).toLocaleString())+'</div><p>'+escAdmin(n.body)+'</p></div>').join(''):'<div class="empty">No notifications published yet.</div>';
 }
 function updateBusinessDetailsPage(){const name=(document.getElementById('businessTitle')?.textContent||'Sellbook').trim();const nameEls=['businessDetailsName','businessDetailsBusinessName'];nameEls.forEach(id=>{const el=document.getElementById(id);if(el)el.textContent=name;});const email=document.getElementById('businessDetailsEmail');if(email)email.textContent=cloudUser?.email||'Not signed in';const registered=document.getElementById('businessDetailsRegistered');if(registered){const raw=cloudUser?.created_at||cloudUser?.createdAt;registered.textContent=raw&&!Number.isNaN(new Date(raw).getTime())?new Date(raw).toLocaleDateString(undefined,{day:'numeric',month:'long',year:'numeric'}):'Not available for this device';}const status=document.getElementById('businessDetailsStatus');if(status)status.textContent=cloudUser?'Registered account':'Device profile';}
