@@ -104,6 +104,10 @@ function load(){try{const raw=localStorage.getItem(DBKEY);if(raw)db=normalizeDb(
 function save(){try{db=normalizeDb(db);const serialized=JSON.stringify(db);localStorage.setItem(DBKEY,serialized);lastSavedSnapshot=serialized;storageMode='browser';return true;}catch(e){if(lastSavedSnapshot){try{db=normalizeDb(JSON.parse(lastSavedSnapshot));}catch(restoreError){console.error('Could not restore the last saved local records:',restoreError);}}storageMode=lastSavedSnapshot?'browser':'memory';render();alert('Could not save this change permanently. Your last successfully saved records have been restored. Check device storage and try again.');return false;}}
 
 let cloudUser = null;
+let accountSessionEpoch = 0;
+function accountRequestIsCurrent(userId, epoch) {
+  return !!userId && cloudUser?.id === userId && accountSessionEpoch === epoch;
+}
 let cloudReady = false;
 let workspaceReady = false;
 let cloudBusy = false;
@@ -2709,7 +2713,11 @@ function setAdminAccess(isAdmin){
  if(!sellbookIsAdmin&&currentPage()==='admin')showPage('home');
 }
 function clearAccountScopedUiState(){
+ accountSessionEpoch++;
  setAdminAccess(false);
+ setUnreadBadge('notificationBadge',0);
+ setUnreadBadge('messageBadge',0);
+ marketplaceActivityBusy=false;
  marketplaceSubscribersCache=[];
  marketplaceSelectedBuyerId=null;
  marketplaceReservationsCache=[];
