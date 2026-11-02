@@ -1360,30 +1360,36 @@ async function retryReservationNotification(id,button){
 async function updateReservationDecision(id,decision,button){
  if(!cloudUser||!supabaseClient)return;
  if(!['approved','rejected'].includes(decision))return;
+ const requestedUserId=cloudUser.id,requestEpoch=accountSessionEpoch;
+ const current=()=>accountRequestIsCurrent(requestedUserId,requestEpoch);
  const reservation=marketplaceReservationsCache.find(item=>String(item.id)===String(id));
  if(!reservation||String(reservation.status||'pending').toLowerCase()!=='pending')return;
  const label=decision==='approved'?'Approve this reservation?':'Reject this reservation?';
  if(!confirm(label+' The buyer will be able to see the updated status in Buybook.'))return;
  const original=button?.textContent;if(button){button.disabled=true;button.textContent='Saving…';}
  try{
-  const {data,error}=await supabaseClient.from('marketplace_reservations').update({status:decision,updated_at:new Date().toISOString()}).eq('id',id).eq('owner_id',cloudUser.id).eq('status','pending').select('id,status').maybeSingle();
+  const {data,error}=await supabaseClient.from('marketplace_reservations').update({status:decision,updated_at:new Date().toISOString()}).eq('id',id).eq('owner_id',requestedUserId).eq('status','pending').select('id,status').maybeSingle();
+  if(!current())return;
   if(error)throw error;
   if(!data)throw new Error('This reservation has already been updated. Refresh the page to see its latest status.');
   reservation.status=decision;
   let notificationFailed=false;
   try{
    const {error:notificationError}=await supabaseClient.functions.invoke('notify-reservation-decision',{body:{reservation_id:id,decision}});
+   if(!current())return;
    if(notificationError)throw notificationError;
   }catch(notificationError){
+   if(!current())return;
    notificationFailed=true;
    console.error('Sellbook: reservation decision saved, but buyer notification failed.',notificationError);
   }
   await loadReservationsPage();
+  if(!current())return;
   showReservationDetails(id,{history:false});
   const message=(decision==='approved'?'Reservation approved.':'Reservation rejected.')+(notificationFailed?' Buyer notification could not be sent; please try again later.':' Buyer notification sent.');
   if(typeof showToast==='function')showToast(message);
   else alert(message);
- }catch(err){alert('Could not update reservation: '+(err.message||'Please try again.'));if(button){button.disabled=false;button.textContent=original||'Try again';}}
+ }catch(err){if(current())alert('Could not update reservation: '+(err.message||'Please try again.'));if(button){button.disabled=false;button.textContent=original||'Try again';}}
 }
 function showReservationDetails(id,options={}){
  const r=marketplaceReservationsCache.find(x=>String(x.id)===String(id));if(!r)return;marketplaceSelectedReservationId=r.id;
