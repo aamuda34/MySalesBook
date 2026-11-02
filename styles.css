@@ -1068,9 +1068,7 @@ body.dark :where(.sales-history-row small,.sales-history-row-main small,
 .expense-history-row small,.expense-item small,.sale-history-item small){color:#c5bdcf!important}
 
 
-/* Keep the three primary navigation buttons visible while Messenger is open.
-   Messenger content stops above the persistent bottom navigation, including
-   when a conversation is opened. */
+/* Keep primary navigation visible on the Messenger homepage only. */
 @media(max-width:600px){
   body.messenger-open #appWorkspace>nav{
     position:fixed!important;
@@ -1117,4 +1115,19 @@ body.dark :where(.sales-history-row small,.sales-history-row-main small,
     max-height:none!important;
   }
   body.messenger-open #quickSaleFab{display:none!important}
+}
+
+
+/* An individual Messenger conversation is a focused full-screen chat:
+   hide the main navigation and let the conversation use the full viewport. */
+@media(max-width:600px){
+  body.messenger-open.messenger-conversation-open #appWorkspace>nav{
+    display:none!important;
+    visibility:hidden!important;
+  }
+  body.messenger-open.messenger-conversation-open #messengerChatCard{
+    inset:0!important;
+    height:100dvh!important;
+    max-height:100dvh!important;
+  }
 }
