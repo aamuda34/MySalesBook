@@ -23,3 +23,5 @@ jobs:
         run: node scripts/check_business_profile_render.js
       - name: Test app-wide typography and spacing system
         run: node scripts/check_design_system.js
+      - name: Test screen-by-screen app layout coverage
+        run: node scripts/check_screen_layouts.js
