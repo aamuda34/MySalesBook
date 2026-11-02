@@ -142,6 +142,6 @@ requireText(restockSql, 'where id=p_purchase_id and user_id=v_user_id', 'restock
 requireText(restockSql, 'previous_stock,new_stock,restocked_at', 'restock history records stock before and after');
 requireText(restockSql, 'from public, anon', 'restock RPC is not executable by public or anonymous clients');
 
-const shellVersion=Number((sw.match(/const CACHE_NAME = 'sellbook-shell-v(\\d+)';/)||[])[1]||0);
+const shellVersion=Number((sw.match(/const CACHE_NAME = 'sellbook-shell-v(\d+)';/)||[])[1]||0);
 assert.ok(shellVersion>=78,'Service worker cache must be bumped for the current hardened app shell.');
 console.log('PASS: sale/restock database transaction contracts and offline-shell cache version.');
