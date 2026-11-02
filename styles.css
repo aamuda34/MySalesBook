@@ -1151,3 +1151,5 @@ body:has(#me.page:not(.hidden)) #appWorkspace>main{padding-top:0!important;}
 .security-pin-forgot{display:block;width:100%;margin-top:14px;padding:12px 6px;border:0;background:transparent;color:var(--green);font:inherit;font-weight:650}
 .security-pin-gate [hidden],.security-pin-gate .hidden{display:none!important}
 @media(max-width:480px){.security-pin-gate{margin:20px 0 24px;padding:20px}}
+
+.security-pin-cancel{display:block;width:100%;margin-top:6px;min-height:44px;border:1px solid var(--border);border-radius:12px;background:transparent;color:var(--text);font:inherit;font-weight:650}
