@@ -226,24 +226,3 @@ revoke all on function public.sellbook_admin_users() from public, anon;
 grant execute on function public.sellbook_admin_overview() to authenticated;
 grant execute on function public.sellbook_admin_platform_metrics() to authenticated;
 grant execute on function public.sellbook_admin_users() to authenticated;
-
--- Rollback-only verification: first-use setup, wrong PIN, correct PIN and server-side session gate.
-select set_config('request.jwt.claim.sub','ecbc30bb-d632-4fc2-8d35-61f6db1da4bc',true);
-select set_config('request.jwt.claims',jsonb_build_object('sub','ecbc30bb-d632-4fc2-8d35-61f6db1da4bc','session_id','11111111-1111-4111-8111-111111111111')::text,true);
-do $test$
-declare v_status jsonb; v_result jsonb;
-begin
- v_status:=public.get_app_pin_status();
- if v_status->>'has_pin'<>'false' or v_status->>'verified'<>'true' then raise exception 'First-time PIN setup status failed'; end if;
- v_result:=public.set_app_pin('481729');
- if v_result->>'verified'<>'true' then raise exception 'PIN setup failed'; end if;
- v_status:=public.get_app_pin_status();
- if v_status->>'has_pin'<>'true' or v_status->>'verified'<>'true' then raise exception 'PIN session was not verified after setup'; end if;
- v_result:=public.verify_app_pin('000000');
- if v_result->>'verified'<>'false' then raise exception 'Incorrect PIN was accepted'; end if;
- v_result:=public.verify_app_pin('481729');
- if v_result->>'verified'<>'true' then raise exception 'Correct PIN was rejected'; end if;
- if not private.is_sellbook_pin_verified() then raise exception 'PIN RLS helper did not recognize the verified session'; end if;
-end;
-$test$;
-rollback;
