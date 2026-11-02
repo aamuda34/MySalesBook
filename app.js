@@ -20,8 +20,9 @@ function calculateSaleAmounts(quantity,unitPrice,unitCost,unitsPerSale=1){if(!Nu
 const money=n=>'₦'+Number(n||0).toLocaleString('en-NG',{minimumFractionDigits:2,maximumFractionDigits:2});
 const today=()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');};
 const now=()=>new Date().toISOString();
+function productCreationSnapshot(p){return {id:String(p.id),productId:String(p.id),productName:String(p.name||'Product'),category:String(p.category||'Uncategorized'),cost:Number(p.cost)||0,price:Number(p.price)||0,initialStock:Number(p.stock)||0,baseUnit:p.baseUnit||'unit',packUnit:p.packUnit||'',unitsPerPack:Number(p.unitsPerPack)||1,packPrice:p.packPrice==null?null:Number(p.packPrice),imagePath:p.imagePath||'',addedAt:p.createdAt||now()};}
 let db={products:[],sales:[],expenses:[],stockAdjustments:[],restocks:[],profile:{businessName:'',businessLogo:''}};
-function normalizeDb(v){return {products:Array.isArray(v?.products)?v.products:[],sales:Array.isArray(v?.sales)?v.sales:[],expenses:Array.isArray(v?.expenses)?v.expenses:[],stockAdjustments:Array.isArray(v?.stockAdjustments)?v.stockAdjustments:[],restocks:Array.isArray(v?.restocks)?v.restocks:[],profile:v?.profile&&typeof v.profile==='object'?v.profile:{businessName:'',businessLogo:''}};}
+function normalizeDb(v){return {products:Array.isArray(v?.products)?v.products:[],sales:Array.isArray(v?.sales)?v.sales:[],expenses:Array.isArray(v?.expenses)?v.expenses:[],stockAdjustments:Array.isArray(v?.stockAdjustments)?v.stockAdjustments:[],restocks:Array.isArray(v?.restocks)?v.restocks:[],productAdditions:Array.isArray(v?.productAdditions)?v.productAdditions:[],profile:v?.profile&&typeof v.profile==='object'?v.profile:{businessName:'',businessLogo:''}};}
 let lowStockThreshold=Number(localStorage.getItem('my-sales-book-low-stock-v1')||5);if(!Number.isSafeInteger(lowStockThreshold)||lowStockThreshold<0)lowStockThreshold=5;
 
 function applyTheme(){document.body.classList.remove('dark');}
@@ -145,7 +146,7 @@ function restoreCloudCache(userId) {
   try {
     const value = JSON.parse(localStorage.getItem(cloudCacheKey(userId)) || 'null');
     if (value && Array.isArray(value.products) && Array.isArray(value.sales) && Array.isArray(value.expenses)) {
-      db = value;
+      db = normalizeDb(value);
       storageMode = 'cloud-offline';
       workspaceReady = true;
       pendingSync = readQueue(userId);
@@ -237,6 +238,7 @@ function applyPendingToDb() {
       const index = db.products.findIndex(x => x.id === product.id);
       if (index >= 0) db.products[index] = {...db.products[index], ...product};
       else db.products.push(product);
+      if(p.isNew&&!db.productAdditions.some(x=>String(x.productId||x.id)===String(product.id)))db.productAdditions.push(productCreationSnapshot(product));
     } else if (item.type === 'product_delete') {
       db.products = db.products.filter(x => x.id !== p.product.id);
     } else if (item.type === 'product_remove_image') {
@@ -438,7 +440,7 @@ function snapshotLocalRecords() {
 function restoreLocalRecords() {
   // Never carry the previous cloud account's sync indicators into the local workspace.
   pendingSync = [];
-  db = localSnapshot || {products: [], sales: [], expenses: []};
+  db = normalizeDb(localSnapshot || {products: [], sales: [], expenses: []});
   storageMode = 'browser';
   cloudReady = false;
   workspaceReady = false;
@@ -1164,55 +1166,36 @@ function paintPage(name,scroll){if(!VALID_PAGES.has(name))name='home';if(name===
 })();
 function refreshStockHistoryBadges(){
  const tabs=document.getElementById('stockHistoryTabs');if(!tabs)return;
- const adjustments=Array.isArray(db.stockAdjustments)?db.stockAdjustments:[];
- const restocks=Array.isArray(db.restocks)?db.restocks:[];
- tabs.querySelectorAll('[data-stock-history-tab]').forEach(button=>{
-  const count=button.querySelector('[data-history-count]');if(count)count.textContent=String(button.dataset.stockHistoryTab==='adjustments'?adjustments.length:restocks.length);
- });
+ const counts={added:(db.productAdditions||[]).length,adjustments:(db.stockAdjustments||[]).length,restocks:(db.restocks||[]).length};
+ tabs.querySelectorAll('[data-stock-history-tab]').forEach(button=>{const count=button.querySelector('[data-history-count]');if(count)count.textContent=String(counts[button.dataset.stockHistoryTab]||0);});
 }
 async function refreshStockHistoryFromCloud(){
- const renderAll=()=>{renderStockAdjustments();renderRestockHistory();refreshStockHistoryBadges();};
+ const renderAll=()=>{renderProductCreationHistory();renderStockAdjustments();renderRestockHistory();refreshStockHistoryBadges();};
  if(!cloudUser||!navigator.onLine||storageMode==='local'){renderAll();return;}
  const uid=cloudUser.id;
  try{
-  const result=await supabaseClient.from('stock_purchases')
-   .select('id,product_id,product_name,purchase_quantity,purchase_unit,units_per_purchase,base_quantity,cost_per_purchase_unit,total_cost,average_cost_before,average_cost_after,previous_stock,new_stock,restocked_at')
-   .eq('user_id',uid).order('restocked_at',{ascending:false}).limit(500);
-  if(result.error)throw result.error;
+  const [result,historyResult]=await Promise.all([
+   supabaseClient.from('stock_purchases').select('id,product_id,product_name,purchase_quantity,purchase_unit,units_per_purchase,base_quantity,cost_per_purchase_unit,total_cost,average_cost_before,average_cost_after,previous_stock,new_stock,restocked_at').eq('user_id',uid).order('restocked_at',{ascending:false}).limit(500),
+   fetchAllCloudRows(()=>supabaseClient.from('product_creation_history').select('id,product_id,product_name,category,cost_price,selling_price,initial_stock,image_path,base_unit,purchase_unit,units_per_purchase,pack_unit,units_per_pack,pack_selling_price,added_at').eq('user_id',uid).order('added_at',{ascending:false}).order('id',{ascending:false}))
+  ]);
+  if(result.error)throw result.error;if(historyResult.error)throw historyResult.error;
   if(!cloudUser||cloudUser.id!==uid)return;
-  const merged=new Map();
-  const add=(row)=>{
-   if(!row||row.id==null)return;
-   const key=String(row.id),existing=merged.get(key);
-   merged.set(key,{...(existing||{}),...row});
-  };
-  // Keep the current account's cached rows while the server response is reconciled.
-  // This prevents an empty/partial response from erasing history on the device.
-  for(const row of Array.isArray(db.restocks)?db.restocks:[])add(row);
-  for(const row of result.data||[]){
-   const old=merged.get(String(row.id))||{};
-   add({id:row.id,productId:row.product_id,productName:row.product_name,
-    purchaseQuantity:Number(row.purchase_quantity),purchaseUnit:row.purchase_unit,
-    unitsPerPurchase:Number(row.units_per_purchase),baseQuantity:Number(row.base_quantity),
-    costPerPurchaseUnit:Number(row.cost_per_purchase_unit),totalCost:Number(row.total_cost),
-    averageCostBefore:Number(row.average_cost_before),averageCostAfter:Number(row.average_cost_after),
-    previousStock:row.previous_stock??old.previousStock,newStock:row.new_stock??old.newStock,date:row.restocked_at});
-  }
-  for(const item of readQueue(uid)){
-   const row=item.payload?.restock;
-   if(item.type==='stock_restock'&&item.status!=='synced'&&row)add(row);
-  }
-  db.restocks=[...merged.values()].sort((a,b)=>safeDate(b.date)-safeDate(a.date));
-  renderAll();
-  cacheCloudData(uid);
- }catch(error){
-  console.warn('Restock history refresh failed:',error);
-  cloudMessage('Restock history could not be refreshed. Showing the saved history on this phone.');
-  renderAll();
- }
+  const restocks=new Map();
+  for(const row of db.restocks||[])if(row?.id!=null)restocks.set(String(row.id),row);
+  for(const row of result.data||[]){const old=restocks.get(String(row.id))||{};restocks.set(String(row.id),{id:row.id,productId:row.product_id,productName:row.product_name,purchaseQuantity:Number(row.purchase_quantity),purchaseUnit:row.purchase_unit,unitsPerPurchase:Number(row.units_per_purchase),baseQuantity:Number(row.base_quantity),costPerPurchaseUnit:Number(row.cost_per_purchase_unit),totalCost:Number(row.total_cost),averageCostBefore:Number(row.average_cost_before),averageCostAfter:Number(row.average_cost_after),previousStock:row.previous_stock??old.previousStock,newStock:row.new_stock??old.newStock,date:row.restocked_at});}
+  for(const item of readQueue(uid)){const row=item.payload?.restock;if(item.type==='stock_restock'&&item.status!=='synced'&&row)restocks.set(String(row.id),row);}
+  db.restocks=[...restocks.values()].sort((a,b)=>safeDate(b.date)-safeDate(a.date));
+  const additions=new Map();
+  const put=row=>{const key=String(row?.productId||row?.product_id||row?.id||'');if(key)additions.set(key,{...(additions.get(key)||{}),...row});};
+  for(const row of db.productAdditions||[])put(row);
+  for(const row of historyResult.data||[])put({id:row.product_id,productId:row.product_id,productName:row.product_name,category:row.category,cost:Number(row.cost_price),price:Number(row.selling_price),initialStock:Number(row.initial_stock),imagePath:row.image_path||'',baseUnit:row.base_unit||'unit',purchaseUnit:row.purchase_unit||'unit',unitsPerPurchase:Number(row.units_per_purchase||1),packUnit:row.pack_unit||'',unitsPerPack:Number(row.units_per_pack||1),packPrice:row.pack_selling_price==null?null:Number(row.pack_selling_price),addedAt:row.added_at});
+  for(const item of readQueue(uid)){const p=item.payload?.product;if(item.type==='product_save'&&item.payload?.isNew&&item.status!=='synced'&&p)put(productCreationSnapshot(p));}
+  db.productAdditions=[...additions.values()].sort((a,b)=>safeDate(b.addedAt)-safeDate(a.addedAt));
+  renderAll();cacheCloudData(uid);
+ }catch(error){console.warn('Product history refresh failed:',error);cloudMessage('Product history could not be refreshed. Showing the saved history on this phone.');renderAll();}
 }
 
-let messengerReturnPage='home';function showPage(name,options={}){if(!VALID_PAGES.has(name))return;const previous=currentPage();if(name==='messenger'&&previous!=='messenger')messengerReturnPage=previous;document.body.classList.toggle('user-support-open',name==='support'&&!sellbookIsAdmin);document.body.classList.toggle('messenger-open',name==='messenger');if(name!=='messenger')document.body.classList.remove('messenger-conversation-open');if(name==='messenger'&&cloudUser)loadMessengerConversations();if(name==='stock-history'){renderStockAdjustments();refreshStockHistoryBadges();void refreshStockHistoryFromCloud();}if(!options.fromHistory&&previous!==name){const previousForHistory=options.replaceHistory?(history.state&&history.state.mySalesBookPreviousPage):previous;const state={mySalesBookPage:name,mySalesBookPreviousPage:previousForHistory,mySalesBookReturnPage:name==='messenger'?messengerReturnPage:undefined};if(options.replaceHistory)history.replaceState(state,'','#'+name);else history.pushState(state,'','#'+name);}paintPage(name,options.scroll!==false);}
+let messengerReturnPage='home';function showPage(name,options={}){if(!VALID_PAGES.has(name))return;const previous=currentPage();if(name==='messenger'&&previous!=='messenger')messengerReturnPage=previous;document.body.classList.toggle('user-support-open',name==='support'&&!sellbookIsAdmin);document.body.classList.toggle('messenger-open',name==='messenger');if(name!=='messenger')document.body.classList.remove('messenger-conversation-open');if(name==='messenger'&&cloudUser)loadMessengerConversations();if(name==='stock-history'){renderProductCreationHistory();renderStockAdjustments();refreshStockHistoryBadges();void refreshStockHistoryFromCloud();}if(!options.fromHistory&&previous!==name){const previousForHistory=options.replaceHistory?(history.state&&history.state.mySalesBookPreviousPage):previous;const state={mySalesBookPage:name,mySalesBookPreviousPage:previousForHistory,mySalesBookReturnPage:name==='messenger'?messengerReturnPage:undefined};if(options.replaceHistory)history.replaceState(state,'','#'+name);else history.pushState(state,'','#'+name);}paintPage(name,options.scroll!==false);}
 function restorePageFromLocation(){const hash=location.hash.slice(1),saved=sessionStorage.getItem('my-sales-book-current-page'),name=VALID_PAGES.has(hash)?hash:(VALID_PAGES.has(saved)?saved:'home');document.body.classList.toggle('user-support-open',name==='support'&&!sellbookIsAdmin);document.body.classList.toggle('messenger-open',name==='messenger');paintPage(name,false);}
 // Keep Android/browser Back inside the app. Page changes have their own
 // history entries; the duplicate root entry prevents the app from closing
@@ -1409,7 +1392,34 @@ function renderRestockHistory(){
   return '<button type="button" class="stock-history-row" data-stock-history-id="'+esc(String(r.id))+'" data-stock-history-kind="restock"><span class="row"><strong>'+esc(name)+'</strong><strong>+'+quantity.toLocaleString('en-NG')+' units</strong></span><span class="muted">'+(date.getTime()?date.toLocaleString():'Date unavailable')+' · '+purchaseQty.toLocaleString('en-NG')+' '+esc(unit)+' · '+money(cost)+'</span></button>';
  }).join('');
 }
-function renderStockHistoryDetail(kind,id){const row=(kind==='restock'?(db.restocks||[]):(db.stockAdjustments||[])).find(x=>x.id===id);const target=document.getElementById('stockHistoryDetailContent');if(!target||!row)return;const fields=kind==='restock'?[['Type','Restock'],['Product',row.productName||db.products.find(p=>p.id===row.productId)?.name||'Product'],['Date and time',safeDate(row.date).toLocaleString()],['Purchase quantity',(row.purchaseQuantity||0)+' '+(row.purchaseUnit||'unit')],['Units per purchase',row.unitsPerPurchase||1],['Total units added',row.baseQuantity||((row.purchaseQuantity||0)*(row.unitsPerPurchase||1))],['Cost per purchase unit',money(Number(row.costPerPurchaseUnit)||0)],['Total purchase cost',money(Number(row.totalCost)||((row.purchaseQuantity||0)*(Number(row.costPerPurchaseUnit)||0)))],['Stock after restock',row.newStock??'—'],['Average cost per unit',money(Number(row.averageCostAfter)||0)]]:[['Type','Stock adjustment'],['Product',row.productName||'Product'],['Date and time',safeDate(row.date).toLocaleString()],['Previous stock',String(row.previousStock??'—')+' units'],['New stock',String(row.newStock??'—')+' units'],['Change',((Number(row.quantityChange)>0?'+':'')+String(row.quantityChange??0))+' units'],['Reason',row.reason||'Not specified']];target.innerHTML=fields.map(([label,value])=>'<div class="stock-history-detail-field"><span>'+esc(label)+'</span><strong>'+esc(String(value))+'</strong></div>').join('');}
+function renderProductCreationHistory(){
+ const target=document.getElementById('productCreationHistoryList');if(!target)return;
+ const rows=[...(db.productAdditions||[])].sort((a,b)=>safeDate(b.addedAt)-safeDate(a.addedAt));
+ target.innerHTML=rows.length?rows.map(row=>'<button type="button" class="stock-history-row" data-stock-history-id="'+esc(String(row.productId||row.id))+'" data-stock-history-kind="added"><span class="row"><strong>'+esc(row.productName||'Product')+'</strong><strong>'+Number(row.initialStock||0).toLocaleString('en-NG')+' units</strong></span><span class="muted">Added '+safeDate(row.addedAt).toLocaleString()+' · Cost '+money(row.cost)+' · Selling '+money(row.price)+'</span></button>').join(''):'<div class="empty">No products added in this history yet. New products will appear here from now on; earlier product details cannot be reconstructed reliably.</div>';
+}
+function renderStockHistoryDetail(kind,id){
+ const row=(kind==='added'?(db.productAdditions||[]):kind==='restock'?(db.restocks||[]):(db.stockAdjustments||[])).find(x=>String(x.productId||x.id)===String(id));
+ const target=document.getElementById('stockHistoryDetailContent');if(!target||!row)return;
+ const fields=kind==='added'?[
+  ['Type','Product added'],['Product',row.productName||'Product'],['Date and time',safeDate(row.addedAt).toLocaleString()],
+  ['Category',row.category||'Uncategorized'],['Initial stock',String(row.initialStock??0)+' units'],
+  ['Cost price',money(Number(row.cost)||0)],['Selling price',money(Number(row.price)||0)],
+  ['Base unit',row.baseUnit||'unit'],['Pack unit',row.packUnit||'Not used'],
+  ['Units per pack',row.packUnit?String(row.unitsPerPack||1):'Not applicable'],
+  ['Pack selling price',row.packPrice==null?'Not set':money(Number(row.packPrice))]
+ ]:kind==='restock'?[
+  ['Type','Restock'],['Product',row.productName||db.products.find(p=>p.id===row.productId)?.name||'Product'],['Date and time',safeDate(row.date).toLocaleString()],
+  ['Purchase quantity',(row.purchaseQuantity||0)+' '+(row.purchaseUnit||'unit')],['Units per purchase',row.unitsPerPurchase||1],
+  ['Total units added',row.baseQuantity||((row.purchaseQuantity||0)*(row.unitsPerPurchase||1))],
+  ['Cost per purchase unit',money(Number(row.costPerPurchaseUnit)||0)],['Total purchase cost',money(Number(row.totalCost)||((row.purchaseQuantity||0)*(Number(row.costPerPurchaseUnit)||0)))],
+  ['Stock after restock',row.newStock??'—'],['Average cost per unit',money(Number(row.averageCostAfter)||0)]
+ ]:[
+  ['Type','Stock adjustment'],['Product',row.productName||'Product'],['Date and time',safeDate(row.date).toLocaleString()],
+  ['Previous stock',String(row.previousStock??'—')+' units'],['New stock',String(row.newStock??'—')+' units'],
+  ['Change',((Number(row.quantityChange)>0?'+':'')+String(row.quantityChange??0))+' units'],['Reason',row.reason||'Not specified']
+ ];
+ target.innerHTML=fields.map(([label,value])=>'<div class="stock-history-detail-field"><span>'+esc(label)+'</span><strong>'+esc(String(value))+'</strong></div>').join('');
+}
 document.getElementById('stock-history').addEventListener('click',e=>{const b=e.target.closest('[data-stock-history-id]');if(!b)return;renderStockHistoryDetail(b.dataset.stockHistoryKind,b.dataset.stockHistoryId);showPage('stock-history-detail');});
 
 function updateAdjustmentPreview(){const p=db.products.find(x=>x.id===document.getElementById('adjustProduct').value),v=document.getElementById('adjustNewStock').value;document.getElementById('adjustCurrentStock').textContent=p?String(p.stock):'—';const d=p&&v!==''?Number(v)-Number(p.stock):null;document.getElementById('adjustStockChange').textContent=d===null?'—':(d>0?'+':'')+d+' units';}
@@ -1630,11 +1640,13 @@ document.getElementById('productForm').addEventListener('submit',async e=>{
  const packPrice=packPriceRaw===''?null:Number(packPriceRaw);
  if(productSellingType==='pack'&&(!packUnit||!Number.isSafeInteger(unitsPerPack)||unitsPerPack<1||!Number.isFinite(packPrice)||packPrice<=0||packPrice>MAX_MONEY))return alert('Enter a pack name, the number of individual units in each pack, and a valid pack selling price.');
  const product={id:crypto.randomUUID(),name,category,cost,price,stock,baseUnit,packUnit,unitsPerPack,packPrice,image:pendingProductImage,createdAt:now()};
+ const addition=productCreationSnapshot(product);
  if(cloudUser){
+   db.productAdditions=db.productAdditions||[];db.productAdditions.push(addition);
    try { await saveCloudChangeLocally('product_save',{product,isNew:true}); }
-   catch(err){ return alert(err.message || String(err)); }
+   catch(err){db.productAdditions=db.productAdditions.filter(x=>String(x.productId||x.id)!==String(product.id));return alert(err.message || String(err));}
  }else{
-   db.products.push(product);
+   db.products.push(product);db.productAdditions=db.productAdditions||[];db.productAdditions.push(addition);
    if(!save())return;
    render();
  }
