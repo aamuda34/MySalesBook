@@ -214,7 +214,7 @@ body.admin-conversation-open #backAdminChatList{font-size:15px}
 #messenger .messenger-picker-overlay{position:fixed;z-index:3200;inset:0;background:var(--page);display:flex;align-items:stretch;justify-content:center}
 #messenger .messenger-picker-overlay.hidden{display:none}
 #messenger .messenger-picker-sheet{width:100%;max-width:none;height:100%;max-height:none;display:flex;flex-direction:column;background:var(--surface);color:var(--ink);border-radius:0;padding:calc(14px + env(safe-area-inset-top)) 14px calc(16px + env(safe-area-inset-bottom));box-shadow:none}
-#messenger .messenger-picker-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:0 4px 12px}
+#messenger .messenger-picker-heading{display:flex;align-items:center;justify-content:flex-start;gap:12px;padding:0 4px 12px}
 #messenger .messenger-picker-heading h3{margin:0;color:var(--green);font-size:20px}
 #messenger .messenger-picker-heading p{margin:4px 0 0;color:var(--muted);font-size:13px}
 #messenger #closeMessengerSubscriberPicker{display:grid;place-items:center;flex:0 0 40px;border:0;border-radius:50%;width:40px;height:40px;padding:0;background:var(--soft);color:var(--ink)}
