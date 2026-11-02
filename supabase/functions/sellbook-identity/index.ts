@@ -243,7 +243,7 @@ Deno.serve(async (request: Request) => {
     }
     if (!livenessId || !livenessUrlIsSecure) {
       await supabaseAdmin.from("identity_verification_attempts")
-        .update({ state: "failed", completed_at: new Date().toISOString() })
+        .update({ state: "failed", liveness_session_id: null, completed_at: new Date().toISOString() })
         .eq("attempt_id", attemptId)
         .eq("user_id", user.id);
       return json(502, { error: "invalid_liveness_response" });
@@ -420,6 +420,7 @@ Deno.serve(async (request: Request) => {
       await supabaseAdmin.from("identity_verification_attempts")
         .update({
           state: "rejected",
+          liveness_session_id: null,
           face_match_reference: faceMatchReference,
           completed_at: new Date().toISOString(),
         })
@@ -437,6 +438,7 @@ Deno.serve(async (request: Request) => {
     await supabaseAdmin.from("identity_verification_attempts")
       .update({
         state: "verified",
+        liveness_session_id: null,
         face_match_reference: faceMatchReference,
         provider_verification_reference: String(verification.id || "").slice(0, 180) || null,
         completed_at: new Date().toISOString(),
