@@ -96,7 +96,8 @@ console.log('PASS: queue parsing, exact recovery preservation, stale-copy refres
 
 // Production sync orchestration: the RPC must make the version/idempotency decision atomically.
 // A client-side timestamp pre-check would falsely conflict after a committed sale with lost ACK.
-const saleStart = app.indexOf("} else if (item.type === 'sale') {");
+const syncStart = app.indexOf('async function syncPendingChanges()');
+const saleStart = app.indexOf("} else if (item.type === 'sale') {", syncStart);
 const saleEnd = app.indexOf("} else if (item.type === 'sale_import') {", saleStart);
 assert.ok(saleStart >= 0 && saleEnd > saleStart, 'Could not isolate production offline-sale sync branch');
 const saleBranch = app.slice(saleStart, saleEnd);
