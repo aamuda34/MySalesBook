@@ -2744,6 +2744,26 @@ function clearAccountScopedUiState(){
  messengerConversationCache=[];
  messengerConversationRequestId++;
  adminConversationLoading=false;
+ document.body.classList.remove('messenger-conversation-open','admin-conversation-open');
+ document.getElementById('messengerSubscriberPicker')?.classList.add('hidden');
+ const resetPanels=[
+  ['recentConversationList','Sign in to view conversations.'],
+  ['userNotificationsList','Sign in to view notifications.'],
+  ['userSupportMessages','Sign in to view support messages.'],
+  ['userFeedbackList','Sign in to view feedback.'],
+  ['marketplaceSubscriberList','Sign in to view subscribers.'],
+  ['marketplaceReservationsList','Sign in to view reservations.'],
+  ['reservationsPageList','Sign in to view reservations.'],
+  ['subscribersPageList','Sign in to view subscribers.'],
+  ['messengerConversationList','Sign in to use Messenger.'],
+  ['messengerTranscript','Sign in to use Messenger.'],
+  ['messengerSubscriberPickerList','Sign in to view subscribers.']
+ ];
+ resetPanels.forEach(([id,message])=>{const el=document.getElementById(id);if(el)el.innerHTML='<div class="empty">'+message+'</div>';});
+ const messengerInput=document.getElementById('messengerBody');
+ const messengerSend=document.querySelector('#messengerComposer button[type="submit"]');
+ if(messengerInput){messengerInput.value='';messengerInput.disabled=true;}
+ if(messengerSend)messengerSend.disabled=true;
 }
 function showAdminPanel(name){
  if(!supabaseClient||!cloudUser||!sellbookIsAdmin)return;
