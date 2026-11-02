@@ -3107,12 +3107,25 @@ async function loadAdminConversation(){
  }
 }
 document.getElementById('adminReplyForm').addEventListener('submit',async e=>{
- e.preventDefault();if(!sellbookIsAdmin)return;
- const uid=document.getElementById('adminMessageUser').value,input=document.getElementById('adminReplyBody'),body=input.value.trim(),status=document.getElementById('adminReplyStatus'),send=e.target.querySelector('button[type="submit"]');if(!uid){status.textContent='Choose a user first.';return;}if(!body)return;
+ e.preventDefault();
+ if(!supabaseClient||!cloudUser||!sellbookIsAdmin)return;
+ const requestedUserId=cloudUser.id,requestEpoch=adminAccessEpoch;
+ const uid=document.getElementById('adminMessageUser').value,input=document.getElementById('adminReplyBody'),body=input.value.trim(),status=document.getElementById('adminReplyStatus'),send=e.target.querySelector('button[type="submit"]');
+ if(!uid){status.textContent='Choose a user first.';return;}if(!body)return;
  send.disabled=true;status.textContent='Sending…';
- const {data,error}=await supabaseClient.from('support_messages').insert({sender_id:cloudUser.id,recipient_id:uid,body}).select('id,sender_id,recipient_id,body,created_at,delivered_at,read_at').single();
- if(error){status.textContent='Could not send message: '+error.message;send.disabled=false;return;}
- input.value='';input.style.height='auto';status.textContent='Message sent.';await loadAdminConversation();await loadAdminUsers();send.disabled=false;
+ try{
+  const {error}=await supabaseClient.from('support_messages')
+   .insert({sender_id:requestedUserId,recipient_id:uid,body});
+  if(!adminRequestIsCurrent(requestedUserId,requestEpoch))return;
+  if(error){status.textContent='Could not send message: '+error.message;return;}
+  input.value='';input.style.height='auto';status.textContent='Message sent.';
+  await loadAdminConversation();
+  if(adminRequestIsCurrent(requestedUserId,requestEpoch))await loadAdminUsers();
+ }catch(error){
+  if(adminRequestIsCurrent(requestedUserId,requestEpoch))status.textContent='Could not send message: '+(error.message||'Please try again.');
+ }finally{
+  send.disabled=false;
+ }
 });
 setInterval(()=>{if(cloudUser&&!document.hidden&&currentPage()==='settings-buybook'){loadBuybookActivity();}},15000);
 setInterval(()=>{if(sellbookIsAdmin&&currentPage()==='admin'&&sessionStorage.getItem('sellbook-admin-panel')==='support'){if(!document.getElementById('adminChatConversationView').classList.contains('hidden')&&document.getElementById('adminMessageUser').value)loadAdminConversation();else loadAdminUsers();}},15000);
@@ -3120,12 +3133,24 @@ setInterval(()=>{if(!cloudUser||document.hidden)return;if(!sellbookIsAdmin&&curr
 
 document.getElementById('notificationAudience').addEventListener('change',e=>document.getElementById('notificationUserWrap').classList.toggle('hidden',e.target.value!=='selected'));
 document.getElementById('adminNotificationForm').addEventListener('submit',async e=>{
- e.preventDefault();if(!sellbookIsAdmin)return;
+ e.preventDefault();
+ if(!supabaseClient||!cloudUser||!sellbookIsAdmin)return;
+ const requestedUserId=cloudUser.id,requestEpoch=adminAccessEpoch;
  const audience=document.getElementById('notificationAudience').value,uid=document.getElementById('notificationUser').value,status=document.getElementById('adminNotificationStatus');
  if(audience==='selected'&&!uid){status.textContent='Choose a user.';return;}
- const payload={created_by:cloudUser.id,recipient_id:audience==='selected'?uid:null,kind:document.getElementById('notificationKind').value,title:document.getElementById('notificationTitle').value.trim(),body:document.getElementById('notificationBody').value.trim()};
- const {error}=await supabaseClient.from('app_notifications').insert(payload);
- if(error){status.textContent='Could not publish notification: '+error.message;return;}e.target.reset();document.getElementById('notificationUserWrap').classList.add('hidden');status.textContent='Notification published.';await loadAdminNotifications();
+ const payload={created_by:requestedUserId,recipient_id:audience==='selected'?uid:null,kind:document.getElementById('notificationKind').value,title:document.getElementById('notificationTitle').value.trim(),body:document.getElementById('notificationBody').value.trim()};
+ const button=e.target.querySelector('button[type="submit"]');if(button)button.disabled=true;
+ try{
+  const {error}=await supabaseClient.from('app_notifications').insert(payload);
+  if(!adminRequestIsCurrent(requestedUserId,requestEpoch))return;
+  if(error){status.textContent='Could not publish notification: '+error.message;return;}
+  e.target.reset();document.getElementById('notificationUserWrap').classList.add('hidden');status.textContent='Notification published.';
+  await loadAdminNotifications();
+ }catch(error){
+  if(adminRequestIsCurrent(requestedUserId,requestEpoch))status.textContent='Could not publish notification: '+(error.message||'Please try again.');
+ }finally{
+  if(button)button.disabled=false;
+ }
 });
 document.getElementById('refreshUserNotifications').addEventListener('click',loadUserNotifications);
 document.getElementById('refreshFeedback').addEventListener('click',loadUserSupport);
