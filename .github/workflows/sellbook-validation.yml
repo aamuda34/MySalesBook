@@ -141,6 +141,13 @@ jobs:
           grep -Fq 'if(cloudUser?.id!==expectedUserId)return false;' app.js
           grep -Fq 'if(cloudUser?.id===expectedUserId)setAdminAccess(false);' app.js
           grep -Fq 'setAdminAccess(false);' app.js
+          grep -Fq 'let adminAccessEpoch=0;' app.js
+          grep -Fq 'function adminRequestIsCurrent(userId,epoch)' app.js
+          grep -Fq 'function clearAccountScopedUiState()' app.js
+          grep -Fq 'messengerSelectedConversation=null;' app.js
+          grep -Fq 'marketplaceReservationsCache=[];' app.js
+          grep -Fq 'if(!supabaseClient||!cloudUser||!sellbookIsAdmin)return;' app.js
+          grep -Fq 'if(!adminRequestIsCurrent(requestedUserId,requestEpoch))return;' app.js
 
       - name: Check key PWA metadata and cache version
         shell: bash
