@@ -36,7 +36,7 @@ for (const [label, token] of required) {
   assert.ok(layer.includes(token), 'Missing design-system rule: ' + label);
 }
 
-const cacheVersion = Number((sw.match(/const CACHE_NAME = 'sellbook-shell-v(\\d+)';/) || [])[1] || 0);
+const cacheVersion = Number((sw.match(/const CACHE_NAME = 'sellbook-shell-v(\d+)';/) || [])[1] || 0);
 assert.ok(cacheVersion >= 79, 'Offline shell cache must be refreshed for the new stylesheet.');
 
 const designRules = layer.replace(/\/\*[\s\S]*?\*\//g, '');
