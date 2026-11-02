@@ -693,117 +693,244 @@ document.getElementById('securityPinCancel')?.addEventListener('click',()=>{
  recheckSellbookPinStatus();
 });
 
-async function requestSellbookIdentity(action, extra={}) {
-  if(!supabaseClient) throw new Error('Sellbook identity verification is unavailable right now.');
-  const result=await supabaseClient.functions.invoke('sellbook-identity',{body:{action,...extra}});
-  if(result.error) {
-    const payload=result.data||{};
-    throw new Error(payload.message||payload.error||result.error.message||'Identity verification request failed.');
+
+const SELLBOOK_NIN_CONSENT_VERSION='sellbook-nin-consent-v2';
+let accountTierSnapshot=null;
+let accountTierProviderConfigured=false;
+let accountTierProviderPrice=null;
+let accountTierProviderPriceAvailable=false;
+let accountTierLoadId=0;
+
+async function requestSellbookIdentity(action,extra={}){
+ if(!supabaseClient)throw new Error('NIN verification is unavailable right now.');
+ const result=await supabaseClient.functions.invoke('sellbook-identity',{body:{action,...extra}});
+ if(result.error){
+  const payload=result.data||{};
+  const error=new Error(payload.message||payload.error||result.error.message||'NIN verification request failed.');
+  error.code=payload.error||payload.code||'request_failed';
+  error.details=payload;
+  throw error;
+ }
+ if(result.data?.error){
+  const error=new Error(result.data.message||result.data.error);
+  error.code=result.data.error;
+  error.details=result.data;
+  throw error;
+ }
+ return result.data||{};
+}
+
+function setNinVerificationMessage(message){
+ const target=document.getElementById('ninVerificationMessage');
+ if(target)target.textContent=message;
+}
+function formatNairaFee(amount){
+ const n=Number(amount);
+ if(!Number.isFinite(n)||n<0)return 'Unavailable';
+ return '₦'+n.toLocaleString('en-NG',{minimumFractionDigits:0,maximumFractionDigits:2});
+}
+function setTierStep(step,status,description,completed=false,locked=false){
+ const row=document.getElementById('accountTierStep'+step);
+ const statusEl=document.getElementById('accountTierStep'+step+'Status');
+ const descriptionEl=document.getElementById('accountTierStep'+step+'Description');
+ if(!row||!statusEl)return;
+ row.classList.toggle('completed',!!completed);
+ row.classList.toggle('locked',!!locked);
+ statusEl.textContent=status;
+ if(descriptionEl&&description)descriptionEl.textContent=description;
+}
+
+async function loadAccountTiers(){
+ const uid=cloudUser?.id||null;
+ const requestEpoch=accountSessionEpoch;
+ const requestId=++accountTierLoadId;
+ const summary=document.getElementById('accountTierHeadline');
+ const progress=document.getElementById('accountTierProgress');
+ const providerNote=document.getElementById('ninVerificationAvailability');
+ const showNin=document.getElementById('showNinVerificationButton');
+ const ninForm=document.getElementById('ninVerificationPanel');
+ const connectButton=document.getElementById('openBuybookTierButton');
+ if(!uid||!supabaseClient){
+  if(summary)summary.textContent='Sign in to view your account tiers.';
+  if(progress)progress.textContent='Your basic Sellbook features remain available.';
+  if(ninForm)ninForm.classList.add('hidden');
+  if(showNin)showNin.classList.add('hidden');
+  return null;
+ }
+ if(summary)summary.textContent='Checking your account tiers…';
+ try{
+  const [tierResult,identityResult]=await Promise.all([
+   supabaseClient.rpc('get_my_account_tier_status'),
+   requestSellbookIdentity('status')
+  ]);
+  if(requestId!==accountTierLoadId||!accountRequestIsCurrent(uid,requestEpoch))return null;
+  if(tierResult.error)throw tierResult.error;
+  const tier=tierResult.data||{};
+  accountTierSnapshot=tier;
+  accountTierProviderConfigured=identityResult.configured===true;
+  accountTierProviderPrice=Number.isFinite(Number(identityResult.nin_price))?Number(identityResult.nin_price):null;
+  accountTierProviderPriceAvailable=identityResult.price_available===true&&accountTierProviderPrice!==null&&identityResult.currency==='NGN';
+  const verified=tier.tier2_complete===true;
+  const connected=tier.buybook_connected===true;
+  const legacy=tier.legacy_buybook_connection===true;
+  const currentTier=verified&&connected?3:(verified?2:1);
+  if(summary)summary.textContent='You are on Tier '+currentTier+' of 3';
+  if(progress)progress.textContent=currentTier===3?'All three account tiers are complete.':currentTier===2?'Your identity is verified. Connect Buybook when you are ready.':'Your basic Sellbook account is active. Complete the next tier whenever you are ready.';
+  setTierStep(1,'Completed','Your account is ready to use Sellbook.',true,false);
+  setTierStep(2,verified?'Verified':(accountTierProviderConfigured?'Not completed':'Unavailable'),verified?'NIN verification completed'+(tier.tier2_verified_at?' on '+new Date(tier.tier2_verified_at).toLocaleDateString():''):(accountTierProviderConfigured?'Verify your NIN to unlock Tier 3.':'NIN verification is not available yet.'),verified,false);
+  setTierStep(3,verified?(connected?'Connected':'Ready to connect'):(legacy?'Existing connection':'Locked'),'Connect your shop to Buybook after Tier 2.',verified&&connected,!verified);
+  if(showNin){
+   showNin.classList.toggle('hidden',verified||!accountTierProviderConfigured||!accountTierProviderPriceAvailable);
+   showNin.disabled=verified||!accountTierProviderConfigured||!accountTierProviderPriceAvailable;
   }
-  if(result.data?.error) throw new Error(result.data.message||result.data.error);
-  return result.data||{};
-}
-function identityStatusRecord(payload) {
-  const value=payload?.data;
-  return Array.isArray(value)?(value[0]||{}):(value||{});
-}
-function setIdentityGateMessage(message) {
-  const el=document.getElementById('identityVerificationMessage');
-  if(el)el.textContent=message;
-}
-async function checkIdentityGate(user) {
-  const gate=document.getElementById('identityVerificationGate');
-  if(!gate||!user||!supabaseClient)return false;
-  try {
-    const payload=await requestSellbookIdentity('status');
-    const record=identityStatusRecord(payload);
-    if(payload.configured!==true) {
-      gate.classList.add('hidden');
-      const setupStatus=document.getElementById('identitySetupStatus');
-      if(setupStatus) {
-        setupStatus.classList.remove('hidden');
-        setupStatus.textContent='Face verification is not active yet. Sellbook needs a live identity-provider key, the required server secrets, and duplicate-face detection enabled before one-person/one-account enforcement can begin. Existing account access remains available until that setup is complete.';
-      }
-      return false;
-    }
-    document.getElementById('identitySetupStatus')?.classList.add('hidden');
-    if(record.verified===true) {
-      gate.classList.add('hidden');
-      sessionStorage.removeItem('sellbook-identity-attempt-'+user.id);
-      return false;
-    }
-    document.getElementById('appWorkspace')?.classList.add('hidden');
-    document.getElementById('accountCard')?.classList.add('hidden');
-    gate.classList.remove('hidden');
-    document.getElementById('identityVerificationStartPanel')?.classList.remove('hidden');
-    const attempt=sessionStorage.getItem('sellbook-identity-attempt-'+user.id);
-    const returning=new URLSearchParams(location.search).get('identity_verification')==='return';
-    if(attempt&&returning) {
-      document.getElementById('identityVerificationStartPanel')?.classList.add('hidden');
-      document.getElementById('identityVerificationForm')?.classList.remove('hidden');
-      setIdentityGateMessage('Live camera check returned to Sellbook. Enter your identity details to finish verification.');
-    } else {
-      document.getElementById('identityVerificationForm')?.classList.add('hidden');
-      setIdentityGateMessage('Identity verification is required before you can access your business records.');
-    }
-    return true;
-  } catch(error) {
-    // Do not expose private workspace data if enforcement is configured but its
-    // verification status cannot be confirmed. The user can retry the status check.
-    document.getElementById('appWorkspace')?.classList.add('hidden');
-    document.getElementById('accountCard')?.classList.add('hidden');
-    gate.classList.remove('hidden');
-    document.getElementById('identityVerificationStartPanel')?.classList.add('hidden');
-    document.getElementById('identityVerificationForm')?.classList.add('hidden');
-    console.warn('Sellbook identity status could not be confirmed:',error); setIdentityGateMessage('Sellbook could not confirm your identity-verification status. Your records are protected. Check your connection and retry.');
-    return true;
+  if(providerNote){
+   providerNote.classList.remove('hidden');
+   if(verified)providerNote.textContent='Your NIN verification is complete. You do not need to repeat it.';
+   else if(!accountTierProviderConfigured)providerNote.textContent='NIN verification is not configured for live checks yet. You can continue using all basic Sellbook features.';
+   else if(!accountTierProviderPriceAvailable)providerNote.textContent='Sellbook could not confirm the current NIN lookup fee. No verification request has been made. Please try again later.';
+   else providerNote.textContent='Current NIN lookup fee: '+formatNairaFee(accountTierProviderPrice)+'. The fee is displayed before the check is submitted.';
   }
-}
-document.getElementById('identityVerificationStart')?.addEventListener('click',async()=>{
-  const user=cloudUser;
-  if(!user||!supabaseClient)return;
-  if(!document.getElementById('identityVerificationConsent')?.checked){setIdentityGateMessage('Please read and accept the identity-verification consent before continuing.');return;}
-  const button=document.getElementById('identityVerificationStart');
-  button.disabled=true;button.textContent='Preparing secure verification…';
-  try {
-    const payload=await requestSellbookIdentity('start',{consent_accepted:true,consent_version:'sellbook-identity-consent-v1'});
-    const data=payload.data||{};
-    if(!data.attempt_id||!data.verification_url||new URL(data.verification_url).protocol!=='https:')throw new Error('The verification provider returned an invalid secure session.');
-    sessionStorage.setItem('sellbook-identity-attempt-'+user.id,data.attempt_id);
-    window.location.assign(data.verification_url);
-  } catch(error) {
-    setIdentityGateMessage(error.message||'Could not start verification. Please try again later.');
-    button.disabled=false;button.textContent='Start face verification';
+  if(connectButton){
+   connectButton.disabled=!verified;
+   connectButton.textContent=connected?'Open Buybook connection':(verified?'Connect to Buybook':'Complete Tier 2 first');
   }
+  const fee=document.getElementById('ninVerificationPrice');
+  if(fee)fee.textContent=accountTierProviderPriceAvailable?'Current provider fee: '+formatNairaFee(accountTierProviderPrice):'Current provider fee is unavailable.';
+  const consentText=document.getElementById('ninVerificationConsentText');
+  if(consentText)consentText.textContent=accountTierProviderPriceAvailable?'I agree to send my NIN and the details above to the identity provider for a NIN registry lookup. I understand the displayed provider fee of '+formatNairaFee(accountTierProviderPrice)+' may be incurred by Sellbook when a record is found.':'I agree to send my NIN and the details above to the identity provider for a NIN registry lookup.';
+  const legacyNote=document.getElementById('legacyBuybookTierNotice');
+  if(legacyNote){
+   legacyNote.classList.toggle('hidden',!legacy);
+   if(legacy)legacyNote.textContent='Your existing Buybook connection has been kept active during this change. Complete Tier 2 NIN verification to bring it into the new tier sequence. Disconnecting it before verification will prevent reconnecting until Tier 2 is complete.';
+  }
+  if(!verified&&ninForm)ninForm.classList.add('hidden');
+  return tier;
+ }catch(error){
+  if(requestId!==accountTierLoadId||!accountRequestIsCurrent(uid,requestEpoch))return null;
+  accountTierProviderConfigured=false;
+  accountTierProviderPriceAvailable=false;
+  if(summary)summary.textContent='Your account tiers could not be refreshed.';
+  if(progress)progress.textContent='Your Sellbook records and basic features are not affected. Check your connection and retry.';
+  if(providerNote){providerNote.classList.remove('hidden');providerNote.textContent='Could not check NIN verification availability. Basic Sellbook features remain available.';}
+  if(showNin)showNin.classList.add('hidden');
+  console.warn('Sellbook account tier refresh failed:',error);
+  return null;
+ }
+}
+
+document.getElementById('refreshAccountTiers')?.addEventListener('click',()=>loadAccountTiers());
+document.getElementById('closeNinVerificationPanel')?.addEventListener('click',()=>{
+ document.getElementById('ninVerificationPanel')?.classList.add('hidden');
+ document.getElementById('ninVerificationForm')?.reset();
 });
-document.getElementById('identityVerificationForm')?.addEventListener('submit',async(event)=>{
-  event.preventDefault();
-  const user=cloudUser;
-  if(!user||!supabaseClient)return;
-  const attemptId=sessionStorage.getItem('sellbook-identity-attempt-'+user.id);
-  if(!attemptId){setIdentityGateMessage('Your verification session has expired. Start a new face verification.');document.getElementById('identityVerificationForm')?.classList.add('hidden');document.getElementById('identityVerificationStartPanel')?.classList.remove('hidden');return;}
-  const button=document.getElementById('identityVerificationSubmit');
-  const nin=document.getElementById('identityNin').value.trim();
-  if(!/^[0-9]{11}$/.test(nin)){setIdentityGateMessage('Enter your 11-digit NIN.');return;}
-  button.disabled=true;button.textContent='Checking identity…';
-  try {
-    const payload=await requestSellbookIdentity('verify',{
-      attempt_id:attemptId,nin,
-      first_name:document.getElementById('identityFirstName').value.trim(),
-      last_name:document.getElementById('identityLastName').value.trim(),
-      date_of_birth:document.getElementById('identityDateOfBirth').value
-    });
-    if(payload.data?.verified!==true)throw new Error('Sellbook could not confirm your identity.');
-    sessionStorage.removeItem('sellbook-identity-attempt-'+user.id);
-    const url=new URL(location.href);url.searchParams.delete('identity_verification');history.replaceState(history.state,'',url.pathname+url.search+url.hash);
-    document.getElementById('identityVerificationGate')?.classList.add('hidden');
-    setIdentityGateMessage('Identity verified successfully.');
-    await handleCloudAuthChange();
-  } catch(error) {
-    setIdentityGateMessage(error.message||'Identity verification failed. Please check the details and try again.');
-  } finally {button.disabled=false;button.textContent='Verify identity';}
+document.getElementById('showNinVerificationButton')?.addEventListener('click',()=>{
+ if(!accountTierProviderConfigured||!accountTierProviderPriceAvailable){
+  setNinVerificationMessage('NIN verification is temporarily unavailable. Your basic account remains active.');
+  return;
+ }
+ document.getElementById('ninVerificationPanel')?.classList.remove('hidden');
+ document.getElementById('ninVerificationPanel')?.scrollIntoView({behavior:'smooth',block:'start'});
+ document.getElementById('identityFirstName')?.focus();
 });
-document.getElementById('identityVerificationRetry')?.addEventListener('click',()=>cloudUser&&checkIdentityGate(cloudUser));
+document.getElementById('openBuybookTierButton')?.addEventListener('click',()=>{
+ if(accountTierSnapshot?.tier2_complete===true)showPage('settings-buybook');
+ else{
+  const note=document.getElementById('accountTierProgress');
+  if(note)note.textContent='Complete Tier 2 NIN verification before connecting to Buybook. Your basic Sellbook account remains available.';
+ }
+});
+document.getElementById('identityNin')?.addEventListener('input',event=>{
+ event.target.value=Array.from(event.target.value).filter(ch=>ch>='0'&&ch<='9').slice(0,11).join('');
+});
+
+document.getElementById('ninVerificationForm')?.addEventListener('submit',async event=>{
+ event.preventDefault();
+ const user=cloudUser;
+ if(!user||!supabaseClient)return;
+ if(!navigator.onLine){setNinVerificationMessage('Connect to the internet before verifying your NIN.');return;}
+ if(!accountTierProviderConfigured||!accountTierProviderPriceAvailable||accountTierProviderPrice===null){
+  setNinVerificationMessage('The current provider fee could not be confirmed. No check has been submitted. Please refresh account tiers and try again.');
+  return;
+ }
+ if(!document.getElementById('ninVerificationConsent')?.checked){
+  setNinVerificationMessage('Please review and accept the NIN verification notice before continuing.');
+  return;
+ }
+ const firstName=document.getElementById('identityFirstName').value.trim();
+ const lastName=document.getElementById('identityLastName').value.trim();
+ const dob=document.getElementById('identityDateOfBirth').value;
+ const nin=document.getElementById('identityNin').value.replace(/\s+/g,'');
+ if(!firstName||firstName.length>80||!lastName||lastName.length>80){
+  setNinVerificationMessage('Enter your first and last names as shown on your NIN record.');return;
+ }
+ const parsedDob=new Date(dob+'T00:00:00.000Z');
+ if(!/^\d{4}-\d{2}-\d{2}$/.test(dob)||Number.isNaN(parsedDob.getTime())||parsedDob.toISOString().slice(0,10)!==dob||parsedDob.getTime()>=Date.now()){
+  setNinVerificationMessage('Enter a valid date of birth.');return;
+ }
+ if(!/^[0-9]{11}$/.test(nin)){
+  setNinVerificationMessage('Enter your 11-digit NIN.');return;
+ }
+ const button=document.getElementById('ninVerificationSubmit');
+ const attemptKey='sellbook-nin-attempt-'+user.id;
+ let attemptId=sessionStorage.getItem(attemptKey)||'';
+ button.disabled=true;button.textContent='Verifying NIN…';
+ setNinVerificationMessage('Connecting securely to the NIN verification provider. Your basic Sellbook features remain available.');
+ try{
+  if(!attemptId){
+   const start=await requestSellbookIdentity('start',{
+    consent_accepted:true,
+    consent_version:SELLBOOK_NIN_CONSENT_VERSION,
+    confirmed_price:accountTierProviderPrice
+   });
+   attemptId=start.data?.attempt_id||'';
+   if(!attemptId)throw new Error('Sellbook could not prepare a verification session. Please try again.');
+   sessionStorage.setItem(attemptKey,attemptId);
+  }
+  const result=await requestSellbookIdentity('verify',{
+   attempt_id:attemptId,
+   nin,
+   first_name:firstName,
+   last_name:lastName,
+   date_of_birth:dob,
+   confirmed_price:accountTierProviderPrice
+  });
+  if(result.data?.verified!==true)throw new Error('The NIN details could not be verified.');
+  sessionStorage.removeItem(attemptKey);
+  document.getElementById('ninVerificationForm')?.reset();
+  document.getElementById('ninVerificationPanel')?.classList.add('hidden');
+  setNinVerificationMessage('Your NIN has been verified successfully. Tier 2 is now complete.');
+  if(typeof showToast==='function')showToast('NIN verified. Tier 2 completed.');
+  await loadAccountTiers();
+  if(currentPage()==='settings-buybook')await loadBuybookConnection();
+ }catch(error){
+  const terminalCodes=['invalid_nin','valid_first_and_last_name_required','valid_date_of_birth_required','verification_attempt_not_found','verification_attempt_not_pending','verification_attempt_expired','identity_not_verified','identity_already_verified','identity_already_linked','identity_claim_failed'];
+  if(terminalCodes.includes(error.code))sessionStorage.removeItem(attemptKey);
+  if(error.code==='price_changed'&&Number.isFinite(Number(error.details?.nin_price))){
+   accountTierProviderPrice=Number(error.details.nin_price);
+   accountTierProviderPriceAvailable=true;
+   const fee=document.getElementById('ninVerificationPrice');
+   if(fee)fee.textContent='The provider fee changed. New fee: '+formatNairaFee(accountTierProviderPrice)+'. Review and submit again to confirm.';
+   const consent=document.getElementById('ninVerificationConsent');
+   if(consent)consent.checked=false;
+   const consentText=document.getElementById('ninVerificationConsentText');
+   if(consentText)consentText.textContent='I agree to send my NIN and details for a NIN registry lookup at the updated provider fee of '+formatNairaFee(accountTierProviderPrice)+'.';
+   setNinVerificationMessage('The provider fee changed before the check started. Nothing was charged. Review the updated fee and accept it to continue.');
+  }else if(error.code==='identity_already_linked'){
+   setNinVerificationMessage('This NIN is already linked to another Sellbook account. Contact Sellbook Support if you believe this is a mistake.');
+  }else if(error.code==='identity_not_verified'){
+   setNinVerificationMessage('The NIN details did not match the registry. Check your name, date of birth and NIN, then try again.');
+  }else if(error.code==='daily_attempt_limit_reached'){
+   setNinVerificationMessage('You have reached today’s verification attempt limit. Please try again after the limit resets.');
+  }else{
+   setNinVerificationMessage(error.message||'NIN verification could not be completed. Your basic Sellbook account remains available. Please try again.');
+  }
+  console.warn('Sellbook NIN verification failed:',error);
+ }finally{
+  button.disabled=false;button.textContent='Verify NIN';
+  const input=document.getElementById('identityNin');
+  if(input)input.value='';
+ }
+});
 
 async function handleCloudAuthChange() {
   if (authTransition) { authTransitionPending = true; return; }
@@ -841,13 +968,8 @@ async function handleCloudAuthChange() {
 
     if (user) {
       cloudUser = user;
-      // Identity enforcement runs before any private workspace or cached records are shown.
-      const identityBlocked = await checkIdentityGate(user);
-      if (identityBlocked) {
-        coreWorkspaceLoaded = true;
-        finishStartup();
-        return;
-      }
+      // Tier 1 remains available to every signed-in user. NIN and Buybook
+      // qualification checks run separately and never block the sales workspace.
       // Every authenticated Sellbook session must pass the server-side PIN gate
       // before any private business rows are loaded or rendered.
       const pinAllowed = await ensureSellbookPinAccess();
@@ -974,41 +1096,73 @@ async function handleCloudAuthChange() {
   }
 }
 async function loadBuybookConnection() {
-  const status=document.getElementById('buybookConnectionStatus');
-  const form=document.getElementById('buybookConnectionForm');
-  const disconnect=document.getElementById('buybookDisconnectButton');
-  const activity=document.getElementById('buybookSellerActivity');
-  if(!status)return;
-  const setConnectionView=(connected)=>{buybookConnectionState=connected;renderGettingStarted();
-    status.textContent=connected?'Connected to Buybook':'Not connected to Buybook';
-    status.classList.toggle('connected',connected);
-    status.classList.toggle('not-connected',!connected);
-    if(form)form.classList.toggle('hidden',connected);
-    if(disconnect)disconnect.classList.toggle('hidden',!connected);
-    if(activity)activity.classList.toggle('hidden',!connected);
-  };
-  if(!cloudUser||!supabaseClient){setConnectionView(false);status.textContent='Sign in to Sellbook to connect to Buybook.';if(activity)activity.classList.add('hidden');return;}
-  const requestedUserId=cloudUser.id,requestEpoch=accountSessionEpoch;
-  const current=()=>accountRequestIsCurrent(requestedUserId,requestEpoch);
-  status.textContent='Checking Buybook connection…';
-  const {data,error}=await supabaseClient.from('marketplace_shops').select('name,description,phone,address,city,state,is_connected,is_active').eq('owner_id',requestedUserId).maybeSingle();
+ const status=document.getElementById('buybookConnectionStatus');
+ const form=document.getElementById('buybookConnectionForm');
+ const disconnect=document.getElementById('buybookDisconnectButton');
+ const activity=document.getElementById('buybookSellerActivity');
+ const lock=document.getElementById('buybookTierLock');
+ if(!status)return;
+ const setConnectionView=(connected,canConnect=false)=>{
+  buybookConnectionState=connected;
+  renderGettingStarted();
+  status.textContent=connected?'Connected to Buybook':'Not connected to Buybook';
+  status.classList.toggle('connected',connected);
+  status.classList.toggle('not-connected',!connected);
+  if(form)form.classList.toggle('hidden',connected||!canConnect);
+  if(disconnect)disconnect.classList.toggle('hidden',!connected);
+  if(activity)activity.classList.toggle('hidden',!connected);
+  if(lock)lock.classList.toggle('hidden',connected||canConnect);
+ };
+ if(!cloudUser||!supabaseClient){
+  setConnectionView(false,false);
+  status.textContent='Sign in to Sellbook to connect to Buybook.';
+  if(activity)activity.classList.add('hidden');
+  return;
+ }
+ const requestedUserId=cloudUser.id,requestEpoch=accountSessionEpoch;
+ const current=()=>accountRequestIsCurrent(requestedUserId,requestEpoch);
+ status.textContent='Checking Buybook connection…';
+ try{
+  const [shopResult,tierResult]=await Promise.all([
+   supabaseClient.from('marketplace_shops').select('name,description,phone,address,city,state,is_connected,is_active').eq('owner_id',requestedUserId).maybeSingle(),
+   supabaseClient.rpc('get_my_account_tier_status')
+  ]);
   if(!current())return;
-  if(error){buybookConnectionState=null;setConnectionView(false);buybookConnectionState=null;renderGettingStarted();status.textContent='Could not check Buybook connection. Please try again.';console.error(error);return;}
+  if(shopResult.error)throw shopResult.error;
+  const tierReady=!tierResult.error&&tierResult.data?.tier2_complete===true;
+  const data=shopResult.data;
   const connected=!!(data&&data.is_connected&&data.is_active);
   if(data){
-    document.getElementById('buybookShopName').value=data.name||'';
-    document.getElementById('buybookDescription').value=data.description||'';
-    document.getElementById('buybookPhone').value=data.phone||'';
-    document.getElementById('buybookAddress').value=data.address||'';
-    document.getElementById('buybookCity').value=data.city||'';
-    document.getElementById('buybookState').value=data.state||'Osun';
+   document.getElementById('buybookShopName').value=data.name||'';
+   document.getElementById('buybookDescription').value=data.description||'';
+   document.getElementById('buybookPhone').value=data.phone||'';
+   document.getElementById('buybookAddress').value=data.address||'';
+   document.getElementById('buybookCity').value=data.city||'';
+   document.getElementById('buybookState').value=data.state||'Osun';
   }else{
-    document.getElementById('buybookShopName').value=db.profile?.businessName||'';
-    if(!db.profile?.businessName&&cloudUser?.id===requestedUserId)document.getElementById('buybookShopName').value=cloudUser.user_metadata?.business_name||cloudUser.user_metadata?.full_name||'';
+   document.getElementById('buybookShopName').value=db.profile?.businessName||'';
+   if(!db.profile?.businessName)document.getElementById('buybookShopName').value=cloudUser.user_metadata?.business_name||cloudUser.user_metadata?.full_name||'';
   }
   if(!current())return;
-  setConnectionView(connected);
-  if(connected) await loadBuybookActivity();
+  setConnectionView(connected,tierReady);
+  const tierLock=document.getElementById('buybookTierLock');
+  if(tierLock&&!connected&&!tierReady){
+   tierLock.textContent=tierResult.error
+    ?'Sellbook could not confirm your NIN verification status. Refresh this page and try again.'
+    :'Tier 3 is locked. Complete Tier 2 NIN verification in Account and security before connecting to Buybook.';
+  }
+  if(connected&&tierResult.data?.legacy_buybook_connection===true){
+   status.textContent='Existing Buybook connection · Complete Tier 2 to finish the new account tiers.';
+  }
+  if(connected)await loadBuybookActivity();
+ }catch(error){
+  if(!current())return;
+  buybookConnectionState=null;
+  setConnectionView(false,false);
+  status.textContent='Could not check your Buybook connection. Please try again.';
+  if(lock)lock.textContent='Sellbook could not confirm your account tier. Refresh and try again before connecting.';
+  console.error('Buybook connection status failed:',error);
+ }
 }
 let buybookConnectionState=null;
 let marketplaceSubscribersCache=[];
@@ -1066,7 +1220,7 @@ document.getElementById('buybookConnectionForm')?.addEventListener('submit',asyn
  e.preventDefault();const message=document.getElementById('buybookConnectionMessage'),button=document.getElementById('buybookConnectButton');
  if(!navigator.onLine){message.textContent='Connect to the internet to set up Buybook.';return;}
  button.disabled=true;message.textContent='Connecting your shop…';
- try{const user=await requireCloudUser();const shop={owner_id:user.id,name:document.getElementById('buybookShopName').value.trim(),description:document.getElementById('buybookDescription').value.trim()||null,phone:document.getElementById('buybookPhone').value.trim()||null,address:document.getElementById('buybookAddress').value.trim(),city:document.getElementById('buybookCity').value.trim(),state:document.getElementById('buybookState').value.trim(),country:'Nigeria',is_connected:true,is_active:true};
+ try{const user=await requireCloudUser();const tier=await supabaseClient.rpc('get_my_account_tier_status');if(tier.error)throw tier.error;if(tier.data?.tier2_complete!==true){message.textContent='Complete Tier 2 NIN verification before connecting to Buybook. Your basic Sellbook account remains available.';return;}const shop={owner_id:user.id,name:document.getElementById('buybookShopName').value.trim(),description:document.getElementById('buybookDescription').value.trim()||null,phone:document.getElementById('buybookPhone').value.trim()||null,address:document.getElementById('buybookAddress').value.trim(),city:document.getElementById('buybookCity').value.trim(),state:document.getElementById('buybookState').value.trim(),country:'Nigeria',is_connected:true,is_active:true};
  const {error}=await supabaseClient.from('marketplace_shops').upsert(shop,{onConflict:'owner_id'});if(error)throw error;
  const sync=await supabaseClient.rpc('sync_owner_marketplace_listings',{p_owner_id:user.id});if(sync.error)throw sync.error;
  for(const product of (db.products||[])){if(product.imagePath){try{await cloudPublishMarketplaceImage(product,user,product.offlineImage||null,product.imagePath);}catch(imageError){console.warn('Buybook image sync skipped for product:',product.id,imageError);}}}
@@ -1584,7 +1738,7 @@ async function refreshHomeSubscriberCount(){
   el.textContent=String((data||[]).length);
  }catch(_){if(accountRequestIsCurrent(requestedUserId,requestEpoch))el.textContent='—';}
 }
-function paintPage(name,scroll){if(!VALID_PAGES.has(name))name='home';if(name==='business-details')updateBusinessDetailsPage();document.body.classList.toggle('notifications-page-open',name==='notifications');document.body.classList.toggle('subscribers-page-open',name==='subscribers');document.body.classList.toggle('reservations-page-open',name==='reservations');document.body.classList.toggle('settings-main-page-open',name==='settings');document.body.classList.toggle('settings-detail-page-open',['settings-business','settings-sync','settings-preferences','settings-account','settings-buybook'].includes(name));document.body.classList.toggle('business-profile-page-open',name==='business-details');document.body.classList.toggle('legal-page-open',name==='settings-legal');document.body.classList.toggle('about-sellbook-page-open',name==='about-sellbook');document.body.classList.toggle('reports-page-open',name==='reports');document.body.classList.toggle('stock-page-open',name==='stock');document.body.classList.toggle('stock-history-page-open',name==='stock-history');document.body.classList.toggle('stock-history-detail-page-open',name==='stock-history-detail');document.body.classList.toggle('product-page-open',name==='products');document.body.classList.toggle('low-stock-page-open',name==='low-stock');document.body.classList.toggle('product-details-page-open',name==='product-details');document.body.classList.toggle('sales-page-open',name==='sales');document.body.classList.toggle('sales-history-page-open',name==='sales-history');document.body.classList.toggle('sale-details-page-open',name==='sale-details');document.body.classList.toggle('expenses-page-open',name==='expenses');document.querySelectorAll('.page').forEach(x=>x.classList.toggle('hidden',x.id!==name));document.querySelectorAll('nav button').forEach(x=>x.classList.toggle('active',x.dataset.page===name||(x.dataset.page==='messages'&&name==='support')||(x.dataset.page==='me'&&['me','more','reports','stock','low-stock','settings','business-details','settings-business','settings-sync','settings-preferences','settings-account','settings-legal'].includes(name))));sessionStorage.setItem('my-sales-book-current-page',name);render();renderDailySalesSummary();refreshHomeWeeklySales();const homeProductCount=document.getElementById('productCountHome'),homeProductSellingValue=document.getElementById('productSellingValueHome');if(homeProductCount)homeProductCount.textContent=String((db.products||[]).length);if(homeProductSellingValue){const total=(db.products||[]).reduce((sum,p)=>sum+Math.max(0,Number(p.stock)||0)*Math.max(0,Number(p.price??p.selling_price)||0),0);homeProductSellingValue.textContent=money(total);}if(name==='home')refreshHomeSubscriberCount();const fab=document.getElementById('quickSaleFab');const fabPages={home:{label:'Record a sale',title:'Record a sale'},sales:{label:'Record a sale',title:'Record a sale'},products:{label:'Add a product',title:'Add a product'},expenses:{label:'Add an expense',title:'Add an expense'}};const fabAction=fabPages[name];if(fab){fab.style.display='none';fab.hidden=true;fab.setAttribute('aria-hidden','true');if(fabAction&&name!=='home'&&!sellbookIsAdmin){fab.hidden=false;fab.style.display='flex';fab.setAttribute('aria-hidden','false');fab.setAttribute('aria-label',fabAction.label);fab.title=fabAction.title;fab.dataset.action=name;}}if(name==='support'&&cloudUser){loadUserSupport();}if(name==='feedback'&&cloudUser){loadUserSupport();}if(name==='notifications'&&cloudUser){localStorage.setItem('sellbook-notifications-seen-'+cloudUser.id,new Date().toISOString());updateUnreadBadges();}if(name==='settings-buybook'&&cloudUser){loadBuybookConnection();loadBuybookActivity();}if(name==='reservations')loadReservationsPage();if(name==='me')updateMePanel();if(scroll)window.scrollTo({top:0,behavior:'auto'});}
+function paintPage(name,scroll){if(!VALID_PAGES.has(name))name='home';if(name==='business-details')updateBusinessDetailsPage();document.body.classList.toggle('notifications-page-open',name==='notifications');document.body.classList.toggle('subscribers-page-open',name==='subscribers');document.body.classList.toggle('reservations-page-open',name==='reservations');document.body.classList.toggle('settings-main-page-open',name==='settings');document.body.classList.toggle('settings-detail-page-open',['settings-business','settings-sync','settings-preferences','settings-account','settings-buybook'].includes(name));document.body.classList.toggle('business-profile-page-open',name==='business-details');document.body.classList.toggle('legal-page-open',name==='settings-legal');document.body.classList.toggle('about-sellbook-page-open',name==='about-sellbook');document.body.classList.toggle('reports-page-open',name==='reports');document.body.classList.toggle('stock-page-open',name==='stock');document.body.classList.toggle('stock-history-page-open',name==='stock-history');document.body.classList.toggle('stock-history-detail-page-open',name==='stock-history-detail');document.body.classList.toggle('product-page-open',name==='products');document.body.classList.toggle('low-stock-page-open',name==='low-stock');document.body.classList.toggle('product-details-page-open',name==='product-details');document.body.classList.toggle('sales-page-open',name==='sales');document.body.classList.toggle('sales-history-page-open',name==='sales-history');document.body.classList.toggle('sale-details-page-open',name==='sale-details');document.body.classList.toggle('expenses-page-open',name==='expenses');document.querySelectorAll('.page').forEach(x=>x.classList.toggle('hidden',x.id!==name));document.querySelectorAll('nav button').forEach(x=>x.classList.toggle('active',x.dataset.page===name||(x.dataset.page==='messages'&&name==='support')||(x.dataset.page==='me'&&['me','more','reports','stock','low-stock','settings','business-details','settings-business','settings-sync','settings-preferences','settings-account','settings-legal'].includes(name))));sessionStorage.setItem('my-sales-book-current-page',name);render();renderDailySalesSummary();refreshHomeWeeklySales();const homeProductCount=document.getElementById('productCountHome'),homeProductSellingValue=document.getElementById('productSellingValueHome');if(homeProductCount)homeProductCount.textContent=String((db.products||[]).length);if(homeProductSellingValue){const total=(db.products||[]).reduce((sum,p)=>sum+Math.max(0,Number(p.stock)||0)*Math.max(0,Number(p.price??p.selling_price)||0),0);homeProductSellingValue.textContent=money(total);}if(name==='home')refreshHomeSubscriberCount();const fab=document.getElementById('quickSaleFab');const fabPages={home:{label:'Record a sale',title:'Record a sale'},sales:{label:'Record a sale',title:'Record a sale'},products:{label:'Add a product',title:'Add a product'},expenses:{label:'Add an expense',title:'Add an expense'}};const fabAction=fabPages[name];if(fab){fab.style.display='none';fab.hidden=true;fab.setAttribute('aria-hidden','true');if(fabAction&&name!=='home'&&!sellbookIsAdmin){fab.hidden=false;fab.style.display='flex';fab.setAttribute('aria-hidden','false');fab.setAttribute('aria-label',fabAction.label);fab.title=fabAction.title;fab.dataset.action=name;}}if(name==='support'&&cloudUser){loadUserSupport();}if(name==='feedback'&&cloudUser){loadUserSupport();}if(name==='notifications'&&cloudUser){localStorage.setItem('sellbook-notifications-seen-'+cloudUser.id,new Date().toISOString());updateUnreadBadges();}if(name==='settings-account'&&cloudUser){loadAccountTiers();}if(name==='settings-buybook'&&cloudUser){loadBuybookConnection();loadBuybookActivity();}if(name==='reservations')loadReservationsPage();if(name==='me')updateMePanel();if(scroll)window.scrollTo({top:0,behavior:'auto'});}
 // Keep all page back arrows consistent. Use the actual previous app page when it
 // matches the intended parent; otherwise replace the current history entry with
 // the safe parent so Back cannot reopen the page the user just left.
