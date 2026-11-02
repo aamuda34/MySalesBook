@@ -66,3 +66,6 @@ jobs:
           grep -q 'if not exists (' supabase/migrations/20261102145000_gate_privileged_pin_write_paths.sql
           grep -q 'from private.user_app_pins' supabase/migrations/20261102145000_gate_privileged_pin_write_paths.sql
           ! grep -Eiq '^[[:space:]]*rollback[[:space:]]*;' supabase/migrations/20261102145000_gate_privileged_pin_write_paths.sql
+          grep -q "'expires_at',v_expires_at" supabase/migrations/20261102151500_expose_pin_expiry_and_strengthen_pin_rules.sql
+          grep -q "Choose a less predictable six-digit PIN" supabase/migrations/20261102151500_expose_pin_expiry_and_strengthen_pin_rules.sql
+          ! grep -Eiq '^[[:space:]]*rollback[[:space:]]*;' supabase/migrations/20261102151500_expose_pin_expiry_and_strengthen_pin_rules.sql
