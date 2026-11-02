@@ -2727,8 +2727,10 @@ document.querySelectorAll('[data-admin-panel]').forEach(b=>b.addEventListener('c
 function formatAdminNaira(value){return new Intl.NumberFormat('en-NG',{style:'currency',currency:'NGN',maximumFractionDigits:0}).format(Number(value)||0);}
 async function loadAdminTraffic(){
  if(!supabaseClient||!cloudUser||!sellbookIsAdmin)return;
+ const requestedUserId=cloudUser.id,requestEpoch=adminAccessEpoch;
  const chart=document.getElementById('adminTrafficChart');if(chart)chart.textContent='Loading traffic…';
  const {data,error}=await supabaseClient.rpc('sellbook_admin_platform_metrics');
+ if(!adminRequestIsCurrent(requestedUserId,requestEpoch))return;
  if(error){if(chart)chart.textContent='Traffic metrics unavailable: '+error.message;return;}
  document.getElementById('adminVisitsToday').textContent=data.visits_today??0;
  document.getElementById('adminVisits7d').textContent=data.visits_7d??0;
@@ -2759,38 +2761,54 @@ async function verifyAdminAccess(){
  }
 }
 async function loadAdminDashboard(){
- if(!await verifyAdminAccess()){cloudMessage('This account is not authorised for Sellbook administration.');return;}
+ const requestedUserId=cloudUser?.id||null;
+ if(!requestedUserId||!await verifyAdminAccess()||cloudUser?.id!==requestedUserId)return;
+ const requestEpoch=adminAccessEpoch;
+ if(!adminRequestIsCurrent(requestedUserId,requestEpoch))return;
+
  const {data:overview,error}=await supabaseClient.rpc('sellbook_admin_overview');
+ if(!adminRequestIsCurrent(requestedUserId,requestEpoch))return;
  if(error){cloudMessage('Admin dashboard could not load: '+error.message);return;}
  document.getElementById('adminTotalUsers').textContent=overview.total_users??'—';
  document.getElementById('adminNewUsers').textContent=overview.new_users_30d??'—';
  document.getElementById('adminOpenFeedback').textContent=overview.feedback_open??'—';
  document.getElementById('adminUnreadMessages').textContent=overview.messages_unread??'—';
+
  const {data:metrics,error:metricsError}=await supabaseClient.rpc('sellbook_admin_platform_metrics');
+ if(!adminRequestIsCurrent(requestedUserId,requestEpoch))return;
  if(metricsError){document.getElementById('adminPlatformProducts').textContent='—';document.getElementById('adminPlatformSales').textContent='—';document.getElementById('adminPlatformSalesValue').textContent='Unavailable';}
  else{document.getElementById('adminPlatformProducts').textContent=metrics.total_products??0;document.getElementById('adminPlatformSales').textContent=metrics.total_sales??0;document.getElementById('adminPlatformSalesValue').textContent=formatAdminNaira(metrics.sales_value);}
- await document.querySelectorAll('[data-open-page="settings-buybook"]').forEach(el=>el.addEventListener('click',()=>loadBuybookConnection()));
- showAdminPanel(sessionStorage.getItem('sellbook-admin-panel')||'overview');
+ document.querySelectorAll('[data-open-page="settings-buybook"]').forEach(el=>{
+  if(el.dataset.sellbookConnectionListener==='yes')return;
+  el.dataset.sellbookConnectionListener='yes';
+  el.addEventListener('click',()=>loadBuybookConnection());
+ });
+ if(adminRequestIsCurrent(requestedUserId,requestEpoch))showAdminPanel(sessionStorage.getItem('sellbook-admin-panel')||'overview');
 }
 async function loadAdminUsers(){
  if(!supabaseClient||!cloudUser||!sellbookIsAdmin)return;
+ const requestedUserId=cloudUser.id,requestEpoch=adminAccessEpoch;
  const target=document.getElementById('adminUsersList');if(target)target.textContent='Loading users…';
- const list=document.getElementById('adminChatUserList');if(list&&!list.children.length)list.innerHTML='<div class="empty">Loading users…</div>';
+ const list=document.getElementById('adminChatUserList');if(list)list.innerHTML='<div class="empty">Loading chats…</div>';
  const {data,error}=await supabaseClient.rpc('sellbook_admin_users');
+ if(!adminRequestIsCurrent(requestedUserId,requestEpoch))return;
  if(error){if(target)target.textContent='Could not load users: '+error.message;if(list)list.innerHTML='<div class="empty">Could not load chats: '+escAdmin(error.message)+'</div>';return;}
- adminUsersCache=(data||[]).filter(u=>u.user_id!==cloudUser?.id);
- const opts='<option value="">Choose a user</option>'+adminUsersCache.map(u=>'<option value="'+escAdmin(u.user_id)+'">'+escAdmin(u.email||'No email')+'</option>').join('');
- const chatSelect=document.getElementById('adminMessageUser'),previousUser=chatSelect.value;chatSelect.innerHTML=opts;
+ const rowsForUser=(data||[]).filter(u=>u.user_id!==requestedUserId);
+ const opts='<option value="">Choose a user</option>'+rowsForUser.map(u=>'<option value="'+escAdmin(u.user_id)+'">'+escAdmin(u.email||'No email')+'</option>').join('');
+ const chatSelect=document.getElementById('adminMessageUser'),previousUser=chatSelect.value;
+ chatSelect.innerHTML=opts;
  document.getElementById('notificationUser').innerHTML=opts;
- if(target)target.innerHTML=adminUsersCache.length?adminUsersCache.map(u=>'<div class="item"><strong>'+escAdmin(u.email||'No email')+'</strong><div class="muted">Joined '+escAdmin(u.created_at?new Date(u.created_at).toLocaleDateString():'unknown')+' · Last sign-in '+escAdmin(u.last_sign_in_at?new Date(u.last_sign_in_at).toLocaleDateString():'not available')+'</div></div>').join(''):'<div class="empty">No registered users found.</div>';
+ if(target)target.innerHTML=rowsForUser.length?rowsForUser.map(u=>'<div class="item"><strong>'+escAdmin(u.email||'No email')+'</strong><div class="muted">Joined '+escAdmin(u.created_at?new Date(u.created_at).toLocaleDateString():'unknown')+' · Last sign-in '+escAdmin(u.last_sign_in_at?new Date(u.last_sign_in_at).toLocaleDateString():'not available')+'</div></div>').join(''):'<div class="empty">No registered users found.</div>';
  const {data:allMessages,error:msgError}=await supabaseClient.from('support_messages').select('id,sender_id,recipient_id,body,created_at,delivered_at,read_at').order('created_at',{ascending:false}).limit(1000);
+ if(!adminRequestIsCurrent(requestedUserId,requestEpoch))return;
  if(msgError){if(list)list.innerHTML='<div class="empty">Could not load chat previews: '+escAdmin(msgError.message)+'</div>';return;}
  const msgs=allMessages||[];
- const rows=adminUsersCache.map(u=>{const convo=msgs.filter(m=>(m.sender_id===u.user_id)||(m.recipient_id===u.user_id));const latest=convo[0]||null;const unread=convo.filter(m=>m.sender_id===u.user_id&&!m.read_at).length;return {...u,latest,unread};}).sort((x,y)=>new Date(y.latest?.created_at||y.created_at||0)-new Date(x.latest?.created_at||x.created_at||0));
+ const rows=rowsForUser.map(u=>{const convo=msgs.filter(m=>(m.sender_id===u.user_id)||(m.recipient_id===u.user_id));const latest=convo[0]||null;const unread=convo.filter(m=>m.sender_id===u.user_id&&!m.read_at).length;return {...u,latest,unread};}).sort((x,y)=>new Date(y.latest?.created_at||y.created_at||0)-new Date(x.latest?.created_at||x.created_at||0));
+ adminUsersCache=rowsForUser;
  if(list)list.innerHTML=rows.length?rows.map(u=>'<button type="button" class="admin-chat-user-row" data-chat-user="'+escAdmin(u.user_id)+'"><span class="chat-support-avatar" aria-hidden="true"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg></span><span class="admin-chat-user-meta"><strong>'+escAdmin(u.email||'Sellbook user')+'</strong><span class="muted admin-chat-preview">'+escAdmin(u.latest?.body||'No messages yet')+'</span><span class="muted">'+escAdmin(u.latest?new Date(u.latest.created_at).toLocaleString([], {dateStyle:'medium',timeStyle:'short'}):'No conversation yet')+'</span></span>'+(u.unread?'<span class="admin-chat-unread" aria-label="'+u.unread+' unread messages">'+u.unread+'</span>':'')+'<span class="admin-chat-arrow" aria-hidden="true">›</span></button>').join(''):'<div class="empty">No registered users found.</div>';
  if(list)list.querySelectorAll('[data-chat-user]').forEach(btn=>btn.addEventListener('click',()=>openAdminConversation(btn.dataset.chatUser)));
  if(previousUser&&adminUsersCache.some(u=>u.user_id===previousUser))chatSelect.value=previousUser;
- await updateUnreadBadges();
+ if(adminRequestIsCurrent(requestedUserId,requestEpoch))await updateUnreadBadges();
 }
 
 async function loadAdminFeedback(){
