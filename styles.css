@@ -740,3 +740,6 @@ body.subscribers-page-open #subscribers,body.reservations-page-open #reservation
 .products-page-header .page-history-button svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;}
 .products-page-header .page-history-button:focus-visible{outline:3px solid #a7d9b4;outline-offset:2px;}
 .products-page-header .page-history-button:active{transform:scale(.95);}
+
+/* Distinguish completely unavailable products from products that are merely running low. */
+.out-of-stock-badge{display:inline-block;background:#fde8e7;color:#a12622;border-radius:99px;padding:4px 8px;font-size:11px;font-weight:700;white-space:nowrap}
