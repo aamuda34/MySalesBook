@@ -128,7 +128,7 @@ if "grant update (status, updated_at)" not in reservation_columns_migration:
 print(f"Marketplace, accessibility, security and asset-cache checks passed ({len(required_markers) + len(required_headers) + 5} checks).")
 
 # Priority 3 product and stock integrity regression guards.
-priority3_sql = Path("supabase/migrations/20261101010000_restock_stock_history_and_bounds.sql").read_text(encoding="utf-8")
+priority3_sql = Path("supabase/migrations/20261101174947_restock_stock_history_and_bounds.sql").read_text(encoding="utf-8")
 priority3_checks = {
     "product creation enforces stock and monetary bounds": "stock>2000000000" in app_js and "enteredCost>MAX_MONEY" in app_js,
     "product editing enforces stock and monetary bounds": "stock>2000000000||cost>MAX_MONEY" in app_js,
