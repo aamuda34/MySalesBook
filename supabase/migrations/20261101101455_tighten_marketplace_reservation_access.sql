@@ -1,3 +1,4 @@
+
 -- Restrict reservation decisions to the shop owner. Buyers may create
 -- reservations, but must not approve/reject them or reassign participants.
 drop policy if exists marketplace_reservations_participant_update on public.marketplace_reservations;

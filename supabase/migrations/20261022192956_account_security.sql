@@ -1,14 +1,9 @@
--- My Sales Book account security hardening.
--- This migration assumes the existing sales-book schema and sale RPCs are present.
--- No business records are deleted or rewritten by this migration.
-
 REVOKE EXECUTE ON FUNCTION public.record_sale(uuid, integer, numeric, text) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.record_sale(uuid, integer, numeric, text) TO authenticated;
 
 REVOKE EXECUTE ON FUNCTION public.record_sale_offline(uuid, uuid, integer, numeric, text, timestamptz) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.record_sale_offline(uuid, uuid, integer, numeric, text, timestamptz) TO authenticated;
 
--- This is an event-trigger helper, not an application API.
 REVOKE EXECUTE ON FUNCTION public.rls_auto_enable() FROM PUBLIC, anon, authenticated;
 
 CREATE OR REPLACE FUNCTION public.delete_my_account()
@@ -24,10 +19,8 @@ BEGIN
   IF v_user_id IS NULL THEN
     RAISE EXCEPTION 'You must sign in before deleting your account.';
   END IF;
-
-  -- Business tables reference auth.users with ON DELETE CASCADE.
-  -- Product files are removed through the Storage API before this function
-  -- is called; do not delete storage metadata directly through SQL.
+  -- Business tables cascade on auth.users deletion. Product files are removed
+  -- through the Storage API before this function is called.
   DELETE FROM auth.users WHERE id = v_user_id;
 END;
 $function$;

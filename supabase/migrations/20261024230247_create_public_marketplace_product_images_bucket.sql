@@ -1,0 +1,1 @@
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types) values ('marketplace-product-images', 'marketplace-product-images', true, 5242880, array['image/jpeg','image/png','image/webp']) on conflict (id) do update set public = true, file_size_limit = 5242880, allowed_mime_types = array['image/jpeg','image/png','image/webp'];

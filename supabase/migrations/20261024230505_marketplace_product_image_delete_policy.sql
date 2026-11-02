@@ -1,0 +1,1 @@
+create policy marketplace_product_images_delete_owner on storage.objects for delete to authenticated using (bucket_id = 'marketplace-product-images' and (storage.foldername(name))[1] = auth.uid()::text);

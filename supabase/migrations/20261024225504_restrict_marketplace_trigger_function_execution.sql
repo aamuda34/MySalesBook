@@ -1,0 +1,1 @@
+REVOKE EXECUTE ON FUNCTION public.sync_marketplace_listing_from_product() FROM PUBLIC, anon, authenticated;

@@ -1,0 +1,1 @@
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.user_profiles TO authenticated; GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.stock_adjustments TO authenticated; REVOKE ALL PRIVILEGES ON TABLE public.user_profiles FROM anon; REVOKE ALL PRIVILEGES ON TABLE public.stock_adjustments FROM anon;

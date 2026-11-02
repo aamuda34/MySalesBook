@@ -1,0 +1,1 @@
+CREATE POLICY marketplace_listings_owner_update ON public.marketplace_listings FOR UPDATE TO authenticated USING (owner_id = (SELECT auth.uid())) WITH CHECK (owner_id = (SELECT auth.uid()));

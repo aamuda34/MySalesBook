@@ -1,0 +1,3 @@
+drop policy if exists marketplace_messages_recipient_mark_read on public.marketplace_messages;
+create policy marketplace_messages_recipient_mark_read on public.marketplace_messages for update to authenticated using (sender_id <> (select auth.uid()) and (owner_id = (select auth.uid()) or buyer_id = (select auth.uid()))) with check (sender_id <> (select auth.uid()) and (owner_id = (select auth.uid()) or buyer_id = (select auth.uid())));
+grant update (read_at) on public.marketplace_messages to authenticated;

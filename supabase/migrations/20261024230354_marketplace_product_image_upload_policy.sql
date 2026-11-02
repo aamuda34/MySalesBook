@@ -1,0 +1,1 @@
+create policy marketplace_product_images_insert_owner on storage.objects for insert to authenticated with check (bucket_id = 'marketplace-product-images' and (storage.foldername(name))[1] = auth.uid()::text);

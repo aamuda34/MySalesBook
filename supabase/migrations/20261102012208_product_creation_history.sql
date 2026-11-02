@@ -20,24 +20,35 @@ create table if not exists public.product_creation_history (
   constraint product_creation_history_user_product_unique unique (user_id, product_id),
   constraint product_creation_history_name_length check (char_length(product_name) between 1 and 100)
 );
+
 create index if not exists product_creation_history_user_added_idx
   on public.product_creation_history (user_id, added_at desc, id desc);
+
 alter table public.product_creation_history enable row level security;
-drop policy if exists "Users can view their own product creation history" on public.product_creation_history;
+
+drop policy if exists "Users can view their own product creation history"
+  on public.product_creation_history;
 create policy "Users can view their own product creation history"
-  on public.product_creation_history for select to authenticated
+  on public.product_creation_history
+  for select to authenticated
   using ((select auth.uid()) = user_id);
+
 revoke all on table public.product_creation_history from anon, authenticated;
 grant select on table public.product_creation_history to authenticated;
 
 create or replace function public.capture_product_creation_history()
-returns trigger language plpgsql security definer set search_path = ''
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
 as $function$
-declare v_user_id uuid := auth.uid();
+declare
+  v_user_id uuid := auth.uid();
 begin
   if v_user_id is null or v_user_id <> new.user_id then
     raise exception 'A signed-in product owner is required to record product history.';
   end if;
+
   insert into public.product_creation_history (
     user_id, product_id, product_name, category, cost_price, selling_price,
     initial_stock, image_path, base_unit, purchase_unit, units_per_purchase,
@@ -48,12 +59,16 @@ begin
     coalesce(new.base_unit, 'unit'), coalesce(new.purchase_unit, 'unit'),
     coalesce(new.units_per_purchase, 1), new.pack_unit, new.units_per_pack,
     new.pack_selling_price, new.created_at
-  ) on conflict (user_id, product_id) do nothing;
+  )
+  on conflict (user_id, product_id) do nothing;
+
   return new;
 end;
 $function$;
+
 revoke all on function public.capture_product_creation_history() from public, anon, authenticated;
+
 drop trigger if exists products_capture_creation_history on public.products;
 create trigger products_capture_creation_history
-after insert on public.products for each row
-execute function public.capture_product_creation_history();
+after insert on public.products
+for each row execute function public.capture_product_creation_history();

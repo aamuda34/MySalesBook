@@ -140,8 +140,7 @@ grant execute on function public.sellbook_admin_overview() to authenticated;
 grant execute on function public.sellbook_admin_platform_metrics() to authenticated;
 grant execute on function public.sellbook_admin_users() to authenticated;
 
--- Consolidate overlapping read policies without changing who can see active public listings
--- or connected public shops, while still allowing owners to see their own inactive rows.
+-- Consolidate overlapping read policies without changing visibility rules.
 drop policy if exists marketplace_listings_owner_read on public.marketplace_listings;
 drop policy if exists marketplace_listings_public_active_read on public.marketplace_listings;
 create policy marketplace_listings_read
@@ -164,8 +163,7 @@ using (
   or owner_id = (select auth.uid())
 );
 
--- The former two INSERT policies were permissive and their OR-combination allowed
--- a user to message support, while admins could also reply to a specific user.
+-- Preserve user-to-support messages and allow the admin to reply to a specific user.
 drop policy if exists "Admin replies to users" on public.support_messages;
 drop policy if exists "Users send support messages to admin" on public.support_messages;
 create policy support_messages_insert

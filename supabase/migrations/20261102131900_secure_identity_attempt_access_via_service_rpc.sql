@@ -133,7 +133,7 @@ begin
   if p_user_id is null or p_attempt_id is null then
     raise exception 'A valid account and attempt ID are required.';
   end if;
-  if p_state is null or p_state not in ('failed','rejected','expired','verified') then
+  if p_state not in ('failed','rejected','expired','verified') then
     raise exception 'The requested terminal attempt state is invalid.';
   end if;
   if p_face_match_reference is not null and length(p_face_match_reference) > 180 then
