@@ -1069,13 +1069,40 @@ body.dark :where(.sales-history-row small,.sales-history-row-main small,
 .expense-history-row small,.expense-item small,.sale-history-item small){color:#c5bdcf!important}
 
 
-/* Messenger is a standalone page on mobile: hide the app navigation on both
-   the conversation list and an individual chat. */
+/* Messenger list and subscriber picker retain the app bottom navigation.
+   An individual chat remains a focused full-screen view without that navigation. */
 @media(max-width:600px){
-  body.messenger-open #appWorkspace>nav{display:none!important;visibility:hidden!important}
-  body.messenger-open #messenger{inset:0!important;height:100dvh!important;max-height:100dvh!important}
-  body.messenger-open.messenger-conversation-open #messengerChatCard{inset:0!important;height:100dvh!important;max-height:100dvh!important}
+  body.messenger-open #appWorkspace>nav{
+    position:fixed!important;left:0!important;right:0!important;bottom:0!important;
+    z-index:3010!important;display:grid!important;visibility:visible!important;
+    grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:6px!important;
+    width:100%!important;height:calc(72px + env(safe-area-inset-bottom))!important;
+    margin:0!important;padding:7px 12px calc(7px + env(safe-area-inset-bottom))!important;
+    background:var(--surface)!important;border-top:1px solid var(--border)!important;
+    box-shadow:0 -3px 14px rgba(0,0,0,.08)!important;
+  }
+  body.messenger-open #appWorkspace>nav button{
+    min-width:0!important;padding:5px 4px!important;display:flex!important;
+    flex-direction:column!important;align-items:center!important;justify-content:center!important;
+    gap:3px!important;background:transparent!important;color:var(--muted)!important;
+  }
+  body.messenger-open #appWorkspace>nav button.active{color:var(--green)!important;background:transparent!important}
+  body.messenger-open #appWorkspace>nav .nav-icon svg{width:22px;height:22px}
+  body.messenger-open #messenger{inset:0 0 calc(72px + env(safe-area-inset-bottom)) 0!important;height:auto!important;max-height:none!important}
+  body.messenger-open #messenger .messenger-picker-overlay{
+    z-index:3005!important;bottom:calc(72px + env(safe-area-inset-bottom))!important;
+  }
+  body.messenger-open #messenger .messenger-picker-sheet{
+    height:100%!important;max-height:100%!important;
+    padding-bottom:calc(16px + env(safe-area-inset-bottom))!important;
+  }
   body.messenger-open #quickSaleFab{display:none!important}
+  body.messenger-open.messenger-conversation-open #appWorkspace>nav{
+    display:none!important;visibility:hidden!important;
+  }
+  body.messenger-open.messenger-conversation-open #messengerChatCard{
+    inset:0!important;height:100dvh!important;max-height:100dvh!important;
+  }
 }
 
 /* First-name label at the top-left of the Me panel. */
