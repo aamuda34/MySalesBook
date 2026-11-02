@@ -21,6 +21,8 @@ jobs:
     steps:
       - name: Check out exact revision
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -197,6 +199,14 @@ jobs:
           grep -q '<link rel="manifest" href="./manifest.webmanifest">' index.html
           grep -q 'display' manifest.webmanifest
           grep -Eq "const CACHE_NAME = 'sellbook-shell-v[0-9]+'" sw.js
+          if git diff --name-only HEAD^ HEAD | grep -qx 'app.js'; then
+            previous_cache="$(git show HEAD^:sw.js | sed -n "s/^const CACHE_NAME = '\([^']*\)';$/\1/p")"
+            current_cache="$(sed -n "s/^const CACHE_NAME = '\([^']*\)';$/\1/p" sw.js)"
+            if [[ -z "$previous_cache" || -z "$current_cache" || "$previous_cache" == "$current_cache" ]]; then
+              echo "app.js changed without a service-worker cache-version bump; installed PWAs could keep stale JavaScript."
+              exit 1
+            fi
+          fi
 
       - name: Verify PIN gate wiring and migration safety
         shell: bash
