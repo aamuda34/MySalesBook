@@ -126,6 +126,7 @@ function cloudMessage(text){const el=document.getElementById('accountMessage'),s
 
 let localSnapshot = null;
 let authTransition = false;
+let authTransitionPending = false;
 let pendingSync = [];
 let syncingQueue = false;
 let recoveryMode = window.location.hash.includes('type=recovery');
@@ -683,7 +684,7 @@ document.getElementById('securityPinCancel')?.addEventListener('click',()=>{
 });
 
 async function handleCloudAuthChange() {
-  if (authTransition) return;
+  if (authTransition) { authTransitionPending = true; return; }
   authTransition = true;
   let activeUser = null;
   let coreWorkspaceLoaded = false;
@@ -742,7 +743,8 @@ async function handleCloudAuthChange() {
         cloudMessage('Showing your saved records while Sellbook checks for the latest updates.');
       }
       try {
-        await cloudLoadAll();
+        const loaded=await cloudLoadAll();
+        if(loaded===false){coreWorkspaceLoaded=true;finishStartup();return;}
         coreWorkspaceLoaded = true;
         finishStartup();
         if (pendingSync.some(item => item.status !== 'conflict')) {
@@ -832,6 +834,10 @@ async function handleCloudAuthChange() {
     clearTimeout(loadingWatchdog);
     finishStartup();
     authTransition = false;
+    if(authTransitionPending){
+      authTransitionPending=false;
+      setTimeout(()=>handleCloudAuthChange(),0);
+    }
     // Refresh Me-panel identity after the persisted auth session has been restored.
     // On a page refresh, paintPage() may run before Supabase returns the session.
     updateMePanel();
@@ -997,6 +1003,7 @@ async function fetchAllCloudRows(buildQuery,pageSize=500){
 
 async function cloudLoadAll() {
   const user=await requireCloudUser();
+  const loadEpoch=accountSessionEpoch;
   // Stock-before and stock-after are persisted in Supabase so history is complete on every device.
   // Keep cached values only as a compatibility fallback for older rows.
   const cachedRestockDetails=new Map((db.restocks||[]).map(item=>[String(item.id),item]));
@@ -1009,8 +1016,10 @@ async function cloudLoadAll() {
     supabaseClient.from('user_profiles').select('business_name,business_logo').eq('user_id',user.id).maybeSingle()
   ]);
   if(pr.error)throw pr.error;if(sr.error)throw sr.error;if(er.error)throw er.error;if(ar.error)throw ar.error;if(rr.error)throw rr.error;if(profileResult.error)throw profileResult.error;
+  if(!accountRequestIsCurrent(user.id,loadEpoch))return false;
   let fallbackProfile={business_name:'',business_logo:null};
   if(!profileResult.data){const identity=String(user.user_metadata?.business_name||user.user_metadata?.full_name||user.email?.split('@')[0]||'My').trim();fallbackProfile={business_name:(identity.endsWith('Business')?identity:identity+' Business').slice(0,100),business_logo:null};const {error}=await supabaseClient.from('user_profiles').upsert({user_id:user.id,...fallbackProfile,updated_at:now()},{onConflict:'user_id',ignoreDuplicates:true});if(error)throw error;}
+  if(!accountRequestIsCurrent(user.id,loadEpoch))return false;
   // Build the product list without waiting for one signed-photo URL per product.
   // The records can render first; product photos are resolved in the background.
   const products=(pr.data||[]).map(row=>({
@@ -1109,6 +1118,7 @@ async function cloudLoadAll() {
       }
     } catch(imageSyncError) { console.warn('Background marketplace photo sync skipped:',imageSyncError); }
   }, 1500);
+  return true;
 }
 
 async function cloudUploadProductImage(imageData) {
