@@ -9,7 +9,8 @@ const sw = fs.readFileSync('sw.js', 'utf8');
 const marker = 'Sellbook design system: consistent typography, readable labels and spacing.';
 const start = css.indexOf(marker);
 assert.ok(start >= 0, 'The shared Sellbook design-system layer is missing.');
-const layer = css.slice(start);
+const nextLayer = css.indexOf('SELLBOOK APP-WIDE SCREEN LAYOUT', start);
+const layer = css.slice(start, nextLayer > start ? nextLayer : undefined);
 
 const required = [
   ['system font stack', '--sb-font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif'],
