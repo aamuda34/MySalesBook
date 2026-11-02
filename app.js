@@ -1318,19 +1318,23 @@ async function loadReservationsPage(){
  document.getElementById('reservationsListView')?.classList.remove('hidden');document.getElementById('reservationDetailsView')?.classList.add('hidden');
  target.innerHTML='<div class="empty">Loading reservations…</div>';
  if(!cloudUser||!supabaseClient){target.innerHTML='<div class="empty">Please sign in to view reservations.</div>';return;}
+ const requestedUserId=cloudUser.id,requestEpoch=accountSessionEpoch;
+ const current=()=>accountRequestIsCurrent(requestedUserId,requestEpoch);
  try{
-  const reservationResult=await fetchAllCloudRows(()=>supabaseClient.from('marketplace_reservations').select('id,buyer_id,status,buyer_note,created_at,expires_at').eq('owner_id',cloudUser.id).order('created_at',{ascending:false}).order('id',{ascending:false}));
+  const reservationResult=await fetchAllCloudRows(()=>supabaseClient.from('marketplace_reservations').select('id,buyer_id,status,buyer_note,created_at,expires_at').eq('owner_id',requestedUserId).order('created_at',{ascending:false}).order('id',{ascending:false}));
+  if(!current())return;
   if(reservationResult.error)throw reservationResult.error;marketplaceReservationsCache=reservationResult.data||[];
   if(!marketplaceReservationsCache.length){target.innerHTML='<div class="empty">No reservations yet. Customer reservations from Buybook will appear here.</div>';return;}
   const byId={};const reservationIds=marketplaceReservationsCache.map(r=>r.id);
   for(let offset=0;offset<reservationIds.length;offset+=100){
    const result=await supabaseClient.from('marketplace_reservation_items').select('reservation_id,product_name,quantity,unit_price').in('reservation_id',reservationIds.slice(offset,offset+100));
+   if(!current())return;
    if(result.error)throw result.error;for(const item of(result.data||[]))(byId[item.reservation_id] ||= []).push(item);
   }
   marketplaceReservationsCache.forEach(r=>r.items=byId[r.id]||[]);
   target.innerHTML=marketplaceReservationsCache.map(r=>{const products=r.items.map(x=>escAdmin(x.product_name)+' × '+Number(x.quantity||0)).join(', ');const status=String(r.status||'pending').replace(/[_-]+/g,' ').replace(/\b\w/g,ch=>ch.toUpperCase());return '<button type="button" class="messenger-picker-row reservation-page-row" data-reservation-id="'+escAdmin(r.id)+'" style="width:100%;text-align:left"><span class="chat-support-avatar" aria-hidden="true">▣</span><span class="subscriber-meta"><strong>'+escAdmin(marketplaceBuyerName(r.buyer_id))+'</strong><small>'+escAdmin(products||'Product details unavailable')+'</small><small>'+escAdmin(new Date(r.created_at).toLocaleString([], {dateStyle:'medium',timeStyle:'short'}))+' · '+escAdmin(status)+'</small></span><span aria-hidden="true">›</span></button>';}).join('');
   target.querySelectorAll('[data-reservation-id]').forEach(b=>b.addEventListener('click',()=>showReservationDetails(b.dataset.reservationId)));
- }catch(err){target.innerHTML='<div class="empty">Could not load reservations: '+escAdmin(err.message||'Please try again.')+'</div>';}
+ }catch(err){if(current())target.innerHTML='<div class="empty">Could not load reservations: '+escAdmin(err.message||'Please try again.')+'</div>';}
 }
 async function retryReservationNotification(id,button){
  if(!cloudUser||!supabaseClient)return;
@@ -1395,11 +1399,13 @@ async function loadSubscribersPage(){
  document.getElementById('subscribersListView')?.classList.remove('hidden');document.getElementById('subscriberDetailsView')?.classList.add('hidden');
  target.innerHTML='<div class="empty">Loading subscribers…</div>';
  if(!cloudUser||!supabaseClient){target.innerHTML='<div class="empty">Please sign in to view subscribers.</div>';return;}
- try{const {data,error}=await supabaseClient.rpc('get_my_marketplace_subscribers');if(error)throw error;marketplaceSubscribersCache=data||[];
+ const requestedUserId=cloudUser.id,requestEpoch=accountSessionEpoch;
+ const current=()=>accountRequestIsCurrent(requestedUserId,requestEpoch);
+ try{const {data,error}=await supabaseClient.rpc('get_my_marketplace_subscribers');if(!current())return;if(error)throw error;marketplaceSubscribersCache=data||[];
  if(!marketplaceSubscribersCache.length){target.innerHTML='<div class="empty">No subscribers yet. Buyers who subscribe to your shop on Buybook will appear here.</div>';return;}
  target.innerHTML=marketplaceSubscribersCache.slice().sort((a,b)=>new Date(b.created_at||0)-new Date(a.created_at||0)).map(s=>'<button type="button" class="messenger-picker-row subscriber-page-row" data-subscriber-id="'+escAdmin(s.buyer_id)+'" style="width:100%;text-align:left"><span class="chat-support-avatar" aria-hidden="true">👤</span><span class="subscriber-meta"><strong>'+escAdmin(s.display_name||marketplaceBuyerName(s.buyer_id))+'</strong><small>Subscribed '+escAdmin(s.created_at?new Date(s.created_at).toLocaleDateString():'date unavailable')+'</small></span><span aria-hidden="true">›</span></button>').join('');
  target.querySelectorAll('[data-subscriber-id]').forEach(b=>b.addEventListener('click',()=>showSubscriberDetails(b.dataset.subscriberId)));
- }catch(err){target.innerHTML='<div class="empty">Could not load subscribers: '+escAdmin(err.message||'Please try again.')+'</div>';}
+ }catch(err){if(current())target.innerHTML='<div class="empty">Could not load subscribers: '+escAdmin(err.message||'Please try again.')+'</div>';}
 }
 function showSubscriberDetails(id,options={}){
  const s=marketplaceSubscribersCache.find(x=>String(x.buyer_id)===String(id));if(!s)return;
