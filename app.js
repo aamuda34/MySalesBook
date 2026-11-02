@@ -3010,8 +3010,6 @@ function updateBusinessDetailsPage(){
  const businessName=String(profile.businessName||'').trim();
  const nameEl=document.getElementById('businessDetailsBusinessName');
  if(nameEl)nameEl.textContent=businessName||'Not set';
- const legacyNameEl=document.getElementById('businessDetailsName');
- if(legacyNameEl)legacyNameEl.textContent=businessName||'Not set';
 
  const logo=document.getElementById('businessDetailsLogo');
  const avatar=document.getElementById('businessDetailsAvatar');
