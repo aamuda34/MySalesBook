@@ -2737,7 +2737,7 @@ document.getElementById('resendAccountEmailOtpButton')?.addEventListener('click'
     startAccountOtpResendCooldown(60);
     document.getElementById('accountEmailOtp').value='';message.textContent='A new verification code has been sent. Use the latest code.';
   }catch(error){message.textContent='Could not resend the code: '+(error.message||'Please try again.');}
-  finally{accountEmailOtpBusy=false;button.disabled=false;button.textContent='Resend code';}
+  finally{accountEmailOtpBusy=false;if(!accountOtpResendTimer){button.disabled=false;button.textContent='Resend code';}}
 });
 document.getElementById('cancelAccountEmailOtpButton')?.addEventListener('click',clearAccountEmailOtp);
 document.getElementById('accountEmailOtpPanel')?.addEventListener('cancel',()=>{
