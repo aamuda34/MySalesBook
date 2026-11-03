@@ -2682,7 +2682,7 @@ function showEmailConfirmationNotice(email,message='',allowResend=true){
   panel.classList.remove('hidden');
   panel.setAttribute('aria-hidden','false');
   document.getElementById('confirmationEmailAddress').textContent=confirmationEmail||'your email address';
-  document.getElementById('emailConfirmationMessage').textContent=message;
+  notifyStatus('emailConfirmationMessage',message);
   document.getElementById('resendConfirmationBtn').classList.toggle('hidden',!allowResend);
   cloudMessage('');
 }
@@ -2937,7 +2937,7 @@ async function requestAccountActionEmailOtp(action){
     document.getElementById('accountEmailOtpTitle').textContent=action==='change_pin'?'Verify email to change your PIN':'Verify your current email address';
     document.getElementById('accountEmailOtpDescription').textContent='Enter the six-digit verification code sent to '+email+'. The code is required before Sellbook allows this account change.';
     document.getElementById('accountEmailOtp').value='';
-    document.getElementById('accountEmailOtpMessage').textContent='Verification code sent. Check your inbox and spam folder.';
+    notifyStatus('accountEmailOtpMessage','Verification code sent. Check your inbox and spam folder.','success');
     document.getElementById('accountEmailOtp').focus();
   }catch(error){
     if(otpClient){try{await otpClient.auth.signOut({scope:'local'});}catch(_){}}
@@ -3082,7 +3082,7 @@ async function refreshAccountStatus(){
     return;
   }
   if(error){
-    status.textContent='Could not check your sign-in status. Check your connection and try again.';
+    notifyStatus(status,'Could not check your sign-in status. Check your connection and try again.','error');
     cloudMessage('Sellbook could not verify your secure sign-in. Your saved records have not been changed.');
     document.getElementById('appWorkspace').classList.add('hidden');
     console.warn('Supabase session check returned an error:',error);
@@ -3132,11 +3132,11 @@ document.getElementById('googleSignIn').addEventListener('click', async () => {
   if (googleSignInInProgress) return;
 
   if (!navigator.onLine) {
-    message.textContent = 'Internet is required for Google sign-in. Connect to the internet and try again.';
+    notifyStatus(message,'Internet is required for Google sign-in. Connect to the internet and try again.','error');
     return;
   }
   if (!supabaseClient) {
-    message.textContent = 'Cloud connection unavailable. Check your internet connection and try again.';
+    notifyStatus(message,'Cloud connection unavailable. Check your internet connection and try again.','error');
     return;
   }
 
@@ -3145,7 +3145,7 @@ document.getElementById('googleSignIn').addEventListener('click', async () => {
   button.setAttribute('aria-busy', 'true');
   const label=document.getElementById('googleSignInLabel');
   if(label)label.textContent='Connecting to Google…';
-  message.textContent = 'Opening secure Google sign-in. Please wait…';
+  notifyStatus(message,'Opening secure Google sign-in. Please wait…','info');
 
   try {
     const { error } = await supabaseClient.auth.signInWithOAuth({
@@ -3162,7 +3162,7 @@ document.getElementById('googleSignIn').addEventListener('click', async () => {
     // so repeated taps cannot start overlapping OAuth requests.
   } catch (error) {
     console.error('Google sign-in could not be started:', error);
-    message.textContent = 'Google sign-in could not be started. Check your connection and try again.';
+    notifyStatus(message,'Google sign-in could not be started. Check your connection and try again.','error');
     googleSignInInProgress = false;
     button.disabled = false;
     button.removeAttribute('aria-busy');
@@ -3527,7 +3527,7 @@ document.getElementById('deleteAccountBtn').addEventListener('click',async()=>{
     if(pending.length&&!confirm('There are '+pending.length+' unsynchronised change(s). Deleting the account will also remove this account\'s local cache and pending queue. Continue?'))return;
     pendingDeleteAccountUserId=user.id;
     document.getElementById('deleteAccountPinForm').reset();
-    document.getElementById('deleteAccountPinMessage').textContent='Enter your PIN. Five incorrect attempts will temporarily lock PIN verification.';
+    notifyStatus('deleteAccountPinMessage','Enter your PIN. Five incorrect attempts will temporarily lock PIN verification.','info');
     document.getElementById('deleteAccountPinDialog').showModal();
     setTimeout(()=>document.getElementById('deleteAccountPinInput').focus(),40);
   }catch(error){cloudMessage('Could not start account deletion: '+(error.message||'Please try again.'));}
@@ -3542,10 +3542,10 @@ document.getElementById('deleteAccountPinForm')?.addEventListener('submit',async
   event.preventDefault();
   const status=document.getElementById('deleteAccountPinMessage'),button=document.getElementById('confirmDeleteAccountPin');
   const pin=document.getElementById('deleteAccountPinInput').value;
-  if(!/^[0-9]{6}$/.test(pin)){status.textContent='Enter exactly six digits.';return;}
-  if(!pendingDeleteAccountUserId){status.textContent='Start account deletion again before confirming your PIN.';return;}
-  if(!navigator.onLine){status.textContent='Connect to the internet before verifying your PIN.';return;}
-  button.disabled=true;button.textContent='Verifying PIN…';status.textContent='Checking your PIN securely…';
+  if(!/^[0-9]{6}$/.test(pin)){notifyStatus(status,'Enter exactly six digits.','error');return;}
+  if(!pendingDeleteAccountUserId){notifyStatus(status,'Start account deletion again before confirming your PIN.','error');return;}
+  if(!navigator.onLine){notifyStatus(status,'Connect to the internet before verifying your PIN.','error');return;}
+  button.disabled=true;button.textContent='Verifying PIN…';notifyStatus(status,'Checking your PIN securely…','info');
   try{
     const user=await requireCloudUser();
     if(user.id!==pendingDeleteAccountUserId)throw Error('Your signed-in account changed. Cancel and start again.');
@@ -3555,13 +3555,13 @@ document.getElementById('deleteAccountPinForm')?.addEventListener('submit',async
     if(data?.verified!==true){
       const attempts=Number.isFinite(Number(data?.attempts_remaining))?' Attempts remaining: '+data.attempts_remaining+'.':'';
       const locked=data?.locked_until?' PIN verification is locked until '+new Date(data.locked_until).toLocaleTimeString()+'.':'';
-      status.textContent=(data?.message||'The PIN is incorrect.')+attempts+locked;
+      notifyStatus(status,(data?.message||'The PIN is incorrect.')+attempts+locked,'error');
       document.getElementById('deleteAccountPinInput').value='';return;
     }
-    status.textContent='PIN confirmed. Removing your cloud records securely…';button.textContent='Deleting account…';
+    notifyStatus(status,'PIN confirmed. Removing your cloud records securely…','info');button.textContent='Deleting account…';
     await finishVerifiedAccountDeletion(user);
   }catch(error){
-    status.textContent='Account deletion could not be completed: '+(error.message||'Please try again.');
+    notifyStatus(status,'Account deletion could not be completed: '+(error.message||'Please try again.'),'error');
     console.error('Sellbook account deletion failed:',error);
   }finally{
     button.disabled=false;button.textContent='Verify PIN and delete';
@@ -4072,30 +4072,30 @@ async function loadUserSupport(){
  await updateUnreadBadges();
 }
 document.getElementById('userFeedbackForm').addEventListener('submit',async e=>{
- e.preventDefault();if(!cloudUser||!supabaseClient)return document.getElementById('feedbackFormStatus').textContent='Please sign in first.';
+ e.preventDefault();if(!cloudUser||!supabaseClient)return notifyStatus('feedbackFormStatus','Please sign in first.','error');
  const requestedUserId=cloudUser.id,requestEpoch=accountSessionEpoch,current=()=>accountRequestIsCurrent(requestedUserId,requestEpoch);
- const status=document.getElementById('feedbackFormStatus');status.textContent='Sending…';
+ const status=document.getElementById('feedbackFormStatus');notifyStatus(status,'Sending…','info');
  try{
   const {error}=await supabaseClient.from('user_feedback').insert({user_id:requestedUserId,category:document.getElementById('feedbackCategory').value,subject:document.getElementById('feedbackSubject').value.trim(),message:document.getElementById('feedbackMessage').value.trim()});
   if(!current())return;
-  if(error){status.textContent='Could not send feedback: '+error.message;return;}
-  e.target.reset();status.textContent='Feedback sent. Thank you.';await loadUserSupport();
- }catch(error){if(current())status.textContent='Could not send feedback: '+(error.message||'Please try again.');}
+  if(error){notifyStatus(status,'Could not send feedback: '+error.message,'error');return;}
+  e.target.reset();notifyStatus(status,'Feedback sent. Thank you.','success');await loadUserSupport();
+ }catch(error){if(current())notifyStatus(status,'Could not send feedback: '+(error.message||'Please try again.'),'error');}
 });
 document.getElementById('supportMessageForm').addEventListener('submit',async e=>{
- e.preventDefault();if(!cloudUser||!supabaseClient)return document.getElementById('supportMessageStatus').textContent='Please sign in first.';
+ e.preventDefault();if(!cloudUser||!supabaseClient)return notifyStatus('supportMessageStatus','Please sign in first.','error');
  const requestedUserId=cloudUser.id,requestEpoch=accountSessionEpoch,chosenConversation= document.getElementById('messageConversationSelect')?.value||'support';
  const current=()=>accountRequestIsCurrent(requestedUserId,requestEpoch)&&String(document.getElementById('messageConversationSelect')?.value||'support')===String(chosenConversation);
  const form=e.target,body=document.getElementById('supportMessageBody'),status=document.getElementById('supportMessageStatus'),button=form.querySelector('button[type="submit"]'),message=body.value.trim();if(!message)return;
- button.disabled=true;status.textContent='Sending…';
+ button.disabled=true;notifyStatus(status,'Sending…','info');
  try{
   let error;
   if(chosenConversation==='support')({error}=await supabaseClient.from('support_messages').insert({sender_id:requestedUserId,recipient_id:null,body:message}));
   else ({error}=await supabaseClient.from('marketplace_messages').insert({owner_id:requestedUserId,buyer_id:chosenConversation,sender_id:requestedUserId,body:message}));
   if(!current())return;
-  if(error){status.textContent='Could not send message: '+error.message;return;}
-  form.reset();body.style.height='auto';status.textContent='';await loadUserSupport();
- }catch(error){if(current())status.textContent='Could not send message: '+(error.message||'Please try again.');}
+  if(error){notifyStatus(status,'Could not send message: '+error.message,'error');return;}
+  form.reset();body.style.height='auto';notifyStatus(status,'Message sent.','success');await loadUserSupport();
+ }catch(error){if(current())notifyStatus(status,'Could not send message: '+(error.message||'Please try again.'),'error');}
  finally{button.disabled=false;}
 });
 
@@ -4208,11 +4208,11 @@ document.getElementById('messengerComposer')?.addEventListener('submit',async e=
   else result=await supabaseClient.from('marketplace_messages').insert({owner_id:requestedUserId,buyer_id:conversationId,sender_id:requestedUserId,body});
   if(!current())return;
   if(result.error)throw result.error;
-  input.value='';input.style.height='auto';status.textContent='';
+  input.value='';input.style.height='auto';notifyStatus(status,'Message sent.','success');
   await openMessengerConversation(conversationId);
   if(!current())return;
   await loadMessengerConversations();
- }catch(err){if(current())status.textContent='Message not sent: '+(err.message||'Please try again.');}
+ }catch(err){if(current())notifyStatus(status,'Message not sent: '+(err.message||'Please try again.'),'error');}
  finally{button.disabled=false;}
 });
 if(messengerRefreshTimer)clearInterval(messengerRefreshTimer);
@@ -4308,18 +4308,18 @@ document.getElementById('adminReplyForm').addEventListener('submit',async e=>{
  if(!supabaseClient||!cloudUser||!sellbookIsAdmin)return;
  const requestedUserId=cloudUser.id,requestEpoch=adminAccessEpoch;
  const uid=document.getElementById('adminMessageUser').value,input=document.getElementById('adminReplyBody'),body=input.value.trim(),status=document.getElementById('adminReplyStatus'),send=e.target.querySelector('button[type="submit"]');
- if(!uid){status.textContent='Choose a user first.';return;}if(!body)return;
- send.disabled=true;status.textContent='Sending…';
+ if(!uid){notifyStatus(status,'Choose a user first.','error');return;}if(!body)return;
+ send.disabled=true;notifyStatus(status,'Sending…','info');
  try{
   const {error}=await supabaseClient.from('support_messages')
    .insert({sender_id:requestedUserId,recipient_id:uid,body});
   if(!adminRequestIsCurrent(requestedUserId,requestEpoch))return;
-  if(error){status.textContent='Could not send message: '+error.message;return;}
-  input.value='';input.style.height='auto';status.textContent='Message sent.';
+  if(error){notifyStatus(status,'Could not send message: '+error.message,'error');return;}
+  input.value='';input.style.height='auto';notifyStatus(status,'Message sent.','success');
   await loadAdminConversation();
   if(adminRequestIsCurrent(requestedUserId,requestEpoch))await loadAdminUsers();
  }catch(error){
-  if(adminRequestIsCurrent(requestedUserId,requestEpoch))status.textContent='Could not send message: '+(error.message||'Please try again.');
+  if(adminRequestIsCurrent(requestedUserId,requestEpoch))notifyStatus(status,'Could not send message: '+(error.message||'Please try again.'),'error');
  }finally{
   send.disabled=false;
  }
@@ -4334,17 +4334,17 @@ document.getElementById('adminNotificationForm').addEventListener('submit',async
  if(!supabaseClient||!cloudUser||!sellbookIsAdmin)return;
  const requestedUserId=cloudUser.id,requestEpoch=adminAccessEpoch;
  const audience=document.getElementById('notificationAudience').value,uid=document.getElementById('notificationUser').value,status=document.getElementById('adminNotificationStatus');
- if(audience==='selected'&&!uid){status.textContent='Choose a user.';return;}
+ if(audience==='selected'&&!uid){notifyStatus(status,'Choose a user.','error');return;}
  const payload={created_by:requestedUserId,recipient_id:audience==='selected'?uid:null,kind:document.getElementById('notificationKind').value,title:document.getElementById('notificationTitle').value.trim(),body:document.getElementById('notificationBody').value.trim()};
  const button=e.target.querySelector('button[type="submit"]');if(button)button.disabled=true;
  try{
   const {error}=await supabaseClient.from('app_notifications').insert(payload);
   if(!adminRequestIsCurrent(requestedUserId,requestEpoch))return;
-  if(error){status.textContent='Could not publish notification: '+error.message;return;}
-  e.target.reset();document.getElementById('notificationUserWrap').classList.add('hidden');status.textContent='Notification published.';
+  if(error){notifyStatus(status,'Could not publish notification: '+error.message,'error');return;}
+  e.target.reset();document.getElementById('notificationUserWrap').classList.add('hidden');notifyStatus(status,'Notification published.','success');
   await loadAdminNotifications();
  }catch(error){
-  if(adminRequestIsCurrent(requestedUserId,requestEpoch))status.textContent='Could not publish notification: '+(error.message||'Please try again.');
+  if(adminRequestIsCurrent(requestedUserId,requestEpoch))notifyStatus(status,'Could not publish notification: '+(error.message||'Please try again.'),'error');
  }finally{
   if(button)button.disabled=false;
  }
