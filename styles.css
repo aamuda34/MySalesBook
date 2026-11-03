@@ -2451,6 +2451,9 @@ body.dark #authPage .auth-email-entry,body.dark #authPage #emailAuthForm input{b
 }
 .app-status-close:focus-visible{outline:2px solid var(--green);outline-offset:2px}
 .app-status-source{display:none!important}
+#emailConfirmationMessage,#accountMessage,#securityPinMessage,#messengerStatus,#supportMessageStatus,
+#feedbackFormStatus,#adminReplyStatus,#adminNotificationStatus,#buybookConnectionMessage,
+#settingsAccountMessage,#accountEmailOtpMessage,#deleteAccountPinMessage{display:none!important}
 body.dark .app-status-popup{background:var(--surface);color:var(--ink);border-color:var(--border)}
 body.dark .app-status-icon{background:rgba(120,190,140,.16);color:#9dd5ad}
 body.dark .app-status-popup[data-type="error"] .app-status-icon{background:rgba(255,120,120,.15);color:#ff9b9b}
