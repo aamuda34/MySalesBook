@@ -40,7 +40,7 @@ const passwordPolicy = new Function(passwordPolicySource + '\nreturn passwordPol
 assert.equal(passwordPolicy('GoodPass9!'), '', 'A password meeting the full policy must be accepted.');
 assert.ok(passwordPolicy('short1!'), 'Short passwords must be rejected.');
 assert.ok(passwordPolicy('lowercase9!'), 'Passwords without uppercase letters must be rejected.');
-assert.ok(passwordPolicy('Uppercase9!'), 'Passwords without lowercase letters must be rejected.');
+assert.ok(passwordPolicy('UPPERCASE9!'), 'Passwords without lowercase letters must be rejected.');
 assert.ok(passwordPolicy('GoodPass!!'), 'Passwords without numbers must be rejected.');
 assert.ok(passwordPolicy('GoodPass99'), 'Passwords without symbols must be rejected.');
 assert.ok(passwordPolicy('GoodPass9 '), 'Whitespace alone must not count as a symbol.');
