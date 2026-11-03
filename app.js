@@ -140,6 +140,7 @@ function dismissToast(){
  if(!popup)return;
  popup.classList.remove('visible');
  popup.setAttribute('aria-hidden','true');
+ try{if(typeof popup.hidePopover==='function'&&popup.matches(':popover-open'))popup.hidePopover();}catch(_){}
  if(statusPopupTimer){clearTimeout(statusPopupTimer);statusPopupTimer=null;}
 }
 function showToast(message,type){
@@ -149,10 +150,20 @@ function showToast(message,type){
  const kind=['success','error','info'].includes(type)?type:inferToastType(text);
  const textNode=popup.querySelector('[data-toast-message]');
  const icon=popup.querySelector('[data-toast-icon]');
- // Keep the notification above native dialogs (PIN and email verification).
- const activeDialog=document.querySelector('dialog[open]');
- const destination=activeDialog||document.body;
- if(popup.parentElement!==destination)destination.appendChild(popup);
+ // Prefer the browser top layer so notices stay above every modal dialog.
+ // Older browsers fall back to placing the popup inside the currently open dialog.
+ let popupInTopLayer=false;
+ try{
+  if(typeof popup.showPopover==='function'){
+   if(!popup.matches(':popover-open'))popup.showPopover();
+   popupInTopLayer=true;
+  }
+ }catch(_){}
+ if(!popupInTopLayer){
+  const activeDialog=document.querySelector('dialog[open]');
+  const destination=activeDialog||document.body;
+  if(popup.parentElement!==destination)destination.appendChild(popup);
+ }
  if(textNode){textNode.textContent='';textNode.textContent=text;}else popup.textContent=text;
  if(icon)icon.textContent=kind==='error'?'!':kind==='success'?'✓':'i';
  popup.dataset.type=kind;
