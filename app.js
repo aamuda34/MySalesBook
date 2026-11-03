@@ -3047,7 +3047,7 @@ document.getElementById('changeEmailForm').addEventListener('submit',async event
   const email=document.getElementById('newAccountEmail').value.trim();
   const button=document.querySelector('#changeEmailForm button[type="submit"]');
   try{
-    if(!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email))throw Error('Enter a valid new email address.');
+    if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))throw Error('Enter a valid new email address.');
     const current=await getSellbookAccountSession();
     if(email.toLowerCase()===String(current.user.email||'').toLowerCase())throw Error('Enter an email address different from your current address.');
     button.disabled=true;button.textContent='Requesting change…';
