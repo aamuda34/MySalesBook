@@ -2736,6 +2736,7 @@ document.getElementById('recoveryPasswordForm').addEventListener('submit', async
     const { error } = await supabaseClient.auth.updateUser({ password });
     if (error) throw error;
     recoveryMode = false;
+    setAuthScreen('choices');
     document.getElementById('recoveryPasswordForm').classList.add('hidden');
     document.getElementById('recoveryPasswordForm').reset();
     history.replaceState(null, '', window.location.pathname + window.location.search);
