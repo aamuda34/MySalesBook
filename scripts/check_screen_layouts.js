@@ -113,6 +113,6 @@ assert.ok(!layer.includes('display:none!important'), 'Layout layer must not hide
 const spacingLayer = css.slice(css.lastIndexOf('/* Final spacing and scroll-safety refinement'));
 assert.ok(spacingLayer.includes('#me.me-page{'), 'Me page spacing refinements are missing.');
 assert.ok(spacingLayer.includes('#me .me-footer-note{'), 'Me footer readability rules are missing.');
-assert.ok(spacingLayer.includes('padding-bottom:calc(32px + env(safe-area-inset-bottom, 0px))'), 'Me page must reserve room above bottom navigation.');
+assert.ok(spacingLayer.includes('padding:0 0 calc(32px + env(safe-area-inset-bottom, 0px))'), 'Me page must reserve room above bottom navigation.');
 assert.ok(spacingLayer.includes('#appWorkspace>main>.page{'), 'Shared pages must reserve scroll space.');
 console.log('PASS: all 30 app screens are present, screen-specific layouts are covered, responsive breakpoints are present, Sellbook themes are preserved and layout CSS is balanced.');
