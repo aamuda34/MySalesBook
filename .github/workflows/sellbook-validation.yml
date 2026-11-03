@@ -121,7 +121,7 @@ jobs:
           grep -qi 'alter column created_by drop not null' supabase/migrations/20261102132753_allow_account_deletion_after_admin_notifications.sql
           grep -qi 'on delete set null' supabase/migrations/20261102132753_allow_account_deletion_after_admin_notifications.sql
           grep -q "const buckets=\['marketplace-product-images','product-images'\]" app.js
-          grep -q "rpc('verify_app_pin_for_account_deletion')" app.js
+          grep -q "rpc('verify_app_pin_for_account_deletion'" app.js
           grep -q "rpc('delete_my_account')" app.js
           grep -q 'offset+=pageFiles.length' app.js
           grep -q 'paths.slice(offset,offset+100)' app.js
