@@ -579,6 +579,22 @@ let securityPinGateMode='verify';
 let securityPinExpiresAt=0;
 let securityPinExpiryTimer=null;
 let securityPinStatusCheckInFlight=false;
+const securityPinLockKey=userId=>'sellbook-pin-lock-v1:'+String(userId||'');
+function persistSecurityPinLock(userId=cloudUser?.id){
+ if(!userId)return false;
+ try{localStorage.setItem(securityPinLockKey(userId),'locked');return true;}
+ catch(error){try{sessionStorage.setItem(securityPinLockKey(userId),'locked');return true;}catch(_){console.error('Sellbook could not persist its PIN lock state:',error);return false;}}
+}
+function hasPersistedSecurityPinLock(userId=cloudUser?.id){
+ if(!userId)return false;
+ try{return localStorage.getItem(securityPinLockKey(userId))==='locked'||sessionStorage.getItem(securityPinLockKey(userId))==='locked';}
+ catch(_){try{return sessionStorage.getItem(securityPinLockKey(userId))==='locked';}catch(__){return false;}}
+}
+function clearPersistedSecurityPinLock(userId=cloudUser?.id){
+ if(!userId)return;
+ try{localStorage.removeItem(securityPinLockKey(userId));}catch(_){}
+ try{sessionStorage.removeItem(securityPinLockKey(userId));}catch(_){}
+}
 
 function armSecurityPinExpiry(expiresAt){
  const parsed=Date.parse(expiresAt||'');
@@ -594,6 +610,7 @@ function armSecurityPinExpiry(expiresAt){
  return true;
 }
 function lockSellbookForPin(message){
+ persistSecurityPinLock();
  securityPinExpiresAt=0;
  if(securityPinExpiryTimer){clearTimeout(securityPinExpiryTimer);securityPinExpiryTimer=null;}
  document.getElementById('appWorkspace')?.classList.add('hidden');
@@ -608,6 +625,10 @@ async function recheckSellbookPinStatus(){
  if(!navigator.onLine)return;
  securityPinStatusCheckInFlight=true;
  try{
+  if(hasPersistedSecurityPinLock()){
+   showSecurityPinGate('verify','Sellbook is locked. Enter your six-digit PIN to continue.');
+   return false;
+  }
   const {data,error}=await supabaseClient.rpc('get_app_pin_status');
   if(error)throw error;
   if(data?.has_pin!==true){
@@ -633,8 +654,26 @@ async function recheckSellbookPinStatus(){
 }
 window.setInterval(recheckSellbookPinStatus,60000);
 window.addEventListener('focus',()=>recheckSellbookPinStatus());
+// Lock before the browser captures the app in its task-switcher preview. The
+// per-account marker survives a reload or PWA restart, so a still-valid server
+// PIN session cannot silently bypass the next unlock screen.
+function lockSellbookWhenLeavingApp(){
+ if(!cloudUser||securityPinGateVisible)return;
+ lockSellbookForPin('Sellbook locked because you left the app. Enter your six-digit PIN to continue.');
+}
 document.addEventListener('visibilitychange',()=>{
- if(!document.hidden)recheckSellbookPinStatus();
+ if(document.hidden){lockSellbookWhenLeavingApp();return;}
+ if(cloudUser&&hasPersistedSecurityPinLock())lockSellbookForPin('Sellbook is locked. Enter your six-digit PIN to continue.');
+ else recheckSellbookPinStatus();
+});
+window.addEventListener('pagehide',lockSellbookWhenLeavingApp);
+window.addEventListener('pageshow',()=>{
+ if(cloudUser&&hasPersistedSecurityPinLock())lockSellbookForPin('Sellbook is locked. Enter your six-digit PIN to continue.');
+});
+window.addEventListener('storage',event=>{
+ if(cloudUser&&event.key===securityPinLockKey(cloudUser.id)&&event.newValue==='locked'){
+  lockSellbookForPin('Sellbook is locked. Enter your six-digit PIN to continue.');
+ }
 });
 function showSecurityPinGate(mode='verify',message=''){
  securityPinGateVisible=true;
@@ -734,6 +773,7 @@ document.getElementById('securityPinForm')?.addEventListener('submit',async even
    return;
   }
   document.getElementById('securityPinForm').reset();
+  clearPersistedSecurityPinLock();
   hideSecurityPinGate();
   await handleCloudAuthChange();
  }catch(error){
