@@ -3539,3 +3539,6 @@ body.dark #appWorkspace .record-entry-page .product-category-option:has(input:ch
  #appWorkspace .record-entry-page .product-category-search-row{gap:5px}
  #appWorkspace .record-entry-page .category-browse-button{min-width:74px;padding-inline:8px}
 }
+
+/* Category lookup replaces the long category chip wall with one compact searchable control. */
+#appWorkspace .record-entry-page #categorySuggestionChips{display:none!important}
