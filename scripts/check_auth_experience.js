@@ -48,6 +48,8 @@ assert.ok(app.includes('if (recoveryMode) {\n        document.getElementById(\'a
 assert.ok(app.includes('if (recoveryMode) {\n        hideSecurityPinGate();'), 'Password recovery callback must also win over a PIN status request already in flight.');
 assert.ok(app.includes("recoveryMode = false;\n    setAuthScreen('choices');"), 'Completed password recovery must not leave a hidden form as the active auth screen.');
 assert.ok(app.includes('ensureSellbookPinAccess()'), 'Email sign-in must retain the server-verified PIN gate.');
+assert.ok(!app.includes('Sign in again with Google to reset your PIN.'), 'PIN recovery must offer a sign-in method-neutral instruction.');
+assert.ok(!app.includes('Sign in with Google before saving cloud records.'), 'Cloud access errors must not exclude email-authenticated users.');
 assert.ok(app.includes("openPasswordRecoveryButton?.addEventListener('click'"), 'Forgot-password entry point is not wired.');
 assert.ok(app.includes("accountRecoveryRequestForm?.addEventListener('submit'"), 'Recovery request form is not wired.');
 assert.ok(app.includes("supabaseClient.auth.resetPasswordForEmail(email"), 'The existing Supabase recovery endpoint must be used.');
