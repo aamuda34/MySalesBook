@@ -44,6 +44,7 @@ assert.ok(app.includes('supabaseClient.auth.signUp({email,password'), 'Email acc
 assert.ok(app.includes("supabaseClient.auth.resend({type:'signup'"), 'Signup confirmation email must be resendable.');
 assert.ok(app.includes('function passwordPolicyError(password)'), 'New passwords must satisfy the strength policy.');
 assert.ok(app.includes("setAuthScreen('new-password')"), 'Recovery callback must open its standalone password form.');
+assert.ok(app.includes("recoveryMode = false;\n    setAuthScreen('choices');"), 'Completed password recovery must not leave a hidden form as the active auth screen.');
 assert.ok(app.includes('ensureSellbookPinAccess()'), 'Email sign-in must retain the server-verified PIN gate.');
 assert.ok(app.includes("openPasswordRecoveryButton?.addEventListener('click'"), 'Forgot-password entry point is not wired.');
 assert.ok(app.includes("accountRecoveryRequestForm?.addEventListener('submit'"), 'Recovery request form is not wired.');
