@@ -789,7 +789,17 @@ async function handleCloudAuthChange() {
 
     if (user) {
       cloudUser = user;
-      // Every authenticated Sellbook session must pass the server-side PIN gate
+      // Password recovery must finish before the PIN gate or any business data
+      // loading. The recovery session is valid only for changing the password.
+      if (recoveryMode) {
+        document.getElementById('appWorkspace').classList.add('hidden');
+        document.getElementById('accountCard').classList.remove('hidden');
+        setAuthScreen('new-password');
+        coreWorkspaceLoaded = true;
+        finishStartup();
+        return;
+      }
+      // Every normal authenticated Sellbook session must pass the server-side PIN gate
       // before any private business rows are loaded or rendered.
       const pinAllowed = await ensureSellbookPinAccess();
       if (!pinAllowed) {
