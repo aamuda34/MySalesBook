@@ -668,10 +668,12 @@ function hideSecurityPinGate(){
 async function ensureSellbookPinAccess(){
  if(!cloudUser||!supabaseClient)throw Error('Sign in before verifying your Sellbook PIN.');
  if(sessionStorage.getItem('sellbook-pin-reset-after-auth')==='yes'){
-  const reset=await supabaseClient.rpc('reset_app_pin_after_reauth');
-  if(reset.error)throw reset.error;
-  sessionStorage.removeItem('sellbook-pin-reset-after-auth');
-  showSecurityPinGate('setup','Your identity was re-authenticated. Create a new six-digit PIN.');
+  showSecurityPinGate('verify','Verify your registered email address to reset your Sellbook PIN.');
+  if(!accountEmailOtpState&&!accountEmailOtpBusy){
+   requestAccountActionEmailOtp('change_pin').catch(error=>{
+    document.getElementById('securityPinMessage').textContent='Could not send the email verification code: '+(error.message||'Please retry PIN recovery.');
+   });
+  }
   return false;
  }
  const {data,error}=await supabaseClient.rpc('get_app_pin_status');
@@ -2533,7 +2535,7 @@ async function requestAccountActionEmailOtp(action){
     accountEmailOtpState={action,client:otpClient,userId:current.user.id,email,targetSessionId:current.sessionId};
     document.getElementById('accountManagePanel').classList.add('hidden');
     document.getElementById('changeEmailForm')?.classList.add('hidden');
-    document.getElementById('accountEmailOtpPanel').classList.remove('hidden');
+    document.getElementById('accountEmailOtpPanel').showModal();
     document.getElementById('accountEmailOtpTitle').textContent=action==='change_pin'?'Verify email to change your PIN':'Verify your current email address';
     document.getElementById('accountEmailOtpDescription').textContent='Enter the six-digit verification code sent to '+email+'. The code is required before Sellbook allows this account change.';
     document.getElementById('accountEmailOtp').value='';
@@ -2547,9 +2549,10 @@ async function requestAccountActionEmailOtp(action){
 function clearAccountEmailOtp(){
   const pending=accountEmailOtpState;accountEmailOtpState=null;
   if(pending?.client)pending.client.auth.signOut({scope:'local'}).catch(()=>{});
-  document.getElementById('accountEmailOtpPanel')?.classList.add('hidden');
+  document.getElementById('accountEmailOtpPanel')?.close();
   document.getElementById('accountManagePanel')?.classList.remove('hidden');
   const code=document.getElementById('accountEmailOtp');if(code)code.value='';
+  if(sessionStorage.getItem('sellbook-pin-reset-after-auth')==='yes')showSecurityPinGate('verify','Email verification is required before Sellbook can reset your PIN.');
 }
 document.getElementById('changeEmailVerifyButton')?.addEventListener('click',async()=>{
   const button=document.getElementById('changeEmailVerifyButton'),message=document.getElementById('settingsAccountMessage');
@@ -2579,6 +2582,11 @@ document.getElementById('resendAccountEmailOtpButton')?.addEventListener('click'
   finally{accountEmailOtpBusy=false;button.disabled=false;button.textContent='Resend code';}
 });
 document.getElementById('cancelAccountEmailOtpButton')?.addEventListener('click',clearAccountEmailOtp);
+document.getElementById('accountEmailOtpPanel')?.addEventListener('cancel',()=>{
+  const pending=accountEmailOtpState;accountEmailOtpState=null;
+  if(pending?.client)pending.client.auth.signOut({scope:'local'}).catch(()=>{});
+  if(sessionStorage.getItem('sellbook-pin-reset-after-auth')==='yes')showSecurityPinGate('verify','Email verification is required before Sellbook can reset your PIN.');
+});
 document.getElementById('accountEmailOtp')?.addEventListener('input',event=>{
   event.target.value=Array.from(event.target.value).filter(ch=>ch>='0'&&ch<='9').slice(0,6).join('');
 });
@@ -2601,8 +2609,15 @@ document.getElementById('accountEmailOtpForm')?.addEventListener('submit',async 
     if(grantError)throw grantError;
     if(grant?.verified!==true)throw Error('Sellbook could not authorise this account change. Request a new code and retry.');
     const action=state.action,otpClient=state.client;accountEmailOtpState=null;
-    document.getElementById('accountEmailOtpPanel').classList.add('hidden');document.getElementById('accountEmailOtp').value='';
-    if(action==='change_pin'){
+    document.getElementById('accountEmailOtpPanel').close();document.getElementById('accountEmailOtp').value='';
+    if(action==='change_pin'&&sessionStorage.getItem('sellbook-pin-reset-after-auth')==='yes'){
+      const {data:resetData,error:resetError}=await supabaseClient.rpc('reset_app_pin_after_reauth');
+      if(resetError)throw resetError;
+      if(resetData?.reset!==true)throw Error('Sellbook could not authorise the PIN reset. Start PIN recovery again.');
+      sessionStorage.removeItem('sellbook-pin-reset-after-auth');
+      document.getElementById('accountManagePanel').classList.add('hidden');
+      showSecurityPinGate('setup','Your email address is verified. Create a new six-digit PIN to finish PIN recovery.');
+    }else if(action==='change_pin'){
       document.getElementById('accountManagePanel').classList.add('hidden');
       showSecurityPinGate('change','Your email address has been verified. Enter a new six-digit PIN twice to complete the change.');
     }else{
