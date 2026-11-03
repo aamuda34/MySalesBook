@@ -580,20 +580,68 @@ let securityPinExpiresAt=0;
 let securityPinExpiryTimer=null;
 let securityPinStatusCheckInFlight=false;
 const securityPinLockKey=userId=>'sellbook-pin-lock-v1:'+String(userId||'');
+const securityPinPendingKey=userId=>'sellbook-pin-background-pending-v1:'+String(userId||'');
+// A true browser refresh is a document reload, not the user leaving Sellbook.
+// Pending background locks are deliberately not permanent until the app is
+// visible again (or a discarded page is restored). This lets a refresh cancel
+// the pending marker without weakening a lock that was already committed.
+let securityPinReloadExemptionAvailable=(()=>{
+ try{
+  const entry=window.performance?.getEntriesByType?.('navigation')?.[0];
+  return entry?.type==='reload'&&document.wasDiscarded!==true;
+ }catch(_){return false;}
+})();
 function persistSecurityPinLock(userId=cloudUser?.id){
  if(!userId)return false;
  try{localStorage.setItem(securityPinLockKey(userId),'locked');return true;}
  catch(error){try{sessionStorage.setItem(securityPinLockKey(userId),'locked');return true;}catch(_){console.error('Sellbook could not persist its PIN lock state:',error);return false;}}
 }
+function setPendingSecurityPinLock(userId=cloudUser?.id){
+ if(!userId)return false;
+ const key=securityPinPendingKey(userId);
+ let saved=false;
+ try{sessionStorage.setItem(key,'pending');saved=true;}catch(_){}
+ try{localStorage.setItem(key,'pending');saved=true;}catch(_){}
+ return saved;
+}
+function hasPendingSecurityPinLock(userId=cloudUser?.id){
+ if(!userId)return false;
+ const key=securityPinPendingKey(userId);
+ try{if(sessionStorage.getItem(key)==='pending')return true;}catch(_){}
+ try{return localStorage.getItem(key)==='pending';}catch(_){return false;}
+}
+function clearPendingSecurityPinLock(userId=cloudUser?.id){
+ if(!userId)return;
+ const key=securityPinPendingKey(userId);
+ try{sessionStorage.removeItem(key);}catch(_){}
+ try{localStorage.removeItem(key);}catch(_){}
+}
 function hasPersistedSecurityPinLock(userId=cloudUser?.id){
  if(!userId)return false;
- try{return localStorage.getItem(securityPinLockKey(userId))==='locked'||sessionStorage.getItem(securityPinLockKey(userId))==='locked';}
- catch(_){try{return sessionStorage.getItem(securityPinLockKey(userId))==='locked';}catch(__){return false;}}
+ // The previous document may have staged a lock just before a manual reload.
+ // Discard that pending marker only for a confirmed user-initiated reload;
+ // committed locks always remain in place.
+ if(securityPinReloadExemptionAvailable){
+  securityPinReloadExemptionAvailable=false;
+  clearPendingSecurityPinLock(userId);
+ }
+ try{
+  if(localStorage.getItem(securityPinLockKey(userId))==='locked'||sessionStorage.getItem(securityPinLockKey(userId))==='locked')return true;
+ }catch(_){
+  try{if(sessionStorage.getItem(securityPinLockKey(userId))==='locked')return true;}catch(__){}
+ }
+ if(hasPendingSecurityPinLock(userId)){
+  clearPendingSecurityPinLock(userId);
+  persistSecurityPinLock(userId);
+  return true;
+ }
+ return false;
 }
 function clearPersistedSecurityPinLock(userId=cloudUser?.id){
  if(!userId)return;
  try{localStorage.removeItem(securityPinLockKey(userId));}catch(_){}
  try{sessionStorage.removeItem(securityPinLockKey(userId));}catch(_){}
+ clearPendingSecurityPinLock(userId);
 }
 
 function armSecurityPinExpiry(expiresAt){
@@ -611,6 +659,7 @@ function armSecurityPinExpiry(expiresAt){
 }
 function lockSellbookForPin(message){
  persistSecurityPinLock();
+ clearPendingSecurityPinLock();
  securityPinExpiresAt=0;
  if(securityPinExpiryTimer){clearTimeout(securityPinExpiryTimer);securityPinExpiryTimer=null;}
  document.getElementById('appWorkspace')?.classList.add('hidden');
@@ -654,19 +703,22 @@ async function recheckSellbookPinStatus(){
 }
 window.setInterval(recheckSellbookPinStatus,60000);
 window.addEventListener('focus',()=>recheckSellbookPinStatus());
-// Lock before the browser captures the app in its task-switcher preview. The
-// per-account marker survives a reload or PWA restart, so a still-valid server
-// PIN session cannot silently bypass the next unlock screen.
+// Hide private records as soon as Sellbook moves to the background. Keep
+// this as a pending lock until the same app session resumes: a manual refresh
+// is a reload, not an app exit, and must not create a new PIN prompt.
 function lockSellbookWhenLeavingApp(){
  if(!cloudUser||securityPinGateVisible)return;
- lockSellbookForPin('Sellbook locked because you left the app. Enter your six-digit PIN to continue.');
+ setPendingSecurityPinLock();
+ document.getElementById('appWorkspace')?.classList.add('hidden');
+ showSecurityPinGate('verify','Sellbook is locked while you are away. Enter your six-digit PIN to continue.');
 }
 document.addEventListener('visibilitychange',()=>{
  if(document.hidden){lockSellbookWhenLeavingApp();return;}
  if(cloudUser&&hasPersistedSecurityPinLock())lockSellbookForPin('Sellbook is locked. Enter your six-digit PIN to continue.');
  else recheckSellbookPinStatus();
 });
-window.addEventListener('pagehide',lockSellbookWhenLeavingApp);
+// Do not lock on pagehide: browsers also fire it for refresh/reload. When a
+// hidden page is actually restored, pageshow promotes its pending lock.
 window.addEventListener('pageshow',()=>{
  if(cloudUser&&hasPersistedSecurityPinLock())lockSellbookForPin('Sellbook is locked. Enter your six-digit PIN to continue.');
 });
