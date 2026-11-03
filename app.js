@@ -585,7 +585,7 @@ const securityPinPendingKey=userId=>'sellbook-pin-background-pending-v1:'+String
 // Pending background locks are deliberately not permanent until the app is
 // visible again (or a discarded page is restored). This lets a refresh cancel
 // the pending marker without weakening a lock that was already committed.
-const securityPinIsIntentionalReload=(()=>{
+let securityPinReloadExemptionAvailable=(()=>{
  try{
   const entry=window.performance?.getEntriesByType?.('navigation')?.[0];
   return entry?.type==='reload'&&document.wasDiscarded!==true;
@@ -621,7 +621,10 @@ function hasPersistedSecurityPinLock(userId=cloudUser?.id){
  // The previous document may have staged a lock just before a manual reload.
  // Discard that pending marker only for a confirmed user-initiated reload;
  // committed locks always remain in place.
- if(securityPinIsIntentionalReload)clearPendingSecurityPinLock(userId);
+ if(securityPinReloadExemptionAvailable){
+  securityPinReloadExemptionAvailable=false;
+  clearPendingSecurityPinLock(userId);
+ }
  try{
   if(localStorage.getItem(securityPinLockKey(userId))==='locked'||sessionStorage.getItem(securityPinLockKey(userId))==='locked')return true;
  }catch(_){
