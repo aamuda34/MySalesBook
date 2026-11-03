@@ -4003,7 +4003,7 @@ async function loadUserNotifications(){
  target.textContent='Loading notifications…';
  const {data,error}=await supabaseClient.from('app_notifications').select('id,title,body,kind,created_at').or('recipient_id.is.null,recipient_id.eq.'+requestedUserId).order('created_at',{ascending:false}).limit(100);
  if(!accountRequestIsCurrent(requestedUserId,requestEpoch))return;
- if(error){target.textContent='Could not load notifications: '+error.message;return;}
+ if(error){showToast('Could not load notifications: '+error.message,'error');target.textContent='Notifications are temporarily unavailable.';return;}
  userNotificationsCache=data||[];renderUserNotifications();
 }
 
