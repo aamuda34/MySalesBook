@@ -731,7 +731,7 @@ document.getElementById('securityPinForgot')?.addEventListener('click',async()=>
   if(error)throw error;
   hideSecurityPinGate();
   document.getElementById('accountCard')?.classList.remove('hidden');
-  document.getElementById('accountMessage').textContent='Sign in again with Google to reset your PIN. The reset is allowed only immediately after a fresh sign-in.';
+  document.getElementById('accountMessage').textContent='Sign in again with Google or email to reset your PIN. The reset is allowed only immediately after a fresh sign-in.';
   await refreshAccountStatus();
  }catch(error){
   sessionStorage.removeItem('sellbook-pin-reset-after-auth');
@@ -1061,7 +1061,7 @@ async function requireCloudUser(expectedUserId=cloudUser?.id||null) {
   if (!supabaseClient) throw Error('Cloud connection is unavailable.');
   const {data,error}=await supabaseClient.auth.getUser();
   if(error) throw error;
-  if(!data.user) throw Error('Sign in with Google before saving cloud records.');
+  if(!data.user) throw Error('Sign in to Sellbook before saving cloud records.');
   if(expectedUserId&&data.user.id!==expectedUserId)throw Error('Your Sellbook account changed during this operation. Please retry from the current account.');
   cloudUser=data.user;
   return data.user;
