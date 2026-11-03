@@ -115,4 +115,9 @@ assert.ok(spacingLayer.includes('#me.me-page{'), 'Me page spacing refinements ar
 assert.ok(spacingLayer.includes('#me .me-footer-note{'), 'Me footer readability rules are missing.');
 assert.ok(spacingLayer.includes('padding:0 0 calc(32px + env(safe-area-inset-bottom, 0px))'), 'Me page must reserve room above bottom navigation.');
 assert.ok(spacingLayer.includes('#appWorkspace>main>.page{'), 'Shared pages must reserve scroll space.');
+const signInLayer = css.slice(css.lastIndexOf('/* SIGN-IN — polished first impression'));
+assert.ok(signInLayer.includes('body:has(#accountCard:not(.hidden)) #accountCard{'), 'Professional sign-in card styling is missing.');
+assert.ok(signInLayer.includes('#googleSignIn'), 'Primary Google sign-in button styling is missing.');
+assert.ok(signInLayer.includes('prefers-reduced-motion'), 'Sign-in animation must respect reduced-motion preferences.');
+assert.ok(signInLayer.includes('@media(max-width:380px)'), 'Sign-in must include narrow-screen adjustments.');
 console.log('PASS: all 30 app screens are present, screen-specific layouts are covered, responsive breakpoints are present, Sellbook themes are preserved and layout CSS is balanced.');
