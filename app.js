@@ -180,7 +180,7 @@ function cloudMessage(text,type){
  if(settings)settings.textContent=value;
  if(value.trim())showToast(value,type);
 }
-
+document.querySelector('[data-toast-close]')?.addEventListener('click',dismissToast);
 
 let localSnapshot = null;
 let authTransition = false;
@@ -4201,7 +4201,7 @@ document.getElementById('messengerComposer')?.addEventListener('submit',async e=
  const requestedUserId=cloudUser.id,requestEpoch=accountSessionEpoch,conversationId=messengerSelectedConversation;
  const current=()=>accountRequestIsCurrent(requestedUserId,requestEpoch)&&String(messengerSelectedConversation)===String(conversationId);
  const input=document.getElementById('messengerBody'),status=document.getElementById('messengerStatus'),button=e.currentTarget.querySelector('button[type="submit"]'),body=input.value.trim();if(!body)return;
- button.disabled=true;status.textContent='Sending…';
+ button.disabled=true;notifyStatus(status,'Sending…','info');
  try{
   let result;
   if(conversationId==='support')result=await supabaseClient.from('support_messages').insert({sender_id:requestedUserId,recipient_id:null,body});
