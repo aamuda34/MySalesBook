@@ -101,7 +101,7 @@ let storageMode='memory';
 // Keep the last confirmed local snapshot so failed writes cannot leave unsaved edits visible.
 let lastSavedSnapshot=JSON.stringify(normalizeDb(db));
 function load(){try{const raw=localStorage.getItem(DBKEY);if(raw)db=normalizeDb(JSON.parse(raw));else db=normalizeDb(db);lastSavedSnapshot=JSON.stringify(db);storageMode='browser';}catch(e){db=normalizeDb(db);lastSavedSnapshot=JSON.stringify(db);storageMode='memory';}}
-function save(){try{db=normalizeDb(db);const serialized=JSON.stringify(db);localStorage.setItem(DBKEY,serialized);lastSavedSnapshot=serialized;storageMode='browser';return true;}catch(e){if(lastSavedSnapshot){try{db=normalizeDb(JSON.parse(lastSavedSnapshot));}catch(restoreError){console.error('Could not restore the last saved local records:',restoreError);}}storageMode=lastSavedSnapshot?'browser':'memory';render();alert('Could not save this change permanently. Your last successfully saved records have been restored. Check device storage and try again.');return false;}}
+function save(){try{db=normalizeDb(db);const serialized=JSON.stringify(db);localStorage.setItem(DBKEY,serialized);lastSavedSnapshot=serialized;storageMode='browser';return true;}catch(e){if(lastSavedSnapshot){try{db=normalizeDb(JSON.parse(lastSavedSnapshot));}catch(restoreError){console.error('Could not restore the last saved local records:',restoreError);}}storageMode=lastSavedSnapshot?'browser':'memory';render();showToast('Could not save this change permanently. Your last successfully saved records have been restored. Check device storage and try again.');return false;}}
 
 let cloudUser = null;
 let accountSessionEpoch = 0;
@@ -128,21 +128,70 @@ async function saveCloudChangesLocally(changes,options={}) {
 }
 async function saveCloudChangeLocally(type,payload,options={}) { return saveCloudChangesLocally([{type,payload}],options); }
 
-function cloudMessage(text){const el=document.getElementById('accountMessage'),settings=document.getElementById('settingsAccountMessage');if(el)el.textContent=text;if(settings)settings.textContent=text;}
 let statusPopupTimer=null;
-function showToast(message,type='info'){
+function inferToastType(message){
+ const value=String(message||'').toLowerCase();
+ if(/could not|cannot|can't|failed|failure|error|unable|not sent|not saved|not updated|not connected|incorrect|invalid|unavailable|expired|does not match|do not match|must be|enter exactly|choose at least|connect to the internet|blocked|denied|already exists|^choose\b|^enter\b|^select\b|^provide\b|^type\b|^confirm\b/.test(value))return 'error';
+ if(/saved|created|sent|updated|approved|rejected|restored|deleted|verified|connected successfully|successfully|synchronised|synchronized|all changes|queued .*record|backup file created|notification published|message sent|account created|signed out|unlocked/.test(value))return 'success';
+ return 'info';
+}
+function dismissToast(){
+ const popup=document.getElementById('appStatusPopup');
+ if(!popup)return;
+ popup.classList.remove('visible');
+ popup.setAttribute('aria-hidden','true');
+ try{if(typeof popup.hidePopover==='function'&&popup.matches(':popover-open'))popup.hidePopover();}catch(_){}
+ if(statusPopupTimer){clearTimeout(statusPopupTimer);statusPopupTimer=null;}
+}
+function showToast(message,type){
  const popup=document.getElementById('appStatusPopup');
  const text=String(message??'').trim();
  if(!popup||!text)return;
- const kind=['success','error','info'].includes(type)?type:'info';
- popup.textContent=text;popup.dataset.type=kind;
+ const kind=['success','error','info'].includes(type)?type:inferToastType(text);
+ const textNode=popup.querySelector('[data-toast-message]');
+ const icon=popup.querySelector('[data-toast-icon]');
+ // Prefer the browser top layer so notices stay above every modal dialog.
+ // Older browsers fall back to placing the popup inside the currently open dialog.
+ let popupInTopLayer=false;
+ try{
+  if(typeof popup.showPopover==='function'){
+   if(!popup.matches(':popover-open'))popup.showPopover();
+   popupInTopLayer=true;
+  }
+ }catch(_){}
+ if(!popupInTopLayer){
+  const activeDialog=document.querySelector('dialog[open]');
+  const destination=activeDialog||document.body;
+  if(popup.parentElement!==destination)destination.appendChild(popup);
+ }
+ if(textNode){textNode.textContent='';textNode.textContent=text;}else popup.textContent=text;
+ if(icon)icon.textContent=kind==='error'?'!':kind==='success'?'✓':'i';
+ popup.dataset.type=kind;
+ popup.setAttribute('role',kind==='error'?'alert':'status');
+ popup.setAttribute('aria-live',kind==='error'?'assertive':'polite');
+ popup.setAttribute('aria-atomic','true');
+ popup.setAttribute('aria-hidden','false');
  popup.classList.remove('visible');
  void popup.offsetWidth;
  popup.classList.add('visible');
  if(statusPopupTimer)clearTimeout(statusPopupTimer);
- statusPopupTimer=setTimeout(()=>{popup.classList.remove('visible');statusPopupTimer=null;},5000);
+ const duration=kind==='error'?10000:kind==='success'?4800:6500;
+ statusPopupTimer=setTimeout(dismissToast,duration);
 }
-
+function notifyStatus(target,message,type){
+ const element=typeof target==='string'?document.getElementById(target):target;
+ const value=String(message??'').trim();
+ if(element)element.textContent=value;
+ if(value)showToast(value,type);
+}
+function cloudMessage(text,type){
+ const value=String(text??'');
+ const el=document.getElementById('accountMessage'),settings=document.getElementById('settingsAccountMessage');
+ if(el)el.textContent=value;
+ if(settings)settings.textContent=value;
+ if(value.trim())showToast(value,type);
+}
+document.querySelector('[data-toast-close]')?.addEventListener('click',dismissToast);
 
 let localSnapshot = null;
 let authTransition = false;
@@ -244,6 +293,7 @@ function restoreCloudCache(userId) {
   } catch (_) {}
   return false;
 }
+let lastSyncAlertKey='';
 function updateSyncStatus() {
   const el = document.getElementById('syncStatus');
   const button = document.getElementById('syncNowBtn');
@@ -251,6 +301,13 @@ function updateSyncStatus() {
   const waiting = pendingSync.filter(item => item.status !== 'synced').length;
   const conflicts = pendingSync.filter(item => item.status === 'conflict').length;
   const queueRecoveryRequired=!!cloudUser&&queueReadErrors.has(cloudUser.id);
+  const syncAlertKey=queueRecoveryRequired?'recovery:'+cloudUser.id:conflicts?'conflict:'+cloudUser?.id+':'+conflicts:'';
+  if(syncAlertKey&&syncAlertKey!==lastSyncAlertKey){
+    showToast(queueRecoveryRequired
+      ?'Your saved sync queue needs recovery. Sellbook has stopped syncing to protect your unsynchronised records.'
+      :conflicts+' change(s) need attention before sync can finish. Open Sync and data to review them.','error');
+  }
+  lastSyncAlertKey=syncAlertKey;
   el.textContent = !cloudUser ? 'Sign in to sync your business records.' :
     queueRecoveryRequired ? 'The saved sync queue needs recovery. Sellbook has stopped syncing to protect your unsynchronised records.' :
     conflicts ? conflicts + ' change(s) need attention. ' + waiting + ' change(s) remain unsynchronised.' :
@@ -705,7 +762,7 @@ async function recheckSellbookPinStatus(){
   // only until the previously-issued server expiry timer fires.
   if(navigator.onLine){
    lockSellbookForPin('Sellbook could not confirm your PIN session. Reconnect and verify your PIN again.');
-   document.getElementById('securityPinMessage').textContent=error.message||'PIN verification service is unavailable.';
+   notifyStatus('securityPinMessage',error.message||'PIN verification service is unavailable.','error');
   }
  }finally{
   securityPinStatusCheckInFlight=false;
@@ -780,7 +837,7 @@ function showSecurityPinGate(mode='verify',message=''){
   input.autocomplete='current-password';
  }
  input.value='';confirmInput.value='';
- document.getElementById('securityPinMessage').textContent=message||'';
+ notifyStatus('securityPinMessage',message||'');
  setTimeout(()=>input.focus(),40);
 }
 function hideSecurityPinGate(){
@@ -793,7 +850,7 @@ async function ensureSellbookPinAccess(){
   showSecurityPinGate('verify','Verify your registered email address to reset your Sellbook PIN.');
   if(!accountEmailOtpState&&!accountEmailOtpBusy){
    requestAccountActionEmailOtp('change_pin').catch(error=>{
-    document.getElementById('securityPinMessage').textContent='Could not send the email verification code: '+(error.message||'Please retry PIN recovery.');
+    notifyStatus('securityPinMessage','Could not send the email verification code: '+(error.message||'Please retry PIN recovery.'),'error');
    });
   }
   return false;
@@ -828,10 +885,10 @@ document.getElementById('securityPinForm')?.addEventListener('submit',async even
  const confirmation=document.getElementById('securityPinConfirm').value;
  const status=document.getElementById('securityPinMessage');
  const button=document.getElementById('securityPinSubmit');
- if(pin.length!==6||!Array.from(pin).every(ch=>ch>='0'&&ch<='9')){status.textContent='Enter exactly six digits.';return;}
- if((securityPinGateMode==='setup'||securityPinGateMode==='change')&&pin!==confirmation){status.textContent='The two PIN entries do not match.';return;}
+ if(pin.length!==6||!Array.from(pin).every(ch=>ch>='0'&&ch<='9')){notifyStatus(status,'Enter exactly six digits.','error');return;}
+ if((securityPinGateMode==='setup'||securityPinGateMode==='change')&&pin!==confirmation){notifyStatus(status,'The two PIN entries do not match.','error');return;}
  button.disabled=true;button.textContent=(securityPinGateMode==='setup'||securityPinGateMode==='change')?'Saving…':'Verifying…';
- status.textContent='Checking your PIN securely…';
+ notifyStatus(status,'Checking your PIN securely…','info');
  try{
   const settingPin=securityPinGateMode==='setup'||securityPinGateMode==='change';
   const {data,error}=await supabaseClient.rpc(settingPin?'set_app_pin':'verify_app_pin',{p_pin:pin});
@@ -839,7 +896,7 @@ document.getElementById('securityPinForm')?.addEventListener('submit',async even
   if(data?.requires_setup===true){showSecurityPinGate('setup','Create a new six-digit PIN to secure this account.');return;}
   if(data?.verified!==true){
    const locked=data?.locked_until?(' Locked until '+new Date(data.locked_until).toLocaleTimeString()+'.'):'';
-   status.textContent=(data?.message||'The PIN could not be verified.')+(Number.isFinite(Number(data?.attempts_remaining))?' Attempts remaining: '+data.attempts_remaining+'.':'')+locked;
+   notifyStatus(status,(data?.message||'The PIN could not be verified.')+(Number.isFinite(Number(data?.attempts_remaining))?' Attempts remaining: '+data.attempts_remaining+'.':'')+locked,'error');
    return;
   }
   document.getElementById('securityPinForm').reset();
@@ -847,27 +904,27 @@ document.getElementById('securityPinForm')?.addEventListener('submit',async even
   hideSecurityPinGate();
   await handleCloudAuthChange();
  }catch(error){
-  status.textContent='PIN operation failed: '+(error.message||'Please try again.');
+  notifyStatus(status,'PIN operation failed: '+(error.message||'Please try again.'),'error');
  }finally{
   button.disabled=false;
   button.textContent=(securityPinGateMode==='setup'||securityPinGateMode==='change')?(securityPinGateMode==='setup'?'Create PIN':'Save new PIN'):'Unlock Sellbook';
  }
 });
 document.getElementById('securityPinForgot')?.addEventListener('click',async()=>{
- if(!supabaseClient||!navigator.onLine){document.getElementById('securityPinMessage').textContent='Connect to the internet before resetting your PIN.';return;}
+ if(!supabaseClient||!navigator.onLine){notifyStatus('securityPinMessage','Connect to the internet before resetting your PIN.','error');return;}
  const button=document.getElementById('securityPinForgot');button.disabled=true;
- document.getElementById('securityPinMessage').textContent='Signing out so you can securely sign in again…';
+ notifyStatus('securityPinMessage','Signing out so you can securely sign in again…','info');
  try{
   sessionStorage.setItem('sellbook-pin-reset-after-auth','yes');
   const {error}=await supabaseClient.auth.signOut({scope:'local'});
   if(error)throw error;
   hideSecurityPinGate();
   document.getElementById('accountCard')?.classList.remove('hidden');
-  document.getElementById('accountMessage').textContent='Sign in again with Google or email to reset your PIN. The reset is allowed only immediately after a fresh sign-in.';
+  cloudMessage('Sign in again with Google or email to reset your PIN. The reset is allowed only immediately after a fresh sign-in.','info');
   await refreshAccountStatus();
  }catch(error){
   sessionStorage.removeItem('sellbook-pin-reset-after-auth');
-  document.getElementById('securityPinMessage').textContent='Could not start PIN recovery: '+(error.message||'Please try again.');
+  notifyStatus('securityPinMessage','Could not start PIN recovery: '+(error.message||'Please try again.'),'error');
  }finally{button.disabled=false;}
 });
 // Existing PIN changes are started only after successful email OTP verification.
@@ -1033,7 +1090,7 @@ async function handleCloudAuthChange() {
       document.getElementById('appWorkspace').classList.add('hidden');
       document.getElementById('accountCard').classList.add('hidden');
       showSecurityPinGate('verify','Sellbook could not confirm this session\'s PIN status. Reconnect and verify again.');
-      document.getElementById('securityPinMessage').textContent=err.message||'PIN verification service is unavailable.';
+      notifyStatus('securityPinMessage',err.message||'PIN verification service is unavailable.','error');
       coreWorkspaceLoaded = true;
       finishStartup();
       console.error('Sellbook PIN gate check failed:',err);
@@ -1098,7 +1155,7 @@ async function loadBuybookConnection() {
   status.textContent='Checking Buybook connection…';
   const {data,error}=await supabaseClient.from('marketplace_shops').select('name,description,phone,address,city,state,is_connected,is_active').eq('owner_id',requestedUserId).maybeSingle();
   if(!current())return;
-  if(error){buybookConnectionState=null;setConnectionView(false);buybookConnectionState=null;renderGettingStarted();status.textContent='Could not check Buybook connection. Please try again.';console.error(error);return;}
+  if(error){buybookConnectionState=null;setConnectionView(false);buybookConnectionState=null;renderGettingStarted();status.textContent='Could not check Buybook connection. Please try again.';showToast('Could not check Buybook connection. Please try again.','error');console.error(error);return;}
   const connected=!!(data&&data.is_connected&&data.is_active);
   if(data){
     document.getElementById('buybookShopName').value=data.name||'';
@@ -1121,7 +1178,7 @@ let marketplaceSelectedBuyerId=null;
 let marketplaceActivityBusy=false;
 let marketplaceActivityRequestId=0;
 function marketplaceBuyerName(id){return marketplaceSubscribersCache.find(x=>x.buyer_id===id)?.display_name||('Buyer '+String(id||'').slice(-6));}
-async function loadBuybookActivity(){
+async function loadBuybookActivity(options={}){
  const subscribersTarget=document.getElementById('marketplaceSubscriberList');
  const reservationsTarget=document.getElementById('marketplaceReservationsList');
  if(!subscribersTarget||!reservationsTarget)return;
@@ -1160,8 +1217,9 @@ async function loadBuybookActivity(){
   if(marketplaceSelectedBuyerId){const selector=document.getElementById('messageConversationSelect');if(selector)selector.value=marketplaceSelectedBuyerId;}
  }catch(err){
   if(current()){
-   if(!marketplaceSubscribersCache.length)subscribersTarget.innerHTML='Could not load subscribers: '+escAdmin(err.message||String(err));
-   reservationsTarget.innerHTML='Could not load reservations: '+escAdmin(err.message||String(err));
+   if(!options.quiet)showToast('Could not load Buybook activity: '+(err.message||'Please refresh and try again.'),'error');
+   if(!marketplaceSubscribersCache.length)subscribersTarget.innerHTML='<div class="empty">Subscriber information is temporarily unavailable.</div>';
+   reservationsTarget.innerHTML='<div class="empty">Reservation information is temporarily unavailable.</div>';
   }
  }finally{if(requestId===marketplaceActivityRequestId)marketplaceActivityBusy=false;}
 }
@@ -1169,22 +1227,22 @@ document.getElementById('marketplaceSubscriberList')?.addEventListener('click',e
 document.getElementById('refreshBuybookActivity')?.addEventListener('click',async()=>{await loadBuybookConnection();await loadBuybookActivity();});
 document.getElementById('buybookConnectionForm')?.addEventListener('submit',async e=>{
  e.preventDefault();const message=document.getElementById('buybookConnectionMessage'),button=document.getElementById('buybookConnectButton');
- if(!navigator.onLine){message.textContent='Connect to the internet to set up Buybook.';return;}
- button.disabled=true;message.textContent='Connecting your shop…';
+ if(!navigator.onLine){notifyStatus(message,'Connect to the internet to set up Buybook.','error');return;}
+ button.disabled=true;notifyStatus(message,'Connecting your shop…','info');
  try{const user=await requireCloudUser();const shop={owner_id:user.id,name:document.getElementById('buybookShopName').value.trim(),description:document.getElementById('buybookDescription').value.trim()||null,phone:document.getElementById('buybookPhone').value.trim()||null,address:document.getElementById('buybookAddress').value.trim(),city:document.getElementById('buybookCity').value.trim(),state:document.getElementById('buybookState').value.trim(),country:'Nigeria',is_connected:true,is_active:true};
  const {error}=await supabaseClient.from('marketplace_shops').upsert(shop,{onConflict:'owner_id'});if(error)throw error;
  const sync=await supabaseClient.rpc('sync_owner_marketplace_listings',{p_owner_id:user.id});if(sync.error)throw sync.error;
  for(const product of (db.products||[])){if(product.imagePath){try{await cloudPublishMarketplaceImage(product,user,product.offlineImage||null,product.imagePath);}catch(imageError){console.warn('Buybook image sync skipped for product:',product.id,imageError);}}}
- message.textContent='Connected successfully. Your products will appear automatically on Buybook. Only marketplace product details and shop information are shared.';await loadBuybookConnection();
- }catch(err){message.textContent='Could not connect: '+(err.message||'Please try again when online.');console.error('Buybook connection error:',err);}finally{button.disabled=false;}
+ notifyStatus(message,'Connected successfully. Your products will appear automatically on Buybook. Only marketplace product details and shop information are shared.','success');await loadBuybookConnection();
+ }catch(err){notifyStatus(message,'Could not connect: '+(err.message||'Please try again when online.'),'error');console.error('Buybook connection error:',err);}finally{button.disabled=false;}
 });
 document.getElementById('buybookDisconnectButton')?.addEventListener('click',async()=>{
- if(!cloudUser){alert('Sign in to Sellbook first.');return;}if(!confirm('Disconnect your shop from Buybook? Your Sellbook records will remain unchanged.'))return;
- const message=document.getElementById('buybookConnectionMessage');try{const user=await requireCloudUser();const {error}=await supabaseClient.from('marketplace_shops').update({is_connected:false}).eq('owner_id',user.id);if(error)throw error;const sync=await supabaseClient.rpc('sync_owner_marketplace_listings',{p_owner_id:user.id});if(sync.error)throw sync.error;message.textContent='Disconnected. Your products are no longer listed on Buybook. Sellbook records remain unchanged.';await loadBuybookConnection();}catch(err){message.textContent='Could not disconnect: '+(err.message||'Please try again.');}
+ if(!cloudUser){showToast('Sign in to Sellbook first.');return;}if(!confirm('Disconnect your shop from Buybook? Your Sellbook records will remain unchanged.'))return;
+ const message=document.getElementById('buybookConnectionMessage');try{notifyStatus(message,'Disconnecting your shop from Buybook…','info');const user=await requireCloudUser();const {error}=await supabaseClient.from('marketplace_shops').update({is_connected:false}).eq('owner_id',user.id);if(error)throw error;const sync=await supabaseClient.rpc('sync_owner_marketplace_listings',{p_owner_id:user.id});if(sync.error)throw sync.error;notifyStatus(message,'Disconnected. Your products are no longer listed on Buybook. Sellbook records remain unchanged.','success');await loadBuybookConnection();}catch(err){notifyStatus(message,'Could not disconnect: '+(err.message||'Please try again.'),'error');}
 });
 async function cloudAction(action) {
   if (cloudBusy) {
-    alert('Please wait for the current cloud operation to finish.');
+    showToast('Please wait for the current cloud operation to finish.');
     return false;
   }
   cloudBusy = true;
@@ -1192,7 +1250,7 @@ async function cloudAction(action) {
     await action();
     return true;
   } catch (err) {
-    alert('Cloud operation failed: ' + (err.message || String(err)));
+    showToast('Cloud operation failed: ' + (err.message || String(err)));
     console.error(err);
     return false;
   } finally {
@@ -1585,7 +1643,7 @@ async function loadReservationsPage(){
   marketplaceReservationsCache.forEach(r=>r.items=byId[r.id]||[]);
   target.innerHTML=marketplaceReservationsCache.map(r=>{const products=r.items.map(x=>escAdmin(x.product_name)+' × '+Number(x.quantity||0)).join(', ');const status=String(r.status||'pending').replace(/[_-]+/g,' ').replace(/\b\w/g,ch=>ch.toUpperCase());return '<button type="button" class="messenger-picker-row reservation-page-row" data-reservation-id="'+escAdmin(r.id)+'" style="width:100%;text-align:left"><span class="chat-support-avatar" aria-hidden="true">▣</span><span class="subscriber-meta"><strong>'+escAdmin(marketplaceBuyerName(r.buyer_id))+'</strong><small>'+escAdmin(products||'Product details unavailable')+'</small><small>'+escAdmin(new Date(r.created_at).toLocaleString([], {dateStyle:'medium',timeStyle:'short'}))+' · '+escAdmin(status)+'</small></span><span aria-hidden="true">›</span></button>';}).join('');
   target.querySelectorAll('[data-reservation-id]').forEach(b=>b.addEventListener('click',()=>showReservationDetails(b.dataset.reservationId)));
- }catch(err){if(current())target.innerHTML='<div class="empty">Could not load reservations: '+escAdmin(err.message||'Please try again.')+'</div>';}
+ }catch(err){if(current()){showToast('Could not load reservations: '+(err.message||'Please try again.'),'error');target.innerHTML='<div class="empty">Reservations are temporarily unavailable. Refresh to try again.</div>';}}
 }
 async function retryReservationNotification(id,button){
  if(!cloudUser||!supabaseClient)return;
@@ -1598,11 +1656,11 @@ async function retryReservationNotification(id,button){
   const result=await supabaseClient.functions.invoke('notify-reservation-decision',{body:{reservation_id:id,decision}});
   if(!current())return;
   if(result.error)throw result.error;
-  if(typeof showToast==='function')showToast('Buyer notification sent.');else alert('Buyer notification sent.');
+  if(typeof showToast==='function')showToast('Buyer notification sent.');else showToast('Buyer notification sent.');
   if(button){button.textContent='Notification sent';button.disabled=true;}
  }catch(err){
   if(!current())return;
-  if(typeof showToast==='function')showToast('Notification could not be sent. Please try again.');else alert('Notification could not be sent: '+(err.message||'Please try again.'));
+  if(typeof showToast==='function')showToast('Notification could not be sent. Please try again.');else showToast('Notification could not be sent: '+(err.message||'Please try again.'));
   if(button){button.disabled=false;button.textContent=original||'Resend buyer notification';}
  }
 }
@@ -1638,8 +1696,8 @@ async function updateReservationDecision(id,decision,button){
   showReservationDetails(id,{history:false});
   const message=(decision==='approved'?'Reservation approved.':'Reservation rejected.')+(notificationFailed?' Buyer notification could not be sent; please try again later.':' Buyer notification sent.');
   if(typeof showToast==='function')showToast(message);
-  else alert(message);
- }catch(err){if(current())alert('Could not update reservation: '+(err.message||'Please try again.'));if(button){button.disabled=false;button.textContent=original||'Try again';}}
+  else showToast(message);
+ }catch(err){if(current())showToast('Could not update reservation: '+(err.message||'Please try again.'));if(button){button.disabled=false;button.textContent=original||'Try again';}}
 }
 function showReservationDetails(id,options={}){
  const r=marketplaceReservationsCache.find(x=>String(x.id)===String(id));if(!r)return;marketplaceSelectedReservationId=r.id;
@@ -1666,7 +1724,7 @@ async function loadSubscribersPage(){
  if(!marketplaceSubscribersCache.length){target.innerHTML='<div class="empty">No subscribers yet. Buyers who subscribe to your shop on Buybook will appear here.</div>';return;}
  target.innerHTML=marketplaceSubscribersCache.slice().sort((a,b)=>new Date(b.created_at||0)-new Date(a.created_at||0)).map(s=>'<button type="button" class="messenger-picker-row subscriber-page-row" data-subscriber-id="'+escAdmin(s.buyer_id)+'" style="width:100%;text-align:left"><span class="chat-support-avatar" aria-hidden="true">👤</span><span class="subscriber-meta"><strong>'+escAdmin(s.display_name||marketplaceBuyerName(s.buyer_id))+'</strong><small>Subscribed '+escAdmin(s.created_at?new Date(s.created_at).toLocaleDateString():'date unavailable')+'</small></span><span aria-hidden="true">›</span></button>').join('');
  target.querySelectorAll('[data-subscriber-id]').forEach(b=>b.addEventListener('click',()=>showSubscriberDetails(b.dataset.subscriberId)));
- }catch(err){if(current())target.innerHTML='<div class="empty">Could not load subscribers: '+escAdmin(err.message||'Please try again.')+'</div>';}
+ }catch(err){if(current()){showToast('Could not load subscribers: '+(err.message||'Please try again.'),'error');target.innerHTML='<div class="empty">Subscribers are temporarily unavailable. Refresh to try again.</div>';}}
 }
 function showSubscriberDetails(id,options={}){
  const s=marketplaceSubscribersCache.find(x=>String(x.buyer_id)===String(id));if(!s)return;
@@ -2031,13 +2089,13 @@ document.getElementById('restockForm').addEventListener('submit',async e=>{
  try {
  const p=db.products.find(x=>x.id===document.getElementById('restockProduct').value);
  const purchaseQuantity=Number(document.getElementById('restockPurchaseQty').value),purchaseUnit=document.getElementById('restockPurchaseUnit').value.trim(),unitsPerPurchase=Number(document.getElementById('restockUnitsPerPurchase').value),costPerPurchaseUnit=Number(document.getElementById('restockCostPerPurchase').value);
- if(!p)return alert('Choose a product.');
- if(!Number.isSafeInteger(purchaseQuantity)||purchaseQuantity<1||!purchaseUnit||purchaseUnit.length>30||!Number.isSafeInteger(unitsPerPurchase)||unitsPerPurchase<1||!Number.isFinite(costPerPurchaseUnit)||costPerPurchaseUnit<0)return alert('Check the purchase quantity, unit, units per purchase, and cost.');
- if(purchaseQuantity>Math.floor(2000000000/unitsPerPurchase))return alert('This purchase quantity is too large.');
+ if(!p)return showToast('Choose a product.');
+ if(!Number.isSafeInteger(purchaseQuantity)||purchaseQuantity<1||!purchaseUnit||purchaseUnit.length>30||!Number.isSafeInteger(unitsPerPurchase)||unitsPerPurchase<1||!Number.isFinite(costPerPurchaseUnit)||costPerPurchaseUnit<0)return showToast('Check the purchase quantity, unit, units per purchase, and cost.');
+ if(purchaseQuantity>Math.floor(2000000000/unitsPerPurchase))return showToast('This purchase quantity is too large.');
  const baseQuantity=purchaseQuantity*unitsPerPurchase;
- let totalCost;try{totalCost=roundMoney(purchaseQuantity*costPerPurchaseUnit);}catch(error){return alert(error.message||'Purchase cost is too large.');}
+ let totalCost;try{totalCost=roundMoney(purchaseQuantity*costPerPurchaseUnit);}catch(error){return showToast(error.message||'Purchase cost is too large.');}
  const newStock=p.stock+baseQuantity;
- if(!Number.isSafeInteger(baseQuantity)||!Number.isSafeInteger(newStock)||newStock>2000000000||!Number.isFinite(totalCost))return alert('This purchase quantity is too large.');
+ if(!Number.isSafeInteger(baseQuantity)||!Number.isSafeInteger(newStock)||newStock>2000000000||!Number.isFinite(totalCost))return showToast('This purchase quantity is too large.');
  const baseCost=Math.round((totalCost/baseQuantity+Number.EPSILON)*10000)/10000,averageCostAfter=p.stock>0?Math.round((((p.stock*p.cost+baseQuantity*baseCost)/newStock)+Number.EPSILON)*10000)/10000:baseCost;
  if(!confirm('Record purchase of '+purchaseQuantity+' '+purchaseUnit+' for '+money(totalCost)+'? This adds '+baseQuantity+' units and updates average cost.'))return;
  const restock={id:crypto.randomUUID(),productId:p.id,productName:p.name,purchaseQuantity,purchaseUnit,unitsPerPurchase,costPerPurchaseUnit,date:now(),previousStock:p.stock,newStock,baseQuantity,totalCost,averageCostAfter};db.restocks.push(restock);
@@ -2070,13 +2128,13 @@ document.getElementById('restockForm').addEventListener('submit',async e=>{
    refreshStockHistoryBadges();
   }
   e.target.reset();document.getElementById('restockPurchaseQty').value=1;document.getElementById('restockUnitsPerPurchase').value=1;document.getElementById('restockPurchaseUnit').value='unit';updateRestockPreview();
-  alert(cloudUser&&pendingSync.some(item=>item.type==='stock_restock'&&item.payload?.restock?.id===restock.id)
+  showToast(cloudUser&&pendingSync.some(item=>item.type==='stock_restock'&&item.payload?.restock?.id===restock.id)
    ? 'Restock saved on this phone. Cloud synchronization is still pending.'
    : 'Restock recorded and saved.');
- }catch(err){p.stock=oldStock;p.cost=oldCost;db.restocks=db.restocks.filter(item=>item.id!==restock.id);render();alert('Restock could not be saved: '+(err.message||String(err)));}
+ }catch(err){p.stock=oldStock;p.cost=oldCost;db.restocks=db.restocks.filter(item=>item.id!==restock.id);render();showToast('Restock could not be saved: '+(err.message||String(err)));}
  } finally {restockSubmitting=false;if(submitButton)submitButton.disabled=false;}
 });
-document.getElementById('stockAdjustmentForm').addEventListener('submit',async e=>{e.preventDefault();const p=db.products.find(x=>x.id===document.getElementById('adjustProduct').value),next=Number(document.getElementById('adjustNewStock').value),reason=document.getElementById('adjustReason').value.trim();if(!p)return alert('Choose a product first.');if(!Number.isSafeInteger(next)||next<0||next>2000000000)return alert('Enter a whole-number stock quantity between 0 and 2,000,000,000.');if(next===p.stock)return alert('The new stock quantity is the same as the current quantity.');if(!confirm('Change '+p.name+' stock from '+p.stock+' to '+next+' units?'))return;const old=p.stock,oldVersion=p.updatedAt,a={id:crypto.randomUUID(),productId:p.id,productName:p.name,previousStock:old,newStock:next,quantityChange:next-old,reason,date:now()};p.stock=next;if(cloudUser){try{db.stockAdjustments.push(a);await saveCloudChangesLocally([{type:'product_save',payload:{product:{...p},isNew:false}},{type:'stock_adjustment',payload:{adjustment:a}}]);}catch(err){p.stock=old;p.updatedAt=oldVersion;db.stockAdjustments=db.stockAdjustments.filter(x=>x.id!==a.id);render();return alert(err.message||String(err));}}else{db.stockAdjustments.push(a);if(!save()){p.stock=old;db.stockAdjustments.pop();return;}render();}document.getElementById('adjustReason').value='';alert('Stock adjustment saved.');});
+document.getElementById('stockAdjustmentForm').addEventListener('submit',async e=>{e.preventDefault();const p=db.products.find(x=>x.id===document.getElementById('adjustProduct').value),next=Number(document.getElementById('adjustNewStock').value),reason=document.getElementById('adjustReason').value.trim();if(!p)return showToast('Choose a product first.');if(!Number.isSafeInteger(next)||next<0||next>2000000000)return showToast('Enter a whole-number stock quantity between 0 and 2,000,000,000.');if(next===p.stock)return showToast('The new stock quantity is the same as the current quantity.');if(!confirm('Change '+p.name+' stock from '+p.stock+' to '+next+' units?'))return;const old=p.stock,oldVersion=p.updatedAt,a={id:crypto.randomUUID(),productId:p.id,productName:p.name,previousStock:old,newStock:next,quantityChange:next-old,reason,date:now()};p.stock=next;if(cloudUser){try{db.stockAdjustments.push(a);await saveCloudChangesLocally([{type:'product_save',payload:{product:{...p},isNew:false}},{type:'stock_adjustment',payload:{adjustment:a}}]);}catch(err){p.stock=old;p.updatedAt=oldVersion;db.stockAdjustments=db.stockAdjustments.filter(x=>x.id!==a.id);render();return showToast(err.message||String(err));}}else{db.stockAdjustments.push(a);if(!save()){p.stock=old;db.stockAdjustments.pop();return;}render();}document.getElementById('adjustReason').value='';showToast('Stock adjustment saved.');});
 
 function updateSalePrice(){
  const p=db.products.find(x=>x.id===document.getElementById('saleProduct').value);
@@ -2140,12 +2198,12 @@ async function handleImageSelection(event){
    if(!p)return;
    if(cloudUser){
     const updated={...p,image};
-    try { await saveCloudChangeLocally('product_save',{product:updated,isNew:false}); alert('Product photo saved on this device and queued for sync.'); }
-    catch(err){ alert(err.message || String(err)); }
+    try { await saveCloudChangeLocally('product_save',{product:updated,isNew:false}); showToast('Product photo saved on this device and queued for sync.'); }
+    catch(err){ showToast(err.message || String(err)); }
    }else{
     const oldImage=p.image,oldPath=p.imagePath;
     p.image=image;
-    if(save()){render();alert('Product photo updated.');}
+    if(save()){render();showToast('Product photo updated.');}
     else{p.image=oldImage;p.imagePath=oldPath;}
    }
    imageTargetId=null;
@@ -2158,7 +2216,7 @@ async function handleImageSelection(event){
    document.getElementById('photoStatus').textContent='Photo selected and compressed. It will be saved with the product.';
   }
  }catch(err){
-  alert(err.message||'Could not use that photo.');
+  showToast(err.message||'Could not use that photo.');
   imageTargetId=null;
  }finally{
   input.value='';
@@ -2214,28 +2272,28 @@ document.getElementById('productForm').addEventListener('submit',async e=>{
  const unitsPerPackInput=productSellingType==='pack'?Number(document.getElementById('punitsperpack').value):1;
  const cost=productSellingType==='pack'?enteredCost/unitsPerPackInput:enteredCost;
  const stock=productSellingType==='pack'?enteredStock*unitsPerPackInput:enteredStock;
- if(!name||name.length>100||!Number.isFinite(enteredCost)||enteredCost<0||enteredCost>MAX_MONEY||!Number.isFinite(cost)||cost<0||cost>MAX_MONEY||!Number.isFinite(price)||price<=0||price>MAX_MONEY||!Number.isSafeInteger(enteredStock)||enteredStock<0||!Number.isSafeInteger(stock)||stock<0||stock>2000000000)return alert('Check the product name, prices and stock quantity.');
- if(db.products.some(p=>p.name.toLowerCase()===name.toLowerCase()))return alert('A product with this name already exists.');
+ if(!name||name.length>100||!Number.isFinite(enteredCost)||enteredCost<0||enteredCost>MAX_MONEY||!Number.isFinite(cost)||cost<0||cost>MAX_MONEY||!Number.isFinite(price)||price<=0||price>MAX_MONEY||!Number.isSafeInteger(enteredStock)||enteredStock<0||!Number.isSafeInteger(stock)||stock<0||stock>2000000000)return showToast('Check the product name, prices and stock quantity.');
+ if(db.products.some(p=>p.name.toLowerCase()===name.toLowerCase()))return showToast('A product with this name already exists.');
  const category=normalizeCategory(getSelectedCategories('product').join(' | '));
- if(!getSelectedCategories('product').length)return alert('Choose at least one product category. You can select up to three.');
+ if(!getSelectedCategories('product').length)return showToast('Choose at least one product category. You can select up to three.');
  const baseUnit=((productSellingType==='pack'?document.getElementById('pbaseunitPack').value:document.getElementById('pbaseunit').value).trim()||'unit');
  const packUnit=productSellingType==='pack'?document.getElementById('ppackunit').value.trim():'';
  const unitsPerPack=productSellingType==='pack'?Number(document.getElementById('punitsperpack').value):1;
  const packPriceRaw=productSellingType==='pack'?document.getElementById('ppackprice').value.trim():'';
  const packPrice=packPriceRaw===''?null:Number(packPriceRaw);
- if(productSellingType==='pack'&&(!packUnit||!Number.isSafeInteger(unitsPerPack)||unitsPerPack<1||!Number.isFinite(packPrice)||packPrice<=0||packPrice>MAX_MONEY))return alert('Enter a pack name, the number of individual units in each pack, and a valid pack selling price.');
+ if(productSellingType==='pack'&&(!packUnit||!Number.isSafeInteger(unitsPerPack)||unitsPerPack<1||!Number.isFinite(packPrice)||packPrice<=0||packPrice>MAX_MONEY))return showToast('Enter a pack name, the number of individual units in each pack, and a valid pack selling price.');
  const product={id:crypto.randomUUID(),name,category,cost,price,stock,baseUnit,packUnit,unitsPerPack,packPrice,image:pendingProductImage,createdAt:now()};
  const addition=productCreationSnapshot(product);
  if(cloudUser){
    db.productAdditions=db.productAdditions||[];db.productAdditions.push(addition);
    try { await saveCloudChangeLocally('product_save',{product,isNew:true}); }
-   catch(err){db.productAdditions=db.productAdditions.filter(x=>String(x.productId||x.id)!==String(product.id));return alert(err.message || String(err));}
+   catch(err){db.productAdditions=db.productAdditions.filter(x=>String(x.productId||x.id)!==String(product.id));return showToast(err.message || String(err));}
  }else{
    db.products.push(product);db.productAdditions=db.productAdditions||[];db.productAdditions.push(addition);
    if(!save())return;
    render();
  }
- e.target.reset();clearPendingPhoto();alert('Product saved.');
+ e.target.reset();clearPendingPhoto();showToast('Product saved.');
 });
 
 
@@ -2302,8 +2360,8 @@ function closeProductEditor() {
 document.getElementById('deleteEditedProduct').addEventListener('click',async()=>{
   const id=document.getElementById('editProductId').value;
   const product=db.products.find(x=>x.id===id);
-  if(!product)return alert('This product could not be found.');
-  if(db.sales.some(sale=>sale.productId===id))return alert('This product has sales history and cannot be deleted. You can edit its details instead.');
+  if(!product)return showToast('This product could not be found.');
+  if(db.sales.some(sale=>sale.productId===id))return showToast('This product has sales history and cannot be deleted. You can edit its details instead.');
   if(!confirm('Delete '+product.name+'? This cannot be undone.'))return;
   const button=document.getElementById('deleteEditedProduct');
   button.disabled=true;
@@ -2320,8 +2378,8 @@ document.getElementById('deleteEditedProduct').addEventListener('click',async()=
       render();
     }
     closeProductEditor();
-    alert('Product deleted.');
-  }catch(err){alert(err.message||String(err));}
+    showToast('Product deleted.');
+  }catch(err){showToast(err.message||String(err));}
   finally{button.disabled=false;}
 });
 document.getElementById('cancelEditProduct').addEventListener('click',closeProductEditor);
@@ -2338,7 +2396,7 @@ async function handleEditProductImageSelection(event){
     editRemoveProductImage=false;
     const product=db.products.find(x=>x.id===document.getElementById('editProductId').value);
     updateEditProductPhotoPreview(product);
-  }catch(err){alert(err.message||'Could not use that photo.');}
+  }catch(err){showToast(err.message||'Could not use that photo.');}
   finally{input.value='';}
 }
 document.getElementById('editProductCamera').addEventListener('change',handleEditProductImageSelection);
@@ -2355,17 +2413,17 @@ document.getElementById('editProductForm').addEventListener('submit',async event
   event.preventDefault();
   const id=document.getElementById('editProductId').value;
   const product=db.products.find(x=>x.id===id);
-  if(!product)return alert('This product could not be found. Close the form and try again.');
+  if(!product)return showToast('This product could not be found. Close the form and try again.');
   const name=document.getElementById('editProductName').value.trim();
   const category=normalizeCategory(getSelectedCategories('editProduct').join(' | '));
-  if(!getSelectedCategories('editProduct').length)return alert('Choose at least one product category. You can select up to three.');
+  if(!getSelectedCategories('editProduct').length)return showToast('Choose at least one product category. You can select up to three.');
   const cost=Number(document.getElementById('editProductCost').value);
   const price=Number(document.getElementById('editProductPrice').value);
   const stock=Number(document.getElementById('editProductStock').value);
   if(!name||name.length>100||!Number.isFinite(cost)||cost<0||!Number.isFinite(price)||price<=0||!Number.isSafeInteger(stock)||stock<0||stock>2000000000||cost>MAX_MONEY||price>MAX_MONEY){
-    return alert('Enter a product name, a cost price of zero or more, a selling price above zero, and a whole-number stock quantity of zero or more.');
+    return showToast('Enter a product name, a cost price of zero or more, a selling price above zero, and a whole-number stock quantity of zero or more.');
   }
-  if(db.products.some(x=>x.id!==id&&x.name.trim().toLowerCase()===name.toLowerCase()))return alert('Another product already has this name.');
+  if(db.products.some(x=>x.id!==id&&x.name.trim().toLowerCase()===name.toLowerCase()))return showToast('Another product already has this name.');
   const updated={...product,name,category,cost,price,stock};
   if(editPendingProductImage)updated.image=editPendingProductImage;
   else if(editRemoveProductImage){updated.image='';updated.imagePath='';}
@@ -2394,7 +2452,7 @@ document.getElementById('editProductForm').addEventListener('submit',async event
         render();
         updateSyncStatus();
         saved=true;
-      } catch(err) { alert(err.message || String(err)); }
+      } catch(err) { showToast(err.message || String(err)); }
     }else{
       const old={...product};
       Object.assign(product,updated);
@@ -2407,7 +2465,7 @@ document.getElementById('editProductForm').addEventListener('submit',async event
         Object.assign(product,old);
       }
     }
-    if(saved){closeProductEditor();alert(stockChanged?'Product updated and stock adjustment recorded.':'Product details updated successfully.');}
+    if(saved){closeProductEditor();showToast(stockChanged?'Product updated and stock adjustment recorded.':'Product details updated successfully.');}
   }finally{
     document.getElementById('saveEditProduct').disabled=false;
   }
@@ -2445,7 +2503,7 @@ document.getElementById('productList').addEventListener('click',async e=>{
       const old = {...p};
       p.image=''; p.offlineImage=''; p.imagePath='';
       await saveCloudChangeLocally('product_remove_image',{product:old});
-    } catch(err){ alert(err.message || String(err)); }
+    } catch(err){ showToast(err.message || String(err)); }
   }else{
     const oldImage=p.image,oldPath=p.imagePath;
     delete p.image;delete p.imagePath;
@@ -2456,13 +2514,13 @@ document.getElementById('productList').addEventListener('click',async e=>{
  if(button.dataset.edit){
   openProductEditor(p);
  }else if(button.dataset.delete){
-  if(db.sales.some(s=>s.productId===id))return alert('This product has sales history. Edit it instead of deleting it.');
+  if(db.sales.some(s=>s.productId===id))return showToast('This product has sales history. Edit it instead of deleting it.');
   if(confirm('Delete '+p.name+'?')){
     if(cloudUser){
       const oldProducts=db.products;
       db.products=db.products.filter(x=>x.id!==id);
       try { await saveCloudChangeLocally('product_delete',{product:p}); }
-      catch(err){ db.products=oldProducts; render(); alert(err.message || String(err)); }
+      catch(err){ db.products=oldProducts; render(); showToast(err.message || String(err)); }
     }else{
       db.products=db.products.filter(x=>x.id!==id);if(save())render();
     }
@@ -2491,10 +2549,10 @@ document.getElementById('saleForm').addEventListener('submit',async e=>{
  try {
  const p=db.products.find(x=>x.id===document.getElementById('saleProduct').value);
  const qty=Number(document.getElementById('saleQty').value),price=Number(document.getElementById('salePrice').value),note=document.getElementById('saleNote').value.trim(),saleAsPack=document.getElementById('saleUnit').value==='pack',unitsPerSale=saleAsPack?Number(p?.unitsPerPack||1):1,baseQty=qty*unitsPerSale,saleUnit=saleAsPack?p?.packUnit:(p?.baseUnit||'unit');
- if(!p)return alert('Choose a product.');
- if(!Number.isSafeInteger(qty)||qty<1||!Number.isSafeInteger(baseQty)||baseQty>2000000000||baseQty>p.stock)return alert('Quantity must be a whole number and cannot exceed available stock.');
- if(!Number.isFinite(price)||price<=0||price>MAX_MONEY)return alert('Enter a valid selling price.');
- if(note.length>150)return alert('Sale note must be 150 characters or fewer.');
+ if(!p)return showToast('Choose a product.');
+ if(!Number.isSafeInteger(qty)||qty<1||!Number.isSafeInteger(baseQty)||baseQty>2000000000||baseQty>p.stock)return showToast('Quantity must be a whole number and cannot exceed available stock.');
+ if(!Number.isFinite(price)||price<=0||price>MAX_MONEY)return showToast('Enter a valid selling price.');
+ if(note.length>150)return showToast('Sale note must be 150 characters or fewer.');
  const amounts=calculateSaleAmounts(qty,price,p.cost,unitsPerSale),total=amounts.total;
  if(!confirm('Record this paid sale for '+money(total)+'?'))return;
  if(cloudUser){
@@ -2504,7 +2562,7 @@ document.getElementById('saleForm').addEventListener('submit',async e=>{
    p.stock-=baseQty;
    db.sales.push(sale);
    try { await saveCloudChangeLocally('sale',{sale,productUpdatedAt}); }
-   catch(err){ p.stock+=baseQty; db.sales=db.sales.filter(x=>x.id!==sale.id); render(); return alert(err.message || String(err)); }
+   catch(err){ p.stock+=baseQty; db.sales=db.sales.filter(x=>x.id!==sale.id); render(); return showToast(err.message || String(err)); }
  }else{
    const saleCost=amounts.cost,profit=amounts.profit;
    p.stock-=baseQty;
@@ -2512,26 +2570,26 @@ document.getElementById('saleForm').addEventListener('submit',async e=>{
    if(!save())return;
    render();
  }
- e.target.reset();document.getElementById('saleQty').value=1;alert('Sale recorded and stock updated.');
+ e.target.reset();document.getElementById('saleQty').value=1;showToast('Sale recorded and stock updated.');
  } finally {saleSubmitting=false;if(submitButton)submitButton.disabled=false;}
 });
 
 document.getElementById('expenseForm').addEventListener('submit',async e=>{
  e.preventDefault();
  const name=document.getElementById('ename').value.trim(),amount=Number(document.getElementById('eamount').value);
- if(!name||!Number.isFinite(amount)||amount<=0)return alert('Enter a description and valid amount.');
+ if(!name||!Number.isFinite(amount)||amount<=0)return showToast('Enter a description and valid amount.');
  const rounded=roundMoney(amount);
  if(cloudUser){
    const expense={id:crypto.randomUUID(),name,amount:rounded,date:now()};
    db.expenses.push(expense);
    try { await saveCloudChangeLocally('expense',{expense}); }
-   catch(err){ db.expenses=db.expenses.filter(x=>x.id!==expense.id); render(); return alert(err.message || String(err)); }
+   catch(err){ db.expenses=db.expenses.filter(x=>x.id!==expense.id); render(); return showToast(err.message || String(err)); }
  }else{
    db.expenses.push({id:crypto.randomUUID(),name,amount:rounded,date:now()});
    if(!save())return;
    render();
  }
- e.target.reset();alert('Expense saved.');
+ e.target.reset();showToast('Expense saved.');
 });
 
 const BACKUP_STATUS_KEY='my-sales-book-last-backup-v1';
@@ -2562,8 +2620,8 @@ document.getElementById('importFile').addEventListener('change',async e=>{
   if(!d||!Array.isArray(d.products)||!Array.isArray(d.sales)||!Array.isArray(d.expenses))throw Error('Invalid backup format.');
   if(cloudUser)throw Error('Backup restore is currently available only in local mode. Sign out of your cloud account before restoring a local backup. This prevents a local restore from being mistaken for a cloud restore.');
   if(!confirm('Replace all current records with this backup?'))return;
-  db=normalizeDb(d);if(save()){render();alert('Backup restored.');}
- }catch(err){alert('Could not restore backup: '+err.message);}
+  db=normalizeDb(d);if(save()){render();showToast('Backup restored.');}
+ }catch(err){showToast('Could not restore backup: '+err.message);}
  finally{e.target.value='';}
 });
 let emailAuthMode = 'signin';
@@ -2644,7 +2702,7 @@ function showEmailConfirmationNotice(email,message='',allowResend=true){
   panel.classList.remove('hidden');
   panel.setAttribute('aria-hidden','false');
   document.getElementById('confirmationEmailAddress').textContent=confirmationEmail||'your email address';
-  document.getElementById('emailConfirmationMessage').textContent=message;
+  notifyStatus('emailConfirmationMessage',message);
   document.getElementById('resendConfirmationBtn').classList.toggle('hidden',!allowResend);
   cloudMessage('');
 }
@@ -2899,7 +2957,7 @@ async function requestAccountActionEmailOtp(action){
     document.getElementById('accountEmailOtpTitle').textContent=action==='change_pin'?'Verify email to change your PIN':'Verify your current email address';
     document.getElementById('accountEmailOtpDescription').textContent='Enter the six-digit verification code sent to '+email+'. The code is required before Sellbook allows this account change.';
     document.getElementById('accountEmailOtp').value='';
-    document.getElementById('accountEmailOtpMessage').textContent='Verification code sent. Check your inbox and spam folder.';
+    notifyStatus('accountEmailOtpMessage','Verification code sent. Check your inbox and spam folder.','success');
     document.getElementById('accountEmailOtp').focus();
   }catch(error){
     if(otpClient){try{await otpClient.auth.signOut({scope:'local'});}catch(_){}}
@@ -2951,15 +3009,15 @@ document.getElementById('changeSecurityPinButton')?.addEventListener('click',asy
 document.getElementById('resendAccountEmailOtpButton')?.addEventListener('click',async()=>{
   const state=accountEmailOtpState,button=document.getElementById('resendAccountEmailOtpButton'),message=document.getElementById('accountEmailOtpMessage');
   if(!state||accountEmailOtpBusy)return;
-  accountEmailOtpBusy=true;button.disabled=true;button.textContent='Sending…';message.textContent='Requesting another code…';
+  accountEmailOtpBusy=true;button.disabled=true;button.textContent='Sending…';notifyStatus(message,'Requesting another code…','info');
   try{
     const current=await getSellbookAccountSession();
     if(current.user.id!==state.userId||current.sessionId!==state.targetSessionId)throw Error('Your Sellbook session changed. Cancel and start verification again.');
     const {error}=await state.client.auth.signInWithOtp({email:state.email,options:{shouldCreateUser:false}});
     if(error)throw error;
     startAccountOtpResendCooldown(60);
-    document.getElementById('accountEmailOtp').value='';message.textContent='A new verification code has been sent. Use the latest code.';
-  }catch(error){message.textContent='Could not resend the code: '+(error.message||'Please try again.');}
+    document.getElementById('accountEmailOtp').value='';notifyStatus(message,'A new verification code has been sent. Use the latest code.','success');
+  }catch(error){notifyStatus(message,'Could not resend the code: '+(error.message||'Please try again.'),'error');}
   finally{accountEmailOtpBusy=false;if(!accountOtpResendTimer){button.disabled=false;button.textContent='Resend code';}}
 });
 document.getElementById('cancelAccountEmailOtpButton')?.addEventListener('click',clearAccountEmailOtp);
@@ -2975,10 +3033,10 @@ document.getElementById('accountEmailOtpForm')?.addEventListener('submit',async 
   event.preventDefault();
   const state=accountEmailOtpState,token=document.getElementById('accountEmailOtp').value.trim();
   const message=document.getElementById('accountEmailOtpMessage'),button=document.getElementById('verifyAccountEmailOtpButton');
-  if(!state){message.textContent='Start email verification again before entering a code.';return;}
-  if(!/^[0-9]{6}$/.test(token)){message.textContent='Enter the six-digit code from your email.';return;}
+  if(!state){notifyStatus(message,'Start email verification again before entering a code.','error');return;}
+  if(!/^[0-9]{6}$/.test(token)){notifyStatus(message,'Enter the six-digit code from your email.','error');return;}
   if(accountEmailOtpBusy)return;
-  accountEmailOtpBusy=true;button.disabled=true;button.textContent='Verifying…';message.textContent='Verifying your email code securely…';
+  accountEmailOtpBusy=true;button.disabled=true;button.textContent='Verifying…';notifyStatus(message,'Verifying your email code securely…','info');
   try{
     const {data,error}=await state.client.auth.verifyOtp({email:state.email,token,type:'email'});
     if(error)throw error;
@@ -3012,9 +3070,9 @@ document.getElementById('accountEmailOtpForm')?.addEventListener('submit',async 
     const failure='Email verification failed: '+(error.message||'Check the code and try again.');
     if(sessionStorage.getItem('sellbook-pin-reset-after-auth')==='yes'){
       showSecurityPinGate('verify','Your email code was accepted, but the PIN reset did not finish. Please restart PIN recovery and verify your email again.');
-      document.getElementById('securityPinMessage').textContent=failure;
+      notifyStatus('securityPinMessage',failure,'error');
     }else{
-      message.textContent=failure;
+      notifyStatus(message,failure,'error');
     }
   }finally{accountEmailOtpBusy=false;button.disabled=false;button.textContent='Verify code';}
 });
@@ -3029,7 +3087,7 @@ async function refreshAccountStatus(){
   const emailEntry=document.getElementById('openEmailSignIn');
   const signOut=document.getElementById('googleSignOut');
   if(!supabaseClient){
-    status.textContent='Account service is unavailable. Check your connection and try again.';
+    notifyStatus(status,'Account service is unavailable. Check your connection and try again.','error');
     signIn.disabled=true;
     if(emailEntry)emailEntry.disabled=true;
     return;
@@ -3037,14 +3095,14 @@ async function refreshAccountStatus(){
   let data,error;
   try{({data,error}=await supabaseClient.auth.getSession());}
   catch(sessionError){
-    status.textContent='Could not check your sign-in status. Check your connection and try again.';
+    notifyStatus(status,'Could not check your sign-in status. Check your connection and try again.','error');
     cloudMessage('Sellbook could not verify your secure sign-in. Your saved records have not been changed.');
     document.getElementById('appWorkspace').classList.add('hidden');
     console.warn('Supabase session check failed:',sessionError);
     return;
   }
   if(error){
-    status.textContent='Could not check your sign-in status. Check your connection and try again.';
+    notifyStatus(status,'Could not check your sign-in status. Check your connection and try again.','error');
     cloudMessage('Sellbook could not verify your secure sign-in. Your saved records have not been changed.');
     document.getElementById('appWorkspace').classList.add('hidden');
     console.warn('Supabase session check returned an error:',error);
@@ -3094,11 +3152,11 @@ document.getElementById('googleSignIn').addEventListener('click', async () => {
   if (googleSignInInProgress) return;
 
   if (!navigator.onLine) {
-    message.textContent = 'Internet is required for Google sign-in. Connect to the internet and try again.';
+    notifyStatus(message,'Internet is required for Google sign-in. Connect to the internet and try again.','error');
     return;
   }
   if (!supabaseClient) {
-    message.textContent = 'Cloud connection unavailable. Check your internet connection and try again.';
+    notifyStatus(message,'Cloud connection unavailable. Check your internet connection and try again.','error');
     return;
   }
 
@@ -3107,7 +3165,7 @@ document.getElementById('googleSignIn').addEventListener('click', async () => {
   button.setAttribute('aria-busy', 'true');
   const label=document.getElementById('googleSignInLabel');
   if(label)label.textContent='Connecting to Google…';
-  message.textContent = 'Opening secure Google sign-in. Please wait…';
+  notifyStatus(message,'Opening secure Google sign-in. Please wait…','info');
 
   try {
     const { error } = await supabaseClient.auth.signInWithOAuth({
@@ -3124,7 +3182,7 @@ document.getElementById('googleSignIn').addEventListener('click', async () => {
     // so repeated taps cannot start overlapping OAuth requests.
   } catch (error) {
     console.error('Google sign-in could not be started:', error);
-    message.textContent = 'Google sign-in could not be started. Check your connection and try again.';
+    notifyStatus(message,'Google sign-in could not be started. Check your connection and try again.','error');
     googleSignInInProgress = false;
     button.disabled = false;
     button.removeAttribute('aria-busy');
@@ -3305,18 +3363,18 @@ document.getElementById('resendConfirmationBtn').addEventListener('click',async(
   const email=(confirmationEmail||document.getElementById('authEmail').value).trim().toLowerCase();
   const button=document.getElementById('resendConfirmationBtn');
   const status=document.getElementById('emailConfirmationMessage');
-  if(!email){status.textContent='Enter the email address you used to create your account first.';return;}
-  if(!navigator.onLine){status.textContent='Connect to the internet before requesting another confirmation email.';return;}
-  if(!supabaseClient){status.textContent='Account service is unavailable right now. Try again later.';return;}
+  if(!email){notifyStatus(status,'Enter the email address you used to create your account first.','error');return;}
+  if(!navigator.onLine){notifyStatus(status,'Connect to the internet before requesting another confirmation email.','error');return;}
+  if(!supabaseClient){notifyStatus(status,'Account service is unavailable right now. Try again later.','error');return;}
   if(button.disabled)return;
   button.disabled=true;button.setAttribute('aria-busy','true');button.textContent='Sending…';
   try{
     const {error}=await supabaseClient.auth.resend({type:'signup',email,options:{emailRedirectTo:window.location.origin+window.location.pathname+window.location.search}});
     if(error)throw error;
-    status.textContent='A new confirmation link has been requested. Use the latest email and check your spam folder.';
+    notifyStatus(status,'A new confirmation link has been requested. Use the latest email and check your spam folder.','success');
     startSignupResendCooldown(60);
   }catch(error){
-    status.textContent=friendlyAuthError(error);
+    notifyStatus(status,friendlyAuthError(error),'error');
     button.disabled=false;button.removeAttribute('aria-busy');button.textContent='Resend confirmation email';
   }finally{button.removeAttribute('aria-busy');}
 });
@@ -3489,7 +3547,7 @@ document.getElementById('deleteAccountBtn').addEventListener('click',async()=>{
     if(pending.length&&!confirm('There are '+pending.length+' unsynchronised change(s). Deleting the account will also remove this account\'s local cache and pending queue. Continue?'))return;
     pendingDeleteAccountUserId=user.id;
     document.getElementById('deleteAccountPinForm').reset();
-    document.getElementById('deleteAccountPinMessage').textContent='Enter your PIN. Five incorrect attempts will temporarily lock PIN verification.';
+    notifyStatus('deleteAccountPinMessage','Enter your PIN. Five incorrect attempts will temporarily lock PIN verification.','info');
     document.getElementById('deleteAccountPinDialog').showModal();
     setTimeout(()=>document.getElementById('deleteAccountPinInput').focus(),40);
   }catch(error){cloudMessage('Could not start account deletion: '+(error.message||'Please try again.'));}
@@ -3504,10 +3562,10 @@ document.getElementById('deleteAccountPinForm')?.addEventListener('submit',async
   event.preventDefault();
   const status=document.getElementById('deleteAccountPinMessage'),button=document.getElementById('confirmDeleteAccountPin');
   const pin=document.getElementById('deleteAccountPinInput').value;
-  if(!/^[0-9]{6}$/.test(pin)){status.textContent='Enter exactly six digits.';return;}
-  if(!pendingDeleteAccountUserId){status.textContent='Start account deletion again before confirming your PIN.';return;}
-  if(!navigator.onLine){status.textContent='Connect to the internet before verifying your PIN.';return;}
-  button.disabled=true;button.textContent='Verifying PIN…';status.textContent='Checking your PIN securely…';
+  if(!/^[0-9]{6}$/.test(pin)){notifyStatus(status,'Enter exactly six digits.','error');return;}
+  if(!pendingDeleteAccountUserId){notifyStatus(status,'Start account deletion again before confirming your PIN.','error');return;}
+  if(!navigator.onLine){notifyStatus(status,'Connect to the internet before verifying your PIN.','error');return;}
+  button.disabled=true;button.textContent='Verifying PIN…';notifyStatus(status,'Checking your PIN securely…','info');
   try{
     const user=await requireCloudUser();
     if(user.id!==pendingDeleteAccountUserId)throw Error('Your signed-in account changed. Cancel and start again.');
@@ -3517,13 +3575,13 @@ document.getElementById('deleteAccountPinForm')?.addEventListener('submit',async
     if(data?.verified!==true){
       const attempts=Number.isFinite(Number(data?.attempts_remaining))?' Attempts remaining: '+data.attempts_remaining+'.':'';
       const locked=data?.locked_until?' PIN verification is locked until '+new Date(data.locked_until).toLocaleTimeString()+'.':'';
-      status.textContent=(data?.message||'The PIN is incorrect.')+attempts+locked;
+      notifyStatus(status,(data?.message||'The PIN is incorrect.')+attempts+locked,'error');
       document.getElementById('deleteAccountPinInput').value='';return;
     }
-    status.textContent='PIN confirmed. Removing your cloud records securely…';button.textContent='Deleting account…';
+    notifyStatus(status,'PIN confirmed. Removing your cloud records securely…','info');button.textContent='Deleting account…';
     await finishVerifiedAccountDeletion(user);
   }catch(error){
-    status.textContent='Account deletion could not be completed: '+(error.message||'Please try again.');
+    notifyStatus(status,'Account deletion could not be completed: '+(error.message||'Please try again.'),'error');
     console.error('Sellbook account deletion failed:',error);
   }finally{
     button.disabled=false;button.textContent='Verify PIN and delete';
@@ -3534,7 +3592,7 @@ document.getElementById('deleteAccountPinForm')?.addEventListener('submit',async
 
 document.getElementById('businessProfileForm').addEventListener('submit',async event=>{
   event.preventDefault();if(!cloudUser)return cloudMessage('Sign in to save your business profile.');
-  const name=document.getElementById('businessNameInput').value.trim();if(!name)return alert('Enter your business name.');
+  const name=document.getElementById('businessNameInput').value.trim();if(!name)return showToast('Enter your business name.');
   const logoPending=document.getElementById('businessProfileForm').dataset.logoPending==='yes';
   const profile={businessName:name.slice(0,100),businessLogo:logoPending?(pendingBusinessLogo||''):getProfile().businessLogo||''};
   try{enqueueChange('profile_save',{profile});db.profile=profile;cacheCloudData(cloudUser.id);render();updateSyncStatus();if(navigator.onLine)await syncPendingChanges();document.getElementById('businessProfileForm').dataset.logoPending='';document.getElementById('businessLogoInput').value='';pendingBusinessLogo='';cloudMessage('Business profile saved.');}
@@ -3545,7 +3603,7 @@ const businessLogoInput=document.getElementById('businessLogoInput');const busin
   const file=e.target.files?.[0];if(!file)return;
   try{const data=await processProductImage(file);if(data.length>150000)throw Error('Logo image is too large. Choose a smaller image.');pendingBusinessLogo=data;document.getElementById('businessLogoPreview').src=data;document.getElementById('businessLogoPreview').style.display='block';document.getElementById('businessLogoHint').textContent='Logo selected. Save your business profile to apply it.';document.getElementById('businessProfileForm').dataset.logoPending='yes';
   let b=document.querySelector('[id="removeBusinessLogo"]');if(!b){b=document.createElement('button');b.type='button';b.id='removeBusinessLogo';b.textContent='Remove logo';b.style.marginTop='8px';document.getElementById('businessProfileForm').appendChild(b);b.addEventListener('click',()=>{pendingBusinessLogo='';document.getElementById('businessLogoPreview').removeAttribute('src');document.getElementById('businessLogoPreview').style.display='none';document.getElementById('businessLogoHint').textContent='Logo will be removed when you save.';document.getElementById('businessProfileForm').dataset.logoPending='yes';});}
-  }catch(err){alert(err.message||String(err));e.target.value='';}
+  }catch(err){showToast(err.message||String(err));e.target.value='';}
 });
 document.querySelectorAll('[data-default-markup]').forEach(b=>b.addEventListener('click',()=>{
  defaultMarkup=Number(b.dataset.defaultMarkup);
@@ -3559,7 +3617,7 @@ document.querySelectorAll('[data-default-markup]').forEach(b=>b.addEventListener
 document.querySelectorAll('[data-default-markup]').forEach(x=>{const yes=Number(x.dataset.defaultMarkup)===defaultMarkup;x.classList.toggle('selected',yes);x.setAttribute('aria-pressed',String(yes));});
 
 document.getElementById('lowStockThreshold').value=lowStockThreshold;
-document.getElementById('savePreferencesBtn').addEventListener('click',()=>{const n=Number(document.getElementById('lowStockThreshold').value);if(!Number.isSafeInteger(n)||n<0||n>100000)return alert('Enter a whole-number threshold from 0 to 100000.');lowStockThreshold=n;localStorage.setItem('my-sales-book-low-stock-v1',String(n));render();alert('Preferences saved on this device.');});
+document.getElementById('savePreferencesBtn').addEventListener('click',()=>{const n=Number(document.getElementById('lowStockThreshold').value);if(!Number.isSafeInteger(n)||n<0||n>100000)return showToast('Enter a whole-number threshold from 0 to 100000.');lowStockThreshold=n;localStorage.setItem('my-sales-book-low-stock-v1',String(n));render();showToast('Preferences saved on this device.');});
 
 document.getElementById('changeEmailForm').addEventListener('submit',async event=>{
   event.preventDefault();
@@ -3578,9 +3636,9 @@ document.getElementById('changeEmailForm').addEventListener('submit',async event
     if(error)throw error;
     document.getElementById('changeEmailForm').reset();
     document.getElementById('changeEmailForm').classList.add('hidden');
-    document.getElementById('settingsAccountMessage').textContent='Email change requested. Follow the confirmation instructions sent by Supabase. The new address is not active until the required confirmation is completed.';
+    notifyStatus('settingsAccountMessage','Email change requested. Follow the confirmation instructions sent by Supabase. The new address is not active until the required confirmation is completed.','success');
   }catch(error){
-    document.getElementById('settingsAccountMessage').textContent='Could not request an email change: '+(error.message||'Please try again. Verify your current email again if the code has expired.');
+    notifyStatus('settingsAccountMessage','Could not request an email change: '+(error.message||'Please try again. Verify your current email again if the code has expired.'),'error');
   }finally{if(button){button.disabled=false;button.textContent='Request email change';}}
 });
 
@@ -3700,11 +3758,11 @@ document.getElementById('googleSignOut').addEventListener('click', async () => {
 
   const { error } = await supabaseClient.auth.signOut({scope:'local'});
   if (error) {
-    message.textContent = 'Could not sign out: ' + error.message;
+    notifyStatus(message,'Could not sign out: ' + error.message,'error');
     return;
   }
 
-  message.textContent = 'You have signed out. Your business workspace is now locked on this device.';
+  notifyStatus(message,'You have signed out. Your business workspace is now locked on this device.','success');
   await refreshAccountStatus();
 });
 
@@ -3794,7 +3852,7 @@ async function loadAdminTraffic(){
  const chart=document.getElementById('adminTrafficChart');if(chart)chart.textContent='Loading traffic…';
  const {data,error}=await supabaseClient.rpc('sellbook_admin_platform_metrics');
  if(!adminRequestIsCurrent(requestedUserId,requestEpoch))return;
- if(error){if(chart)chart.textContent='Traffic metrics unavailable: '+error.message;return;}
+ if(error){showToast('Traffic metrics are unavailable: '+error.message,'error');if(chart)chart.textContent='Traffic metrics are temporarily unavailable.';return;}
  document.getElementById('adminVisitsToday').textContent=data.visits_today??0;
  document.getElementById('adminVisits7d').textContent=data.visits_7d??0;
  document.getElementById('adminVisits30d').textContent=data.visits_30d??0;
@@ -3855,7 +3913,7 @@ async function loadAdminUsers(){
  const list=document.getElementById('adminChatUserList');if(list)list.innerHTML='<div class="empty">Loading chats…</div>';
  const {data,error}=await supabaseClient.rpc('sellbook_admin_users');
  if(!adminRequestIsCurrent(requestedUserId,requestEpoch))return;
- if(error){if(target)target.textContent='Could not load users: '+error.message;if(list)list.innerHTML='<div class="empty">Could not load chats: '+escAdmin(error.message)+'</div>';return;}
+ if(error){showToast('Could not load Sellbook users: '+error.message,'error');if(target)target.textContent='User information is temporarily unavailable.';if(list)list.innerHTML='<div class="empty">Chat previews are temporarily unavailable.</div>';return;}
  const rowsForUser=(data||[]).filter(u=>u.user_id!==requestedUserId);
  const opts='<option value="">Choose a user</option>'+rowsForUser.map(u=>'<option value="'+escAdmin(u.user_id)+'">'+escAdmin(u.email||'No email')+'</option>').join('');
  const chatSelect=document.getElementById('adminMessageUser'),previousUser=chatSelect.value;
@@ -3864,7 +3922,7 @@ async function loadAdminUsers(){
  if(target)target.innerHTML=rowsForUser.length?rowsForUser.map(u=>'<div class="item"><strong>'+escAdmin(u.email||'No email')+'</strong><div class="muted">Joined '+escAdmin(u.created_at?new Date(u.created_at).toLocaleDateString():'unknown')+' · Last sign-in '+escAdmin(u.last_sign_in_at?new Date(u.last_sign_in_at).toLocaleDateString():'not available')+'</div></div>').join(''):'<div class="empty">No registered users found.</div>';
  const {data:allMessages,error:msgError}=await supabaseClient.from('support_messages').select('id,sender_id,recipient_id,body,created_at,delivered_at,read_at').order('created_at',{ascending:false}).limit(1000);
  if(!adminRequestIsCurrent(requestedUserId,requestEpoch))return;
- if(msgError){if(list)list.innerHTML='<div class="empty">Could not load chat previews: '+escAdmin(msgError.message)+'</div>';return;}
+ if(msgError){showToast('Could not load chat previews: '+msgError.message,'error');if(list)list.innerHTML='<div class="empty">Chat previews are temporarily unavailable.</div>';return;}
  const msgs=allMessages||[];
  const rows=rowsForUser.map(u=>{const convo=msgs.filter(m=>(m.sender_id===u.user_id)||(m.recipient_id===u.user_id));const latest=convo[0]||null;const unread=convo.filter(m=>m.sender_id===u.user_id&&!m.read_at).length;return {...u,latest,unread};}).sort((x,y)=>new Date(y.latest?.created_at||y.created_at||0)-new Date(x.latest?.created_at||x.created_at||0));
  adminUsersCache=rowsForUser;
@@ -3880,7 +3938,7 @@ async function loadAdminFeedback(){
  const target=document.getElementById('adminFeedbackList');target.textContent='Loading feedback…';
  const {data,error}=await supabaseClient.from('user_feedback').select('id,user_id,category,subject,message,status,admin_reply,created_at').order('created_at',{ascending:false}).limit(100);
  if(!adminRequestIsCurrent(requestedUserId,requestEpoch))return;
- if(error){target.textContent='Could not load feedback: '+error.message;return;}
+ if(error){showToast('Could not load feedback: '+error.message,'error');target.textContent='Feedback is temporarily unavailable.';return;}
  target.innerHTML=(data||[]).length?data.map(f=>'<div class="item"><div class="row"><strong>'+escAdmin(f.subject)+'</strong><span class="status-pill">'+escAdmin(f.status)+'</span></div><div class="muted">'+escAdmin(f.category)+' · '+escAdmin(f.user_id)+' · '+escAdmin(new Date(f.created_at).toLocaleString())+'</div><p>'+escAdmin(f.message)+'</p><label>Status</label><select data-feedback-status="'+escAdmin(f.id)+'"><option value="new" '+(f.status==='new'?'selected':'')+'>New</option><option value="in_review" '+(f.status==='in_review'?'selected':'')+'>In review</option><option value="resolved" '+(f.status==='resolved'?'selected':'')+'>Resolved</option><option value="declined" '+(f.status==='declined'?'selected':'')+'>Declined</option></select><label>Reply to user</label><textarea data-feedback-reply="'+escAdmin(f.id)+'" rows="2" maxlength="4000" style="width:100%;padding:10px;border:1px solid #ccd6ce;border-radius:8px;font:inherit">'+escAdmin(f.admin_reply||'')+'</textarea><button type="button" data-save-feedback="'+escAdmin(f.id)+'" style="margin-top:8px">Save / send reply</button></div>').join(''):'<div class="empty">No feedback has been submitted yet.</div>';
  target.querySelectorAll('[data-save-feedback]').forEach(b=>b.addEventListener('click',async()=>{
   if(!adminRequestIsCurrent(requestedUserId,requestEpoch))return;
@@ -3889,7 +3947,7 @@ async function loadAdminFeedback(){
   const {error}=await supabaseClient.from('user_feedback').update({status,admin_reply:reply||null,replied_at:reply?new Date().toISOString():null,updated_at:new Date().toISOString()}).eq('id',id);
   if(!adminRequestIsCurrent(requestedUserId,requestEpoch))return;
   b.disabled=false;
-  if(error){alert('Could not save feedback: '+error.message);return;}
+  if(error){showToast('Could not save feedback: '+error.message);return;}
   await loadAdminFeedback();
   if(cloudUser?.id===requestedUserId)await loadUserSupport();
  }));
@@ -3900,7 +3958,7 @@ async function loadAdminNotifications(){
  const target=document.getElementById('adminNotificationsList');
  const {data,error}=await supabaseClient.from('app_notifications').select('id,title,body,kind,recipient_id,created_at').order('created_at',{ascending:false}).limit(20);
  if(!adminRequestIsCurrent(requestedUserId,requestEpoch))return;
- if(error){target.textContent='Could not load notifications: '+error.message;return;}
+ if(error){showToast('Could not load notifications: '+error.message,'error');target.textContent='Notifications are temporarily unavailable.';return;}
  localStorage.setItem('sellbook-notifications-seen-'+requestedUserId,new Date().toISOString());
  target.innerHTML=(data||[]).length?data.map(n=>'<div class="item"><strong>'+escAdmin(n.title)+'</strong><div class="muted">'+escAdmin(n.kind)+' · '+(n.recipient_id?'Specific user':'All users')+' · '+escAdmin(new Date(n.created_at).toLocaleString())+'</div><p>'+escAdmin(n.body)+'</p></div>').join(''):'<div class="empty">No notifications published yet.</div>';
 }
@@ -3964,7 +4022,7 @@ async function loadUserNotifications(){
  target.textContent='Loading notifications…';
  const {data,error}=await supabaseClient.from('app_notifications').select('id,title,body,kind,created_at').or('recipient_id.is.null,recipient_id.eq.'+requestedUserId).order('created_at',{ascending:false}).limit(100);
  if(!accountRequestIsCurrent(requestedUserId,requestEpoch))return;
- if(error){target.textContent='Could not load notifications: '+error.message;return;}
+ if(error){showToast('Could not load notifications: '+error.message,'error');target.textContent='Notifications are temporarily unavailable.';return;}
  userNotificationsCache=data||[];renderUserNotifications();
 }
 
@@ -4008,7 +4066,8 @@ async function loadUserSupport(){
   supabaseClient.rpc('get_my_marketplace_subscribers')
  ]);
  if(!current())return;
- if(feedback)feedback.innerHTML=fr.error?'Could not load feedback: '+escAdmin(fr.error.message):(fr.data||[]).length?fr.data.map(f=>'<div class="item"><div class="row"><strong>'+escAdmin(f.subject)+'</strong><span class="status-pill">'+escAdmin(f.status)+'</span></div><div class="muted">'+escAdmin(f.category)+' · '+escAdmin(new Date(f.created_at).toLocaleString())+'</div><p>'+escAdmin(f.message)+'</p>'+(f.admin_reply?'<p><strong>Sellbook reply:</strong> '+escAdmin(f.admin_reply)+'</p>':'')+'</div>').join(''):'<div class="empty">You have not sent feedback yet.</div>';
+ if(fr.error&&currentPage()==='feedback')showToast('Could not load your feedback: '+fr.error.message,'error');
+ if(feedback)feedback.innerHTML=fr.error?'<div class="empty">Feedback is temporarily unavailable.</div>':(fr.data||[]).length?fr.data.map(f=>'<div class="item"><div class="row"><strong>'+escAdmin(f.subject)+'</strong><span class="status-pill">'+escAdmin(f.status)+'</span></div><div class="muted">'+escAdmin(f.category)+' · '+escAdmin(new Date(f.created_at).toLocaleString())+'</div><p>'+escAdmin(f.message)+'</p>'+(f.admin_reply?'<p><strong>Sellbook reply:</strong> '+escAdmin(f.admin_reply)+'</p>':'')+'</div>').join(''):'<div class="empty">You have not sent feedback yet.</div>';
  if(!sr.error)marketplaceSubscribersCache=sr.data||[];
  if(selector){const old=selector.value||'support';selector.innerHTML='<option value="support">Sellbook Support</option>'+marketplaceSubscribersCache.map(x=>'<option value="'+escAdmin(x.buyer_id)+'">'+escAdmin(x.display_name||marketplaceBuyerName(x.buyer_id))+' · Buybook</option>').join('');selector.value=old==='support'||marketplaceSubscribersCache.some(x=>x.buyer_id===old)?old:'support';}
  const chosen=selector?selector.value:'support';
@@ -4019,13 +4078,15 @@ async function loadUserSupport(){
   let rows=mr.data||[];
   const incoming=currentPage()==='support'?rows.filter(m=>m.sender_id!==requestedUserId&&m.recipient_id===requestedUserId&&!m.read_at).map(m=>m.id):[];
   if(incoming.length){const stamp=new Date().toISOString();const {error}=await supabaseClient.from('support_messages').update({delivered_at:stamp,read_at:stamp}).in('id',incoming).eq('recipient_id',requestedUserId).select('id');if(!current())return;if(!error){const fresh=await supabaseClient.from('support_messages').select('id,sender_id,recipient_id,body,created_at,delivered_at,read_at').or('sender_id.eq.'+requestedUserId+',recipient_id.eq.'+requestedUserId).order('created_at',{ascending:true}).limit(100);if(!current())return;if(!fresh.error)rows=fresh.data||rows;}}
-  messages.innerHTML=mr.error?'Could not load messages: '+escAdmin(mr.error.message):rows.length?rows.map(m=>{const mine=m.sender_id===requestedUserId,receipt=mine?(m.read_at?'Opened':m.delivered_at?'Delivered':'Sent'):'';return '<div class="chat-message '+(mine?'from-user':'from-support')+'"><strong>'+(mine?'You':'Sellbook Support')+'</strong><p>'+escAdmin(m.body)+'</p><time class="chat-time">'+escAdmin(new Date(m.created_at).toLocaleString([], {dateStyle:'medium',timeStyle:'short'}))+(receipt?' · '+receipt:'')+'</time></div>';}).join(''):'<div class="empty">No support messages yet. Send a message below to start chatting.</div>';
+  if(mr.error&&currentPage()==='support')showToast('Could not load support messages: '+mr.error.message,'error');
+   messages.innerHTML=mr.error?'<div class="empty">Support messages are temporarily unavailable.</div>':rows.length?rows.map(m=>{const mine=m.sender_id===requestedUserId,receipt=mine?(m.read_at?'Opened':m.delivered_at?'Delivered':'Sent'):'';return '<div class="chat-message '+(mine?'from-user':'from-support')+'"><strong>'+(mine?'You':'Sellbook Support')+'</strong><p>'+escAdmin(m.body)+'</p><time class="chat-time">'+escAdmin(new Date(m.created_at).toLocaleString([], {dateStyle:'medium',timeStyle:'short'}))+(receipt?' · '+receipt:'')+'</time></div>';}).join(''):'<div class="empty">No support messages yet. Send a message below to start chatting.</div>';
  }else if(messages){
   const {data,error}=await supabaseClient.from('marketplace_messages').select('id,owner_id,buyer_id,sender_id,body,created_at,read_at').eq('owner_id',requestedUserId).eq('buyer_id',chosen).order('created_at',{ascending:true}).limit(200);
   if(!current())return;
   let rows=data||[];const incoming=rows.filter(m=>m.sender_id===chosen&&!m.read_at).map(m=>m.id);
   if(incoming.length){const stamp=new Date().toISOString();const {error:readError}=await supabaseClient.from('marketplace_messages').update({read_at:stamp}).in('id',incoming).eq('owner_id',requestedUserId).eq('buyer_id',chosen);if(!current())return;if(!readError)rows=rows.map(m=>incoming.includes(m.id)?{...m,read_at:stamp}:m);}
-  messages.innerHTML=error?'<div class="empty">Could not load Buybook messages: '+escAdmin(error.message)+'</div>':rows.length?rows.map(m=>{const mine=m.sender_id===requestedUserId;return '<div class="chat-message '+(mine?'from-user':'from-support')+'"><strong>'+escAdmin(mine?'You':marketplaceBuyerName(chosen))+'</strong><p>'+escAdmin(m.body)+'</p><time class="chat-time">'+escAdmin(new Date(m.created_at).toLocaleString([], {dateStyle:'medium',timeStyle:'short'}))+(mine&&m.read_at?' · Read':'')+'</time></div>';}).join(''):'<div class="empty">No messages from this subscriber yet. You can start the conversation below.</div>';
+  if(error&&currentPage()==='support')showToast('Could not load Buybook messages: '+error.message,'error');
+   messages.innerHTML=error?'<div class="empty">Buybook messages are temporarily unavailable.</div>':rows.length?rows.map(m=>{const mine=m.sender_id===requestedUserId;return '<div class="chat-message '+(mine?'from-user':'from-support')+'"><strong>'+escAdmin(mine?'You':marketplaceBuyerName(chosen))+'</strong><p>'+escAdmin(m.body)+'</p><time class="chat-time">'+escAdmin(new Date(m.created_at).toLocaleString([], {dateStyle:'medium',timeStyle:'short'}))+(mine&&m.read_at?' · Read':'')+'</time></div>';}).join(''):'<div class="empty">No messages from this subscriber yet. You can start the conversation below.</div>';
  }
  if(!current())return;
  if(messages)messages.scrollTop=messages.scrollHeight;
@@ -4034,30 +4095,30 @@ async function loadUserSupport(){
  await updateUnreadBadges();
 }
 document.getElementById('userFeedbackForm').addEventListener('submit',async e=>{
- e.preventDefault();if(!cloudUser||!supabaseClient)return document.getElementById('feedbackFormStatus').textContent='Please sign in first.';
+ e.preventDefault();if(!cloudUser||!supabaseClient)return notifyStatus('feedbackFormStatus','Please sign in first.','error');
  const requestedUserId=cloudUser.id,requestEpoch=accountSessionEpoch,current=()=>accountRequestIsCurrent(requestedUserId,requestEpoch);
- const status=document.getElementById('feedbackFormStatus');status.textContent='Sending…';
+ const status=document.getElementById('feedbackFormStatus');notifyStatus(status,'Sending…','info');
  try{
   const {error}=await supabaseClient.from('user_feedback').insert({user_id:requestedUserId,category:document.getElementById('feedbackCategory').value,subject:document.getElementById('feedbackSubject').value.trim(),message:document.getElementById('feedbackMessage').value.trim()});
   if(!current())return;
-  if(error){status.textContent='Could not send feedback: '+error.message;return;}
-  e.target.reset();status.textContent='Feedback sent. Thank you.';await loadUserSupport();
- }catch(error){if(current())status.textContent='Could not send feedback: '+(error.message||'Please try again.');}
+  if(error){notifyStatus(status,'Could not send feedback: '+error.message,'error');return;}
+  e.target.reset();notifyStatus(status,'Feedback sent. Thank you.','success');await loadUserSupport();
+ }catch(error){if(current())notifyStatus(status,'Could not send feedback: '+(error.message||'Please try again.'),'error');}
 });
 document.getElementById('supportMessageForm').addEventListener('submit',async e=>{
- e.preventDefault();if(!cloudUser||!supabaseClient)return document.getElementById('supportMessageStatus').textContent='Please sign in first.';
+ e.preventDefault();if(!cloudUser||!supabaseClient)return notifyStatus('supportMessageStatus','Please sign in first.','error');
  const requestedUserId=cloudUser.id,requestEpoch=accountSessionEpoch,chosenConversation= document.getElementById('messageConversationSelect')?.value||'support';
  const current=()=>accountRequestIsCurrent(requestedUserId,requestEpoch)&&String(document.getElementById('messageConversationSelect')?.value||'support')===String(chosenConversation);
  const form=e.target,body=document.getElementById('supportMessageBody'),status=document.getElementById('supportMessageStatus'),button=form.querySelector('button[type="submit"]'),message=body.value.trim();if(!message)return;
- button.disabled=true;status.textContent='Sending…';
+ button.disabled=true;notifyStatus(status,'Sending…','info');
  try{
   let error;
   if(chosenConversation==='support')({error}=await supabaseClient.from('support_messages').insert({sender_id:requestedUserId,recipient_id:null,body:message}));
   else ({error}=await supabaseClient.from('marketplace_messages').insert({owner_id:requestedUserId,buyer_id:chosenConversation,sender_id:requestedUserId,body:message}));
   if(!current())return;
-  if(error){status.textContent='Could not send message: '+error.message;return;}
-  form.reset();body.style.height='auto';status.textContent='';await loadUserSupport();
- }catch(error){if(current())status.textContent='Could not send message: '+(error.message||'Please try again.');}
+  if(error){notifyStatus(status,'Could not send message: '+error.message,'error');return;}
+  form.reset();body.style.height='auto';notifyStatus(status,'Message sent.','success');await loadUserSupport();
+ }catch(error){if(current())notifyStatus(status,'Could not send message: '+(error.message||'Please try again.'),'error');}
  finally{button.disabled=false;}
 });
 
@@ -4095,7 +4156,7 @@ async function loadMessengerConversations(options={}){
   messengerConversationCache=conversations.sort((a,b)=>new Date(b.time)-new Date(a.time));
   renderMessengerConversationList();
   if(options.refreshSelected&&messengerSelectedConversation&&document.body.classList.contains('messenger-conversation-open'))await openMessengerConversation(messengerSelectedConversation,{quiet:true});
- }catch(err){if(current()&&!options.quiet)list.innerHTML='<div class="empty">Could not load chats: '+escAdmin(err.message||'Please try again.')+'</div>';}
+ }catch(err){if(current()&&!options.quiet){showToast('Could not load conversations: '+(err.message||'Please try again.'),'error');list.innerHTML='<div class="empty">Conversations are temporarily unavailable. Refresh to try again.</div>';}}
 }
 async function openMessengerConversation(id,options={}){
  if(!cloudUser||!supabaseClient)return;
@@ -4124,7 +4185,7 @@ async function openMessengerConversation(id,options={}){
   else target.innerHTML=messageHtml||'<div class="empty">Say hello to start the conversation.</div>';
   if(wasNearBottom||!options.quiet)target.scrollTop=target.scrollHeight;
   const status=document.getElementById('messengerStatus');if(status)status.textContent='';
- }catch(err){if(current()&&!options.quiet)target.innerHTML='<div class="empty">Could not load messages: '+escAdmin(err.message||'Please try again.')+'</div>';}
+ }catch(err){if(current()&&!options.quiet){showToast('Could not load messages: '+(err.message||'Please try again.'),'error');target.innerHTML='<div class="empty">Messages are temporarily unavailable. Refresh to try again.</div>';}}
 }
 async function openMessengerSubscriberPicker(){
  const overlay=document.getElementById('messengerSubscriberPicker'),list=document.getElementById('messengerSubscriberPickerList');
@@ -4139,7 +4200,7 @@ async function openMessengerSubscriberPicker(){
   marketplaceSubscribersCache=data||[];
   if(!marketplaceSubscribersCache.length){list.innerHTML='<div class="empty">No subscribed buyers yet. Buyers who subscribe to your shop on Buybook will appear here.</div>';return;}
   renderMessengerSubscriberPicker();
- }catch(err){if(current())list.innerHTML='<div class="empty">Could not load subscribers: '+escAdmin(err.message||'Please try again.')+'</div>';}
+ }catch(err){if(current()){showToast('Could not load subscribers: '+(err.message||'Please try again.'),'error');list.innerHTML='<div class="empty">Subscriber information is temporarily unavailable.</div>';}}
 }
 function renderMessengerSubscriberPicker(){
  const list=document.getElementById('messengerSubscriberPickerList');if(!list)return;
@@ -4163,18 +4224,18 @@ document.getElementById('messengerComposer')?.addEventListener('submit',async e=
  const requestedUserId=cloudUser.id,requestEpoch=accountSessionEpoch,conversationId=messengerSelectedConversation;
  const current=()=>accountRequestIsCurrent(requestedUserId,requestEpoch)&&String(messengerSelectedConversation)===String(conversationId);
  const input=document.getElementById('messengerBody'),status=document.getElementById('messengerStatus'),button=e.currentTarget.querySelector('button[type="submit"]'),body=input.value.trim();if(!body)return;
- button.disabled=true;status.textContent='Sending…';
+ button.disabled=true;notifyStatus(status,'Sending…','info');
  try{
   let result;
   if(conversationId==='support')result=await supabaseClient.from('support_messages').insert({sender_id:requestedUserId,recipient_id:null,body});
   else result=await supabaseClient.from('marketplace_messages').insert({owner_id:requestedUserId,buyer_id:conversationId,sender_id:requestedUserId,body});
   if(!current())return;
   if(result.error)throw result.error;
-  input.value='';input.style.height='auto';status.textContent='';
+  input.value='';input.style.height='auto';notifyStatus(status,'Message sent.','success');
   await openMessengerConversation(conversationId);
   if(!current())return;
   await loadMessengerConversations();
- }catch(err){if(current())status.textContent='Message not sent: '+(err.message||'Please try again.');}
+ }catch(err){if(current())notifyStatus(status,'Message not sent: '+(err.message||'Please try again.'),'error');}
  finally{button.disabled=false;}
 });
 if(messengerRefreshTimer)clearInterval(messengerRefreshTimer);
@@ -4227,7 +4288,7 @@ async function loadAdminConversation(){
    .or('sender_id.eq.'+uid+',recipient_id.eq.'+uid)
    .order('created_at',{ascending:true}).limit(200);
   if(!current())return;
-  if(error){target.innerHTML='<div class="empty">Could not load conversation: '+escAdmin(error.message)+'</div>';return;}
+  if(error){showToast('Could not load this conversation: '+error.message,'error');target.innerHTML='<div class="empty">This conversation is temporarily unavailable.</div>';return;}
 
   const unread=(data||[]).filter(m=>m.sender_id===uid&&!m.read_at).map(m=>m.id);
   if(unread.length){
@@ -4260,7 +4321,7 @@ async function loadAdminConversation(){
   if(wasNearBottom)target.scrollTop=target.scrollHeight;
   if(current())await updateUnreadBadges();
  }catch(error){
-  if(current())target.innerHTML='<div class="empty">Could not load conversation: '+escAdmin(error.message||'Please try again.')+'</div>';
+  if(current()){showToast('Could not load this conversation: '+(error.message||'Please try again.'),'error');target.innerHTML='<div class="empty">This conversation is temporarily unavailable.</div>'; }
  }finally{
   if(adminConversationRequestId===requestId)adminConversationLoading=false;
  }
@@ -4270,23 +4331,23 @@ document.getElementById('adminReplyForm').addEventListener('submit',async e=>{
  if(!supabaseClient||!cloudUser||!sellbookIsAdmin)return;
  const requestedUserId=cloudUser.id,requestEpoch=adminAccessEpoch;
  const uid=document.getElementById('adminMessageUser').value,input=document.getElementById('adminReplyBody'),body=input.value.trim(),status=document.getElementById('adminReplyStatus'),send=e.target.querySelector('button[type="submit"]');
- if(!uid){status.textContent='Choose a user first.';return;}if(!body)return;
- send.disabled=true;status.textContent='Sending…';
+ if(!uid){notifyStatus(status,'Choose a user first.','error');return;}if(!body)return;
+ send.disabled=true;notifyStatus(status,'Sending…','info');
  try{
   const {error}=await supabaseClient.from('support_messages')
    .insert({sender_id:requestedUserId,recipient_id:uid,body});
   if(!adminRequestIsCurrent(requestedUserId,requestEpoch))return;
-  if(error){status.textContent='Could not send message: '+error.message;return;}
-  input.value='';input.style.height='auto';status.textContent='Message sent.';
+  if(error){notifyStatus(status,'Could not send message: '+error.message,'error');return;}
+  input.value='';input.style.height='auto';notifyStatus(status,'Message sent.','success');
   await loadAdminConversation();
   if(adminRequestIsCurrent(requestedUserId,requestEpoch))await loadAdminUsers();
  }catch(error){
-  if(adminRequestIsCurrent(requestedUserId,requestEpoch))status.textContent='Could not send message: '+(error.message||'Please try again.');
+  if(adminRequestIsCurrent(requestedUserId,requestEpoch))notifyStatus(status,'Could not send message: '+(error.message||'Please try again.'),'error');
  }finally{
   send.disabled=false;
  }
 });
-setInterval(()=>{if(cloudUser&&!document.hidden&&currentPage()==='settings-buybook'){loadBuybookActivity();}},15000);
+setInterval(()=>{if(cloudUser&&!document.hidden&&currentPage()==='settings-buybook'){loadBuybookActivity({quiet:true});}},15000);
 setInterval(()=>{if(sellbookIsAdmin&&currentPage()==='admin'&&sessionStorage.getItem('sellbook-admin-panel')==='support'){if(!document.getElementById('adminChatConversationView').classList.contains('hidden')&&document.getElementById('adminMessageUser').value)loadAdminConversation();else loadAdminUsers();}},15000);
 setInterval(()=>{if(!cloudUser||document.hidden)return;if(!sellbookIsAdmin&&currentPage()==='support')loadUserSupport();else updateUnreadBadges();},30000);
 
@@ -4296,17 +4357,17 @@ document.getElementById('adminNotificationForm').addEventListener('submit',async
  if(!supabaseClient||!cloudUser||!sellbookIsAdmin)return;
  const requestedUserId=cloudUser.id,requestEpoch=adminAccessEpoch;
  const audience=document.getElementById('notificationAudience').value,uid=document.getElementById('notificationUser').value,status=document.getElementById('adminNotificationStatus');
- if(audience==='selected'&&!uid){status.textContent='Choose a user.';return;}
+ if(audience==='selected'&&!uid){notifyStatus(status,'Choose a user.','error');return;}
  const payload={created_by:requestedUserId,recipient_id:audience==='selected'?uid:null,kind:document.getElementById('notificationKind').value,title:document.getElementById('notificationTitle').value.trim(),body:document.getElementById('notificationBody').value.trim()};
  const button=e.target.querySelector('button[type="submit"]');if(button)button.disabled=true;
  try{
   const {error}=await supabaseClient.from('app_notifications').insert(payload);
   if(!adminRequestIsCurrent(requestedUserId,requestEpoch))return;
-  if(error){status.textContent='Could not publish notification: '+error.message;return;}
-  e.target.reset();document.getElementById('notificationUserWrap').classList.add('hidden');status.textContent='Notification published.';
+  if(error){notifyStatus(status,'Could not publish notification: '+error.message,'error');return;}
+  e.target.reset();document.getElementById('notificationUserWrap').classList.add('hidden');notifyStatus(status,'Notification published.','success');
   await loadAdminNotifications();
  }catch(error){
-  if(adminRequestIsCurrent(requestedUserId,requestEpoch))status.textContent='Could not publish notification: '+(error.message||'Please try again.');
+  if(adminRequestIsCurrent(requestedUserId,requestEpoch))notifyStatus(status,'Could not publish notification: '+(error.message||'Please try again.'),'error');
  }finally{
   if(button)button.disabled=false;
  }
