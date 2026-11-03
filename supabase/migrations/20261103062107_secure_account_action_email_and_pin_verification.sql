@@ -35,7 +35,7 @@ begin
   if v_user_id is null then
     raise exception 'Sign in before verifying this account action.';
   end if;
-  if p_action is null or p_action not in ('change_pin','change_email') then
+  if p_action not in ('change_pin','change_email') then
     raise exception 'This email verification action is not supported.';
   end if;
   if p_target_session_id is null then
