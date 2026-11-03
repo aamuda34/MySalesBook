@@ -2423,3 +2423,11 @@ body.dark #authPage .auth-email-entry,body.dark #authPage #emailAuthForm input{b
 #deleteAccountPinDialog h2{font-size:19px;margin:0 0 8px}
 #deleteAccountPinDialog p{line-height:1.5}
 #deleteAccountPinDialog .dialog-actions button{min-height:46px}
+
+
+/* Temporary status popup for account and security actions. */
+.app-status-popup{position:fixed;z-index:10000;top:calc(env(safe-area-inset-top,0px) + 12px);left:50%;width:min(440px,calc(100vw - 28px));box-sizing:border-box;padding:13px 16px;border:1px solid var(--border);border-radius:14px;background:var(--surface);color:var(--ink);box-shadow:0 12px 36px rgba(0,0,0,.18);font-size:13px;font-weight:650;line-height:1.45;text-align:left;overflow-wrap:anywhere;opacity:0;visibility:hidden;transform:translate(-50%,-12px);transition:opacity .18s ease,transform .18s ease,visibility .18s ease;pointer-events:none}
+.app-status-popup.visible{opacity:1;visibility:visible;transform:translate(-50%,0)}
+.app-status-popup[data-type="success"]{border-color:#23834b}
+.app-status-popup[data-type="error"]{border-color:#c44b4b}
+@media(prefers-reduced-motion:reduce){.app-status-popup{transition:none}}
