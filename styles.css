@@ -2354,3 +2354,54 @@ body.dark #accountCard .auth-message:not(:empty){background:var(--soft)}
     to{opacity:1;transform:translateY(0)}
   }
 }
+
+
+/* Sellbook authentication is a dedicated full-screen page, never a modal. */
+body:has(#accountCard:not(.hidden)) #mainContent,
+body:has(#securityPinGate:not(.hidden)) #mainContent,
+body.auth-initializing #mainContent{display:block!important;width:100%!important;max-width:none!important;min-height:100svh!important;margin:0!important;padding:0!important}
+#authPage{display:none;flex-direction:column;justify-content:center;align-items:center;width:100%;min-height:100svh;min-height:100dvh;padding:calc(28px + env(safe-area-inset-top,0px)) 20px calc(28px + env(safe-area-inset-bottom,0px));background:var(--page);color:var(--ink);box-sizing:border-box}
+body:has(#accountCard:not(.hidden)) #authPage,
+body:has(#securityPinGate:not(.hidden)) #authPage,
+body.auth-initializing #authPage{display:flex!important}
+#authPage #authLoading{width:100%;max-width:440px;min-height:48svh;margin:auto;align-items:center;justify-content:center}
+body:not(.auth-initializing) #authPage #authLoading{display:none!important}
+#authPage #accountCard{width:100%;max-width:450px;margin:auto;padding:clamp(24px,6vw,40px) 0;border:0!important;border-radius:0!important;background:transparent!important;box-shadow:none!important;color:var(--ink)}
+#authPage .auth-brand-lockup{justify-content:flex-start;margin:0 auto 32px;width:100%;max-width:390px}
+#authPage #authCardTitle{text-align:left;font-size:clamp(27px,6vw,32px);margin-bottom:8px}
+#authPage .auth-account-status{text-align:left;max-width:none;margin:0 0 27px}
+#authPage .auth-signin-choices,#authPage .auth-email-panel{width:100%;max-width:390px;margin:0 auto}
+#authPage .auth-signin-choices{display:flex;flex-direction:column;gap:0}
+#authPage .auth-divider{display:flex;align-items:center;gap:14px;margin:19px 0;color:var(--muted);font-size:11px;font-weight:750;letter-spacing:.12em}
+#authPage .auth-divider::before,#authPage .auth-divider::after{content:"";height:1px;flex:1;background:var(--border)}
+#authPage .auth-email-entry{width:100%;min-height:53px;padding:12px 16px;border:1px solid var(--border);border-radius:13px;background:var(--surface);color:var(--ink);font:inherit;font-size:15px;font-weight:750;box-shadow:0 3px 12px rgba(12,35,20,.035)}
+#authPage .auth-email-entry:active{background:var(--soft)}
+#authPage .auth-text-button{margin-top:12px}
+#authPage .auth-privacy-note{margin:24px 0 0;color:var(--muted);font-size:12px;text-align:center;line-height:1.5}
+#authPage .auth-email-panel{padding:0}
+#authPage .auth-back-link{display:inline-flex;align-items:center;gap:7px;margin:0 0 25px;padding:8px 0;border:0;background:transparent;color:var(--green);font:inherit;font-size:13px;font-weight:750}
+#authPage .auth-back-link span{font-size:26px;line-height:16px}
+#authPage .auth-email-panel h3{margin:0 0 7px;font-size:23px;letter-spacing:-.025em;color:var(--ink)}
+#authPage .auth-form-description{margin:0 0 20px;color:var(--muted);font-size:13px;line-height:1.5}
+#authPage #emailAuthForm{display:grid;gap:8px}
+#authPage #emailAuthForm label,#authPage #authPasswordConfirmField label{margin:7px 0 0;color:var(--ink);font-size:13px;font-weight:700}
+#authPage #emailAuthForm input{width:100%;min-height:52px;padding:13px 14px;border:1px solid var(--border);border-radius:12px;background:var(--surface);color:var(--ink);font:inherit;font-size:15px;box-sizing:border-box}
+#authPage #emailAuthForm input:focus{border-color:var(--green)}
+#authPage .auth-field-hint{margin:2px 0 4px;color:var(--muted);font-size:11px;line-height:1.45}
+#authPage .auth-email-submit{width:100%;min-height:52px;margin-top:8px;border-radius:12px;font-weight:750}
+#authPage .auth-email-links{display:flex;flex-direction:column;align-items:center;gap:4px;margin-top:12px}
+#authPage .auth-email-links button,#authPage .auth-resend-button{min-height:42px;padding:9px 12px;border:0;background:transparent;color:var(--green);font:inherit;font-size:13px;font-weight:700}
+#authPage .auth-resend-button{display:block;width:100%;margin-top:8px;border:1px solid var(--border);border-radius:12px}
+#authPage .auth-recovery-request,#authPage .auth-new-password-form{width:100%;max-width:390px;margin:0 auto}
+#authPage .auth-recovery-heading{text-align:left}
+#authPage .auth-recovery-heading .auth-recovery-icon{margin-left:0}
+#authPage .auth-recovery-heading h3{font-size:23px}
+#authPage .auth-recovery-heading p{max-width:none}
+#authPage .auth-recovery-request label,#authPage .auth-new-password-form label{margin-top:9px}
+#authPage .auth-recovery-request input,#authPage .auth-new-password-form input{width:100%;min-height:52px;box-sizing:border-box}
+#authPage .auth-recovery-submit{width:100%;min-height:52px}
+#authPage #accountMessage{width:100%;max-width:390px;margin:16px auto 0}
+#authPage #securityPinGate{width:100%;max-width:450px;margin:auto;padding:24px 0;border:0!important;border-radius:0!important;background:transparent!important;box-shadow:none!important;color:var(--ink)}
+body.dark #authPage{background:var(--page);color:var(--ink)}
+body.dark #authPage .auth-email-entry,body.dark #authPage #emailAuthForm input{background:var(--surface);color:var(--ink);border-color:var(--border)}
+@media(max-width:380px){#authPage{padding-left:17px;padding-right:17px}#authPage #accountCard{padding-top:19px;padding-bottom:22px}#authPage .auth-brand-lockup{margin-bottom:25px}}
