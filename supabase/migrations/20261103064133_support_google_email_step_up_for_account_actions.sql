@@ -1,8 +1,8 @@
--- Extend the sensitive-account-action grant to allow fresh email OTP and
--- fresh Google OAuth reauthentication. Google-only users retain access to these
--- protections without requiring them to create a second login method.
+-- Permit a fresh OTP or fresh Google OAuth method to grant a short-lived
+-- sensitive-account-action authorization. This first version binds the grant
+-- to the authenticated session; the following migration tightens OTP-vs-OAuth
+-- session binding and verified-email checks.
 drop function if exists public.grant_sellbook_email_action(uuid,text);
-
 create or replace function public.grant_sellbook_email_action(
   p_target_session_id uuid,
   p_action text,
@@ -13,21 +13,28 @@ security definer
 set search_path to ''
 as $function$
 declare
-  v_user_id uuid := auth.uid();
-  v_otp_session_text text := auth.jwt()->>'session_id';
-  v_otp_session_id uuid;
-  v_amr jsonb := case when jsonb_typeof(auth.jwt()->'amr')='array' then auth.jwt()->'amr' else '[]'::jsonb end;
-  v_recent_otp boolean := false;
-  v_recent_oauth boolean := false;
+  v_user_id uuid:=auth.uid();
+  v_session_text text:=auth.jwt()->>'session_id';
+  v_session_id uuid;
+  v_jwt_email text:=auth.jwt()->>'email';
+  v_user_email text;
+  v_email_confirmed_at timestamptz;
+  v_amr jsonb:=case when jsonb_typeof(auth.jwt()->'amr')='array' then auth.jwt()->'amr' else '[]'::jsonb end;
+  v_recent_otp boolean:=false;
+  v_recent_oauth boolean:=false;
   v_previous_pin_expiry timestamptz;
 begin
   if v_user_id is null then raise exception 'Sign in before verifying this account action.'; end if;
   if p_action is null or p_action not in ('change_pin','change_email') then raise exception 'This email verification action is not supported.'; end if;
   if p_target_session_id is null then raise exception 'Your Sellbook session could not be confirmed. Please try again.'; end if;
-  if v_otp_session_text is null or v_otp_session_text !~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' then
-    raise exception 'Your verification session is invalid. Please restart verification.';
+  if v_session_text is null or v_session_text !~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' then raise exception 'Your verification session is invalid. Please restart verification.'; end if;
+  v_session_id:=v_session_text::uuid;
+
+  select u.email,u.email_confirmed_at into v_user_email,v_email_confirmed_at from auth.users u where u.id=v_user_id;
+  if v_email_confirmed_at is null or v_user_email is null or lower(coalesce(v_jwt_email,''))<>lower(v_user_email) then
+    raise exception 'The registered email address must be confirmed before this account change.';
   end if;
-  v_otp_session_id:=v_otp_session_text::uuid;
+
   select
     exists(select 1 from jsonb_array_elements(v_amr) method(value) where method.value->>'method'='otp'
       and coalesce(method.value->>'timestamp','') ~ '^[0-9]{1,12}$'
@@ -37,9 +44,10 @@ begin
       and (method.value->>'timestamp')::numeric between extract(epoch from now()-interval '5 minutes') and extract(epoch from now()+interval '30 seconds'))
   into v_recent_otp,v_recent_oauth;
   if not v_recent_otp and not v_recent_oauth then raise exception 'A fresh email code or Google sign-in is required for this action.'; end if;
-  if not exists(select 1 from auth.sessions s where s.id=v_otp_session_id and s.user_id=v_user_id) then
-    raise exception 'Your verification session has expired. Restart verification and retry.';
+  if not exists(select 1 from auth.sessions s where s.id=v_session_id and s.user_id=v_user_id and s.created_at>=now()-interval '5 minutes') then
+    raise exception 'Your verification session is not recent enough. Restart verification and retry.';
   end if;
+  if p_target_session_id<>v_session_id then raise exception 'Verification must be performed in the active Sellbook session.'; end if;
   if not exists(select 1 from auth.sessions s where s.id=p_target_session_id and s.user_id=v_user_id) then
     raise exception 'Your active Sellbook session changed. Start verification again.';
   end if;
