@@ -110,6 +110,7 @@ const SECURITY_OAUTH_PENDING_KEY='sellbook-security-action-oauth-v1';
 let securityOauthFinalizing=false;
 let securityOauthFinalizeScheduled=false;
 let accountEmailOtpBusy = false;
+let accountOtpResendTimer = null;
 let pendingDeleteAccountUserId = null;
 function accountRequestIsCurrent(userId, epoch) {
   return !!userId && cloudUser?.id === userId && accountSessionEpoch === epoch;
@@ -2667,6 +2668,7 @@ async function requestAccountActionEmailOtp(action){
     otpClient=createAccountStepUpClient();
     const {error}=await otpClient.auth.signInWithOtp({email,options:{shouldCreateUser:false}});
     if(error)throw error;
+    startAccountOtpResendCooldown(60);
     accountEmailOtpState={action,client:otpClient,userId:current.user.id,email,targetSessionId:current.sessionId};
     document.getElementById('accountManagePanel').classList.add('hidden');
     document.getElementById('changeEmailForm')?.classList.add('hidden');
@@ -2681,10 +2683,30 @@ async function requestAccountActionEmailOtp(action){
     throw error;
   }finally{accountEmailOtpBusy=false;}
 }
+
+function startAccountOtpResendCooldown(seconds=60){
+  if(accountOtpResendTimer)clearInterval(accountOtpResendTimer);
+  const button=document.getElementById('resendAccountEmailOtpButton');
+  if(!button)return;
+  let remaining=Math.max(1,Math.floor(seconds));
+  button.disabled=true;
+  button.textContent='Resend in '+remaining+'s';
+  accountOtpResendTimer=setInterval(()=>{
+    remaining-=1;
+    if(!document.getElementById('accountEmailOtpPanel')?.open||remaining<=0){
+      clearInterval(accountOtpResendTimer);accountOtpResendTimer=null;
+      button.disabled=false;button.textContent='Resend code';
+      return;
+    }
+    button.textContent='Resend in '+remaining+'s';
+  },1000);
+}
 function clearAccountEmailOtp(){
   const pending=accountEmailOtpState;accountEmailOtpState=null;
   if(pending?.client)pending.client.auth.signOut({scope:'local'}).catch(()=>{});
   document.getElementById('accountEmailOtpPanel')?.close();
+  if(accountOtpResendTimer){clearInterval(accountOtpResendTimer);accountOtpResendTimer=null;}
+  const resendButton=document.getElementById('resendAccountEmailOtpButton');if(resendButton){resendButton.disabled=false;resendButton.textContent='Resend code';}
   document.getElementById('accountManagePanel')?.classList.remove('hidden');
   const code=document.getElementById('accountEmailOtp');if(code)code.value='';
   if(sessionStorage.getItem('sellbook-pin-reset-after-auth')==='yes')showSecurityPinGate('verify','Email verification is required before Sellbook can reset your PIN.');
@@ -2712,6 +2734,7 @@ document.getElementById('resendAccountEmailOtpButton')?.addEventListener('click'
     if(current.user.id!==state.userId||current.sessionId!==state.targetSessionId)throw Error('Your Sellbook session changed. Cancel and start verification again.');
     const {error}=await state.client.auth.signInWithOtp({email:state.email,options:{shouldCreateUser:false}});
     if(error)throw error;
+    startAccountOtpResendCooldown(60);
     document.getElementById('accountEmailOtp').value='';message.textContent='A new verification code has been sent. Use the latest code.';
   }catch(error){message.textContent='Could not resend the code: '+(error.message||'Please try again.');}
   finally{accountEmailOtpBusy=false;button.disabled=false;button.textContent='Resend code';}
