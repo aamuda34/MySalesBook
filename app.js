@@ -2627,8 +2627,15 @@ document.getElementById('accountEmailOtpForm')?.addEventListener('submit',async 
       document.getElementById('newAccountEmail').focus();
     }
     otpClient.auth.signOut({scope:'local'}).catch(()=>{});
-  }catch(error){message.textContent='Email verification failed: '+(error.message||'Check the code and try again.');}
-  finally{accountEmailOtpBusy=false;button.disabled=false;button.textContent='Verify code';}
+  }catch(error){
+    const failure='Email verification failed: '+(error.message||'Check the code and try again.');
+    if(sessionStorage.getItem('sellbook-pin-reset-after-auth')==='yes'){
+      showSecurityPinGate('verify','Your email code was accepted, but the PIN reset did not finish. Please restart PIN recovery and verify your email again.');
+      document.getElementById('securityPinMessage').textContent=failure;
+    }else{
+      message.textContent=failure;
+    }
+  }finally{accountEmailOtpBusy=false;button.disabled=false;button.textContent='Verify code';}
 });
 document.getElementById('cancelChangeEmailButton')?.addEventListener('click',()=>{
   document.getElementById('changeEmailForm')?.classList.add('hidden');
