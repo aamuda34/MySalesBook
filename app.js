@@ -107,6 +107,7 @@ let cloudUser = null;
 let accountSessionEpoch = 0;
 let accountEmailOtpState = null;
 const SECURITY_OAUTH_PENDING_KEY='sellbook-security-action-oauth-v1';
+const SECURITY_PIN_CHANGE_AFTER_GOOGLE_KEY='sellbook-pin-change-after-google-v1';
 let securityOauthFinalizing=false;
 let securityOauthFinalizeScheduled=false;
 let accountEmailOtpBusy = false;
@@ -129,6 +130,19 @@ async function saveCloudChangesLocally(changes,options={}) {
 async function saveCloudChangeLocally(type,payload,options={}) { return saveCloudChangesLocally([{type,payload}],options); }
 
 function cloudMessage(text){const el=document.getElementById('accountMessage'),settings=document.getElementById('settingsAccountMessage');if(el)el.textContent=text;if(settings)settings.textContent=text;}
+let statusPopupTimer=null;
+function showToast(message,type='info'){
+ const popup=document.getElementById('appStatusPopup');
+ const text=String(message??'').trim();
+ if(!popup||!text)return;
+ const kind=['success','error','info'].includes(type)?type:'info';
+ popup.textContent=text;popup.dataset.type=kind;
+ popup.classList.remove('visible');
+ void popup.offsetWidth;
+ popup.classList.add('visible');
+ if(statusPopupTimer)clearTimeout(statusPopupTimer);
+ statusPopupTimer=setTimeout(()=>{popup.classList.remove('visible');statusPopupTimer=null;},5000);
+}
 
 
 let localSnapshot = null;
@@ -722,7 +736,24 @@ document.getElementById('securityPinForm')?.addEventListener('submit',async even
   }
   document.getElementById('securityPinForm').reset();
   hideSecurityPinGate();
+  const pendingGooglePinChangeSession=sessionStorage.getItem(SECURITY_PIN_CHANGE_AFTER_GOOGLE_KEY);
   await handleCloudAuthChange();
+  if(pendingGooglePinChangeSession){
+   const current=await getSellbookAccountSession();
+   if(current.sessionId!==pendingGooglePinChangeSession){
+    sessionStorage.removeItem(SECURITY_PIN_CHANGE_AFTER_GOOGLE_KEY);
+    showToast('Your sign-in session changed. Start the PIN change again to keep your account protected.','error');
+   }else{
+    const {data:pinStatus,error:pinStatusError}=await supabaseClient.rpc('get_app_pin_status');
+    if(pinStatusError)throw pinStatusError;
+    if(pinStatus?.verified===true){
+     sessionStorage.removeItem(SECURITY_PIN_CHANGE_AFTER_GOOGLE_KEY);
+     showSecurityPinGate('change','Your current PIN is verified. Enter a new six-digit PIN twice to complete the change.');
+    }else{
+     status.textContent='Sellbook could not confirm the PIN verification for this Google sign-in. Please verify your current PIN again.';
+    }
+   }
+  }
  }catch(error){
   status.textContent='PIN operation failed: '+(error.message||'Please try again.');
  }finally{
@@ -2507,6 +2538,10 @@ async function beginGoogleSecurityReauth(action,current){
     startedAt:Date.now()
   };
   sessionStorage.setItem(SECURITY_OAUTH_PENDING_KEY,JSON.stringify(pending));
+  // Force a new Supabase session: OAuth on the already-active session can
+  // otherwise return the same session_id and cannot authorise a step-up grant.
+  const {error:signOutError}=await supabaseClient.auth.signOut({scope:'local'});
+  if(signOutError){sessionStorage.removeItem(SECURITY_OAUTH_PENDING_KEY);throw signOutError;}
   const redirectTo=new URLSearchParams(window.location.search).get('native')==='1'
     ?'sellbook://auth'
     :window.location.origin+window.location.pathname+window.location.search+window.location.hash;
@@ -2519,6 +2554,8 @@ async function beginGoogleSecurityReauth(action,current){
   });
   if(error){
     sessionStorage.removeItem(SECURITY_OAUTH_PENDING_KEY);
+    const {error:restoreError}=await supabaseClient.auth.setSession({access_token:current.session.access_token,refresh_token:current.session.refresh_token});
+    if(restoreError)console.warn('Sellbook could not restore the prior session after Google sign-in failed:',restoreError);
     throw error;
   }
 }
@@ -2574,14 +2611,19 @@ async function completePendingGoogleSecurityReauth(){
       showSecurityPinGate('setup','Your Google account has been reverified. Create a new six-digit PIN to finish PIN recovery.');
       return;
     }
-    await handleCloudAuthChange();
     if(pending.action==='change_pin'){
-      showSecurityPinGate('change','Your Google account has been reverified. Enter a new six-digit PIN twice to complete the change.');
-    }else{
+      // The fresh Google session is not yet PIN-verified. Require the current
+      // PIN in this new session before exposing the change-PIN form.
+      sessionStorage.setItem(SECURITY_PIN_CHANGE_AFTER_GOOGLE_KEY,sessionId);
+      showSecurityPinGate('verify','Google verification is complete. Enter your current six-digit Sellbook PIN to unlock this sign-in, then choose your new PIN.');
+      return;
+    }
+    await handleCloudAuthChange();
+    {
       showPage('settings-account');
       document.getElementById('accountManagePanel')?.classList.remove('hidden');
       document.getElementById('changeEmailForm')?.classList.remove('hidden');
-      document.getElementById('settingsAccountMessage').textContent='Google re-verification successful. Enter the new email address. Supabase will still require confirmation of the new address before it becomes active.';
+      showToast('Google verification successful. Enter the new email address; Supabase will ask you to confirm it before it becomes active.','success');
       document.getElementById('newAccountEmail').focus();
     }
   }catch(error){
@@ -2594,7 +2636,7 @@ async function completePendingGoogleSecurityReauth(){
     }else{
       await supabaseClient.auth.signOut({scope:'local'}).catch(()=>{});
     }
-    cloudMessage('Google verification could not authorise this account change: '+(error.message||'Please try again.'));
+    showToast('Google verification could not authorise this account change: '+(error.message||'Please try again.'),'error');
   }finally{
     securityOauthFinalizing=false;
   }
@@ -2715,14 +2757,14 @@ document.getElementById('changeEmailVerifyButton')?.addEventListener('click',asy
   const button=document.getElementById('changeEmailVerifyButton'),message=document.getElementById('settingsAccountMessage');
   button.disabled=true;button.textContent='Sending verification code…';
   try{await requestAccountActionEmailOtp('change_email');}
-  catch(error){message.textContent='Could not send the verification code: '+(error.message||'Please try again.');}
+  catch(error){showToast('Could not send the verification code: '+(error.message||'Please try again.'),'error');}
   finally{button.disabled=false;button.textContent='Verify current email';}
 });
 document.getElementById('changeSecurityPinButton')?.addEventListener('click',async()=>{
   const button=document.getElementById('changeSecurityPinButton'),message=document.getElementById('settingsAccountMessage');
   button.disabled=true;button.textContent='Sending verification code…';
   try{await requestAccountActionEmailOtp('change_pin');}
-  catch(error){message.textContent='Could not send the verification code: '+(error.message||'Please try again.');}
+  catch(error){showToast('Could not send the verification code: '+(error.message||'Please try again.'),'error');}
   finally{button.disabled=false;button.textContent='Verify email and change PIN';}
 });
 document.getElementById('resendAccountEmailOtpButton')?.addEventListener('click',async()=>{
@@ -2781,7 +2823,7 @@ document.getElementById('accountEmailOtpForm')?.addEventListener('submit',async 
     }else{
       document.getElementById('accountManagePanel').classList.remove('hidden');
       document.getElementById('changeEmailForm').classList.remove('hidden');
-      document.getElementById('settingsAccountMessage').textContent='Email verified. Enter the new address. Supabase will still require confirmation of the new address before it becomes active.';
+      showToast('Email verified. Enter the new address; Supabase will ask you to confirm it before it becomes active.','success');
       document.getElementById('newAccountEmail').focus();
     }
     otpClient.auth.signOut({scope:'local'}).catch(()=>{});
@@ -4047,7 +4089,7 @@ if (supabaseClient) {
           sessionStorage.removeItem(SECURITY_OAUTH_PENDING_KEY);
           if(pending.recovery)sessionStorage.removeItem('sellbook-pin-reset-after-auth');
           await handleCloudAuthChange();
-          cloudMessage('Google verification was not completed. Your account was not changed. Start the action again when ready.');
+          showToast('Google verification was not completed. Your account was not changed. Start the action again when ready.','error');
         }
       }catch(error){
         const pending=readPendingGoogleSecurityAction();
@@ -4055,7 +4097,7 @@ if (supabaseClient) {
           sessionStorage.removeItem(SECURITY_OAUTH_PENDING_KEY);
           if(pending.recovery)sessionStorage.removeItem('sellbook-pin-reset-after-auth');
           await handleCloudAuthChange().catch(()=>{});
-          cloudMessage('Google verification could not be completed. Your account was not changed.');
+          showToast('Google verification could not be completed. Your account was not changed.','error');
         }
       }
     },6000);
