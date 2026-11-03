@@ -38,6 +38,7 @@ const duplicates = [...new Set(ids.filter((id, index) => ids.indexOf(id) !== ind
 assert.deepEqual(duplicates, [], 'The updated HTML must not add duplicate IDs.');
 
 assert.ok(app.includes("document.getElementById('openEmailSignIn').addEventListener('click'"), 'Email sign-in entry point is not wired.');
+assert.ok(!app.includes("getElementById('resetPasswordBtn')"), 'Removed password-reset button must not leave a dead event listener.');
 assert.ok(app.includes("supabaseClient.auth.signInWithPassword({email,password})") || app.includes("supabaseClient.auth.signInWithPassword({ email, password })"), 'Email/password sign-in must use Supabase Auth.');
 assert.ok(app.includes('supabaseClient.auth.signUp({email,password'), 'Email account creation must use Supabase Auth.');
 assert.ok(app.includes("supabaseClient.auth.resend({type:'signup'"), 'Signup confirmation email must be resendable.');
