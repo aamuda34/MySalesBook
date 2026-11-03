@@ -3329,3 +3329,113 @@ body.dark #authPage .auth-email-panel input,
 body.dark #authPage .auth-recovery-request input,
 body.dark #authPage .auth-new-password-form input,
 body.dark #authPage #securityPinGate input{background:#fbfdfb;color:#17231c;border-color:#dbe4dd}
+
+/* Authentication mobile correction: protect hero copy and stack all auth states
+   on narrow layouts and touch-first devices (including Android desktop-site mode). */
+@media (max-width:1024px), (hover:none) and (pointer:coarse) {
+  #authPage{
+    grid-template-columns:minmax(0,1fr)!important;
+    grid-template-rows:auto 1fr!important;
+    min-height:100svh!important;
+    min-height:100dvh!important;
+    overflow:visible!important;
+    background:#fff!important;
+  }
+  #authPage .auth-visual-panel{
+    grid-column:1!important;
+    grid-row:1!important;
+    min-height:clamp(250px,34svh,300px)!important;
+    padding:20px clamp(18px,4.5vw,28px) 18px!important;
+    overflow:hidden!important;
+  }
+  #authPage .auth-visual-topline{
+    position:relative;
+    z-index:3;
+    gap:8px;
+  }
+  #authPage .auth-visual-copy{
+    position:relative;
+    z-index:3!important;
+    width:100%;
+    max-width:min(76%,390px)!important;
+    margin:20px 0 0!important;
+  }
+  #authPage .auth-visual-copy h1{
+    position:relative;
+    z-index:3;
+    font-size:clamp(22px,4.5vw,29px);
+    line-height:1.14;
+    overflow-wrap:normal;
+    text-wrap:pretty;
+  }
+  #authPage .auth-visual-copy>p:last-child{
+    position:relative;
+    z-index:3;
+    width:100%;
+    max-width:min(100%,330px)!important;
+    margin:9px 0 0!important;
+    font-size:12px!important;
+    line-height:1.45!important;
+    overflow-wrap:break-word;
+  }
+  #authPage .auth-visual-artwork{
+    position:absolute!important;
+    z-index:0!important;
+    right:-28px!important;
+    bottom:-30px!important;
+    width:43%!important;
+    height:150px!important;
+    min-height:0!important;
+    max-height:155px!important;
+    margin:0!important;
+    opacity:.52!important;
+    pointer-events:none;
+  }
+  #authPage .auth-visual-artwork svg{
+    width:100%;
+    height:100%;
+    max-height:155px!important;
+  }
+  #authPage .auth-visual-watermark{
+    z-index:0!important;
+    right:-.04em;
+    bottom:-.08em;
+    font-size:clamp(68px,16vw,112px);
+    opacity:.8;
+    pointer-events:none;
+  }
+  #authPage .auth-visual-footer{display:none!important}
+  #authPage #accountCard,
+  #authPage #securityPinGate{
+    grid-column:1!important;
+    grid-row:2!important;
+    align-self:start!important;
+    justify-self:center!important;
+    width:100%!important;
+    max-width:560px!important;
+    margin:0 auto!important;
+    padding:30px clamp(20px,6vw,42px) calc(34px + env(safe-area-inset-bottom,0px))!important;
+    border:0!important;
+    border-radius:0!important;
+    background:#fff!important;
+    box-shadow:none!important;
+  }
+  #authPage #securityPinGate h2{font-size:clamp(24px,5vw,29px)}
+  #authPage #accountMessage:empty{display:none!important}
+}
+@media (max-width:380px), (hover:none) and (pointer:coarse) and (max-width:420px) {
+  #authPage .auth-visual-panel{
+    min-height:clamp(246px,35svh,286px)!important;
+    padding-left:18px!important;
+    padding-right:18px!important;
+  }
+  #authPage .auth-visual-copy{max-width:78%!important;margin-top:18px!important}
+  #authPage .auth-visual-copy h1{font-size:22px!important}
+  #authPage .auth-visual-copy>p:last-child{font-size:11px!important}
+  #authPage .auth-visual-artwork{
+    right:-42px!important;
+    width:44%!important;
+    height:136px!important;
+    opacity:.42!important;
+  }
+}

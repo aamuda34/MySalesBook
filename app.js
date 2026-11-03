@@ -903,7 +903,7 @@ async function handleCloudAuthChange() {
       }
       coreWorkspaceLoaded = true;
       finishStartup();
-      cloudMessage('Sign in to access your private business records.');
+      cloudMessage('');
     }
 
     // These checks are useful but must not block the business book from opening.
