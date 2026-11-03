@@ -2405,3 +2405,6 @@ body:not(.auth-initializing) #authPage #authLoading{display:none!important}
 body.dark #authPage{background:var(--page);color:var(--ink)}
 body.dark #authPage .auth-email-entry,body.dark #authPage #emailAuthForm input{background:var(--surface);color:var(--ink);border-color:var(--border)}
 @media(max-width:380px){#authPage{padding-left:17px;padding-right:17px}#authPage #accountCard{padding-top:19px;padding-bottom:22px}#authPage .auth-brand-lockup{margin-bottom:25px}}
+
+#accountCard:has(#emailAuthPanel:not(.hidden))>#authCardTitle,
+#accountCard:has(#emailAuthPanel:not(.hidden))>#accountStatus{display:none!important}
