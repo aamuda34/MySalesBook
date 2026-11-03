@@ -3833,7 +3833,7 @@ async function loadAdminTraffic(){
  const chart=document.getElementById('adminTrafficChart');if(chart)chart.textContent='Loading traffic…';
  const {data,error}=await supabaseClient.rpc('sellbook_admin_platform_metrics');
  if(!adminRequestIsCurrent(requestedUserId,requestEpoch))return;
- if(error){if(chart)chart.textContent='Traffic metrics unavailable: '+error.message;return;}
+ if(error){showToast('Traffic metrics are unavailable: '+error.message,'error');if(chart)chart.textContent='Traffic metrics are temporarily unavailable.';return;}
  document.getElementById('adminVisitsToday').textContent=data.visits_today??0;
  document.getElementById('adminVisits7d').textContent=data.visits_7d??0;
  document.getElementById('adminVisits30d').textContent=data.visits_30d??0;
@@ -3894,7 +3894,7 @@ async function loadAdminUsers(){
  const list=document.getElementById('adminChatUserList');if(list)list.innerHTML='<div class="empty">Loading chats…</div>';
  const {data,error}=await supabaseClient.rpc('sellbook_admin_users');
  if(!adminRequestIsCurrent(requestedUserId,requestEpoch))return;
- if(error){if(target)target.textContent='Could not load users: '+error.message;if(list)list.innerHTML='<div class="empty">Could not load chats: '+escAdmin(error.message)+'</div>';return;}
+ if(error){showToast('Could not load Sellbook users: '+error.message,'error');if(target)target.textContent='User information is temporarily unavailable.';if(list)list.innerHTML='<div class="empty">Chat previews are temporarily unavailable.</div>';return;}
  const rowsForUser=(data||[]).filter(u=>u.user_id!==requestedUserId);
  const opts='<option value="">Choose a user</option>'+rowsForUser.map(u=>'<option value="'+escAdmin(u.user_id)+'">'+escAdmin(u.email||'No email')+'</option>').join('');
  const chatSelect=document.getElementById('adminMessageUser'),previousUser=chatSelect.value;
@@ -3903,7 +3903,7 @@ async function loadAdminUsers(){
  if(target)target.innerHTML=rowsForUser.length?rowsForUser.map(u=>'<div class="item"><strong>'+escAdmin(u.email||'No email')+'</strong><div class="muted">Joined '+escAdmin(u.created_at?new Date(u.created_at).toLocaleDateString():'unknown')+' · Last sign-in '+escAdmin(u.last_sign_in_at?new Date(u.last_sign_in_at).toLocaleDateString():'not available')+'</div></div>').join(''):'<div class="empty">No registered users found.</div>';
  const {data:allMessages,error:msgError}=await supabaseClient.from('support_messages').select('id,sender_id,recipient_id,body,created_at,delivered_at,read_at').order('created_at',{ascending:false}).limit(1000);
  if(!adminRequestIsCurrent(requestedUserId,requestEpoch))return;
- if(msgError){if(list)list.innerHTML='<div class="empty">Could not load chat previews: '+escAdmin(msgError.message)+'</div>';return;}
+ if(msgError){showToast('Could not load chat previews: '+msgError.message,'error');if(list)list.innerHTML='<div class="empty">Chat previews are temporarily unavailable.</div>';return;}
  const msgs=allMessages||[];
  const rows=rowsForUser.map(u=>{const convo=msgs.filter(m=>(m.sender_id===u.user_id)||(m.recipient_id===u.user_id));const latest=convo[0]||null;const unread=convo.filter(m=>m.sender_id===u.user_id&&!m.read_at).length;return {...u,latest,unread};}).sort((x,y)=>new Date(y.latest?.created_at||y.created_at||0)-new Date(x.latest?.created_at||x.created_at||0));
  adminUsersCache=rowsForUser;
@@ -3919,7 +3919,7 @@ async function loadAdminFeedback(){
  const target=document.getElementById('adminFeedbackList');target.textContent='Loading feedback…';
  const {data,error}=await supabaseClient.from('user_feedback').select('id,user_id,category,subject,message,status,admin_reply,created_at').order('created_at',{ascending:false}).limit(100);
  if(!adminRequestIsCurrent(requestedUserId,requestEpoch))return;
- if(error){target.textContent='Could not load feedback: '+error.message;return;}
+ if(error){showToast('Could not load feedback: '+error.message,'error');target.textContent='Feedback is temporarily unavailable.';return;}
  target.innerHTML=(data||[]).length?data.map(f=>'<div class="item"><div class="row"><strong>'+escAdmin(f.subject)+'</strong><span class="status-pill">'+escAdmin(f.status)+'</span></div><div class="muted">'+escAdmin(f.category)+' · '+escAdmin(f.user_id)+' · '+escAdmin(new Date(f.created_at).toLocaleString())+'</div><p>'+escAdmin(f.message)+'</p><label>Status</label><select data-feedback-status="'+escAdmin(f.id)+'"><option value="new" '+(f.status==='new'?'selected':'')+'>New</option><option value="in_review" '+(f.status==='in_review'?'selected':'')+'>In review</option><option value="resolved" '+(f.status==='resolved'?'selected':'')+'>Resolved</option><option value="declined" '+(f.status==='declined'?'selected':'')+'>Declined</option></select><label>Reply to user</label><textarea data-feedback-reply="'+escAdmin(f.id)+'" rows="2" maxlength="4000" style="width:100%;padding:10px;border:1px solid #ccd6ce;border-radius:8px;font:inherit">'+escAdmin(f.admin_reply||'')+'</textarea><button type="button" data-save-feedback="'+escAdmin(f.id)+'" style="margin-top:8px">Save / send reply</button></div>').join(''):'<div class="empty">No feedback has been submitted yet.</div>';
  target.querySelectorAll('[data-save-feedback]').forEach(b=>b.addEventListener('click',async()=>{
   if(!adminRequestIsCurrent(requestedUserId,requestEpoch))return;
@@ -3939,7 +3939,7 @@ async function loadAdminNotifications(){
  const target=document.getElementById('adminNotificationsList');
  const {data,error}=await supabaseClient.from('app_notifications').select('id,title,body,kind,recipient_id,created_at').order('created_at',{ascending:false}).limit(20);
  if(!adminRequestIsCurrent(requestedUserId,requestEpoch))return;
- if(error){target.textContent='Could not load notifications: '+error.message;return;}
+ if(error){showToast('Could not load notifications: '+error.message,'error');target.textContent='Notifications are temporarily unavailable.';return;}
  localStorage.setItem('sellbook-notifications-seen-'+requestedUserId,new Date().toISOString());
  target.innerHTML=(data||[]).length?data.map(n=>'<div class="item"><strong>'+escAdmin(n.title)+'</strong><div class="muted">'+escAdmin(n.kind)+' · '+(n.recipient_id?'Specific user':'All users')+' · '+escAdmin(new Date(n.created_at).toLocaleString())+'</div><p>'+escAdmin(n.body)+'</p></div>').join(''):'<div class="empty">No notifications published yet.</div>';
 }
