@@ -802,6 +802,17 @@ async function handleCloudAuthChange() {
       // Every normal authenticated Sellbook session must pass the server-side PIN gate
       // before any private business rows are loaded or rendered.
       const pinAllowed = await ensureSellbookPinAccess();
+      // Also recheck after the asynchronous PIN lookup in case a recovery
+      // callback arrived while that request was in flight.
+      if (recoveryMode) {
+        hideSecurityPinGate();
+        document.getElementById('appWorkspace').classList.add('hidden');
+        document.getElementById('accountCard').classList.remove('hidden');
+        setAuthScreen('new-password');
+        coreWorkspaceLoaded = true;
+        finishStartup();
+        return;
+      }
       if (!pinAllowed) {
         document.getElementById('appWorkspace').classList.add('hidden');
         document.getElementById('accountCard').classList.add('hidden');
