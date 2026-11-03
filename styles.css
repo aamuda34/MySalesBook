@@ -2468,3 +2468,375 @@ body.dark #authPage .auth-resend-button{background:#211b2a;border-color:#5c8c6b;
  #authPage .auth-brand-lockup{margin-bottom:17px}
  body:has(#accountCard:not(.hidden)) #accountCard{padding-top:20px;padding-bottom:20px}
 }
+
+
+/* ==========================================================================
+   SELLBOOK PROFESSIONAL FINISH
+   A presentation-only refinement: calmer surfaces, clearer controls, and
+   consistent visual hierarchy without changing business or authentication logic.
+   ========================================================================== */
+
+:root{
+  --sb-radius-card:18px;
+  --sb-radius-control:12px;
+  --sb-shadow-card:0 3px 14px rgba(20,45,28,.055);
+  --sb-shadow-float:0 8px 24px rgba(20,83,45,.13);
+}
+html{scroll-padding-top:16px}
+body{
+  background:var(--page,#f3f6f3);
+  color:var(--ink,#17231c);
+  -webkit-font-smoothing:antialiased;
+  text-rendering:optimizeLegibility;
+}
+button{
+  -webkit-tap-highlight-color:transparent;
+  touch-action:manipulation;
+  transition:background-color .16s ease,border-color .16s ease,
+    box-shadow .16s ease,transform .16s ease,color .16s ease;
+}
+button:disabled{cursor:not-allowed;opacity:.58}
+button:focus-visible,a:focus-visible{
+  outline:3px solid rgba(20,83,45,.3);
+  outline-offset:3px;
+}
+#appWorkspace>main{
+  width:100%;
+  max-width:800px;
+  margin-inline:auto;
+}
+#appWorkspace>main>.page{
+  min-width:0;
+  width:100%;
+  padding-bottom:calc(26px + env(safe-area-inset-bottom,0px));
+}
+#appWorkspace .page .card{
+  border:1px solid var(--border,#e4ebe5);
+  border-radius:var(--sb-radius-card);
+  background:var(--surface,#fff);
+  box-shadow:var(--sb-shadow-card);
+}
+#appWorkspace .page .section-heading h2{
+  color:var(--ink,#17231c);
+  font-weight:750;
+}
+#appWorkspace .page .page-intro{
+  color:var(--muted,#647269);
+  max-width:60ch;
+}
+#appWorkspace .page .item,
+#appWorkspace .page .settings-group,
+#appWorkspace .page .business-details-row{
+  border-color:var(--border,#e4ebe5);
+}
+#appWorkspace .page :where(input,select,textarea){
+  min-width:0;
+  border-color:var(--border,#d4ded6);
+  border-radius:var(--sb-radius-control);
+  background:var(--surface,#fff);
+  color:var(--ink,#17231c);
+}
+#appWorkspace .page :where(input,select,textarea):focus-visible{
+  outline:3px solid rgba(20,83,45,.18);
+  outline-offset:1px;
+  border-color:var(--green,#14532d);
+}
+#appWorkspace .page :where(input,textarea)::placeholder{
+  color:var(--muted,#647269);
+  opacity:.78;
+}
+#appWorkspace .page button.primary,
+#appWorkspace .page form button.primary,
+#authPage button.primary{
+  min-height:48px;
+  border:1px solid var(--green,#14532d);
+  border-radius:13px;
+  background:var(--green,#14532d);
+  color:#fff;
+  font-weight:750;
+  box-shadow:0 3px 9px rgba(20,83,45,.13);
+}
+#appWorkspace .page button.primary:active,
+#authPage button.primary:active{box-shadow:none;transform:translateY(1px)}
+#appWorkspace .page button.danger{
+  min-height:44px;
+  border:1px solid #f0d8d6;
+  border-radius:12px;
+}
+#appWorkspace .page .empty{
+  color:var(--muted,#647269);
+  line-height:1.55;
+}
+#appWorkspace .page .section-heading{
+  min-width:0;
+}
+#appWorkspace .page .section-heading>*{min-width:0}
+#appWorkspace .page .section-heading button,
+#appWorkspace .page .row button{
+  flex:0 0 auto;
+}
+#appWorkspace .page :where(.stats,.dashboard-grid){
+  min-width:0;
+}
+#appWorkspace .page :where(.stat,.sale-detail-metric,.home-dashboard-tile){
+  min-width:0;
+}
+#appWorkspace .page :where(.stat strong,.home-sales-amount,.home-sales-subs-value,
+  .sale-detail-total,.sale-detail-metric strong,.products-total-value,
+  .expense-period-total strong){
+  font-variant-numeric:tabular-nums;
+  font-feature-settings:"tnum";
+}
+
+/* Me: return the account screen to Sellbook's neutral green brand palette. */
+body:not(.dark) #me.me-page{
+  background:var(--page,#f3f6f3)!important;
+  gap:14px!important;
+}
+body:not(.dark) #me .me-profile-card{
+  min-height:88px;
+  padding:13px 15px;
+  border:1px solid var(--border);
+  border-radius:18px;
+  background:var(--surface);
+  box-shadow:var(--sb-shadow-card);
+}
+body:not(.dark) #me .me-profile-avatar{
+  background:var(--soft);
+  color:var(--green);
+}
+body:not(.dark) #me .me-summary-card{
+  border:1px solid #dcebe0!important;
+  border-radius:19px!important;
+  background:linear-gradient(145deg,#eaf5ed 0%,#fff 82%)!important;
+  box-shadow:var(--sb-shadow-card);
+}
+body:not(.dark) #me .me-summary-heading,
+body:not(.dark) #me .me-business-stats strong{color:#16452d}
+body:not(.dark) #me .me-business-stats small{color:#587263}
+body:not(.dark) #me .me-quick-tools,
+body:not(.dark) #me .me-shortcuts{
+  border:1px solid var(--border);
+  border-radius:18px;
+  background:var(--surface);
+  box-shadow:var(--sb-shadow-card);
+}
+body:not(.dark) #me .me-menu-card{
+  border:1px solid var(--border);
+  border-radius:18px;
+  background:var(--surface);
+  box-shadow:var(--sb-shadow-card);
+}
+body:not(.dark) #me .me-row-icon{
+  width:38px;height:38px;flex:0 0 38px;
+  display:grid;place-items:center;
+  border-radius:12px;
+  background:var(--soft);
+  color:var(--green);
+}
+body:not(.dark) #me .me-menu-row:active,
+body:not(.dark) #me .me-quick-tool:active{
+  background:#f0f7f1;
+}
+body:not(.dark) #me .me-top-icon{
+  border:1px solid var(--border)!important;
+  background:var(--surface)!important;
+  color:var(--green)!important;
+  box-shadow:0 2px 8px rgba(20,45,28,.07)!important;
+}
+body:not(.dark) #me .me-top-icon svg{stroke:currentColor!important}
+
+/* Authentication: a distinct, reassuring sign-in surface that remains mobile-first. */
+#authPage{
+  background:
+    radial-gradient(ellipse at 50% 0%,rgba(20,83,45,.09),transparent 52%),
+    var(--page,#f3f6f3);
+}
+#authPage #accountCard{
+  width:100%;
+  max-width:460px;
+  margin:auto;
+  padding:clamp(25px,5vw,38px) clamp(20px,5vw,34px)!important;
+  border:1px solid var(--border,#e0e9e2)!important;
+  border-radius:24px!important;
+  background:var(--surface,#fff)!important;
+  box-shadow:0 18px 48px rgba(21,54,34,.09),0 3px 10px rgba(21,54,34,.035)!important;
+}
+#authPage .auth-brand-lockup{
+  width:100%;
+  max-width:none;
+  justify-content:center!important;
+  margin:0 auto 27px!important;
+}
+#authPage .auth-brand-lockup img{
+  width:56px;height:56px;flex-basis:56px;
+  border-radius:16px;
+}
+#authPage .auth-brand-wordmark strong{
+  color:var(--green,#14532d);
+  font-size:23px;
+  line-height:1.05;
+  letter-spacing:-.035em;
+}
+#authPage .auth-brand-wordmark small{
+  color:var(--muted,#647269);
+  font-size:9px;
+  font-weight:800;
+  letter-spacing:.13em;
+}
+#authPage #authCardTitle{
+  margin:0 0 8px;
+  color:var(--ink,#17231c);
+  text-align:center!important;
+  font-size:clamp(25px,6vw,29px);
+  line-height:1.2;
+  letter-spacing:-.035em;
+}
+#authPage .auth-account-status{
+  margin:0 0 23px;
+  color:var(--muted,#647269);
+  text-align:center!important;
+  line-height:1.5;
+}
+#authPage .auth-signin-choices,
+#authPage .auth-email-panel,
+#authPage .auth-recovery-request,
+#authPage .auth-new-password-form{
+  width:100%;
+  max-width:none;
+}
+#authPage .auth-signin-choices{gap:0}
+#authPage .auth-google-button{
+  width:100%;
+  min-height:54px;
+  border-radius:13px!important;
+  box-shadow:0 2px 7px rgba(24,39,28,.07)!important;
+}
+#authPage .auth-google-mark{width:20px;height:20px;flex:0 0 20px}
+#authPage .auth-email-entry{
+  min-height:54px;
+  border:1px solid #d7e2d9;
+  border-radius:13px;
+  background:var(--surface);
+  color:var(--ink);
+  box-shadow:none;
+  font-weight:700;
+}
+#authPage .auth-email-entry:hover{border-color:#9fbea7;background:#f8fbf8}
+#authPage .auth-privacy-note{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:9px;
+  max-width:340px;
+  margin:23px auto 0;
+  padding:15px 4px 0;
+  border-top:1px solid var(--border);
+  color:var(--muted);
+  font-size:12px;
+  line-height:1.5;
+  text-align:left;
+}
+#authPage .auth-privacy-note svg{
+  width:18px;height:18px;flex:0 0 18px;
+  fill:none;stroke:var(--green);stroke-width:1.8;
+  stroke-linecap:round;stroke-linejoin:round;
+}
+#authPage .auth-email-panel h3,
+#authPage .auth-recovery-heading h3{
+  color:var(--ink);
+  font-size:23px;
+  line-height:1.2;
+}
+#authPage .auth-form-description,
+#authPage .auth-recovery-heading p{
+  color:var(--muted);
+  line-height:1.55;
+}
+#authPage :where(label){
+  color:var(--ink);
+  font-size:13px;
+  font-weight:750;
+}
+#authPage :where(input){
+  width:100%;
+  min-height:52px;
+  padding:12px 14px;
+  border:1px solid var(--border);
+  border-radius:12px;
+  background:var(--surface);
+  color:var(--ink);
+  font:inherit;
+  font-size:15px;
+}
+#authPage :where(input):focus-visible{
+  outline:3px solid rgba(20,83,45,.18);
+  outline-offset:1px;
+  border-color:var(--green);
+}
+#authPage .auth-password-toggle{
+  min-height:38px;
+  border-radius:9px;
+}
+#authPage .auth-text-button,
+#authPage .auth-email-links button{
+  min-height:42px;
+  color:var(--green);
+}
+#authPage .auth-back-link{
+  min-height:42px;
+  margin-bottom:20px;
+}
+#authPage .auth-email-submit,
+#authPage .auth-recovery-submit{
+  min-height:52px;
+  border-radius:13px;
+}
+#authPage .auth-email-confirmation{
+  border-color:#dcebe0;
+  border-radius:16px;
+  background:#f5faf6;
+}
+#authPage #accountMessage:not(:empty){
+  margin-top:14px;
+  padding:11px 13px;
+  border:1px solid var(--border);
+  border-radius:12px;
+  background:var(--page);
+  line-height:1.5;
+}
+#authPage #securityPinGate{
+  width:100%;
+  max-width:440px;
+  margin:auto;
+  padding:clamp(24px,5vw,34px)!important;
+  border:1px solid var(--border)!important;
+  border-radius:24px!important;
+  background:var(--surface)!important;
+  box-shadow:0 18px 48px rgba(21,54,34,.09)!important;
+}
+#authPage #securityPinGate h2{font-size:23px;letter-spacing:-.025em}
+#authPage #securityPinGate input{
+  min-height:56px;
+  border:1px solid var(--border);
+  border-radius:13px;
+  background:var(--page);
+  color:var(--ink);
+}
+#authPage #securityPinGate .security-pin-icon{
+  width:52px;height:52px;border-radius:16px;
+  background:var(--soft);color:var(--green);
+}
+@media(max-width:420px){
+  #authPage{padding-left:15px;padding-right:15px}
+  #authPage #accountCard{border-radius:21px!important}
+  #authPage .auth-brand-lockup{margin-bottom:23px!important}
+}
+@media(hover:hover){
+  #appWorkspace .page .card:has(>button:only-child){transition:box-shadow .16s ease}
+  #appWorkspace .page button:not(:disabled):hover{filter:brightness(.985)}
+}
+@media(prefers-reduced-motion:reduce){
+  html{scroll-behavior:auto}
+  button{transition:none}
+}
