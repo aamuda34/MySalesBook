@@ -128,8 +128,8 @@ jobs:
           grep -q 'verify_app_pin_for_account_deletion' supabase/migrations/20261103062107_secure_account_action_email_and_pin_verification.sql
           grep -q "action='delete_account'" supabase/migrations/20261103062107_secure_account_action_email_and_pin_verification.sql
           grep -q 'Enter and confirm your six-digit Sellbook PIN' supabase/migrations/20261103062107_secure_account_action_email_and_pin_verification.sql
-          grep -q "rpc('grant_sellbook_email_action')" app.js
-          grep -q "rpc('consume_sellbook_email_action')" app.js
+          grep -q "rpc('grant_sellbook_email_action'" app.js
+          grep -q "rpc('consume_sellbook_email_action'" app.js
           grep -q 'sellbook-pin-reset-after-auth' app.js
           grep -q 'reset_app_pin_after_reauth' supabase/migrations/20261103063131_require_email_verification_for_pin_recovery.sql
           grep -q "prompt:'login'" app.js
