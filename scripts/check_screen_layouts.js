@@ -115,4 +115,8 @@ assert.ok(spacingLayer.includes('#me.me-page{'), 'Me page spacing refinements ar
 assert.ok(spacingLayer.includes('#me .me-footer-note{'), 'Me footer readability rules are missing.');
 assert.ok(spacingLayer.includes('padding:0 0 calc(32px + env(safe-area-inset-bottom, 0px))'), 'Me page must reserve room above bottom navigation.');
 assert.ok(spacingLayer.includes('#appWorkspace>main>.page{'), 'Shared pages must reserve scroll space.');
+const finalClearance = css.slice(css.lastIndexOf('/* Ensure the final account action'));
+assert.ok(finalClearance.includes('padding-bottom:calc(96px + env(safe-area-inset-bottom, 0px))'), 'Every page must reserve enough room above fixed bottom navigation.');
+assert.ok(finalClearance.includes('#me #googleSignOut{'), 'Me page sign-out control must remain reachable.');
+assert.ok(finalClearance.includes('padding-bottom:calc(104px + env(safe-area-inset-bottom, 0px))'), 'Me page must reserve extra space for its final account action.');
 console.log('PASS: all 30 app screens are present, screen-specific layouts are covered, responsive breakpoints are present, Sellbook themes are preserved and layout CSS is balanced.');
