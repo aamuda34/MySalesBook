@@ -140,7 +140,7 @@ jobs:
           grep -q "method.value->>'method'='otp'" supabase/migrations/20261103064250_fix_step_up_otp_and_google_session_binding.sql
           grep -q "p_target_session_id<>v_session_id" supabase/migrations/20261103064250_fix_step_up_otp_and_google_session_binding.sql
           grep -q "provider='google'" supabase/migrations/20261103064250_fix_step_up_otp_and_google_session_binding.sql
-          grep -q 'user_app_pin_sessions' supabase/migrations/20261103064250_fix_step_up_otp_and_google_session_binding.sql
+          grep -Fq 'least(v_previous_pin_expiry' supabase/migrations/20261103064250_fix_step_up_otp_and_google_session_binding.sql
 
       - name: Verify visit tracking is not redundantly triggered by admin navigation
         shell: bash
