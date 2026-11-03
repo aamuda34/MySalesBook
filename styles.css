@@ -2052,3 +2052,151 @@ body.dark #appWorkspace .page .card{
   #me .me-menu-card{padding-inline:8px}
   #me .me-menu-row{gap:9px;min-height:52px}
 }
+
+
+/* SIGN-IN — polished first impression for the Sellbook business app.
+   Scoped to the unauthenticated account card; authenticated screens are untouched. */
+body:has(#accountCard:not(.hidden)) #mainContent{
+  width:100%;
+  max-width:560px;
+  min-height:calc(100svh - 76px);
+  margin:0 auto;
+  padding:clamp(22px,6vh,58px) 20px 40px;
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+}
+body:has(#accountCard:not(.hidden)) #accountCard{
+  position:relative;
+  width:100%;
+  max-width:440px;
+  margin:0 auto;
+  padding:clamp(24px,6vw,36px);
+  overflow:hidden;
+  border:1px solid #e0e9e2;
+  border-radius:24px;
+  background:var(--surface,#fff);
+  box-shadow:0 16px 42px rgba(22,54,34,.09),0 2px 7px rgba(22,54,34,.035);
+}
+body:has(#accountCard:not(.hidden)) #accountCard::before{
+  content:"S";
+  display:grid;
+  place-items:center;
+  width:58px;
+  height:58px;
+  margin:0 auto 19px;
+  border-radius:18px;
+  background:#e7f3e9;
+  color:#14532d;
+  font-size:31px;
+  line-height:1;
+  font-weight:850;
+  letter-spacing:-.06em;
+  box-shadow:inset 0 0 0 1px #d7e9da;
+}
+body:has(#accountCard:not(.hidden)) #accountCard::after{
+  content:"A simpler way to manage your business";
+  display:block;
+  margin:8px 0 24px;
+  color:var(--muted,#647269);
+  text-align:center;
+  font-size:13px;
+  line-height:1.55;
+}
+body:has(#accountCard:not(.hidden)) #accountCard h2{
+  margin:0;
+  color:var(--ink,#17231c);
+  text-align:center;
+  font-size:clamp(23px,5.5vw,27px);
+  font-weight:800;
+  line-height:1.2;
+  letter-spacing:-.035em;
+}
+body:has(#accountCard:not(.hidden)) #accountStatus{
+  margin:10px 0 22px;
+  text-align:center;
+  font-size:14px;
+  line-height:1.55;
+}
+body:has(#accountCard:not(.hidden)) #googleSignIn,
+body:has(#accountCard:not(.hidden)) #emailAuthSubmit{
+  width:100%;
+  min-height:52px;
+  border-radius:13px;
+  font-size:15px;
+  font-weight:750;
+  letter-spacing:.005em;
+  box-shadow:0 5px 12px rgba(20,83,45,.16);
+}
+body:has(#accountCard:not(.hidden)) #googleSignIn:focus-visible,
+body:has(#accountCard:not(.hidden)) #accountCard button:focus-visible,
+body:has(#accountCard:not(.hidden)) #accountCard input:focus-visible{
+  outline:3px solid #a9d7b3;
+  outline-offset:3px;
+}
+body:has(#accountCard:not(.hidden)) #accountMessage{
+  margin:14px 0 0;
+  text-align:center;
+  font-size:13px;
+  line-height:1.5;
+  overflow-wrap:anywhere;
+}
+body:has(#accountCard:not(.hidden)) #emailAuthPanel form{
+  display:grid;
+  gap:9px;
+  margin-top:4px;
+}
+body:has(#accountCard:not(.hidden)) #emailAuthPanel label{
+  margin-top:5px;
+  font-size:13px;
+  font-weight:700;
+  color:var(--ink,#17231c);
+}
+body:has(#accountCard:not(.hidden)) #emailAuthPanel input,
+body:has(#accountCard:not(.hidden)) #recoveryPasswordForm input{
+  width:100%;
+  min-height:49px;
+  padding:12px 14px;
+  border:1px solid #d7e2d9;
+  border-radius:12px;
+  background:#fbfdfb;
+  color:var(--ink,#17231c);
+  font:inherit;
+  font-size:15px;
+}
+body:has(#accountCard:not(.hidden)) #accountCard .photo-actions{
+  display:flex;
+  flex-wrap:wrap;
+  justify-content:space-between;
+  gap:8px;
+  margin-top:13px;
+}
+body:has(#accountCard:not(.hidden)) #accountCard .photo-actions button{
+  min-height:42px;
+  padding:9px 10px;
+  border-radius:10px;
+  background:transparent;
+  color:var(--green,#14532d);
+  font-size:13px;
+  font-weight:700;
+}
+body:has(#accountCard:not(.hidden)) #recoveryPasswordForm{
+  display:grid;
+  gap:10px;
+  margin-top:16px;
+}
+body:has(#accountCard:not(.hidden)) #recoveryPasswordForm button{
+  min-height:49px;
+  border-radius:12px;
+}
+body:has(#accountCard:not(.hidden)) #authLoading{
+  min-height:55svh;
+}
+@media(max-width:380px){
+  body:has(#accountCard:not(.hidden)) #mainContent{padding:18px 14px 28px}
+  body:has(#accountCard:not(.hidden)) #accountCard{padding:24px 19px;border-radius:20px}
+}
+@media(prefers-reduced-motion:no-preference){
+  body:has(#accountCard:not(.hidden)) #accountCard{animation:sellbook-auth-enter .32s ease-out both}
+  @keyframes sellbook-auth-enter{from{opacity:0;transform:translateY(9px)}to{opacity:1;transform:translateY(0)}}
+}
