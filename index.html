@@ -169,46 +169,39 @@
 
 <section id="record-product" class="page hidden record-entry-page">
 <div class="products-page-header"><button type="button" class="products-back-button" data-app-back="products" aria-label="Back to Products" title="Back to Products"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6M9 12h11"/></svg></button><h1>Add a product</h1></div>
-<p class="page-intro">Enter the product details, prices and opening stock. A product photo is optional.</p>
-<div class="card" id="productFormCard">
-<form id="productForm">
-<div class="product-type-picker" role="group" aria-label="Product selling type">
-<p><strong>Choose product type</strong></p>
-<div class="product-type-options">
-<button type="button" id="productTypeUnit" class="selected" aria-pressed="true">Individual Units Only</button>
-<button type="button" id="productTypePack" aria-pressed="false">Packs</button>
-</div>
-<p id="productTypeHelp" class="muted">Choose an option above to open its product form.</p>
-</div>
-<label for="pname">Product name</label><input id="pname" required maxlength="100">
-<label>Product categories <span class="muted">(choose up to 3)</span></label><input type="hidden" id="pcategory"><div id="productCategoryOptions" class="product-category-options"><label class="category-choice"><input type="checkbox" data-product-category value="Food & Groceries"><span>Food & Groceries</span></label><label class="category-choice"><input type="checkbox" data-product-category value="Drinks & Beverages"><span>Drinks & Beverages</span></label><label class="category-choice"><input type="checkbox" data-product-category value="Fruits & Vegetables"><span>Fruits & Vegetables</span></label><label class="category-choice"><input type="checkbox" data-product-category value="Health & Beauty"><span>Health & Beauty</span></label><label class="category-choice"><input type="checkbox" data-product-category value="Household Items"><span>Household Items</span></label><label class="category-choice"><input type="checkbox" data-product-category value="Clothing & Fashion"><span>Clothing & Fashion</span></label><label class="category-choice"><input type="checkbox" data-product-category value="Electronics & Accessories"><span>Electronics & Accessories</span></label><label class="category-choice"><input type="checkbox" data-product-category value="Building Materials"><span>Building Materials</span></label><label class="category-choice"><input type="checkbox" data-product-category value="Stationery & School Supplies"><span>Stationery & School Supplies</span></label><label class="category-choice"><input type="checkbox" data-product-category value="Other"><span>Other</span></label></div><p id="productCategoryCount" class="muted" aria-live="polite">0 of 3 selected</p><datalist id="categorySuggestions"></datalist><div id="categorySuggestionChips" class="category-suggestions" aria-label="Existing category suggestions"></div>
-<label for="pcost" id="pcostLabel">Cost price per unit (₦)</label><input id="pcost" type="number" min="0" step="0.01" required>
-<div class="price-calculator"><strong>Suggested markup</strong><div class="markup-options category-suggestions" role="group" aria-label="Choose markup percentage"><button type="button" data-markup="10" aria-pressed="false">10%</button><button type="button" data-markup="20" aria-pressed="false">20%</button><button type="button" data-markup="30" class="selected" aria-pressed="true">30%</button><button type="button" data-markup="40" aria-pressed="false">40%</button><button type="button" data-markup="50" aria-pressed="false">50%</button></div><p id="priceSuggestion" class="price-suggestion">Enter a cost price to calculate a suggested price.</p></div>
-<div id="unitProductPanel">
-<h3>Individual-unit product</h3>
-<label for="pbaseunit">Unit name</label><input id="pbaseunit" maxlength="30" value="unit" placeholder="e.g. bottle, piece">
-</div>
-<div id="packProductPanel" class="hidden">
-<h3>Pack details</h3>
-<label for="ppackprice">Selling price for one full pack (₦)</label><input id="ppackprice" type="number" min="0.01" step="0.01" placeholder="Enter pack selling price">
-<label for="punitsperpack">How many individual units in one pack?</label><input id="punitsperpack" type="number" min="1" step="1" value="1">
-<label>Cost price per individual unit (₦)</label><output id="pcostPerUnit" class="price-suggestion">Enter pack cost and unit count.</output>
-<label for="pbaseunitPack">Individual unit name</label><input id="pbaseunitPack" maxlength="30" value="unit" placeholder="e.g. bottle, piece">
-<label for="ppackunit">Pack name</label><input id="ppackunit" maxlength="30" placeholder="e.g. carton, dozen, pack">
-</div>
-<label for="pprice" id="ppriceLabel">Selling price per unit (₦)</label><input id="pprice" type="number" min="0.01" step="0.01" required>
-<label for="pstock" id="pstockLabel">Opening stock (individual units)</label><input id="pstock" type="number" min="0" step="1" required>
-<label>Product photo (optional)</label>
-<div class="photo-actions">
-<button type="button" id="takeProductPhoto">Take photo</button>
-<button type="button" id="chooseProductPhoto">Choose from gallery</button>
-</div>
-<input class="file-hidden" type="file" id="productCamera" accept="image/*" capture="environment">
-<input class="file-hidden" type="file" id="productGallery" accept="image/*">
+<p class="page-intro">Add what you sell, set its prices and enter the stock you have.</p>
+<div class="card entry-form-card" id="productFormCard">
+<form id="productForm" class="organized-entry-form">
+<section class="entry-form-group" aria-labelledby="productBasicsHeading">
+<div class="entry-form-group-heading"><h2 id="productBasicsHeading">Product details</h2><p>Start with the product name and category.</p></div>
+<div class="entry-form-field"><label for="pname">Product name</label><input id="pname" required maxlength="100" placeholder="e.g. Bottled water" autocomplete="off"></div>
+<div class="entry-form-field"><span class="entry-form-label">Product categories</span><input type="hidden" id="pcategory"><p class="entry-field-help">Choose at least one category. You can select up to three.</p><div id="productCategoryOptions" class="product-category-options"><label class="category-choice"><input type="checkbox" data-product-category value="Food & Groceries"><span>Food & Groceries</span></label><label class="category-choice"><input type="checkbox" data-product-category value="Drinks & Beverages"><span>Drinks & Beverages</span></label><label class="category-choice"><input type="checkbox" data-product-category value="Fruits & Vegetables"><span>Fruits & Vegetables</span></label><label class="category-choice"><input type="checkbox" data-product-category value="Health & Beauty"><span>Health & Beauty</span></label><label class="category-choice"><input type="checkbox" data-product-category value="Household Items"><span>Household Items</span></label><label class="category-choice"><input type="checkbox" data-product-category value="Clothing & Fashion"><span>Clothing & Fashion</span></label><label class="category-choice"><input type="checkbox" data-product-category value="Electronics & Accessories"><span>Electronics & Accessories</span></label><label class="category-choice"><input type="checkbox" data-product-category value="Building Materials"><span>Building Materials</span></label><label class="category-choice"><input type="checkbox" data-product-category value="Stationery & School Supplies"><span>Stationery & School Supplies</span></label><label class="category-choice"><input type="checkbox" data-product-category value="Other"><span>Other</span></label></div><p id="productCategoryCount" class="entry-field-help" aria-live="polite">0 of 3 selected</p><datalist id="categorySuggestions"></datalist><div id="categorySuggestionChips" class="category-suggestions" aria-label="Existing category suggestions"></div></div>
+</section>
+<section class="entry-form-group" aria-labelledby="productSellingMethodHeading">
+<div class="entry-form-group-heading"><h2 id="productSellingMethodHeading">How do you sell it?</h2><p>Choose the option that matches how customers buy this product.</p></div>
+<div class="product-type-picker" role="group" aria-label="Product selling type"><div class="product-type-options"><button type="button" id="productTypeUnit" class="selected" aria-pressed="true">Individual units</button><button type="button" id="productTypePack" aria-pressed="false">Packs and units</button></div><p id="productTypeHelp" class="muted" aria-live="polite">Sell this product by individual unit only.</p></div>
+<div id="unitProductPanel" class="entry-subpanel"><div class="entry-form-field"><label for="pbaseunit">What is one unit called?</label><input id="pbaseunit" maxlength="30" value="unit" placeholder="e.g. bottle, piece"></div></div>
+<div id="packProductPanel" class="entry-subpanel hidden"><h3>Pack details</h3><div class="entry-form-field"><label for="ppackunit">What is one pack called?</label><input id="ppackunit" maxlength="30" placeholder="e.g. carton, dozen, pack"></div><div class="entry-form-field"><label for="punitsperpack">How many individual units are in one pack?</label><input id="punitsperpack" type="number" min="1" step="1" value="1" inputmode="numeric"></div><div class="entry-form-field"><label for="pbaseunitPack">What is one individual unit called?</label><input id="pbaseunitPack" maxlength="30" value="unit" placeholder="e.g. bottle, piece"></div><div class="entry-form-field"><label for="ppackprice">Selling price for one full pack (₦)</label><input id="ppackprice" type="number" min="0.01" step="0.01" inputmode="decimal" placeholder="e.g. 2,500"></div><p class="entry-field-help">You can record sales by full pack or by individual unit.</p></div>
+</section>
+<section class="entry-form-group" aria-labelledby="productPricingHeading">
+<div class="entry-form-group-heading"><h2 id="productPricingHeading">Product prices</h2><p>Enter what it costs you, then set the price customers pay.</p></div>
+<div class="entry-form-field"><label for="pcost" id="pcostLabel">Cost price per unit (₦)</label><input id="pcost" type="number" min="0" step="0.01" inputmode="decimal" required placeholder="e.g. 1,000"></div>
+<div class="price-calculator"><strong>Suggested markup</strong><p class="entry-field-help">Choose a suggested increase to calculate a selling price. You can still enter your own price.</p><div class="markup-options category-suggestions" role="group" aria-label="Choose markup percentage"><button type="button" data-markup="10" aria-pressed="false">10%</button><button type="button" data-markup="20" aria-pressed="false">20%</button><button type="button" data-markup="30" class="selected" aria-pressed="true">30%</button><button type="button" data-markup="40" aria-pressed="false">40%</button><button type="button" data-markup="50" aria-pressed="false">50%</button></div><p id="priceSuggestion" class="price-suggestion">Enter a cost price to calculate a suggested price.</p></div>
+<div class="entry-form-field"><label for="pprice" id="ppriceLabel">Selling price per unit (₦)</label><input id="pprice" type="number" min="0.01" step="0.01" inputmode="decimal" required placeholder="e.g. 1,300"></div>
+</section>
+<section class="entry-form-group" aria-labelledby="productStockHeading">
+<div class="entry-form-group-heading"><h2 id="productStockHeading">Opening stock</h2><p>Enter how many you have available to sell.</p></div>
+<div class="entry-form-field"><label for="pstock" id="pstockLabel">Opening stock (individual units)</label><input id="pstock" type="number" min="0" step="1" inputmode="numeric" required placeholder="e.g. 24"></div>
+</section>
+<section class="entry-form-group entry-form-group-last" aria-labelledby="productPhotoHeading">
+<div class="entry-form-group-heading"><h2 id="productPhotoHeading">Product photo <span class="entry-optional">(optional)</span></h2><p>A clear photo can help you recognise this product.</p></div>
+<div class="photo-actions"><button type="button" id="takeProductPhoto">Take photo</button><button type="button" id="chooseProductPhoto">Choose from gallery</button></div>
+<input class="file-hidden" type="file" id="productCamera" accept="image/*" capture="environment"><input class="file-hidden" type="file" id="productGallery" accept="image/*">
 <img id="productPreview" class="photo-preview hidden" alt="Selected product photo preview">
 <div id="photoStatus" class="photo-help">You can save a product without a photo.</div>
 <button type="button" id="removePendingPhoto" class="danger hidden">Remove selected photo</button>
-<button class="primary">Save product</button>
+</section>
+<div class="entry-form-actions"><button type="submit" class="primary">Save product</button><p class="entry-submit-note">You can edit product details and stock later.</p></div>
 </form>
 </div>
 </section>
@@ -231,18 +224,26 @@
 
 <section id="record-sale" class="page hidden record-entry-page">
 <div class="products-page-header sales-page-header"><button type="button" class="products-back-button" data-app-back="home" aria-label="Go back" title="Go back"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6M9 12h11"/></svg></button><h1>Record a sale</h1></div>
-<p class="page-intro">Choose a product, enter the quantity and confirm the paid sale. Stock will be updated automatically.</p>
-<div class="card" id="saleFormCard">
-<form id="saleForm">
-<label for="saleProduct">Product</label><select id="saleProduct" required></select>
-<label for="saleUnit">Sell as</label><select id="saleUnit"><option value="base">Individual unit</option></select>
-<label for="saleQty">Quantity sold</label><input id="saleQty" type="number" min="1" step="1" value="1" required>
-<label for="salePrice" id="salePriceLabel">Selling price per individual unit (₦)</label><input id="salePrice" type="number" min="0.01" step="0.01" required>
-<div class="muted" id="saleStock"></div>
-<label for="saleNote">Note (optional)</label><input id="saleNote" maxlength="150" placeholder="Optional details">
-<button class="primary">Record paid sale</button>
+<p class="page-intro">Enter the items sold and the amount received. Sellbook will update your stock.</p>
+<div class="card entry-form-card" id="saleFormCard">
+<form id="saleForm" class="organized-entry-form">
+<section class="entry-form-group" aria-labelledby="saleProductHeading">
+<div class="entry-form-group-heading"><h2 id="saleProductHeading">What did you sell?</h2><p>Choose the product, selling unit and quantity.</p></div>
+<div class="entry-form-field"><label for="saleProduct">Product</label><select id="saleProduct" required></select></div>
+<div class="entry-form-field"><label for="saleUnit">Selling unit</label><select id="saleUnit"><option value="base">Individual unit</option></select></div>
+<div class="entry-form-field"><label for="saleQty">Quantity sold</label><input id="saleQty" type="number" min="1" step="1" value="1" inputmode="numeric" required></div>
+<div class="entry-stock-hint" id="saleStock" role="status" aria-live="polite">Choose a product to see available stock.</div>
+</section>
+<section class="entry-form-group" aria-labelledby="salePriceHeading">
+<div class="entry-form-group-heading"><h2 id="salePriceHeading">Sale price</h2><p>Check the price before recording the sale.</p></div>
+<div class="entry-form-field"><label for="salePrice" id="salePriceLabel">Selling price per individual unit (₦)</label><input id="salePrice" type="number" min="0.01" step="0.01" inputmode="decimal" required><p class="entry-field-help">The product's saved price is filled in automatically. You can change it for this sale only.</p></div>
+</section>
+<section class="entry-form-group entry-form-group-last" aria-labelledby="saleNoteHeading">
+<div class="entry-form-group-heading"><h2 id="saleNoteHeading">Sale note <span class="entry-optional">(optional)</span></h2><p>Add a short reference to help you recognise this sale later.</p></div>
+<div class="entry-form-field"><label for="saleNote">Note</label><input id="saleNote" maxlength="150" placeholder="e.g. Order reference"></div>
+</section>
+<div class="entry-form-actions"><button type="submit" class="primary">Record paid sale</button><p class="entry-submit-note">Sales are recorded as paid. Stock is deducted automatically.</p></div>
 </form>
-<p class="muted">Sales are recorded as paid. Stock is deducted automatically.</p>
 </div>
 </section>
 
@@ -260,9 +261,21 @@
 <div class="card expense-period-card"><label class="expense-period-select-label" for="expensePeriodSelect">Total expenses for</label><select id="expensePeriodSelect" class="expense-period-select" aria-label="Select expense total period"><option value="today" selected>Today</option><option value="week">This week</option><option value="month">This month</option><option value="year">This year</option><option value="all">All time</option></select><div class="expense-period-total"><small id="expensePeriodLabel">Total expenses today</small><strong id="todayExpenses">₦0</strong></div></div>
 <div class="card"><h2>Expense history</h2><div class="sales-history-filters expense-history-filters"><div><label for="historyExpensesFrom">From date</label><input id="historyExpensesFrom" type="date"></div><div><label for="historyExpensesTo">To date</label><input id="historyExpensesTo" type="date"></div><button type="button" id="clearHistoryExpensesDates">Clear filters</button></div><div id="expenseList" class="empty">No expenses recorded yet.</div></div></section>
 <section id="record-expense" class="page hidden record-entry-page">
-<div class="products-page-header expenses-page-header"><button type="button" class="products-back-button" data-app-back="expenses" aria-label="Back to Expenses" title="Back to Expenses"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6M9 12h11"/></svg></button><h1>Record an expense</h1></div>
-<p class="page-intro">Enter the business expense and amount. This will be included in your net profit calculations.</p>
-<div class="card" id="expenseFormCard"><form id="expenseForm"><label for="ename">Expense description</label><input id="ename" required maxlength="100" placeholder="e.g. Transport"><label for="eamount">Amount (₦)</label><input id="eamount" type="number" min="0.01" step="0.01" required inputmode="decimal"><button class="primary">Save expense</button></form></div>
+<div class="products-page-header expenses-page-header"><button type="button" class="products-back-button" data-app-back="expenses" aria-label="Back to Expenses" title="Back to Expenses"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6 6-6-6M9 12h11"/></svg></button><h1>Record an expense</h1></div>
+<p class="page-intro">Keep track of money spent on running your business.</p>
+<div class="card entry-form-card" id="expenseFormCard">
+<form id="expenseForm" class="organized-entry-form">
+<section class="entry-form-group" aria-labelledby="expenseDescriptionHeading">
+<div class="entry-form-group-heading"><h2 id="expenseDescriptionHeading">Expense details</h2><p>What did you spend money on?</p></div>
+<div class="entry-form-field"><label for="ename">Expense description</label><input id="ename" required maxlength="100" placeholder="e.g. Transport, shop rent or supplies" autocomplete="off"></div>
+</section>
+<section class="entry-form-group entry-form-group-last" aria-labelledby="expenseAmountHeading">
+<div class="entry-form-group-heading"><h2 id="expenseAmountHeading">Amount paid</h2><p>Enter the total amount you spent.</p></div>
+<div class="entry-form-field"><label for="eamount">Amount (₦)</label><input id="eamount" type="number" min="0.01" step="0.01" required inputmode="decimal" placeholder="e.g. 5,000"></div>
+</section>
+<div class="entry-form-actions"><button type="submit" class="primary">Save expense</button><p class="entry-submit-note">The date is recorded automatically and this expense is included in net profit.</p></div>
+</form>
+</div>
 </section>
 
 <section id="me" class="page hidden me-page">
