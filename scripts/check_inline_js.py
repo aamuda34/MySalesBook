@@ -297,6 +297,7 @@ email_auth_checks = {
     "email signup uses Supabase Auth": "supabaseClient.auth.signUp({email,password" in app_js,
     "signup confirmation can be resent": "supabaseClient.auth.resend({type:'signup'" in app_js,
     "email confirmation is not bypassed": "emailRedirectTo:window.location.origin+window.location.pathname+window.location.search" in app_js,
+    "recovery password form opens before PIN-gated data loading": "if (recoveryMode) {\n        document.getElementById('appWorkspace').classList.add('hidden');" in app_js,
     "Google OAuth remains available": 'id="googleSignIn"' in index_html and "provider: 'google'" in app_js,
 }
 failed_email_auth = [label for label, passed in email_auth_checks.items() if not passed]
