@@ -30,6 +30,18 @@ assert.ok(!account.includes('style="display:none!important"'), 'Email authentica
 assert.ok(account.includes('autocomplete="email"'), 'Email field must use email autocomplete.');
 assert.ok(account.includes('autocomplete="current-password"'), 'Sign-in password must use current-password autocomplete.');
 assert.ok(account.includes('autocomplete="new-password"'), 'New password fields must use new-password autocomplete.');
+const authPasswordInput = account.match(/<input id="authPassword"[^>]*>/)?.[0] || '';
+assert.ok(authPasswordInput && !/\\bminlength=/.test(authPasswordInput), 'Existing email users must not be locked out by signup-only length rules.');
+const passwordPolicySource = app.match(/function passwordPolicyError\\(password\\) \\{[\\s\\S]*?\\n\\}/)?.[0];
+assert.ok(passwordPolicySource, 'Password strength policy function is missing.');
+const passwordPolicy = new Function(passwordPolicySource + '\\nreturn passwordPolicyError;')();
+assert.equal(passwordPolicy('GoodPass9!'), '', 'A password meeting the full policy must be accepted.');
+assert.ok(passwordPolicy('short1!'), 'Short passwords must be rejected.');
+assert.ok(passwordPolicy('lowercase9!'), 'Passwords without uppercase letters must be rejected.');
+assert.ok(passwordPolicy('Uppercase9!'), 'Passwords without lowercase letters must be rejected.');
+assert.ok(passwordPolicy('GoodPass!!'), 'Passwords without numbers must be rejected.');
+assert.ok(passwordPolicy('GoodPass99'), 'Passwords without symbols must be rejected.');
+assert.ok(passwordPolicy('GoodPass9 '), 'Whitespace alone must not count as a symbol.');
 assert.ok(html.includes('<section id="authPage" class="auth-page"'), 'Authentication must be a standalone full-page section.');
 assert.ok(account.includes('aria-live="polite"'), 'Account status messages must be accessible.');
 
