@@ -1136,7 +1136,7 @@ async function loadBuybookConnection() {
   status.textContent='Checking Buybook connection…';
   const {data,error}=await supabaseClient.from('marketplace_shops').select('name,description,phone,address,city,state,is_connected,is_active').eq('owner_id',requestedUserId).maybeSingle();
   if(!current())return;
-  if(error){buybookConnectionState=null;setConnectionView(false);buybookConnectionState=null;renderGettingStarted();status.textContent='Could not check Buybook connection. Please try again.';console.error(error);return;}
+  if(error){buybookConnectionState=null;setConnectionView(false);buybookConnectionState=null;renderGettingStarted();status.textContent='Could not check Buybook connection. Please try again.';showToast('Could not check Buybook connection. Please try again.','error');console.error(error);return;}
   const connected=!!(data&&data.is_connected&&data.is_active);
   if(data){
     document.getElementById('buybookShopName').value=data.name||'';
@@ -1207,18 +1207,18 @@ document.getElementById('marketplaceSubscriberList')?.addEventListener('click',e
 document.getElementById('refreshBuybookActivity')?.addEventListener('click',async()=>{await loadBuybookConnection();await loadBuybookActivity();});
 document.getElementById('buybookConnectionForm')?.addEventListener('submit',async e=>{
  e.preventDefault();const message=document.getElementById('buybookConnectionMessage'),button=document.getElementById('buybookConnectButton');
- if(!navigator.onLine){message.textContent='Connect to the internet to set up Buybook.';return;}
- button.disabled=true;message.textContent='Connecting your shop…';
+ if(!navigator.onLine){notifyStatus(message,'Connect to the internet to set up Buybook.','error');return;}
+ button.disabled=true;notifyStatus(message,'Connecting your shop…','info');
  try{const user=await requireCloudUser();const shop={owner_id:user.id,name:document.getElementById('buybookShopName').value.trim(),description:document.getElementById('buybookDescription').value.trim()||null,phone:document.getElementById('buybookPhone').value.trim()||null,address:document.getElementById('buybookAddress').value.trim(),city:document.getElementById('buybookCity').value.trim(),state:document.getElementById('buybookState').value.trim(),country:'Nigeria',is_connected:true,is_active:true};
  const {error}=await supabaseClient.from('marketplace_shops').upsert(shop,{onConflict:'owner_id'});if(error)throw error;
  const sync=await supabaseClient.rpc('sync_owner_marketplace_listings',{p_owner_id:user.id});if(sync.error)throw sync.error;
  for(const product of (db.products||[])){if(product.imagePath){try{await cloudPublishMarketplaceImage(product,user,product.offlineImage||null,product.imagePath);}catch(imageError){console.warn('Buybook image sync skipped for product:',product.id,imageError);}}}
- message.textContent='Connected successfully. Your products will appear automatically on Buybook. Only marketplace product details and shop information are shared.';await loadBuybookConnection();
- }catch(err){message.textContent='Could not connect: '+(err.message||'Please try again when online.');console.error('Buybook connection error:',err);}finally{button.disabled=false;}
+ notifyStatus(message,'Connected successfully. Your products will appear automatically on Buybook. Only marketplace product details and shop information are shared.','success');await loadBuybookConnection();
+ }catch(err){notifyStatus(message,'Could not connect: '+(err.message||'Please try again when online.'),'error');console.error('Buybook connection error:',err);}finally{button.disabled=false;}
 });
 document.getElementById('buybookDisconnectButton')?.addEventListener('click',async()=>{
  if(!cloudUser){showToast('Sign in to Sellbook first.');return;}if(!confirm('Disconnect your shop from Buybook? Your Sellbook records will remain unchanged.'))return;
- const message=document.getElementById('buybookConnectionMessage');try{const user=await requireCloudUser();const {error}=await supabaseClient.from('marketplace_shops').update({is_connected:false}).eq('owner_id',user.id);if(error)throw error;const sync=await supabaseClient.rpc('sync_owner_marketplace_listings',{p_owner_id:user.id});if(sync.error)throw sync.error;message.textContent='Disconnected. Your products are no longer listed on Buybook. Sellbook records remain unchanged.';await loadBuybookConnection();}catch(err){message.textContent='Could not disconnect: '+(err.message||'Please try again.');}
+ const message=document.getElementById('buybookConnectionMessage');try{notifyStatus(message,'Disconnecting your shop from Buybook…','info');const user=await requireCloudUser();const {error}=await supabaseClient.from('marketplace_shops').update({is_connected:false}).eq('owner_id',user.id);if(error)throw error;const sync=await supabaseClient.rpc('sync_owner_marketplace_listings',{p_owner_id:user.id});if(sync.error)throw sync.error;notifyStatus(message,'Disconnected. Your products are no longer listed on Buybook. Sellbook records remain unchanged.','success');await loadBuybookConnection();}catch(err){notifyStatus(message,'Could not disconnect: '+(err.message||'Please try again.'),'error');}
 });
 async function cloudAction(action) {
   if (cloudBusy) {
@@ -2989,15 +2989,15 @@ document.getElementById('changeSecurityPinButton')?.addEventListener('click',asy
 document.getElementById('resendAccountEmailOtpButton')?.addEventListener('click',async()=>{
   const state=accountEmailOtpState,button=document.getElementById('resendAccountEmailOtpButton'),message=document.getElementById('accountEmailOtpMessage');
   if(!state||accountEmailOtpBusy)return;
-  accountEmailOtpBusy=true;button.disabled=true;button.textContent='Sending…';message.textContent='Requesting another code…';
+  accountEmailOtpBusy=true;button.disabled=true;button.textContent='Sending…';notifyStatus(message,'Requesting another code…','info');
   try{
     const current=await getSellbookAccountSession();
     if(current.user.id!==state.userId||current.sessionId!==state.targetSessionId)throw Error('Your Sellbook session changed. Cancel and start verification again.');
     const {error}=await state.client.auth.signInWithOtp({email:state.email,options:{shouldCreateUser:false}});
     if(error)throw error;
     startAccountOtpResendCooldown(60);
-    document.getElementById('accountEmailOtp').value='';message.textContent='A new verification code has been sent. Use the latest code.';
-  }catch(error){message.textContent='Could not resend the code: '+(error.message||'Please try again.');}
+    document.getElementById('accountEmailOtp').value='';notifyStatus(message,'A new verification code has been sent. Use the latest code.','success');
+  }catch(error){notifyStatus(message,'Could not resend the code: '+(error.message||'Please try again.'),'error');}
   finally{accountEmailOtpBusy=false;if(!accountOtpResendTimer){button.disabled=false;button.textContent='Resend code';}}
 });
 document.getElementById('cancelAccountEmailOtpButton')?.addEventListener('click',clearAccountEmailOtp);
@@ -3013,10 +3013,10 @@ document.getElementById('accountEmailOtpForm')?.addEventListener('submit',async 
   event.preventDefault();
   const state=accountEmailOtpState,token=document.getElementById('accountEmailOtp').value.trim();
   const message=document.getElementById('accountEmailOtpMessage'),button=document.getElementById('verifyAccountEmailOtpButton');
-  if(!state){message.textContent='Start email verification again before entering a code.';return;}
-  if(!/^[0-9]{6}$/.test(token)){message.textContent='Enter the six-digit code from your email.';return;}
+  if(!state){notifyStatus(message,'Start email verification again before entering a code.','error');return;}
+  if(!/^[0-9]{6}$/.test(token)){notifyStatus(message,'Enter the six-digit code from your email.','error');return;}
   if(accountEmailOtpBusy)return;
-  accountEmailOtpBusy=true;button.disabled=true;button.textContent='Verifying…';message.textContent='Verifying your email code securely…';
+  accountEmailOtpBusy=true;button.disabled=true;button.textContent='Verifying…';notifyStatus(message,'Verifying your email code securely…','info');
   try{
     const {data,error}=await state.client.auth.verifyOtp({email:state.email,token,type:'email'});
     if(error)throw error;
@@ -3050,9 +3050,9 @@ document.getElementById('accountEmailOtpForm')?.addEventListener('submit',async 
     const failure='Email verification failed: '+(error.message||'Check the code and try again.');
     if(sessionStorage.getItem('sellbook-pin-reset-after-auth')==='yes'){
       showSecurityPinGate('verify','Your email code was accepted, but the PIN reset did not finish. Please restart PIN recovery and verify your email again.');
-      document.getElementById('securityPinMessage').textContent=failure;
+      notifyStatus('securityPinMessage',failure,'error');
     }else{
-      message.textContent=failure;
+      notifyStatus(message,failure,'error');
     }
   }finally{accountEmailOtpBusy=false;button.disabled=false;button.textContent='Verify code';}
 });
@@ -3067,7 +3067,7 @@ async function refreshAccountStatus(){
   const emailEntry=document.getElementById('openEmailSignIn');
   const signOut=document.getElementById('googleSignOut');
   if(!supabaseClient){
-    status.textContent='Account service is unavailable. Check your connection and try again.';
+    notifyStatus(status,'Account service is unavailable. Check your connection and try again.','error');
     signIn.disabled=true;
     if(emailEntry)emailEntry.disabled=true;
     return;
@@ -3075,7 +3075,7 @@ async function refreshAccountStatus(){
   let data,error;
   try{({data,error}=await supabaseClient.auth.getSession());}
   catch(sessionError){
-    status.textContent='Could not check your sign-in status. Check your connection and try again.';
+    notifyStatus(status,'Could not check your sign-in status. Check your connection and try again.','error');
     cloudMessage('Sellbook could not verify your secure sign-in. Your saved records have not been changed.');
     document.getElementById('appWorkspace').classList.add('hidden');
     console.warn('Supabase session check failed:',sessionError);
@@ -3343,18 +3343,18 @@ document.getElementById('resendConfirmationBtn').addEventListener('click',async(
   const email=(confirmationEmail||document.getElementById('authEmail').value).trim().toLowerCase();
   const button=document.getElementById('resendConfirmationBtn');
   const status=document.getElementById('emailConfirmationMessage');
-  if(!email){status.textContent='Enter the email address you used to create your account first.';return;}
-  if(!navigator.onLine){status.textContent='Connect to the internet before requesting another confirmation email.';return;}
-  if(!supabaseClient){status.textContent='Account service is unavailable right now. Try again later.';return;}
+  if(!email){notifyStatus(status,'Enter the email address you used to create your account first.','error');return;}
+  if(!navigator.onLine){notifyStatus(status,'Connect to the internet before requesting another confirmation email.','error');return;}
+  if(!supabaseClient){notifyStatus(status,'Account service is unavailable right now. Try again later.','error');return;}
   if(button.disabled)return;
   button.disabled=true;button.setAttribute('aria-busy','true');button.textContent='Sending…';
   try{
     const {error}=await supabaseClient.auth.resend({type:'signup',email,options:{emailRedirectTo:window.location.origin+window.location.pathname+window.location.search}});
     if(error)throw error;
-    status.textContent='A new confirmation link has been requested. Use the latest email and check your spam folder.';
+    notifyStatus(status,'A new confirmation link has been requested. Use the latest email and check your spam folder.','success');
     startSignupResendCooldown(60);
   }catch(error){
-    status.textContent=friendlyAuthError(error);
+    notifyStatus(status,friendlyAuthError(error),'error');
     button.disabled=false;button.removeAttribute('aria-busy');button.textContent='Resend confirmation email';
   }finally{button.removeAttribute('aria-busy');}
 });
@@ -3616,9 +3616,9 @@ document.getElementById('changeEmailForm').addEventListener('submit',async event
     if(error)throw error;
     document.getElementById('changeEmailForm').reset();
     document.getElementById('changeEmailForm').classList.add('hidden');
-    document.getElementById('settingsAccountMessage').textContent='Email change requested. Follow the confirmation instructions sent by Supabase. The new address is not active until the required confirmation is completed.';
+    notifyStatus('settingsAccountMessage','Email change requested. Follow the confirmation instructions sent by Supabase. The new address is not active until the required confirmation is completed.','success');
   }catch(error){
-    document.getElementById('settingsAccountMessage').textContent='Could not request an email change: '+(error.message||'Please try again. Verify your current email again if the code has expired.');
+    notifyStatus('settingsAccountMessage','Could not request an email change: '+(error.message||'Please try again. Verify your current email again if the code has expired.'),'error');
   }finally{if(button){button.disabled=false;button.textContent='Request email change';}}
 });
 
@@ -3738,11 +3738,11 @@ document.getElementById('googleSignOut').addEventListener('click', async () => {
 
   const { error } = await supabaseClient.auth.signOut({scope:'local'});
   if (error) {
-    message.textContent = 'Could not sign out: ' + error.message;
+    notifyStatus(message,'Could not sign out: ' + error.message,'error');
     return;
   }
 
-  message.textContent = 'You have signed out. Your business workspace is now locked on this device.';
+  notifyStatus(message,'You have signed out. Your business workspace is now locked on this device.','success');
   await refreshAccountStatus();
 });
 
