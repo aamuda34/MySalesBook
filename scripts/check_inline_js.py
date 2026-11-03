@@ -288,12 +288,23 @@ if failed_back_navigation:
     raise SystemExit("Back-navigation checks failed: " + "; ".join(failed_back_navigation))
 print(f"Standalone-page and Android Back navigation checks passed ({len(back_navigation_checks)} checks).")
 
-# Keep email/password entry hidden until verification delivery is proven reliable.
-if 'id="emailAuthPanel" class="hidden" aria-hidden="true" style="display:none!important"' not in index_html:
-    raise SystemExit("Email/password sign-in must remain hidden until verification is validated.")
-if 'id="googleSignIn"' not in index_html or "provider: 'google'" not in app_js:
-    raise SystemExit("Google OAuth must remain the visible sign-in path.")
-print("Verified sign-in visibility safeguard passed.")
+# Require standalone email authentication while preserving verified Supabase confirmation.
+email_auth_checks = {
+    "email auth has its own full-page screen": '<section id="authPage" class="auth-page"' in index_html,
+    "email sign-in entry point is available": 'id="openEmailSignIn"' in index_html,
+    "email/password form is not forcibly hidden": 'id="emailAuthPanel" class="auth-email-panel hidden" aria-hidden="true"' in index_html and 'id="emailAuthPanel" class="hidden" aria-hidden="true" style="display:none!important"' not in index_html,
+    "email/password sign-in uses Supabase Auth": "supabaseClient.auth.signInWithPassword({email,password})" in app_js,
+    "email signup uses Supabase Auth": "supabaseClient.auth.signUp({email,password" in app_js,
+    "signup confirmation can be resent": "supabaseClient.auth.resend({type:'signup'" in app_js,
+    "email confirmation is not bypassed": "emailRedirectTo:window.location.origin+window.location.pathname+window.location.search" in app_js,
+    "recovery password form opens before PIN-gated data loading": "if (recoveryMode) {\n        document.getElementById('appWorkspace').classList.add('hidden');" in app_js,
+    "recovery callback takes precedence over an in-flight PIN request": "if (recoveryMode) {\n        hideSecurityPinGate();" in app_js,
+    "Google OAuth remains available": 'id="googleSignIn"' in index_html and "provider: 'google'" in app_js,
+}
+failed_email_auth = [label for label, passed in email_auth_checks.items() if not passed]
+if failed_email_auth:
+    raise SystemExit("Email authentication checks failed: " + "; ".join(failed_email_auth))
+print(f"Standalone email authentication checks passed ({len(email_auth_checks)} checks).")
 
 # Keep the checked-in reservation access migration subscription-gated.
 marketplace_access_migration = Path("supabase/migrations/20261101101455_tighten_marketplace_reservation_access.sql").read_text(encoding="utf-8")

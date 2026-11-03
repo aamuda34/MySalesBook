@@ -26,45 +26,43 @@
 <button type="button" class="header-icon-button" data-open-page="notifications" aria-label="Notifications" title="Notifications"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 9a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/></svg><span class="unread-badge hidden" id="notificationBadge" aria-label="Unread notifications">0</span></button>
 </div></div></header>
 <main id="mainContent">
-<div id="authLoading" role="status" aria-live="polite"><span class="auth-loading-spinner" aria-hidden="true"></span><strong>Opening your business book…</strong><span class="muted">Checking your saved sign-in and records.</span></div>
+<section id="authPage" class="auth-page" aria-label="Sellbook authentication"><div id="authLoading" role="status" aria-live="polite"><span class="auth-loading-spinner" aria-hidden="true"></span><strong>Opening your business book…</strong><span class="muted">Checking your saved sign-in and records.</span></div>
 <section class="card auth-card" id="accountCard" aria-live="polite">
-<div class="auth-brand-lockup">
-  <img src="./icons/icon.svg" alt="" width="52" height="52">
-  <span class="auth-brand-wordmark"><strong>Sellbook</strong><small>BUSINESS MANAGEMENT</small></span>
-</div>
+<div class="auth-brand-lockup"><img src="./icons/icon.svg" alt="" width="52" height="52"><span class="auth-brand-wordmark"><strong>Sellbook</strong><small>BUSINESS MANAGEMENT</small></span></div>
 <h2 id="authCardTitle">Welcome back</h2>
-<p id="accountStatus" class="muted auth-account-status">Checking sign-in status...</p>
-<button type="button" class="primary auth-google-button" id="googleSignIn">
-  <svg class="auth-google-mark" viewBox="0 0 48 48" aria-hidden="true"><path fill="#4285F4" d="M43.6 24.5c0-1.4-.1-2.8-.4-4.1H24v7.8h11a9.4 9.4 0 0 1-4.1 6.2v5.1h6.6c3.9-3.6 6.1-8.8 6.1-15Z"/><path fill="#34A853" d="M24 44c5.5 0 10.1-1.8 13.5-4.9l-6.6-5.1c-1.8 1.2-4.1 2-6.9 2-5.3 0-9.8-3.6-11.4-8.4H5.8v5.3A20.4 20.4 0 0 0 24 44Z"/><path fill="#FBBC05" d="M12.6 27.6a12.2 12.2 0 0 1 0-7.2v-5.3H5.8a20.1 20.1 0 0 0 0 17.8l6.8-5.3Z"/><path fill="#EA4335" d="M24 12.1c3 0 5.6 1 7.7 3.1l5.8-5.8A19.5 19.5 0 0 0 24 4 20.4 20.4 0 0 0 5.8 15.1l6.8 5.3c1.6-4.8 6.1-8.3 11.4-8.3Z"/></svg>
-  <span>Continue with Google</span>
-</button>
+<p id="accountStatus" class="muted auth-account-status">Checking your secure sign-in status…</p>
+<div id="authSignInChoices" class="auth-signin-choices">
+<button type="button" class="primary auth-google-button" id="googleSignIn"><svg class="auth-google-mark" viewBox="0 0 48 48" aria-hidden="true"><path fill="#4285F4" d="M43.6 24.5c0-1.4-.1-2.8-.4-4.1H24v7.8h11a9.4 9.4 0 0 1-4.1 6.2v5.1h6.6c3.9-3.6 6.1-8.8 6.1-15Z"/><path fill="#34A853" d="M24 44c5.5 0 10.1-1.8 13.5-4.9l-6.6-5.1c-1.8 1.2-4.1 2-6.9 2-5.3 0-9.8-3.6-11.4-8.4H5.8v5.3A20.4 20.4 0 0 0 24 44Z"/><path fill="#FBBC05" d="M12.6 27.6a12.2 12.2 0 0 1 0-7.2v-5.3H5.8a20.1 20.1 0 0 0 0 17.8l6.8-5.3Z"/><path fill="#EA4335" d="M24 12.1c3 0 5.6 1 7.7 3.1l5.8-5.8A19.5 19.5 0 0 0 24 4 20.4 20.4 0 0 0 5.8 15.1l6.8 5.3c1.6-4.8 6.1-8.3 11.4-8.3Z"/></svg><span>Continue with Google</span></button>
+<div class="auth-divider" aria-hidden="true"><span>OR</span></div>
+<button type="button" class="auth-email-entry" id="openEmailSignIn">Sign in with email</button>
 <button type="button" class="auth-text-button" id="openPasswordRecovery">Forgot your password?</button>
-<div id="emailAuthPanel" class="hidden" aria-hidden="true" style="display:none!important"><form id="emailAuthForm">
-<label for="authEmail">Email address</label><input id="authEmail" type="email" autocomplete="email" required>
-<label for="authPassword">Password</label><input id="authPassword" type="password" autocomplete="current-password" minlength="8" required>
-<button type="submit" class="primary" id="emailAuthSubmit">Sign in with email</button></form>
-<div class="photo-actions"><button type="button" id="toggleEmailAuth">Create account</button><button type="button" id="resetPasswordBtn">Forgot password?</button></div></div>
+<p class="auth-privacy-note">Your business records stay private to your account.</p>
+</div>
+<div id="emailAuthPanel" class="auth-email-panel hidden" aria-hidden="true">
+<button type="button" class="auth-back-link" id="backToAuthOptions"><span aria-hidden="true">‹</span> All sign-in options</button>
+<h3 id="emailAuthHeading">Sign in with email</h3>
+<p id="emailAuthDescription" class="auth-form-description">Use the email address and password linked to your Sellbook account.</p>
+<form id="emailAuthForm" novalidate>
+<label for="authEmail">Email address</label><input id="authEmail" type="email" inputmode="email" autocomplete="email" placeholder="you@example.com" maxlength="254" required>
+<label for="authPassword">Password</label><input id="authPassword" type="password" autocomplete="current-password" placeholder="Enter your password" required>
+<div id="authPasswordConfirmField" class="hidden"><label for="authPasswordConfirm">Confirm password</label><input id="authPasswordConfirm" type="password" autocomplete="new-password" placeholder="Enter your password again" disabled></div>
+<small id="authPasswordHint" class="auth-field-hint">Enter your account password.</small>
+<button type="submit" class="primary auth-email-submit" id="emailAuthSubmit">Sign in with email</button>
+</form>
+<div class="auth-email-links"><button type="button" id="toggleEmailAuth">New to Sellbook? Create an account</button><button type="button" id="emailPasswordRecovery">Forgot password?</button></div>
+<button type="button" class="auth-resend-button hidden" id="resendConfirmationBtn">Resend confirmation email</button>
+</div>
 <form id="accountRecoveryRequestForm" class="auth-recovery-request hidden" novalidate>
-  <div class="auth-recovery-heading">
-    <span class="auth-recovery-icon" aria-hidden="true">↗</span>
-    <h3>Reset your password</h3>
-    <p>Enter the email address linked to your Sellbook account. We’ll send a secure recovery link if an account matches.</p>
-  </div>
-  <label for="recoveryEmail">Account email address</label>
-  <input id="recoveryEmail" type="email" inputmode="email" autocomplete="email" placeholder="you@example.com" required>
-  <button type="submit" class="primary auth-recovery-submit" id="recoveryEmailSubmit">Send recovery link</button>
-  <button type="button" class="auth-text-button auth-back-button" id="cancelPasswordRecovery">Back to sign in</button>
+<div class="auth-recovery-heading"><span class="auth-recovery-icon" aria-hidden="true">↗</span><h3>Reset your password</h3><p>Enter the email address linked to your Sellbook account. We’ll send a secure recovery link if an account matches.</p></div>
+<label for="recoveryEmail">Account email address</label><input id="recoveryEmail" type="email" inputmode="email" autocomplete="email" placeholder="you@example.com" maxlength="254" required>
+<button type="submit" class="primary auth-recovery-submit" id="recoveryEmailSubmit">Send recovery link</button>
+<button type="button" class="auth-text-button auth-back-button" id="cancelPasswordRecovery">Back to sign in</button>
 </form>
 <form id="recoveryPasswordForm" class="auth-new-password-form hidden">
-  <div class="auth-recovery-heading">
-    <span class="auth-recovery-icon" aria-hidden="true">✓</span>
-    <h3>Choose a new password</h3>
-    <p>Create a new password for your Sellbook account. Your business records remain protected.</p>
-  </div>
-  <label for="recoveryPassword">New password</label>
-  <input id="recoveryPassword" type="password" minlength="8" autocomplete="new-password" placeholder="Enter your new password" aria-describedby="recoveryPasswordHint" required>
-  <small id="recoveryPasswordHint" class="auth-field-hint">Use at least 8 characters.</small>
-  <button type="submit" class="primary auth-recovery-submit">Update password</button>
+<div class="auth-recovery-heading"><span class="auth-recovery-icon" aria-hidden="true">✓</span><h3>Choose a new password</h3><p>Create a new password for your Sellbook account. Your business records remain protected.</p></div>
+<label for="recoveryPassword">New password</label><input id="recoveryPassword" type="password" autocomplete="new-password" placeholder="Enter your new password" aria-describedby="recoveryPasswordHint" required>
+<small id="recoveryPasswordHint" class="auth-field-hint">Use at least 8 characters, including uppercase and lowercase letters, a number and a symbol.</small>
+<button type="submit" class="primary auth-recovery-submit">Update password</button>
 </form>
 <p id="accountMessage" class="muted auth-message" role="status" aria-live="polite"></p></section>
 <section id="securityPinGate" class="card security-pin-gate hidden" aria-labelledby="securityPinTitle">
@@ -83,6 +81,7 @@
  <button type="button" id="securityPinCancel" class="security-pin-cancel hidden">Cancel PIN change</button>
  <button type="button" id="securityPinForgot" class="security-pin-forgot">Forgot your PIN? Sign in again to reset it.</button>
  <p id="securityPinMessage" class="muted" role="status" aria-live="polite"></p>
+</section>
 </section>
 <div id="appWorkspace" class="hidden">
 <nav aria-label="Main navigation">
