@@ -3398,3 +3398,50 @@ body.record-entry-page-open #appWorkspace>main>.record-entry-page{
   min-height:calc(100vh - 32px);
   min-height:calc(100dvh - 32px);
 }
+
+
+/* Clear, consistent entry-form structure for sale, product and expense tasks. */
+#appWorkspace .record-entry-page>.entry-form-card{padding:20px}
+#appWorkspace .record-entry-page .organized-entry-form{display:grid;gap:0}
+#appWorkspace .record-entry-page .entry-form-group{display:grid;gap:14px;padding:0 0 20px;margin:0 0 20px;border:0;border-bottom:1px solid var(--border)}
+#appWorkspace .record-entry-page .entry-form-group-last{margin-bottom:18px}
+#appWorkspace .record-entry-page .entry-form-group-heading{margin:0}
+#appWorkspace .record-entry-page .entry-form-group-heading h2{margin:0;color:var(--ink);font-size:16px;line-height:1.35}
+#appWorkspace .record-entry-page .entry-form-group-heading p{margin:4px 0 0;color:var(--muted);font-size:12px;line-height:1.45}
+#appWorkspace .record-entry-page .entry-form-field{display:grid;gap:7px;min-width:0}
+#appWorkspace .record-entry-page .entry-form-field>label,
+#appWorkspace .record-entry-page .entry-form-label{display:block;margin:0;color:var(--ink);font-size:14px;font-weight:700;line-height:1.35}
+#appWorkspace .record-entry-page .entry-form-field>input,
+#appWorkspace .record-entry-page .entry-form-field>select{width:100%;min-width:0;min-height:52px;padding:13px 14px;border:1px solid var(--border);border-radius:12px;background:var(--surface);color:var(--ink);font:inherit;font-size:16px}
+#appWorkspace .record-entry-page .entry-form-field>input:focus,
+#appWorkspace .record-entry-page .entry-form-field>select:focus{outline:2px solid #86b695;outline-offset:1px;border-color:var(--green)}
+#appWorkspace .record-entry-page .entry-field-help{display:block;margin:0;color:var(--muted);font-size:12px;line-height:1.45}
+#appWorkspace .record-entry-page .product-type-picker{margin:0;padding:12px;border:1px solid var(--border);border-radius:12px;background:var(--page)}
+#appWorkspace .record-entry-page .product-type-options button{min-height:48px;font-size:13px;line-height:1.3}
+#appWorkspace .record-entry-page .entry-subpanel{display:grid;gap:13px;padding:14px;border:1px solid var(--border);border-radius:12px;background:var(--page)}
+#appWorkspace .record-entry-page .entry-subpanel.hidden{display:none!important}
+#appWorkspace .record-entry-page .entry-subpanel h3{margin:0;color:var(--ink);font-size:14px}
+#appWorkspace .record-entry-page .product-category-options{margin:0}
+#appWorkspace .record-entry-page .category-choice{min-height:44px;line-height:1.35}
+#appWorkspace .record-entry-page .price-calculator{margin:0;padding:13px;border-radius:12px;background:var(--page)}
+#appWorkspace .record-entry-page .price-calculator>strong{margin-bottom:5px;font-size:13px}
+#appWorkspace .record-entry-page .markup-options{margin:8px 0 3px}
+#appWorkspace .record-entry-page .markup-options button{min-height:40px;min-width:48px}
+#appWorkspace .record-entry-page .entry-stock-hint{padding:11px 13px;border-radius:10px;background:var(--page);color:var(--muted);font-size:13px;line-height:1.45}
+#appWorkspace .record-entry-page .entry-form-actions{display:grid;gap:9px}
+#appWorkspace .record-entry-page .entry-form-actions>.primary{width:100%;min-height:54px;margin:0;border-radius:12px;font-size:15px}
+#appWorkspace .record-entry-page .entry-submit-note{margin:0;color:var(--muted);font-size:12px;line-height:1.45;text-align:center}
+#appWorkspace .record-entry-page .entry-optional{color:var(--muted);font-size:12px;font-weight:500}
+#appWorkspace .record-entry-page .photo-actions{margin:0}
+#appWorkspace .record-entry-page .photo-actions button{min-height:46px;border:1px solid var(--border);border-radius:10px}
+#appWorkspace .record-entry-page .photo-help{margin:0;line-height:1.45}
+#appWorkspace .record-entry-page .danger{justify-self:start;width:auto;margin:0;padding:9px 12px}
+@media(max-width:480px){
+ #appWorkspace .record-entry-page>.entry-form-card{padding:16px}
+ #appWorkspace .record-entry-page .entry-form-group{gap:12px;padding-bottom:17px;margin-bottom:17px}
+ #appWorkspace .record-entry-page .entry-subpanel{padding:12px}
+}
+body.dark #appWorkspace .record-entry-page .entry-form-group-heading h2,
+body.dark #appWorkspace .record-entry-page .entry-form-field>label,
+body.dark #appWorkspace .record-entry-page .entry-form-label,
+body.dark #appWorkspace .record-entry-page .entry-subpanel h3{color:var(--ink)}
