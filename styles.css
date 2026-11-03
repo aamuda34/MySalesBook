@@ -2408,3 +2408,18 @@ body.dark #authPage .auth-email-entry,body.dark #authPage #emailAuthForm input{b
 
 #accountCard:has(#emailAuthPanel:not(.hidden))>#authCardTitle,
 #accountCard:has(#emailAuthPanel:not(.hidden))>#accountStatus{display:none!important}
+
+/* Account and security step-up verification panels. */
+.account-email-status{padding:4px 0 12px;border-bottom:1px solid var(--border);margin-bottom:8px}
+.account-email-status>strong{font-size:14px;color:var(--ink)}
+.account-email-status p{margin:5px 0 0;overflow-wrap:anywhere}
+#settings-account .settings-group .settings-group{padding:14px 0;border-top:1px solid var(--border);border-bottom:0}
+#settings-account .settings-group h3{font-size:15px;margin:0 0 6px;color:var(--ink)}
+.account-email-otp-panel{padding:15px;margin-top:14px;border:1px solid var(--border);border-radius:13px;background:var(--surface)}
+.account-email-otp-panel h3{margin:0 0 7px;font-size:16px;color:var(--ink)}
+.account-email-otp-panel p{line-height:1.5}
+#accountEmailOtp,#deleteAccountPinInput{letter-spacing:.18em;font-size:19px;text-align:center}
+#deleteAccountPinDialog{max-width:420px}
+#deleteAccountPinDialog h2{font-size:19px;margin:0 0 8px}
+#deleteAccountPinDialog p{line-height:1.5}
+#deleteAccountPinDialog .dialog-actions button{min-height:46px}
