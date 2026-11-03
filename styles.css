@@ -2052,3 +2052,18 @@ body.dark #appWorkspace .page .card{
   #me .me-menu-card{padding-inline:8px}
   #me .me-menu-row{gap:9px;min-height:52px}
 }
+
+
+/* Ensure the final account action never sits underneath the fixed navigation. */
+#appWorkspace>main{
+  padding-bottom:calc(96px + env(safe-area-inset-bottom, 0px))!important;
+}
+#appWorkspace>main>.page{
+  padding-bottom:calc(96px + env(safe-area-inset-bottom, 0px))!important;
+}
+#me.me-page{
+  padding-bottom:calc(104px + env(safe-area-inset-bottom, 0px))!important;
+}
+#me #googleSignOut{
+  margin-bottom:24px!important;
+}
