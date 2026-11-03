@@ -2384,14 +2384,41 @@ function updateSuggestedPrice(){
  const cost=Number(costText),price=round(cost*(1+selectedMarkup/100));
  p.value=price.toFixed(2);o.textContent='Suggested unit price: '+money(price)+' · Gross profit per unit: '+money(price-cost);
 }
-document.querySelectorAll('[data-markup]').forEach(b=>b.addEventListener('click',()=>{selectedMarkup=Number(b.dataset.markup);document.querySelectorAll('[data-markup]').forEach(x=>{x.classList.toggle('selected',x===b);x.setAttribute('aria-pressed',String(x===b));});updateSuggestedPrice();}));
+document.querySelectorAll('[data-markup]').forEach(b=>b.addEventListener('click',()=>{selectedMarkup=Number(b.dataset.markup);productModeMarkup[productSellingType]=selectedMarkup;document.querySelectorAll('[data-markup]').forEach(x=>{x.classList.toggle('selected',x===b);x.setAttribute('aria-pressed',String(x===b));});updateSuggestedPrice();}));
 document.getElementById('pcost').addEventListener('input',updateSuggestedPrice);
 document.getElementById('punitsperpack').addEventListener('input',updateSuggestedPrice);
 document.getElementById('pbaseunitPack').addEventListener('input',updateSuggestedPrice);
 document.getElementById('ppackprice').addEventListener('input',()=>{if(productSellingType!=='pack')return;const count=Number(document.getElementById('punitsperpack').value),packPrice=Number(document.getElementById('ppackprice').value);if(Number.isSafeInteger(count)&&count>0&&Number.isFinite(packPrice)&&packPrice>0){document.getElementById('pprice').value=(Math.round((packPrice/count+Number.EPSILON)*100)/100).toFixed(2);const money=n=>new Intl.NumberFormat('en-NG',{style:'currency',currency:'NGN',maximumFractionDigits:2}).format(n);document.getElementById('priceSuggestion').textContent='Your chosen selling prices — per pack: '+money(packPrice)+' · per '+(document.getElementById('pbaseunitPack').value.trim()||'unit')+': '+money(Number(document.getElementById('pprice').value));}});
 let productSellingType='unit';
-function setProductSellingType(type){
- productSellingType=type==='pack'?'pack':'unit';
+let productModeDrafts={unit:null,pack:null};
+let productModeMarkup={unit:defaultMarkup,pack:defaultMarkup};
+function captureProductModeDraft(type){
+ const value=id=>document.getElementById(id).value;
+ const draft={cost:value('pcost'),price:value('pprice'),stock:value('pstock'),priceSuggestion:document.getElementById('priceSuggestion').textContent};
+ if(type==='pack'){
+  draft.packUnit=value('ppackunit');draft.unitsPerPack=value('punitsperpack');draft.baseUnit=value('pbaseunitPack');draft.packPrice=value('ppackprice');draft.unitCostText=document.getElementById('pcostPerUnit').textContent;
+ }else{draft.baseUnit=value('pbaseunit');}
+ return draft;
+}
+function restoreProductModeDraft(type){
+ const draft=productModeDrafts[type];
+ const set=(id,value)=>{document.getElementById(id).value=value;};
+ if(type==='pack'){
+  set('ppackunit',draft?.packUnit??'');set('punitsperpack',draft?.unitsPerPack??'1');set('pbaseunitPack',draft?.baseUnit??'unit');set('ppackprice',draft?.packPrice??'');
+ }else{set('pbaseunit',draft?.baseUnit??'unit');}
+ set('pcost',draft?.cost??'');set('pprice',draft?.price??'');set('pstock',draft?.stock??'');
+ document.getElementById('priceSuggestion').textContent=draft?.priceSuggestion||(type==='pack'?'Enter a purchase cost for one pack to get a suggested price.':'Enter a cost price to calculate a suggested price.');
+ document.getElementById('pcostPerUnit').textContent=draft?.unitCostText||'Enter pack cost and unit count to calculate this.';
+}
+function setProductSellingType(type,options={}){
+ const nextType=type==='pack'?'pack':'unit',previousType=productSellingType,changed=nextType!==previousType;
+ if(changed&&!options.reset)productModeDrafts[previousType]=captureProductModeDraft(previousType);
+ productSellingType=nextType;
+ if(changed&&!options.reset){
+  selectedMarkup=productModeMarkup[nextType]||defaultMarkup;
+  restoreProductModeDraft(nextType);
+  document.querySelectorAll('[data-markup]').forEach(x=>{const yes=Number(x.dataset.markup)===selectedMarkup;x.classList.toggle('selected',yes);x.setAttribute('aria-pressed',String(yes));});
+ }
  const pack=productSellingType==='pack';
  const unitTab=document.getElementById('productTypeUnit'),packTab=document.getElementById('productTypePack');
  unitTab.classList.toggle('selected',!pack);unitTab.setAttribute('aria-selected',String(!pack));unitTab.setAttribute('tabindex',!pack?'0':'-1');
@@ -2417,7 +2444,7 @@ function setProductSellingType(type){
  document.getElementById('pcost').placeholder=pack?'e.g. 10,000 for one carton':'e.g. 1,000 for one item';
  document.getElementById('pstock').placeholder=pack?'e.g. 5 cartons':'e.g. 24';
  document.getElementById('productStockHelp').textContent=pack?'Enter the number of full packs you currently have. Sellbook converts this to individual units for stock tracking.':'Enter the number of individual units you currently have.';
- updateSuggestedPrice();
+ if(!options.reset&&!productModeDrafts[nextType])updateSuggestedPrice();
 }
 document.getElementById('productTypeUnit').addEventListener('click',()=>setProductSellingType('unit'));
 document.getElementById('productTypePack').addEventListener('click',()=>setProductSellingType('pack'));
@@ -2428,9 +2455,9 @@ document.getElementById('productForm').addEventListener('keydown',event=>{
  }
 });
 setProductSellingType('unit');
-document.getElementById('productForm').addEventListener('reset',()=>{setProductSellingType('unit');productCategoryPickerOpen(false);const search=document.getElementById('productCategorySearch');if(search)search.value='';});
+document.getElementById('productForm').addEventListener('reset',()=>{productModeDrafts={unit:null,pack:null};productModeMarkup={unit:defaultMarkup,pack:defaultMarkup};selectedMarkup=defaultMarkup;setProductSellingType('unit',{reset:true});productCategoryPickerOpen(false);const search=document.getElementById('productCategorySearch');if(search)search.value='';});
 document.getElementById('productForm').addEventListener('reset',()=>setTimeout(()=>syncCategoryPicker('product',''),0));
-document.getElementById('productForm').addEventListener('reset',()=>{selectedMarkup=defaultMarkup;document.querySelectorAll('[data-markup]').forEach(x=>{const yes=Number(x.dataset.markup)===defaultMarkup;x.classList.toggle('selected',yes);x.setAttribute('aria-pressed',String(yes));});document.getElementById('priceSuggestion').textContent='Enter a cost price to calculate a suggested price.';});
+document.getElementById('productForm').addEventListener('reset',()=>{selectedMarkup=defaultMarkup;document.querySelectorAll('[data-markup]').forEach(x=>{const yes=Number(x.dataset.markup)===defaultMarkup;x.classList.toggle('selected',yes);x.setAttribute('aria-pressed',String(yes));});document.getElementById('priceSuggestion').textContent='Enter a cost price to calculate a suggested price.';document.getElementById('pcostPerUnit').textContent='Enter pack cost and unit count to calculate this.';});
 document.getElementById('productForm').addEventListener('submit',async e=>{
  e.preventDefault();
  const name=document.getElementById('pname').value.trim(),enteredCost=Number(document.getElementById('pcost').value),price=Number(document.getElementById('pprice').value),enteredStock=Number(document.getElementById('pstock').value);
