@@ -2431,3 +2431,40 @@ body.dark #authPage .auth-email-entry,body.dark #authPage #emailAuthForm input{b
 .app-status-popup[data-type="success"]{border-color:#23834b}
 .app-status-popup[data-type="error"]{border-color:#c44b4b}
 @media(prefers-reduced-motion:reduce){.app-status-popup{transition:none}}
+
+
+/* Sellbook authentication refinements: clear verification states and accessible password controls. */
+#authPage .auth-password-field{position:relative;display:flex;align-items:center;width:100%;min-width:0}
+#authPage .auth-password-field input{width:100%;min-width:0;padding-right:78px!important}
+#authPage .auth-password-toggle{position:absolute;right:8px;top:50%;transform:translateY(-50%);min-width:54px;min-height:36px;padding:6px 9px;border:0;border-radius:8px;background:transparent;color:#14532d;font:inherit;font-size:12px;font-weight:750}
+#authPage .auth-password-toggle:hover{background:#edf6ef}
+#authPage .auth-password-toggle:focus-visible{outline:2px solid #14532d;outline-offset:1px}
+#authPage .auth-field-hint.is-valid{color:#14532d;font-weight:700}
+#authPage .auth-email-confirmation{display:grid;gap:10px;width:100%;max-width:390px;margin:0 auto;padding:18px;border:1px solid #d6e8da;border-radius:16px;background:#f5faf6;text-align:left}
+#authPage .auth-email-confirmation[hidden],#authPage .auth-email-confirmation.hidden{display:none!important}
+#authPage .auth-confirmation-icon{display:grid;place-items:center;width:48px;height:48px;border-radius:15px;background:#e3f1e7;color:#14532d}
+#authPage .auth-confirmation-icon svg,#accountCard .auth-recovery-icon svg{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+#authPage .auth-email-confirmation h4{margin:2px 0 0;color:var(--ink);font-size:20px;line-height:1.25;font-weight:800}
+#authPage .auth-email-confirmation p{margin:0;color:var(--muted);font-size:13px;line-height:1.55;overflow-wrap:anywhere}
+#authPage #confirmationEmailAddress{color:var(--ink);font-weight:800;overflow-wrap:anywhere}
+#authPage .auth-confirmation-help{font-size:12px!important}
+#authPage .auth-resend-button{width:100%;min-height:47px;margin:3px 0 0;border:1px solid #14532d;border-radius:11px;background:#fff;color:#14532d;font:inherit;font-size:13px;font-weight:750}
+#authPage .auth-confirmation-status{min-height:0;color:var(--green);font-size:12px}
+#authPage .auth-confirmation-actions{display:grid;gap:4px;padding-top:5px;border-top:1px solid #dce9df}
+#authPage .auth-confirmation-actions button{min-height:42px;border:0;border-radius:9px;background:transparent;color:#14532d;font:inherit;font-size:12px;font-weight:750}
+#authPage .auth-confirmation-actions button:hover{background:#eaf4ed}
+#accountCard .auth-google-button{background:#fff!important;color:#202124!important;border:1px solid #dadce0!important;box-shadow:0 2px 5px rgba(60,64,67,.16)!important;font-weight:650}
+#accountCard .auth-google-button:hover{background:#f8faff!important;box-shadow:0 3px 8px rgba(60,64,67,.2)!important}
+#accountCard .auth-google-button .auth-google-mark{background:#fff}
+body.dark #authPage .auth-email-confirmation{background:#201b27;border-color:#453a50}
+body.dark #authPage .auth-confirmation-icon{background:#2c2535;color:#8ac89f}
+body.dark #authPage .auth-confirmation-actions{border-color:#453a50}
+body.dark #authPage .auth-confirmation-actions button,body.dark #authPage .auth-password-toggle{color:#9dd7ae}
+body.dark #authPage .auth-password-toggle:hover,body.dark #authPage .auth-confirmation-actions button:hover{background:#2a2432}
+body.dark #authPage .auth-resend-button{background:#211b2a;border-color:#5c8c6b;color:#b6e2c0}
+@media(max-width:380px){#authPage .auth-email-confirmation{padding:15px}#authPage .auth-password-field input{padding-right:72px!important}}
+@media(max-height:720px) and (min-width:420px){
+ body:has(#accountCard:not(.hidden)) #mainContent{padding-top:14px;padding-bottom:calc(16px + env(safe-area-inset-bottom,0px))}
+ #authPage .auth-brand-lockup{margin-bottom:17px}
+ body:has(#accountCard:not(.hidden)) #accountCard{padding-top:20px;padding-bottom:20px}
+}

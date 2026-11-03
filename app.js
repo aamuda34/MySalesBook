@@ -820,6 +820,18 @@ async function handleCloudAuthChange() {
         finishStartup();
         return;
       }
+      if(!user.email_confirmed_at){
+        const {error:signOutError}=await supabaseClient.auth.signOut({scope:'local'});
+        if(signOutError)console.warn('Sellbook could not close an unverified account session:',signOutError);
+        cloudUser=null;
+        clearAccountScopedUiState();
+        document.getElementById('appWorkspace').classList.add('hidden');
+        document.getElementById('accountCard').classList.remove('hidden');
+        showEmailConfirmationNotice(user.email||'',user.email?'Confirm your email address before opening your Sellbook records.':'Your sign-in provider did not return a verified email address. Please use an account with a verified email address.',!!user.email);
+        coreWorkspaceLoaded=true;
+        finishStartup();
+        return;
+      }
       // Every normal authenticated Sellbook session must pass the server-side PIN gate
       // before any private business rows are loaded or rendered.
       const pinAllowed = await ensureSellbookPinAccess();
@@ -2448,6 +2460,10 @@ let emailAuthMode = 'signin';
 let authScreenMode = 'choices';
 let confirmationEmail = '';
 let emailAuthInProgress = false;
+let signupResendTimer = null;
+let signupResendSeconds = 0;
+let accountRecoveryRequestInProgress = false;
+let recoveryPasswordInProgress = false;
 
 function setAuthScreen(mode) {
   const choices=document.getElementById('authSignInChoices');
@@ -2475,7 +2491,84 @@ function setAuthScreen(mode) {
       ?'Use an email address you can access. We’ll ask you to confirm it before your first sign-in.'
       :'Use the email address and password linked to your Sellbook account.';
   }
-  if(mode!=='email')document.getElementById('resendConfirmationBtn')?.classList.add('hidden');
+  if(mode!=='email'){
+    const confirmation=document.getElementById('emailConfirmationPanel');
+    confirmation?.classList.add('hidden');
+    confirmation?.setAttribute('aria-hidden','true');
+    clearSignupResendCooldown();
+  }
+}
+function clearSignupResendCooldown(){
+  if(signupResendTimer){clearInterval(signupResendTimer);signupResendTimer=null;}
+  signupResendSeconds=0;
+  const button=document.getElementById('resendConfirmationBtn');
+  if(button){button.disabled=false;button.textContent='Resend confirmation email';button.removeAttribute('aria-busy');}
+}
+function startSignupResendCooldown(seconds=60){
+  clearSignupResendCooldown();
+  const button=document.getElementById('resendConfirmationBtn');
+  if(!button)return;
+  signupResendSeconds=Math.max(1,Math.floor(seconds));
+  button.disabled=true;
+  button.textContent='Resend in '+signupResendSeconds+'s';
+  signupResendTimer=setInterval(()=>{
+    signupResendSeconds-=1;
+    if(signupResendSeconds<=0){clearSignupResendCooldown();return;}
+    button.textContent='Resend in '+signupResendSeconds+'s';
+  },1000);
+}
+function showEmailConfirmationNotice(email,message='',allowResend=true){
+  confirmationEmail=String(email||'').trim().toLowerCase();
+  emailAuthMode='signin';
+  setAuthScreen('email');
+  document.getElementById('authEmail').value=confirmationEmail;
+  document.getElementById('authPassword').value='';
+  document.getElementById('authPasswordConfirm').value='';
+  resetAuthPasswordVisibility('authPassword');
+  resetAuthPasswordVisibility('authPasswordConfirm');
+  document.getElementById('authPasswordConfirmField').classList.add('hidden');
+  document.getElementById('authPasswordConfirm').disabled=true;
+  document.getElementById('authPasswordConfirm').required=false;
+  document.getElementById('emailAuthForm').classList.add('hidden');
+  document.getElementById('emailAuthLinks').classList.add('hidden');
+  const panel=document.getElementById('emailConfirmationPanel');
+  panel.classList.remove('hidden');
+  panel.setAttribute('aria-hidden','false');
+  document.getElementById('confirmationEmailAddress').textContent=confirmationEmail||'your email address';
+  document.getElementById('emailConfirmationMessage').textContent=message;
+  document.getElementById('resendConfirmationBtn').classList.toggle('hidden',!allowResend);
+  cloudMessage('');
+}
+function returnFromEmailConfirmation(editEmail=false){
+  clearSignupResendCooldown();
+  document.getElementById('emailConfirmationPanel').classList.add('hidden');
+  document.getElementById('emailConfirmationPanel').setAttribute('aria-hidden','true');
+  document.getElementById('emailAuthForm').classList.remove('hidden');
+  document.getElementById('emailAuthLinks').classList.remove('hidden');
+  emailAuthMode='signin';
+  document.getElementById('authPassword').value='';
+  document.getElementById('authPassword').autocomplete='current-password';
+  document.getElementById('authPasswordHint').textContent='Enter your account password.';
+  document.getElementById('authPasswordHint').classList.remove('is-valid');
+  document.getElementById('authPasswordConfirmField').classList.add('hidden');
+  document.getElementById('authPasswordConfirm').disabled=true;
+  document.getElementById('authPasswordConfirm').required=false;
+  document.getElementById('emailAuthSubmit').textContent='Sign in with email';
+  document.getElementById('toggleEmailAuth').textContent='New to Sellbook? Create an account';
+  document.getElementById('emailAuthHeading').textContent='Sign in with email';
+  document.getElementById('emailAuthDescription').textContent='Use the email address and password linked to your Sellbook account.';
+  resetAuthPasswordVisibility('authPassword');
+  setAuthScreen('email');
+  cloudMessage('');
+  if(editEmail)document.getElementById('authEmail').focus();
+  else document.getElementById('authPassword').focus();
+}
+function resetAuthPasswordVisibility(inputId){
+  const input=document.getElementById(inputId);
+  if(!input)return;
+  input.type='password';
+  const button=document.querySelector('[data-password-toggle="'+inputId+'"]');
+  if(button){button.textContent='Show';button.setAttribute('aria-label',inputId==='recoveryPassword'?'Show new password':inputId==='recoveryPasswordConfirm'?'Show password confirmation':inputId==='authPasswordConfirm'?'Show confirmation password':'Show password');button.setAttribute('aria-pressed','false');}
 }
 function passwordPolicyError(password) {
   if(password.length<8)return 'Use at least 8 characters.';
@@ -2489,12 +2582,13 @@ function friendlyAuthError(error) {
   const code=String(error?.code||error?.name||'').toLowerCase();
   const message=String(error?.message||'').toLowerCase();
   if(code.includes('invalid_credentials')||message.includes('invalid login credentials'))return 'That email address or password is incorrect. Check your details and try again.';
-  if(code.includes('email_not_confirmed')||message.includes('email not confirmed'))return 'Please confirm your email address before signing in. You can resend the confirmation email below.';
-  if(code.includes('email_address_not_authorized')||message.includes('email address is not authorized')||message.includes('only authorized'))return 'Sellbook’s current email sender cannot deliver to this address yet. Email confirmation requires a verified sending service. You can still sign in with an already confirmed account or use Google.';
-  if(code.includes('over_email_send_rate_limit')||code.includes('rate_limit')||message.includes('rate limit'))return 'Too many email requests were made. Wait a little before trying again.';
+  if(code.includes('email_not_confirmed')||message.includes('email not confirmed'))return 'Please confirm your email address before signing in. We can send the confirmation link again.';
+  if(code.includes('email_address_not_authorized')||message.includes('email address is not authorized')||message.includes('only authorized'))return 'Sellbook’s email sender is not yet authorised to deliver to this address. Please try again later or use Google sign-in.';
+  if(code.includes('over_email_send_rate_limit')||code.includes('over_request_rate_limit')||code.includes('rate_limit')||message.includes('rate limit'))return 'Too many email requests were made. Wait a little before trying again.';
   if(code.includes('weak_password')||message.includes('password should'))return 'That password does not meet the security requirements. Use at least 8 characters with uppercase, lowercase, a number and a symbol.';
+  if(code.includes('signup_disabled'))return 'New email registrations are temporarily unavailable. You can still sign in to an existing account or use Google.';
   if(message.includes('failed to fetch')||message.includes('network')||!navigator.onLine)return 'Sellbook could not reach the account service. Check your internet connection and try again.';
-  return error?.message||'We could not complete that account request. Please try again.';
+  return 'We could not complete that account request. Please try again.';
 }
 
 
@@ -2901,7 +2995,8 @@ document.getElementById('googleSignIn').addEventListener('click', async () => {
   googleSignInInProgress = true;
   button.disabled = true;
   button.setAttribute('aria-busy', 'true');
-  button.textContent = 'Connecting to Google…';
+  const label=document.getElementById('googleSignInLabel');
+  if(label)label.textContent='Connecting to Google…';
   message.textContent = 'Opening secure Google sign-in. Please wait…';
 
   try {
@@ -2923,15 +3018,50 @@ document.getElementById('googleSignIn').addEventListener('click', async () => {
     googleSignInInProgress = false;
     button.disabled = false;
     button.removeAttribute('aria-busy');
-    button.textContent = 'Continue with Google';
+    if(label)label.textContent='Continue with Google';
   }
 });
 
 
+document.querySelectorAll('[data-password-toggle]').forEach(button=>{
+  button.addEventListener('click',()=>{
+    const input=document.getElementById(button.dataset.passwordToggle);
+    if(!input)return;
+    const visible=input.type==='password';
+    input.type=visible?'text':'password';
+    button.textContent=visible?'Hide':'Show';
+    button.setAttribute('aria-pressed',visible?'true':'false');
+    button.setAttribute('aria-label',(visible?'Hide ':'Show ')+(input.id.includes('Confirm')?'password confirmation':input.id==='recoveryPassword'?'new password':'password'));
+  });
+});
+function updateSignupPasswordHint(){
+  const hint=document.getElementById('authPasswordHint');
+  if(!hint||emailAuthMode!=='signup')return;
+  const error=passwordPolicyError(document.getElementById('authPassword').value);
+  hint.textContent=error?'Password requirement: '+error:'Password meets all security requirements.';
+  hint.classList.toggle('is-valid',!error);
+}
+document.getElementById('authPassword').addEventListener('input',updateSignupPasswordHint);
+document.getElementById('recoveryPassword').addEventListener('input',()=>{
+  const hint=document.getElementById('recoveryPasswordHint');
+  const error=passwordPolicyError(document.getElementById('recoveryPassword').value);
+  hint.textContent=error?'Password requirement: '+error:'Password meets all security requirements.';
+  hint.classList.toggle('is-valid',!error);
+});
+document.getElementById('editConfirmationEmailBtn').addEventListener('click',()=>returnFromEmailConfirmation(true));
+document.getElementById('confirmationReturnToSignIn').addEventListener('click',()=>returnFromEmailConfirmation(false));
+
 document.getElementById('openEmailSignIn').addEventListener('click',()=>{
   if(!supabaseClient)return cloudMessage('Account service is unavailable right now. Check your connection and try again.');
   emailAuthMode='signin';
+  clearSignupResendCooldown();
+  document.getElementById('emailConfirmationPanel').classList.add('hidden');
+  document.getElementById('emailConfirmationPanel').setAttribute('aria-hidden','true');
+  document.getElementById('emailAuthForm').classList.remove('hidden');
+  document.getElementById('emailAuthLinks').classList.remove('hidden');
   document.getElementById('emailAuthForm').reset();
+  resetAuthPasswordVisibility('authPassword');
+  resetAuthPasswordVisibility('authPasswordConfirm');
   document.getElementById('authPasswordConfirmField').classList.add('hidden');
   document.getElementById('authPasswordConfirm').disabled=true;
   document.getElementById('authPasswordConfirm').required=false;
@@ -2943,10 +3073,18 @@ document.getElementById('openEmailSignIn').addEventListener('click',()=>{
   document.getElementById('authEmail').focus();
 });
 document.getElementById('backToAuthOptions').addEventListener('click',()=>{
+  clearSignupResendCooldown();
   document.getElementById('emailAuthForm').reset();
+  resetAuthPasswordVisibility('authPassword');
+  resetAuthPasswordVisibility('authPasswordConfirm');
   emailAuthMode='signin';setAuthScreen('choices');cloudMessage('');
 });
 document.getElementById('toggleEmailAuth').addEventListener('click',()=>{
+  clearSignupResendCooldown();
+  document.getElementById('emailConfirmationPanel').classList.add('hidden');
+  document.getElementById('emailConfirmationPanel').setAttribute('aria-hidden','true');
+  document.getElementById('emailAuthForm').classList.remove('hidden');
+  document.getElementById('emailAuthLinks').classList.remove('hidden');
   emailAuthMode=emailAuthMode==='signin'?'signup':'signin';
   const confirmWrap=document.getElementById('authPasswordConfirmField');
   const confirmInput=document.getElementById('authPasswordConfirm');
@@ -2956,8 +3094,11 @@ document.getElementById('toggleEmailAuth').addEventListener('click',()=>{
   if(emailAuthMode!=='signup')confirmInput.value='';
   document.getElementById('authPassword').autocomplete=emailAuthMode==='signup'?'new-password':'current-password';
   document.getElementById('authPasswordHint').textContent=emailAuthMode==='signup'
-    ?'At least 8 characters, including uppercase and lowercase letters, a number and a symbol.'
+    ?'Use at least 8 characters, including uppercase and lowercase letters, a number and a symbol.'
     :'Enter your account password.';
+  document.getElementById('authPasswordHint').classList.remove('is-valid');
+  resetAuthPasswordVisibility('authPassword');
+  resetAuthPasswordVisibility('authPasswordConfirm');
   document.getElementById('authCardTitle').textContent=emailAuthMode==='signup'?'Create your account':'Sign in with email';
   document.getElementById('emailAuthSubmit').textContent=emailAuthMode==='signup'?'Create account':'Sign in with email';
   document.getElementById('toggleEmailAuth').textContent=emailAuthMode==='signup'?'Already have an account? Sign in':'New to Sellbook? Create an account';
@@ -2965,6 +3106,9 @@ document.getElementById('toggleEmailAuth').addEventListener('click',()=>{
   document.getElementById('emailAuthDescription').textContent=emailAuthMode==='signup'
     ?'Use an email address you can access. We’ll ask you to confirm it before your first sign-in.'
     :'Use the email address and password linked to your Sellbook account.';
+  document.getElementById('accountStatus').textContent=emailAuthMode==='signup'
+    ?'Set up an account to keep your business records safely in one place.'
+    :'Enter your email and password to access your business records.';
   document.getElementById('resendConfirmationBtn').classList.add('hidden');
   cloudMessage(emailAuthMode==='signup'?'Create an account with a strong password. Email confirmation is required before the first sign-in.':'Sign in to access your private business records.');
 });
@@ -2973,7 +3117,7 @@ document.getElementById('emailAuthForm').addEventListener('submit',async event=>
   if(emailAuthInProgress)return;
   if(!supabaseClient)return cloudMessage('Account service is unavailable. Check your internet connection.');
   const emailInput=document.getElementById('authEmail'),passwordInput=document.getElementById('authPassword');
-  const confirmInput=document.getElementById('authPasswordConfirm'),submit=document.getElementById('emailAuthSubmit');
+  const confirmInput=document.getElementById('authPasswordConfirm'),button=document.getElementById('emailAuthSubmit');
   const email=emailInput.value.trim().toLowerCase(),password=passwordInput.value;
   if(!emailInput.checkValidity()){emailInput.reportValidity();return;}
   if(!password){passwordInput.reportValidity();return;}
@@ -2983,27 +3127,38 @@ document.getElementById('emailAuthForm').addEventListener('submit',async event=>
     if(policyError){cloudMessage(policyError);passwordInput.focus();return;}
     if(password!==confirmInput.value){cloudMessage('The passwords do not match. Check both fields and try again.');confirmInput.focus();return;}
   }
-  emailAuthInProgress=true;submit.disabled=true;submit.setAttribute('aria-busy','true');
-  submit.textContent=emailAuthMode==='signup'?'Creating account…':'Signing in…';
+  emailAuthInProgress=true;button.disabled=true;button.setAttribute('aria-busy','true');
+  button.textContent=emailAuthMode==='signup'?'Creating account…':'Signing in…';
   document.getElementById('toggleEmailAuth').disabled=true;
   document.getElementById('backToAuthOptions').disabled=true;
-  document.getElementById('resendConfirmationBtn').classList.add('hidden');
   try{
     if(emailAuthMode==='signup'){
       cloudMessage('Creating your Sellbook account securely…');
       const {data,error}=await supabaseClient.auth.signUp({email,password,options:{emailRedirectTo:window.location.origin+window.location.pathname+window.location.search}});
       if(error)throw error;
       if(!data.user||(Array.isArray(data.user.identities)&&data.user.identities.length===0)){
-        confirmationEmail=email;emailInput.value=email;
-        cloudMessage('If this address can be registered, a confirmation email will be sent. Try signing in if you already have an account.');
+        passwordInput.value='';confirmInput.value='';
+        showEmailConfirmationNotice(email,'If an account can be created with this address, a confirmation link will be sent. Check your inbox and spam folder. If you already have an account, sign in instead.',false);
+        return;
+      }
+      const confirmed=!!(data.user.email_confirmed_at||data.user.confirmed_at);
+      if(!confirmed){
+        if(data.session){
+          const {error:signOutError}=await supabaseClient.auth.signOut({scope:'local'});
+          if(signOutError)console.warn('Sellbook could not close an unverified signup session:',signOutError);
+        }
+        passwordInput.value='';confirmInput.value='';
+        showEmailConfirmationNotice(email,'Your account has been created. Confirm your email using the link we sent, then return here to sign in. Check your spam folder too.');
         return;
       }
       if(!data.session){
-        confirmationEmail=email;emailInput.value=email;passwordInput.value='';confirmInput.value='';
-        document.getElementById('resendConfirmationBtn').classList.remove('hidden');
-        cloudMessage('Your account has been created. Confirm your email using the link we sent, then return here to sign in. Check your spam folder too.');
+        passwordInput.value='';
+        emailAuthMode='signin';
+        setAuthScreen('email');
+        cloudMessage('Your email is confirmed. Sign in with your email address and password to continue.');
         return;
       }
+      confirmationEmail='';
       cloudMessage('Account created. Opening your protected business records…');
       await handleCloudAuthChange();
     }else{
@@ -3011,6 +3166,12 @@ document.getElementById('emailAuthForm').addEventListener('submit',async event=>
       const {data,error}=await supabaseClient.auth.signInWithPassword({email,password});
       if(error)throw error;
       if(!data.session?.user)throw new Error('The account service did not return a valid sign-in session. Please try again.');
+      if(!data.session.user.email_confirmed_at){
+        const {error:signOutError}=await supabaseClient.auth.signOut({scope:'local'});
+        if(signOutError)console.warn('Sellbook could not close an unverified sign-in session:',signOutError);
+        showEmailConfirmationNotice(email,'Please confirm this email address before signing in. Open the confirmation link we sent, or request a new one below.');
+        return;
+      }
       confirmationEmail='';
       cloudMessage('Signed in. Checking your Sellbook security PIN…');
       await handleCloudAuthChange();
@@ -3019,13 +3180,13 @@ document.getElementById('emailAuthForm').addEventListener('submit',async event=>
     console.warn('Sellbook email authentication failed:',error);
     const code=String(error?.code||'').toLowerCase();
     if(code.includes('email_not_confirmed')||String(error?.message||'').toLowerCase().includes('email not confirmed')){
-      confirmationEmail=email;emailInput.value=email;
-      document.getElementById('resendConfirmationBtn').classList.remove('hidden');
+      showEmailConfirmationNotice(email,'Please confirm this email address before signing in. Open the link we sent, or request a new one below.');
+    }else{
+      cloudMessage(friendlyAuthError(error));
     }
-    cloudMessage(friendlyAuthError(error));
   }finally{
-    emailAuthInProgress=false;submit.disabled=false;submit.removeAttribute('aria-busy');
-    submit.textContent=emailAuthMode==='signup'?'Create account':'Sign in with email';
+    emailAuthInProgress=false;button.disabled=false;button.removeAttribute('aria-busy');
+    button.textContent=emailAuthMode==='signup'?'Create account':'Sign in with email';
     document.getElementById('toggleEmailAuth').disabled=false;
     document.getElementById('backToAuthOptions').disabled=false;
   }
@@ -3033,16 +3194,21 @@ document.getElementById('emailAuthForm').addEventListener('submit',async event=>
 document.getElementById('resendConfirmationBtn').addEventListener('click',async()=>{
   const email=(confirmationEmail||document.getElementById('authEmail').value).trim().toLowerCase();
   const button=document.getElementById('resendConfirmationBtn');
-  if(!email){cloudMessage('Enter the email address you used to create your account first.');document.getElementById('authEmail').focus();return;}
-  if(!navigator.onLine)return cloudMessage('Connect to the internet before requesting another confirmation email.');
-  if(!supabaseClient)return cloudMessage('Account service is unavailable right now. Try again later.');
+  const status=document.getElementById('emailConfirmationMessage');
+  if(!email){status.textContent='Enter the email address you used to create your account first.';return;}
+  if(!navigator.onLine){status.textContent='Connect to the internet before requesting another confirmation email.';return;}
+  if(!supabaseClient){status.textContent='Account service is unavailable right now. Try again later.';return;}
+  if(button.disabled)return;
   button.disabled=true;button.setAttribute('aria-busy','true');button.textContent='Sending…';
   try{
     const {error}=await supabaseClient.auth.resend({type:'signup',email,options:{emailRedirectTo:window.location.origin+window.location.pathname+window.location.search}});
     if(error)throw error;
-    cloudMessage('If this account still needs confirmation, a new email has been requested. Check your inbox and spam folder.');
-  }catch(error){cloudMessage(friendlyAuthError(error));}
-  finally{button.disabled=false;button.removeAttribute('aria-busy');button.textContent='Resend confirmation email';}
+    status.textContent='A new confirmation link has been requested. Use the latest email and check your spam folder.';
+    startSignupResendCooldown(60);
+  }catch(error){
+    status.textContent=friendlyAuthError(error);
+    button.disabled=false;button.removeAttribute('aria-busy');button.textContent='Resend confirmation email';
+  }finally{button.removeAttribute('aria-busy');}
 });
 
 // Password recovery is a distinct state on the full authentication page.
@@ -3065,6 +3231,7 @@ cancelPasswordRecoveryButton?.addEventListener('click',()=>{
 
 accountRecoveryRequestForm?.addEventListener('submit', async event => {
   event.preventDefault();
+  if(accountRecoveryRequestInProgress)return;
   const emailInput = document.getElementById('recoveryEmail');
   const submit = document.getElementById('recoveryEmailSubmit');
   const email = emailInput.value.trim();
@@ -3080,6 +3247,7 @@ accountRecoveryRequestForm?.addEventListener('submit', async event => {
     cloudMessage('Account recovery is unavailable right now. Check your connection and try again.');
     return;
   }
+  accountRecoveryRequestInProgress=true;
   submit.disabled = true;
   submit.setAttribute('aria-busy', 'true');
   submit.textContent = 'Sending recovery link…';
@@ -3091,8 +3259,9 @@ accountRecoveryRequestForm?.addEventListener('submit', async event => {
     cloudMessage('If an account matches that email address, a recovery link will be sent. Check your inbox and spam folder.');
   } catch (error) {
     console.warn('Sellbook password recovery request failed:', error);
-    cloudMessage('We could not send the recovery request. Check your connection and try again.');
+    cloudMessage(friendlyAuthError(error));
   } finally {
+    accountRecoveryRequestInProgress=false;
     submit.disabled = false;
     submit.removeAttribute('aria-busy');
     submit.textContent = 'Send recovery link';
@@ -3102,21 +3271,37 @@ accountRecoveryRequestForm?.addEventListener('submit', async event => {
 // Password-reset requests are handled by the dedicated recovery page above.
 document.getElementById('recoveryPasswordForm').addEventListener('submit', async event => {
   event.preventDefault();
-  const password = document.getElementById('recoveryPassword').value;
-  const policyError = passwordPolicyError(password);
-  if (policyError) { cloudMessage(policyError); document.getElementById('recoveryPassword').focus(); return; }
-  try {
-    const { error } = await supabaseClient.auth.updateUser({ password });
-    if (error) throw error;
-    recoveryMode = false;
-    setAuthScreen('choices');
-    document.getElementById('recoveryPasswordForm').classList.add('hidden');
+  if(recoveryPasswordInProgress)return;
+  const passwordInput=document.getElementById('recoveryPassword');
+  const confirmInput=document.getElementById('recoveryPasswordConfirm');
+  const button=document.getElementById('recoveryPasswordSubmit');
+  const password=passwordInput.value;
+  const policyError=passwordPolicyError(password);
+  if(policyError){cloudMessage(policyError);passwordInput.focus();return;}
+  if(password!==confirmInput.value){cloudMessage('The passwords do not match. Check both fields and try again.');confirmInput.focus();return;}
+  if(!navigator.onLine){cloudMessage('Connect to the internet before updating your password.');return;}
+  if(!supabaseClient){cloudMessage('Password recovery is unavailable right now. Try again later.');return;}
+  recoveryPasswordInProgress=true;
+  button.disabled=true;button.setAttribute('aria-busy','true');button.textContent='Updating password…';
+  try{
+    const {data:sessionData,error:sessionError}=await supabaseClient.auth.getSession();
+    if(sessionError)throw sessionError;
+    if(!sessionData?.session?.user)throw Error('This password reset link is missing or has expired. Request a new recovery link and try again.');
+    const {error}=await supabaseClient.auth.updateUser({password});
+    if(error)throw error;
+    recoveryMode=false;
     document.getElementById('recoveryPasswordForm').reset();
-    history.replaceState(null, '', window.location.pathname + window.location.search);
-    cloudMessage('Password updated. You can continue using your account.');
+    resetAuthPasswordVisibility('recoveryPassword');
+    resetAuthPasswordVisibility('recoveryPasswordConfirm');
+    history.replaceState(null,'',window.location.pathname+window.location.search);
+    cloudMessage('Password updated. Checking your Sellbook account security…');
     await handleCloudAuthChange();
-  } catch (error) {
-    cloudMessage('Could not update password: ' + (error.message || String(error)));
+  }catch(error){
+    console.warn('Sellbook password update failed:',error);
+    cloudMessage('Could not update your password: '+(error.message||'Please request a new recovery link and try again.'));
+  }finally{
+    recoveryPasswordInProgress=false;
+    button.disabled=false;button.removeAttribute('aria-busy');button.textContent='Update password';
   }
 });
 
