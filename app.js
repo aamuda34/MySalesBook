@@ -106,6 +106,9 @@ function save(){try{db=normalizeDb(db);const serialized=JSON.stringify(db);local
 let cloudUser = null;
 let accountSessionEpoch = 0;
 let accountEmailOtpState = null;
+const SECURITY_OAUTH_PENDING_KEY='sellbook-security-action-oauth-v1';
+let securityOauthFinalizing=false;
+let securityOauthFinalizeScheduled=false;
 let accountEmailOtpBusy = false;
 let pendingDeleteAccountUserId = null;
 function accountRequestIsCurrent(userId, epoch) {
@@ -756,6 +759,8 @@ document.getElementById('securityPinCancel')?.addEventListener('click',()=>{
 });
 
 async function handleCloudAuthChange() {
+  if(sessionStorage.getItem(SECURITY_OAUTH_PENDING_KEY)&&!securityOauthFinalizing)return;
+
   if (authTransition) { authTransitionPending = true; return; }
   authTransition = true;
   let activeUser = null;
@@ -2478,6 +2483,127 @@ function friendlyAuthError(error) {
   return error?.message||'We could not complete that account request. Please try again.';
 }
 
+
+function readPendingGoogleSecurityAction(){
+  try{
+    const raw=sessionStorage.getItem(SECURITY_OAUTH_PENDING_KEY);
+    if(!raw)return null;
+    const value=JSON.parse(raw);
+    if(!value||!['change_pin','change_email'].includes(value.action)||!value.userId||!value.email||
+       !/^[0-9a-f-]{36}$/i.test(String(value.previousSessionId||''))||
+       !Number.isFinite(Number(value.startedAt)))return null;
+    return value;
+  }catch(_){return null;}
+}
+async function beginGoogleSecurityReauth(action,current){
+  const recovery=sessionStorage.getItem('sellbook-pin-reset-after-auth')==='yes';
+  const pending={
+    action,
+    userId:current.user.id,
+    email:String(current.user.email||'').trim(),
+    previousSessionId:current.sessionId,
+    recovery,
+    startedAt:Date.now()
+  };
+  sessionStorage.setItem(SECURITY_OAUTH_PENDING_KEY,JSON.stringify(pending));
+  const redirectTo=new URLSearchParams(window.location.search).get('native')==='1'
+    ?'sellbook://auth'
+    :window.location.origin+window.location.pathname+window.location.search+window.location.hash;
+  const {error}=await supabaseClient.auth.signInWithOAuth({
+    provider:'google',
+    options:{
+      redirectTo,
+      queryParams:{prompt:'login',login_hint:pending.email}
+    }
+  });
+  if(error){
+    sessionStorage.removeItem(SECURITY_OAUTH_PENDING_KEY);
+    throw error;
+  }
+}
+async function completePendingGoogleSecurityReauth(){
+  if(securityOauthFinalizing)return;
+  const pending=readPendingGoogleSecurityAction();
+  if(!pending)return;
+  securityOauthFinalizing=true;
+  securityOauthFinalizeScheduled=false;
+  try{
+    if(Date.now()-pending.startedAt>15*60*1000)throw Error('Google verification timed out. Start the account change again.');
+    const {data,error}=await supabaseClient.auth.getSession();
+    if(error)throw error;
+    const session=data?.session,user=session?.user;
+    if(!session||!user)throw Error('Google sign-in did not return a valid Sellbook session.');
+    if(user.id!==pending.userId){
+      sessionStorage.removeItem(SECURITY_OAUTH_PENDING_KEY);
+      sessionStorage.removeItem('sellbook-pin-reset-after-auth');
+      await supabaseClient.auth.signOut({scope:'local'}).catch(()=>{});
+      refreshAccountStatus();
+      cloudMessage('Google sign-in used a different account. Sign in with the same Google account linked to your Sellbook account, then try again.');
+      return;
+    }
+    if(!user.email_confirmed_at||String(user.email||'').toLowerCase()!==pending.email.toLowerCase()){
+      throw Error('Google did not confirm the same registered Sellbook email address.');
+    }
+    const providers=new Set([
+      ...(Array.isArray(user.app_metadata?.providers)?user.app_metadata.providers:[]),
+      ...(Array.isArray(user.identities)?user.identities.map(identity=>identity?.provider):[])
+    ].filter(Boolean));
+    if(!providers.has('google'))throw Error('This Google account is not linked to your Sellbook account.');
+    const claims=decodeSellbookJwtPayload(session.access_token);
+    const sessionId=String(claims.session_id||'');
+    if(claims.sub!==user.id||!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(sessionId)){
+      throw Error('Google sign-in returned an invalid Sellbook session.');
+    }
+    if(sessionId===pending.previousSessionId)throw Error('Google verification has not completed yet. Please retry.');
+    const {data:grant,error:grantError}=await supabaseClient.rpc('grant_sellbook_email_action',{
+      p_target_session_id:sessionId,
+      p_action:pending.action,
+      p_previous_session_id:pending.recovery?null:pending.previousSessionId
+    });
+    if(grantError)throw grantError;
+    if(grant?.verified!==true||grant?.method!=='google')throw Error('Sellbook could not confirm the Google verification. Start again.');
+    cloudUser=user;
+    sessionStorage.removeItem(SECURITY_OAUTH_PENDING_KEY);
+    if(pending.recovery){
+      const {data:resetData,error:resetError}=await supabaseClient.rpc('reset_app_pin_after_reauth');
+      if(resetError)throw resetError;
+      if(resetData?.reset!==true)throw Error('Sellbook could not authorise the PIN recovery. Start again.');
+      sessionStorage.removeItem('sellbook-pin-reset-after-auth');
+      document.getElementById('accountManagePanel')?.classList.add('hidden');
+      showSecurityPinGate('setup','Your Google account has been reverified. Create a new six-digit PIN to finish PIN recovery.');
+      return;
+    }
+    await handleCloudAuthChange();
+    if(pending.action==='change_pin'){
+      showSecurityPinGate('change','Your Google account has been reverified. Enter a new six-digit PIN twice to complete the change.');
+    }else{
+      showPage('settings-account');
+      document.getElementById('accountManagePanel')?.classList.remove('hidden');
+      document.getElementById('changeEmailForm')?.classList.remove('hidden');
+      document.getElementById('settingsAccountMessage').textContent='Google re-verification successful. Enter the new email address. Supabase will still require confirmation of the new address before it becomes active.';
+      document.getElementById('newAccountEmail').focus();
+    }
+  }catch(error){
+    sessionStorage.removeItem(SECURITY_OAUTH_PENDING_KEY);
+    if(pending.recovery)sessionStorage.removeItem('sellbook-pin-reset-after-auth');
+    const {data}=await supabaseClient.auth.getSession().catch(()=>({data:null}));
+    if(data?.session?.user?.id===pending.userId){
+      cloudUser=data.session.user;
+      await handleCloudAuthChange().catch(()=>{});
+    }else{
+      await supabaseClient.auth.signOut({scope:'local'}).catch(()=>{});
+    }
+    cloudMessage('Google verification could not authorise this account change: '+(error.message||'Please try again.'));
+  }finally{
+    securityOauthFinalizing=false;
+  }
+}
+function schedulePendingGoogleSecurityReauth(){
+  if(securityOauthFinalizeScheduled||securityOauthFinalizing)return;
+  securityOauthFinalizeScheduled=true;
+  setTimeout(()=>completePendingGoogleSecurityReauth(),0);
+}
+
 function decodeSellbookJwtPayload(token){
   try{
     const encoded=String(token||'').split('.')[1];
@@ -2528,6 +2654,15 @@ async function requestAccountActionEmailOtp(action){
     const email=String(current.user.email||'').trim();
     if(!email)throw Error('This account does not have a registered email address. Add and verify an email before continuing.');
     if(!current.user.email_confirmed_at)throw Error('Your registered email is not verified. Confirm it before requesting a sensitive account change.');
+    const linkedProviders=new Set([
+      ...(Array.isArray(current.user.app_metadata?.providers)?current.user.app_metadata.providers:[]),
+      ...(Array.isArray(current.user.identities)?current.user.identities.map(identity=>identity?.provider):[])
+    ].filter(Boolean));
+    if(!linkedProviders.has('email')){
+      if(!linkedProviders.has('google'))throw Error('This account needs a verified email sign-in method before sensitive account changes can be made.');
+      await beginGoogleSecurityReauth(action,current);
+      return;
+    }
     if(accountEmailOtpState?.client){try{await accountEmailOtpState.client.auth.signOut({scope:'local'});}catch(_){}}
     otpClient=createAccountStepUpClient();
     const {error}=await otpClient.auth.signInWithOtp({email,options:{shouldCreateUser:false}});
@@ -2605,7 +2740,7 @@ document.getElementById('accountEmailOtpForm')?.addEventListener('submit',async 
     if(!verifiedUser||verifiedUser.id!==state.userId)throw Error('The code did not verify the same Sellbook account. No account change was authorised.');
     const current=await getSellbookAccountSession();
     if(current.user.id!==state.userId||current.sessionId!==state.targetSessionId)throw Error('Your Sellbook sign-in session changed during verification. Cancel and start again.');
-    const {data:grant,error:grantError}=await state.client.rpc('grant_sellbook_email_action',{p_target_session_id:state.targetSessionId,p_action:state.action});
+    const {data:grant,error:grantError}=await state.client.rpc('grant_sellbook_email_action',{p_target_session_id:state.targetSessionId,p_action:state.action,p_previous_session_id:state.action==='change_pin'&&sessionStorage.getItem('sellbook-pin-reset-after-auth')!=='yes'?state.targetSessionId:null});
     if(grantError)throw grantError;
     if(grant?.verified!==true)throw Error('Sellbook could not authorise this account change. Request a new code and retry.');
     const action=state.action,otpClient=state.client;accountEmailOtpState=null;
@@ -3837,6 +3972,23 @@ restorePageFromLocation();
 
 if (supabaseClient) {
   supabaseClient.auth.onAuthStateChange((event, session) => {
+    const pendingGoogleAction=readPendingGoogleSecurityAction();
+    if(pendingGoogleAction){
+      if(event==='SIGNED_IN'){
+        schedulePendingGoogleSecurityReauth();
+        return;
+      }
+      if(event==='INITIAL_SESSION'){
+        try{
+          const claims=decodeSellbookJwtPayload(session?.access_token);
+          if(claims.session_id&&claims.session_id!==pendingGoogleAction.previousSessionId){
+            schedulePendingGoogleSecurityReauth();
+          }
+        }catch(_){}
+        return;
+      }
+      if(event==='TOKEN_REFRESHED')return;
+    }
     if (event === 'PASSWORD_RECOVERY') {
       recoveryMode = true;
       document.getElementById('appWorkspace').classList.add('hidden');
@@ -3857,7 +4009,36 @@ if (supabaseClient) {
       setTimeout(() => handleCloudAuthChange(), 0);
     }
   });
-  handleCloudAuthChange();
+  if(readPendingGoogleSecurityAction()){
+    // A cancelled OAuth page return has no SIGNED_IN event. Give Supabase time
+    // to exchange the OAuth code, then safely resume the original account.
+    setTimeout(async()=>{
+      if(!readPendingGoogleSecurityAction()||securityOauthFinalizing)return;
+      try{
+        const {data}=await supabaseClient.auth.getSession();
+        const claims=data?.session?.access_token?decodeSellbookJwtPayload(data.session.access_token):null;
+        const pending=readPendingGoogleSecurityAction();
+        if(pending&&claims?.session_id&&claims.session_id!==pending.previousSessionId){
+          schedulePendingGoogleSecurityReauth();
+        }else if(pending&&Date.now()-pending.startedAt>=5000){
+          sessionStorage.removeItem(SECURITY_OAUTH_PENDING_KEY);
+          if(pending.recovery)sessionStorage.removeItem('sellbook-pin-reset-after-auth');
+          await handleCloudAuthChange();
+          cloudMessage('Google verification was not completed. Your account was not changed. Start the action again when ready.');
+        }
+      }catch(error){
+        const pending=readPendingGoogleSecurityAction();
+        if(pending&&Date.now()-pending.startedAt>=5000){
+          sessionStorage.removeItem(SECURITY_OAUTH_PENDING_KEY);
+          if(pending.recovery)sessionStorage.removeItem('sellbook-pin-reset-after-auth');
+          await handleCloudAuthChange().catch(()=>{});
+          cloudMessage('Google verification could not be completed. Your account was not changed.');
+        }
+      }
+    },6000);
+  }else{
+    handleCloudAuthChange();
+  }
 } else {
   refreshAccountStatus();
 }
