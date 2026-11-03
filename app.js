@@ -2544,6 +2544,69 @@ document.getElementById('emailAuthForm').addEventListener('submit', async event 
     submit.disabled = false;
   }
 });
+// The email-password recovery request is deliberately separate from email sign-in.
+// Email sign-in remains disabled; this only exposes the existing Supabase recovery flow.
+const accountRecoveryRequestForm = document.getElementById('accountRecoveryRequestForm');
+const openPasswordRecoveryButton = document.getElementById('openPasswordRecovery');
+const cancelPasswordRecoveryButton = document.getElementById('cancelPasswordRecovery');
+
+openPasswordRecoveryButton?.addEventListener('click', () => {
+  if (!supabaseClient) {
+    cloudMessage('Account recovery is unavailable right now. Check your connection and try again.');
+    return;
+  }
+  document.getElementById('accountCard').classList.add('auth-recovery-request-open');
+  accountRecoveryRequestForm.classList.remove('hidden');
+  document.getElementById('googleSignIn').classList.add('hidden');
+  openPasswordRecoveryButton.classList.add('hidden');
+  document.getElementById('recoveryEmail').focus();
+});
+
+cancelPasswordRecoveryButton?.addEventListener('click', () => {
+  accountRecoveryRequestForm.classList.add('hidden');
+  document.getElementById('accountCard').classList.remove('auth-recovery-request-open');
+  document.getElementById('recoveryEmail').value = '';
+  cloudMessage('');
+  document.getElementById('googleSignIn').classList.remove('hidden');
+  openPasswordRecoveryButton.classList.remove('hidden');
+});
+
+accountRecoveryRequestForm?.addEventListener('submit', async event => {
+  event.preventDefault();
+  const emailInput = document.getElementById('recoveryEmail');
+  const submit = document.getElementById('recoveryEmailSubmit');
+  const email = emailInput.value.trim();
+  if (!emailInput.checkValidity()) {
+    emailInput.reportValidity();
+    return;
+  }
+  if (!navigator.onLine) {
+    cloudMessage('Connect to the internet before requesting a recovery link.');
+    return;
+  }
+  if (!supabaseClient) {
+    cloudMessage('Account recovery is unavailable right now. Check your connection and try again.');
+    return;
+  }
+  submit.disabled = true;
+  submit.setAttribute('aria-busy', 'true');
+  submit.textContent = 'Sending recovery link…';
+  try {
+    const { error } = await supabaseClient.auth.resetPasswordForEmail(email, {
+      redirectTo: window.location.origin + window.location.pathname + window.location.search
+    });
+    if (error) throw error;
+    cloudMessage('If an account matches that email address, a recovery link will be sent. Check your inbox and spam folder.');
+  } catch (error) {
+    console.warn('Sellbook password recovery request failed:', error);
+    cloudMessage('We could not send the recovery request. Check your connection and try again.');
+  } finally {
+    submit.disabled = false;
+    submit.removeAttribute('aria-busy');
+    submit.textContent = 'Send recovery link';
+  }
+});
+
 document.getElementById('resetPasswordBtn').addEventListener('click', async () => {
   if (!supabaseClient) return cloudMessage('Account service is unavailable.');
   const email = document.getElementById('authEmail').value.trim();
