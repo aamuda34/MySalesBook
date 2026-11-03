@@ -105,6 +105,9 @@ function save(){try{db=normalizeDb(db);const serialized=JSON.stringify(db);local
 
 let cloudUser = null;
 let accountSessionEpoch = 0;
+let accountEmailOtpState = null;
+let accountEmailOtpBusy = false;
+let pendingDeleteAccountUserId = null;
 function accountRequestIsCurrent(userId, epoch) {
   return !!userId && cloudUser?.id === userId && accountSessionEpoch === epoch;
 }
@@ -738,10 +741,7 @@ document.getElementById('securityPinForgot')?.addEventListener('click',async()=>
   document.getElementById('securityPinMessage').textContent='Could not start PIN recovery: '+(error.message||'Please try again.');
  }finally{button.disabled=false;}
 });
-document.getElementById('changeSecurityPinButton')?.addEventListener('click',()=>{
- if(!cloudUser||!supabaseClient)return;
- showSecurityPinGate('change','Your current session has already passed PIN verification. Enter a new six-digit PIN twice.');
-});
+// Existing PIN changes are started only after successful email OTP verification.
 document.getElementById('securityPinCancel')?.addEventListener('click',()=>{
  if(securityPinGateMode!=='change')return;
  if(!securityPinExpiresAt||securityPinExpiresAt<=Date.now()){
@@ -2475,6 +2475,151 @@ function friendlyAuthError(error) {
   if(message.includes('failed to fetch')||message.includes('network')||!navigator.onLine)return 'Sellbook could not reach the account service. Check your internet connection and try again.';
   return error?.message||'We could not complete that account request. Please try again.';
 }
+
+function decodeSellbookJwtPayload(token){
+  try{
+    const encoded=String(token||'').split('.')[1];
+    if(!encoded)throw Error('missing token payload');
+    const base64=encoded.replace(/-/g,'+').replace(/_/g,'/');
+    const padded=base64+'='.repeat((4-base64.length%4)%4);
+    const binary=atob(padded);
+    const bytes=Uint8Array.from(binary,ch=>ch.charCodeAt(0));
+    return JSON.parse(new TextDecoder().decode(bytes));
+  }catch(_){throw Error('Sellbook could not validate the active sign-in session. Sign in again and retry.');}
+}
+async function getSellbookAccountSession(){
+  if(!supabaseClient)throw Error('Account service is unavailable.');
+  const {data,error}=await supabaseClient.auth.getSession();
+  if(error)throw error;
+  const session=data?.session,user=session?.user;
+  if(!session||!user||!cloudUser||user.id!==cloudUser.id)throw Error('Your Sellbook sign-in session has changed. Sign in again and retry.');
+  const claims=decodeSellbookJwtPayload(session.access_token);
+  if(claims.sub!==user.id||!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(claims.session_id||'')))throw Error('Sellbook could not validate the active sign-in session. Sign in again and retry.');
+  return {session,user,sessionId:claims.session_id};
+}
+function createAccountStepUpClient(){
+  const memory=new Map();
+  const storage={
+    getItem:key=>memory.has(key)?memory.get(key):null,
+    setItem:(key,value)=>memory.set(key,value),
+    removeItem:key=>memory.delete(key)
+  };
+  return window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY,{
+    auth:{
+      storage,
+      storageKey:'sellbook-account-step-up-'+crypto.randomUUID(),
+      persistSession:true,
+      autoRefreshToken:false,
+      detectSessionInUrl:false,
+      flowType:'pkce'
+    }
+  });
+}
+async function requestAccountActionEmailOtp(action){
+  if(accountEmailOtpBusy)return;
+  if(!['change_pin','change_email'].includes(action))throw Error('This account action is not supported.');
+  if(!navigator.onLine)throw Error('Connect to the internet before requesting an email verification code.');
+  accountEmailOtpBusy=true;
+  let otpClient=null;
+  try{
+    const current=await getSellbookAccountSession();
+    const email=String(current.user.email||'').trim();
+    if(!email)throw Error('This account does not have a registered email address. Add and verify an email before continuing.');
+    if(!current.user.email_confirmed_at)throw Error('Your registered email is not verified. Confirm it before requesting a sensitive account change.');
+    if(accountEmailOtpState?.client){try{await accountEmailOtpState.client.auth.signOut({scope:'local'});}catch(_){}}
+    otpClient=createAccountStepUpClient();
+    const {error}=await otpClient.auth.signInWithOtp({email,options:{shouldCreateUser:false}});
+    if(error)throw error;
+    accountEmailOtpState={action,client:otpClient,userId:current.user.id,email,targetSessionId:current.sessionId};
+    document.getElementById('accountManagePanel').classList.add('hidden');
+    document.getElementById('changeEmailForm')?.classList.add('hidden');
+    document.getElementById('accountEmailOtpPanel').classList.remove('hidden');
+    document.getElementById('accountEmailOtpTitle').textContent=action==='change_pin'?'Verify email to change your PIN':'Verify your current email address';
+    document.getElementById('accountEmailOtpDescription').textContent='Enter the six-digit verification code sent to '+email+'. The code is required before Sellbook allows this account change.';
+    document.getElementById('accountEmailOtp').value='';
+    document.getElementById('accountEmailOtpMessage').textContent='Verification code sent. Check your inbox and spam folder.';
+    document.getElementById('accountEmailOtp').focus();
+  }catch(error){
+    if(otpClient){try{await otpClient.auth.signOut({scope:'local'});}catch(_){}}
+    throw error;
+  }finally{accountEmailOtpBusy=false;}
+}
+function clearAccountEmailOtp(){
+  const pending=accountEmailOtpState;accountEmailOtpState=null;
+  if(pending?.client)pending.client.auth.signOut({scope:'local'}).catch(()=>{});
+  document.getElementById('accountEmailOtpPanel')?.classList.add('hidden');
+  document.getElementById('accountManagePanel')?.classList.remove('hidden');
+  const code=document.getElementById('accountEmailOtp');if(code)code.value='';
+}
+document.getElementById('changeEmailVerifyButton')?.addEventListener('click',async()=>{
+  const button=document.getElementById('changeEmailVerifyButton'),message=document.getElementById('settingsAccountMessage');
+  button.disabled=true;button.textContent='Sending verification code…';
+  try{await requestAccountActionEmailOtp('change_email');}
+  catch(error){message.textContent='Could not send the verification code: '+(error.message||'Please try again.');}
+  finally{button.disabled=false;button.textContent='Verify current email';}
+});
+document.getElementById('changeSecurityPinButton')?.addEventListener('click',async()=>{
+  const button=document.getElementById('changeSecurityPinButton'),message=document.getElementById('settingsAccountMessage');
+  button.disabled=true;button.textContent='Sending verification code…';
+  try{await requestAccountActionEmailOtp('change_pin');}
+  catch(error){message.textContent='Could not send the verification code: '+(error.message||'Please try again.');}
+  finally{button.disabled=false;button.textContent='Verify email and change PIN';}
+});
+document.getElementById('resendAccountEmailOtpButton')?.addEventListener('click',async()=>{
+  const state=accountEmailOtpState,button=document.getElementById('resendAccountEmailOtpButton'),message=document.getElementById('accountEmailOtpMessage');
+  if(!state||accountEmailOtpBusy)return;
+  accountEmailOtpBusy=true;button.disabled=true;button.textContent='Sending…';message.textContent='Requesting another code…';
+  try{
+    const current=await getSellbookAccountSession();
+    if(current.user.id!==state.userId||current.sessionId!==state.targetSessionId)throw Error('Your Sellbook session changed. Cancel and start verification again.');
+    const {error}=await state.client.auth.signInWithOtp({email:state.email,options:{shouldCreateUser:false}});
+    if(error)throw error;
+    document.getElementById('accountEmailOtp').value='';message.textContent='A new verification code has been sent. Use the latest code.';
+  }catch(error){message.textContent='Could not resend the code: '+(error.message||'Please try again.');}
+  finally{accountEmailOtpBusy=false;button.disabled=false;button.textContent='Resend code';}
+});
+document.getElementById('cancelAccountEmailOtpButton')?.addEventListener('click',clearAccountEmailOtp);
+document.getElementById('accountEmailOtp')?.addEventListener('input',event=>{
+  event.target.value=Array.from(event.target.value).filter(ch=>ch>='0'&&ch<='9').slice(0,6).join('');
+});
+document.getElementById('accountEmailOtpForm')?.addEventListener('submit',async event=>{
+  event.preventDefault();
+  const state=accountEmailOtpState,token=document.getElementById('accountEmailOtp').value.trim();
+  const message=document.getElementById('accountEmailOtpMessage'),button=document.getElementById('verifyAccountEmailOtpButton');
+  if(!state){message.textContent='Start email verification again before entering a code.';return;}
+  if(!/^[0-9]{6}$/.test(token)){message.textContent='Enter the six-digit code from your email.';return;}
+  if(accountEmailOtpBusy)return;
+  accountEmailOtpBusy=true;button.disabled=true;button.textContent='Verifying…';message.textContent='Verifying your email code securely…';
+  try{
+    const {data,error}=await state.client.auth.verifyOtp({email:state.email,token,type:'email'});
+    if(error)throw error;
+    const verifiedUser=data?.user||data?.session?.user;
+    if(!verifiedUser||verifiedUser.id!==state.userId)throw Error('The code did not verify the same Sellbook account. No account change was authorised.');
+    const current=await getSellbookAccountSession();
+    if(current.user.id!==state.userId||current.sessionId!==state.targetSessionId)throw Error('Your Sellbook sign-in session changed during verification. Cancel and start again.');
+    const {data:grant,error:grantError}=await state.client.rpc('grant_sellbook_email_action',{p_target_session_id:state.targetSessionId,p_action:state.action});
+    if(grantError)throw grantError;
+    if(grant?.verified!==true)throw Error('Sellbook could not authorise this account change. Request a new code and retry.');
+    const action=state.action,otpClient=state.client;accountEmailOtpState=null;
+    document.getElementById('accountEmailOtpPanel').classList.add('hidden');document.getElementById('accountEmailOtp').value='';
+    if(action==='change_pin'){
+      document.getElementById('accountManagePanel').classList.add('hidden');
+      showSecurityPinGate('change','Your email address has been verified. Enter a new six-digit PIN twice to complete the change.');
+    }else{
+      document.getElementById('accountManagePanel').classList.remove('hidden');
+      document.getElementById('changeEmailForm').classList.remove('hidden');
+      document.getElementById('settingsAccountMessage').textContent='Email verified. Enter the new address. Supabase will still require confirmation of the new address before it becomes active.';
+      document.getElementById('newAccountEmail').focus();
+    }
+    otpClient.auth.signOut({scope:'local'}).catch(()=>{});
+  }catch(error){message.textContent='Email verification failed: '+(error.message||'Check the code and try again.');}
+  finally{accountEmailOtpBusy=false;button.disabled=false;button.textContent='Verify code';}
+});
+document.getElementById('cancelChangeEmailButton')?.addEventListener('click',()=>{
+  document.getElementById('changeEmailForm')?.classList.add('hidden');
+  document.getElementById('changeEmailForm')?.reset();
+});
+
 async function refreshAccountStatus(){
   const status=document.getElementById('accountStatus');
   const signIn=document.getElementById('googleSignIn');
@@ -2503,6 +2648,12 @@ async function refreshAccountStatus(){
     return;
   }
   const user=data.session?.user||null;
+  const registeredEmail=document.getElementById('accountEmailAddress');
+  const emailVerifyButton=document.getElementById('changeEmailVerifyButton');
+  const pinChangeButton=document.getElementById('changeSecurityPinButton');
+  if(registeredEmail)registeredEmail.textContent=user?(String(user.email||'No email address')+' · '+(user.email_confirmed_at?'Verified':'Not verified')):'Not signed in.';
+  if(emailVerifyButton)emailVerifyButton.disabled=!user||!user.email_confirmed_at;
+  if(pinChangeButton)pinChangeButton.disabled=!user||!user.email_confirmed_at;
   status.textContent=user?'Signed in as '+(user.email||'your account')+'.':(!navigator.onLine?'Connect to the internet to sign in or create an account.':'Choose how you would like to sign in to your private business records.');
   signIn.classList.toggle('hidden',!!user);
   if(emailEntry)emailEntry.classList.toggle('hidden',!!user);
@@ -2769,77 +2920,97 @@ document.getElementById('recoveryPasswordForm').addEventListener('submit', async
     cloudMessage('Could not update password: ' + (error.message || String(error)));
   }
 });
-document.getElementById('deleteAccountBtn').addEventListener('click', async () => {
-  const first = prompt('Deleting your account permanently deletes your cloud products, sales, expenses and product photos. This cannot be undone. Type DELETE to continue.');
-  if (first !== 'DELETE') return;
-  if (!confirm('Final confirmation: permanently delete this account and all its cloud business records?')) return;
-  try {
-    if (!navigator.onLine) throw Error('Connect to the internet before deleting your account.');
-    const user = await requireCloudUser();
-    const pendingBeforeDelete = readQueue(user.id).filter(item => item.status !== 'synced');
-    if (pendingBeforeDelete.length && !confirm('There are ' + pendingBeforeDelete.length + ' unsynchronised change(s). Deleting the account will also remove this account\'s local cache and pending queue. Continue?')) return;
-    // Recheck the server-side PIN immediately before touching stored photos.
-    // Accounts that have not created a PIN may still delete their own account.
-    const {data:pinStatus,error:pinStatusError}=await supabaseClient.rpc('get_app_pin_status');
-    if(pinStatusError) throw pinStatusError;
-    const pinExpiry=Date.parse(pinStatus?.expires_at||'');
-    if(pinStatus?.has_pin===true&&(
-      pinStatus?.verified!==true||
-      !Number.isFinite(pinExpiry)||
-      pinExpiry<=Date.now()+10*60*1000
-    )){
-      throw Error('Verify your Sellbook PIN again before account deletion. Your current PIN session must remain valid while your stored photos are removed.');
-    }
 
-    // Product photos and their separate public Buybook copies live in two buckets.
-    // List all pages so large product catalogues are not left with orphaned images.
-    const buckets=['marketplace-product-images','product-images'];
-    const pathsByBucket={};
-    for(const bucket of buckets){
-      const paths=[];
-      let offset=0;
-      for(let page=0;page<100;page++){
-        const {data:files,error:listError}=await supabaseClient.storage.from(bucket).list(user.id,{
-          limit:1000,
-          offset,
-          sortBy:{column:'name',order:'asc'}
-        });
-        if(listError) throw Error('Could not list your '+bucket+' files. No account records were deleted.');
-        const pageFiles=files||[];
-        paths.push(...pageFiles.filter(file=>file?.id&&file?.name).map(file=>user.id+'/'+file.name));
-        if(pageFiles.length<1000) break;
-        offset+=pageFiles.length;
-        if(page===99) throw Error('This account has too many stored photos to safely finish deletion in one attempt. Contact Sellbook support.');
-      }
-      pathsByBucket[bucket]=paths;
+async function finishVerifiedAccountDeletion(user){
+  if(!pendingDeleteAccountUserId||pendingDeleteAccountUserId!==user.id)throw Error('The account selected for deletion changed. Start again.');
+  const buckets=['marketplace-product-images','product-images'];
+  const pathsByBucket={};
+  for(const bucket of buckets){
+    const paths=[];let offset=0;
+    for(let page=0;page<100;page++){
+      const {data:files,error:listError}=await supabaseClient.storage.from(bucket).list(user.id,{limit:1000,offset,sortBy:{column:'name',order:'asc'}});
+      if(listError)throw Error('Could not list your '+bucket+' files. Your account records have not been deleted.');
+      const pageFiles=files||[];
+      paths.push(...pageFiles.filter(file=>file?.id&&file?.name).map(file=>user.id+'/'+file.name));
+      if(pageFiles.length<1000)break;
+      offset+=pageFiles.length;
+      if(page===99)throw Error('This account has too many stored photos to safely finish deletion in one attempt. Contact Sellbook support.');
     }
-
-    // Remove in small batches supported by Storage while the verified session
-    // still owns both folders. Any storage error aborts before account rows are deleted.
-    for(const bucket of buckets){
-      const paths=pathsByBucket[bucket];
-      for(let offset=0;offset<paths.length;offset+=100){
-        const {error:removeError}=await supabaseClient.storage.from(bucket).remove(paths.slice(offset,offset+100));
-        if(removeError) throw Error('Could not finish removing your '+bucket+' files. Your account and sales data are still present, but some photos may already have been removed. Retry deletion or contact Sellbook support.');
-      }
+    pathsByBucket[bucket]=paths;
+  }
+  for(const bucket of buckets){
+    const paths=pathsByBucket[bucket];
+    for(let offset=0;offset<paths.length;offset+=100){
+      const {error:removeError}=await supabaseClient.storage.from(bucket).remove(paths.slice(offset,offset+100));
+      if(removeError)throw Error('Could not finish removing your '+bucket+' files. Your account and business records remain, but some photos may already have been removed. Retry deletion or contact Sellbook support.');
     }
-
-    const { error } = await supabaseClient.rpc('delete_my_account');
-    if (error) throw error;
-    localStorage.removeItem(cloudCacheKey(user.id));
-    localStorage.removeItem(cloudQueueKey(user.id));
-    localStorage.removeItem('my-sales-book-imported-v1:' + user.id);
-    await supabaseClient.auth.signOut({ scope: 'local' });
-    cloudUser = null;
-    cloudReady = false;
-    workspaceReady = false;
-    document.getElementById('appWorkspace').classList.add('hidden');
-    await refreshAccountStatus();
-    cloudMessage('Account and cloud business records were deleted. Any separate local-device backup was not deleted.');
-  } catch (error) {
-    cloudMessage('Account deletion failed: ' + (error.message || String(error)) + '. Your records have not been intentionally cleared by this app.');
+  }
+  const latest=await requireCloudUser();
+  if(latest.id!==user.id)throw Error('Your signed-in account changed. No account records were deleted.');
+  const {error}=await supabaseClient.rpc('delete_my_account');
+  if(error)throw error;
+  localStorage.removeItem(cloudCacheKey(user.id));localStorage.removeItem(cloudQueueKey(user.id));
+  localStorage.removeItem('my-sales-book-imported-v1:'+user.id);
+  cloudUser=null;cloudReady=false;workspaceReady=false;pendingDeleteAccountUserId=null;
+  document.getElementById('deleteAccountPinDialog')?.close();
+  await supabaseClient.auth.signOut({scope:'local'}).catch(()=>{});
+  document.getElementById('appWorkspace').classList.add('hidden');
+  await refreshAccountStatus();
+  cloudMessage('Account and cloud business records were deleted. Any separate local-device backup was not deleted.');
+}
+document.getElementById('deleteAccountBtn').addEventListener('click',async()=>{
+  const first=prompt('Deleting your account permanently deletes your cloud products, sales, expenses and product photos. This cannot be undone. Type DELETE to continue.');
+  if(first!=='DELETE')return;
+  if(!confirm('Final confirmation: permanently delete this account and all its cloud business records?'))return;
+  try{
+    if(!navigator.onLine)throw Error('Connect to the internet before deleting your account.');
+    const user=await requireCloudUser();
+    const pending=readQueue(user.id).filter(item=>item.status!=='synced');
+    if(pending.length&&!confirm('There are '+pending.length+' unsynchronised change(s). Deleting the account will also remove this account\'s local cache and pending queue. Continue?'))return;
+    pendingDeleteAccountUserId=user.id;
+    document.getElementById('deleteAccountPinForm').reset();
+    document.getElementById('deleteAccountPinMessage').textContent='Enter your PIN. Five incorrect attempts will temporarily lock PIN verification.';
+    document.getElementById('deleteAccountPinDialog').showModal();
+    setTimeout(()=>document.getElementById('deleteAccountPinInput').focus(),40);
+  }catch(error){cloudMessage('Could not start account deletion: '+(error.message||'Please try again.'));}
+});
+document.getElementById('deleteAccountPinInput')?.addEventListener('input',event=>{
+  event.target.value=Array.from(event.target.value).filter(ch=>ch>='0'&&ch<='9').slice(0,6).join('');
+});
+document.getElementById('cancelDeleteAccountPin')?.addEventListener('click',()=>{
+  pendingDeleteAccountUserId=null;document.getElementById('deleteAccountPinDialog')?.close();
+});
+document.getElementById('deleteAccountPinForm')?.addEventListener('submit',async event=>{
+  event.preventDefault();
+  const status=document.getElementById('deleteAccountPinMessage'),button=document.getElementById('confirmDeleteAccountPin');
+  const pin=document.getElementById('deleteAccountPinInput').value;
+  if(!/^[0-9]{6}$/.test(pin)){status.textContent='Enter exactly six digits.';return;}
+  if(!pendingDeleteAccountUserId){status.textContent='Start account deletion again before confirming your PIN.';return;}
+  if(!navigator.onLine){status.textContent='Connect to the internet before verifying your PIN.';return;}
+  button.disabled=true;button.textContent='Verifying PIN…';status.textContent='Checking your PIN securely…';
+  try{
+    const user=await requireCloudUser();
+    if(user.id!==pendingDeleteAccountUserId)throw Error('Your signed-in account changed. Cancel and start again.');
+    const {data,error}=await supabaseClient.rpc('verify_app_pin_for_account_deletion',{p_pin:pin});
+    if(error)throw error;
+    if(data?.requires_setup===true)throw Error('Create a six-digit Sellbook PIN before deleting your account.');
+    if(data?.verified!==true){
+      const attempts=Number.isFinite(Number(data?.attempts_remaining))?' Attempts remaining: '+data.attempts_remaining+'.':'';
+      const locked=data?.locked_until?' PIN verification is locked until '+new Date(data.locked_until).toLocaleTimeString()+'.':'';
+      status.textContent=(data?.message||'The PIN is incorrect.')+attempts+locked;
+      document.getElementById('deleteAccountPinInput').value='';return;
+    }
+    status.textContent='PIN confirmed. Removing your cloud records securely…';button.textContent='Deleting account…';
+    await finishVerifiedAccountDeletion(user);
+  }catch(error){
+    status.textContent='Account deletion could not be completed: '+(error.message||'Please try again.');
+    console.error('Sellbook account deletion failed:',error);
+  }finally{
+    button.disabled=false;button.textContent='Verify PIN and delete';
+    if(document.getElementById('deleteAccountPinDialog')?.open)document.getElementById('deleteAccountPinInput').value='';
   }
 });
+
 
 document.getElementById('businessProfileForm').addEventListener('submit',async event=>{
   event.preventDefault();if(!cloudUser)return cloudMessage('Sign in to save your business profile.');
@@ -2869,19 +3040,30 @@ document.querySelectorAll('[data-default-markup]').forEach(x=>{const yes=Number(
 
 document.getElementById('lowStockThreshold').value=lowStockThreshold;
 document.getElementById('savePreferencesBtn').addEventListener('click',()=>{const n=Number(document.getElementById('lowStockThreshold').value);if(!Number.isSafeInteger(n)||n<0||n>100000)return alert('Enter a whole-number threshold from 0 to 100000.');lowStockThreshold=n;localStorage.setItem('my-sales-book-low-stock-v1',String(n));render();alert('Preferences saved on this device.');});
-document.getElementById('changeEmailForm').addEventListener('submit', async event => {
+
+document.getElementById('changeEmailForm').addEventListener('submit',async event=>{
   event.preventDefault();
-  if (!supabaseClient) return cloudMessage('Account service is unavailable.');
-  const email = document.getElementById('newAccountEmail').value.trim();
-  try {
-    const { error } = await supabaseClient.auth.updateUser({ email });
-    if (error) throw error;
-    cloudMessage('Email change requested. Follow the verification instructions sent by Supabase before using the new address.');
+  if(!supabaseClient)return cloudMessage('Account service is unavailable.');
+  const email=document.getElementById('newAccountEmail').value.trim();
+  const button=document.querySelector('#changeEmailForm button[type="submit"]');
+  try{
+    if(!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email))throw Error('Enter a valid new email address.');
+    const current=await getSellbookAccountSession();
+    if(email.toLowerCase()===String(current.user.email||'').toLowerCase())throw Error('Enter an email address different from your current address.');
+    button.disabled=true;button.textContent='Requesting change…';
+    const {data:grant,error:grantError}=await supabaseClient.rpc('consume_sellbook_email_action',{p_action:'change_email'});
+    if(grantError)throw grantError;
+    if(grant?.verified!==true)throw Error('Verify your current email address before requesting an email change.');
+    const {error}=await supabaseClient.auth.updateUser({email});
+    if(error)throw error;
     document.getElementById('changeEmailForm').reset();
-  } catch (error) {
-    cloudMessage('Could not request an email change: ' + (error.message || String(error)));
-  }
+    document.getElementById('changeEmailForm').classList.add('hidden');
+    document.getElementById('settingsAccountMessage').textContent='Email change requested. Follow the confirmation instructions sent by Supabase. The new address is not active until the required confirmation is completed.';
+  }catch(error){
+    document.getElementById('settingsAccountMessage').textContent='Could not request an email change: '+(error.message||'Please try again. Verify your current email again if the code has expired.');
+  }finally{if(button){button.disabled=false;button.textContent='Request email change';}}
 });
+
 
 document.getElementById('importLocalRecordsBtn').addEventListener('click', async () => {
   if (!cloudUser || !localSnapshot) return;
