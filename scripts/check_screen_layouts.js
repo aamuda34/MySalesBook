@@ -10,7 +10,8 @@ const sw = fs.readFileSync('sw.js', 'utf8');
 const marker = 'SELLBOOK APP-WIDE SCREEN LAYOUT';
 const start = css.indexOf(marker);
 assert.ok(start >= 0, 'The screen-by-screen layout layer is missing.');
-const layer = css.slice(start);
+const authLayerStart = css.indexOf('/* Professional sign-in and account-recovery experience.', start);
+const layer = css.slice(start, authLayerStart > start ? authLayerStart : undefined);
 const pageIds = [...html.matchAll(/<section\b[^>]*\bid="([^"]+)"[^>]*class="[^"]*\bpage\b[^"]*"/g)]
   .map(match => match[1]);
 const expectedPages = [
