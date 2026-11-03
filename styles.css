@@ -3346,3 +3346,38 @@ body.dark #authPage #securityPinGate input{background:#fff;color:#17231c;border-
 @media(prefers-reduced-motion:reduce){
   #authPage *,#authPage *::before,#authPage *::after{animation:none!important;transition:none!important}
 }
+
+
+/* Dedicated record-entry pages: full app screens, never floating form overlays. */
+#appWorkspace>main>.record-entry-page{
+  min-height:calc(100vh - 150px);
+}
+#appWorkspace .record-entry-page>.products-page-header,
+#appWorkspace .record-entry-page>.page-intro{
+  max-width:660px;
+  margin-inline:auto;
+}
+#appWorkspace .record-entry-page>.products-page-header{
+  margin-bottom:10px;
+}
+#appWorkspace .record-entry-page>.card{
+  width:100%;
+  max-width:660px;
+  margin:0 auto 18px;
+  padding:18px;
+}
+#appWorkspace .record-entry-page form{
+  width:100%;
+}
+#appWorkspace .record-entry-page form>button.primary{
+  width:100%;
+  margin-top:8px;
+}
+#appWorkspace .record-entry-page .photo-actions{
+  display:flex;
+  flex-wrap:wrap;
+  gap:10px;
+}
+@media(max-width:480px){
+  #appWorkspace .record-entry-page>.card{padding:15px}
+}
