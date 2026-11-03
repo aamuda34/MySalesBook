@@ -1633,15 +1633,20 @@ function productCategoryPickerOpen(open=true){
  if(!dropdown||!search||!toggle)return;
  dropdown.classList.toggle('hidden',!open);search.setAttribute('aria-expanded',String(open));toggle.setAttribute('aria-expanded',String(open));toggle.textContent=open?'Close':'Browse';
 }
+function getProductCategoryChoices(){
+ const used=(db.products||[]).flatMap(product=>categoryValues(product.category));
+ return [...new Set([...PRODUCT_CATEGORIES,...used.map(cleanProductCategory).filter(Boolean)])];
+}
 function renderProductCategoryOptions(){
  const target=document.getElementById('productCategoryOptions'),search=document.getElementById('productCategorySearch');
  if(!target||!search)return;
  const query=search.value.trim().toLocaleLowerCase(),selected=getSelectedCategories('product');
- const matches=PRODUCT_CATEGORIES.filter(category=>!query||category.toLocaleLowerCase().includes(query));
- const customSelected=selected.filter(category=>!PRODUCT_CATEGORIES.includes(category)&&(!query||category.toLocaleLowerCase().includes(query)));
+ const allCategories=getProductCategoryChoices();
+ const matches=allCategories.filter(category=>!query||category.toLocaleLowerCase().includes(query));
+ const customSelected=selected.filter(category=>!allCategories.some(item=>item.toLocaleLowerCase()===category.toLocaleLowerCase())&&(!query||category.toLocaleLowerCase().includes(query)));
  const options=[...new Set([...matches,...customSelected])];
- let markup=options.map(category=>'<label class="product-category-option"><input type="checkbox" data-product-category value="'+esc(category)+'" '+(selected.includes(category)?'checked ':'')+(!selected.includes(category)&&selected.length>=3?'disabled':'')+'><span>'+esc(category)+'</span></label>').join('');
- const exact=[...PRODUCT_CATEGORIES,...selected].some(category=>category.toLocaleLowerCase()===query);
+ let markup=options.map(category=>'<label class="product-category-option"><input type="checkbox" data-product-category value="'+esc(category)+'" '+(selected.some(item=>item.toLocaleLowerCase()===category.toLocaleLowerCase())?'checked ':'')+(!selected.some(item=>item.toLocaleLowerCase()===category.toLocaleLowerCase())&&selected.length>=3?'disabled':'')+'><span>'+esc(category)+'</span></label>').join('');
+ const exact=allCategories.some(category=>category.toLocaleLowerCase()===query)||selected.some(category=>category.toLocaleLowerCase()===query);
  if(query&&!exact){
   const canAdd=selected.length<3;
   markup+='<button type="button" class="product-category-add-option" data-add-product-category="'+esc(cleanProductCategory(search.value))+'" '+(canAdd?'':'disabled')+'>＋ Add “'+esc(cleanProductCategory(search.value))+'” as a category</button>';
@@ -1675,7 +1680,7 @@ function syncCategoryPicker(prefix,value){
    label.append(input,text);optionList.appendChild(label);
   }
  });
- document.querySelectorAll(selector).forEach(x=>{x.checked=values.some(value=>value.toLocaleLowerCase()===x.value.toLocaleLowerCase());x.disabled=false;});
+ optionList?.querySelectorAll(selector).forEach(x=>{x.checked=values.some(value=>value.toLocaleLowerCase()===x.value.toLocaleLowerCase());x.disabled=false;});
  if(hidden)hidden.value=values.join(' | ');if(count)count.textContent=values.length+' of 3 selected';updateCategoryPickerLimits('editProduct');
 }
 function updateCategoryPickerLimits(prefix){
@@ -1718,7 +1723,7 @@ document.addEventListener('click',event=>{
 document.getElementById('productCategorySearch')?.addEventListener('keydown',event=>{
  if(event.key==='Escape'){productCategoryPickerOpen(false);event.currentTarget.blur();}
 });
-document.querySelectorAll('[data-edit-product-category]').forEach(x=>x.addEventListener('change',()=>updateCategoryPickerLimits('editProduct')));
+document.getElementById('editProductCategoryOptions')?.addEventListener('change',event=>{if(event.target.matches('[data-edit-product-category]'))updateCategoryPickerLimits('editProduct');});
 
 function showLegalSection(section){const privacy=section!=='terms';const privacyPanel=document.getElementById('legalPrivacyContent'),termsPanel=document.getElementById('legalTermsContent'),privacyTab=document.getElementById('legalPrivacyTab'),termsTab=document.getElementById('legalTermsTab');if(!privacyPanel||!termsPanel||!privacyTab||!termsTab)return;privacyPanel.classList.toggle('hidden',!privacy);termsPanel.classList.toggle('hidden',privacy);privacyTab.classList.toggle('active',privacy);termsTab.classList.toggle('active',!privacy);privacyTab.setAttribute('aria-selected',String(privacy));termsTab.setAttribute('aria-selected',String(!privacy));}
 const VALID_PAGES=new Set(['home','about-sellbook','stock-history','stock-history-detail','sales-history','sale-details','subscribers','reservations','products','record-product','product-details','low-stock','sales','record-sale','more','expenses','record-expense','reports','stock','settings','business-details','settings-business','settings-sync','settings-preferences','settings-account','settings-legal','settings-buybook','support','messenger','feedback','admin','me','notifications']);
@@ -2357,6 +2362,7 @@ function updateSuggestedPrice(){const c=document.getElementById('pcost'),p=docum
 document.querySelectorAll('[data-markup]').forEach(b=>b.addEventListener('click',()=>{selectedMarkup=Number(b.dataset.markup);document.querySelectorAll('[data-markup]').forEach(x=>{x.classList.toggle('selected',x===b);x.setAttribute('aria-pressed',String(x===b));});updateSuggestedPrice();}));
 document.getElementById('pcost').addEventListener('input',updateSuggestedPrice);
 document.getElementById('punitsperpack').addEventListener('input',updateSuggestedPrice);
+document.getElementById('pbaseunitPack').addEventListener('input',updateSuggestedPrice);
 document.getElementById('ppackprice').addEventListener('input',()=>{if(productSellingType!=='pack')return;const count=Number(document.getElementById('punitsperpack').value),packPrice=Number(document.getElementById('ppackprice').value);if(Number.isSafeInteger(count)&&count>0&&Number.isFinite(packPrice)&&packPrice>0){document.getElementById('pprice').value=(Math.round((packPrice/count+Number.EPSILON)*100)/100).toFixed(2);const money=n=>new Intl.NumberFormat('en-NG',{style:'currency',currency:'NGN',maximumFractionDigits:2}).format(n);document.getElementById('priceSuggestion').textContent='Your chosen selling prices — per pack: '+money(packPrice)+' · per '+(document.getElementById('pbaseunitPack').value.trim()||'unit')+': '+money(Number(document.getElementById('pprice').value));}});
 let productSellingType='unit';
 function setProductSellingType(type){
@@ -2396,6 +2402,7 @@ document.getElementById('productForm').addEventListener('keydown',event=>{
   document.getElementById(next).focus();setProductSellingType(next==='productTypePack'?'pack':'unit');
  }
 });
+setProductSellingType('unit');
 document.getElementById('productForm').addEventListener('reset',()=>{setProductSellingType('unit');productCategoryPickerOpen(false);const search=document.getElementById('productCategorySearch');if(search)search.value='';});
 document.getElementById('productForm').addEventListener('reset',()=>setTimeout(()=>syncCategoryPicker('product',''),0));
 document.getElementById('productForm').addEventListener('reset',()=>{selectedMarkup=defaultMarkup;document.querySelectorAll('[data-markup]').forEach(x=>{const yes=Number(x.dataset.markup)===defaultMarkup;x.classList.toggle('selected',yes);x.setAttribute('aria-pressed',String(yes));});document.getElementById('priceSuggestion').textContent='Enter a cost price to calculate a suggested price.';});
