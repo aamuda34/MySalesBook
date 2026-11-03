@@ -3268,6 +3268,32 @@ accountRecoveryRequestForm?.addEventListener('submit', async event => {
   }
 });
 
+// Leave a recovery-only session safely and return to the normal sign-in choices.
+document.getElementById('cancelPasswordUpdate')?.addEventListener('click',async()=>{
+  if(recoveryPasswordInProgress)return;
+  const button=document.getElementById('cancelPasswordUpdate');
+  button.disabled=true;
+  recoveryMode=false;
+  document.getElementById('recoveryPasswordForm').reset();
+  resetAuthPasswordVisibility('recoveryPassword');
+  resetAuthPasswordVisibility('recoveryPasswordConfirm');
+  try{
+    if(supabaseClient){
+      const {error}=await supabaseClient.auth.signOut({scope:'local'});
+      if(error)throw error;
+    }
+    history.replaceState(null,'',window.location.pathname+window.location.search);
+    document.getElementById('appWorkspace').classList.add('hidden');
+    document.getElementById('accountCard').classList.remove('hidden');
+    setAuthScreen('choices');
+    cloudMessage('You are back at sign in. You can request a new password reset link whenever you need one.');
+    refreshAccountStatus().catch(error=>console.warn('Account status refresh failed after leaving recovery:',error));
+  }catch(error){
+    recoveryMode=true;
+    cloudMessage('Sellbook could not safely close the password recovery session. Check your connection and try again.');
+  }finally{button.disabled=false;}
+});
+
 // Password-reset requests are handled by the dedicated recovery page above.
 document.getElementById('recoveryPasswordForm').addEventListener('submit', async event => {
   event.preventDefault();
