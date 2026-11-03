@@ -2358,7 +2358,32 @@ const DEFAULT_MARKUP_KEY='my-sales-book-default-markup-v1';
 let defaultMarkup=Number(localStorage.getItem(DEFAULT_MARKUP_KEY)||30);if(![10,20,30,40,50].includes(defaultMarkup))defaultMarkup=30;
 let selectedMarkup=defaultMarkup;
 function syncDefaultMarkupUI(){const stored=Number(localStorage.getItem(DEFAULT_MARKUP_KEY)||30);defaultMarkup=[10,20,30,40,50].includes(stored)?stored:30;selectedMarkup=defaultMarkup;document.querySelectorAll('[data-markup]').forEach(x=>{const yes=Number(x.dataset.markup)===defaultMarkup;x.classList.toggle('selected',yes);x.setAttribute('aria-pressed',String(yes));});}
-function updateSuggestedPrice(){const c=document.getElementById('pcost'),p=document.getElementById('pprice'),pp=document.getElementById('ppackprice'),o=document.getElementById('priceSuggestion');if(c.value.trim()===''||!Number.isFinite(Number(c.value))||Number(c.value)<0){o.textContent='Enter a cost price to calculate a suggested price.';return;}const money=n=>new Intl.NumberFormat('en-NG',{style:'currency',currency:'NGN',maximumFractionDigits:2}).format(n);if(productSellingType==='pack'){const count=Number(document.getElementById('punitsperpack').value);if(!Number.isSafeInteger(count)||count<1){o.textContent='Enter how many individual units are in each pack.';return;}const packCost=Number(c.value),packPrice=Math.round((packCost*(1+selectedMarkup/100)+Number.EPSILON)*100)/100,unitCost=Math.round((packCost/count+Number.EPSILON)*100)/100,unitPrice=Math.round((packPrice/count+Number.EPSILON)*100)/100;pp.value=packPrice.toFixed(2);p.value=unitPrice.toFixed(2);document.getElementById('pcostPerUnit').textContent=money(unitCost)+' per '+(document.getElementById('pbaseunitPack').value.trim()||'unit');o.textContent='Suggested selling price for one full pack: '+money(packPrice);return;}const cost=Number(c.value),price=Math.round((cost*(1+selectedMarkup/100)+Number.EPSILON)*100)/100;p.value=price.toFixed(2);o.textContent='Suggested unit price: '+money(price)+' · Gross profit per unit: '+money(price-cost);}
+function updateSuggestedPrice(){
+ const c=document.getElementById('pcost'),p=document.getElementById('pprice'),pp=document.getElementById('ppackprice'),o=document.getElementById('priceSuggestion');
+ const money=n=>new Intl.NumberFormat('en-NG',{style:'currency',currency:'NGN',maximumFractionDigits:2}).format(n);
+ const round=n=>Math.round((n+Number.EPSILON)*100)/100;
+ const costText=c.value.trim(),hasCost=costText!==''&&Number.isFinite(Number(costText))&&Number(costText)>=0;
+ if(productSellingType==='pack'){
+  const count=Number(document.getElementById('punitsperpack').value);
+  if(!Number.isSafeInteger(count)||count<1){document.getElementById('pcostPerUnit').textContent='Enter how many individual units are in each pack.';o.textContent='Enter a valid number of units per pack.';return;}
+  const unitName=document.getElementById('pbaseunitPack').value.trim()||'unit';
+  if(hasCost){
+   const packCost=Number(costText),packPrice=round(packCost*(1+selectedMarkup/100)),unitCost=round(packCost/count),unitPrice=round(packPrice/count);
+   pp.value=packPrice.toFixed(2);p.value=unitPrice.toFixed(2);
+   document.getElementById('pcostPerUnit').textContent=money(unitCost)+' per '+unitName;
+   o.textContent='Suggested selling price for one full pack: '+money(packPrice)+'. You can change either selling price.';
+  }else{
+   document.getElementById('pcostPerUnit').textContent='Enter pack cost and unit count to calculate this.';
+   const packPrice=Number(pp.value);
+   if(Number.isFinite(packPrice)&&packPrice>0){p.value=round(packPrice/count).toFixed(2);o.textContent='Selling price per individual unit is calculated from the pack price.';}
+   else{p.value='';o.textContent='Enter the purchase cost for one pack to get a suggested price.';}
+  }
+  return;
+ }
+ if(!hasCost){p.value='';o.textContent='Enter a cost price to calculate a suggested price.';return;}
+ const cost=Number(costText),price=round(cost*(1+selectedMarkup/100));
+ p.value=price.toFixed(2);o.textContent='Suggested unit price: '+money(price)+' · Gross profit per unit: '+money(price-cost);
+}
 document.querySelectorAll('[data-markup]').forEach(b=>b.addEventListener('click',()=>{selectedMarkup=Number(b.dataset.markup);document.querySelectorAll('[data-markup]').forEach(x=>{x.classList.toggle('selected',x===b);x.setAttribute('aria-pressed',String(x===b));});updateSuggestedPrice();}));
 document.getElementById('pcost').addEventListener('input',updateSuggestedPrice);
 document.getElementById('punitsperpack').addEventListener('input',updateSuggestedPrice);
