@@ -2402,70 +2402,114 @@ document.getElementById('importFile').addEventListener('change',async e=>{
  }catch(err){alert('Could not restore backup: '+err.message);}
  finally{e.target.value='';}
 });
+let emailAuthMode = 'signin';
+let authScreenMode = 'choices';
+let confirmationEmail = '';
+let emailAuthInProgress = false;
+
+function setAuthScreen(mode) {
+  const choices=document.getElementById('authSignInChoices');
+  const emailPanel=document.getElementById('emailAuthPanel');
+  const recovery=document.getElementById('accountRecoveryRequestForm');
+  const newPassword=document.getElementById('recoveryPasswordForm');
+  const card=document.getElementById('accountCard');
+  if(!choices||!emailPanel||!recovery||!newPassword||!card)return;
+  authScreenMode=mode;
+  choices.classList.toggle('hidden',mode!=='choices');
+  emailPanel.classList.toggle('hidden',mode!=='email');
+  emailPanel.setAttribute('aria-hidden',mode!=='email'?'true':'false');
+  recovery.classList.toggle('hidden',mode!=='recovery');
+  newPassword.classList.toggle('hidden',mode!=='new-password');
+  card.classList.toggle('auth-recovery-request-open',mode==='recovery'||mode==='new-password');
+  if(mode==='choices'){
+    document.getElementById('authCardTitle').textContent='Welcome back';
+    document.getElementById('accountStatus').textContent='Sign in securely to access your business records.';
+  } else if(mode==='email'){
+    document.getElementById('authCardTitle').textContent=emailAuthMode==='signup'?'Create your account':'Sign in with email';
+    document.getElementById('emailAuthHeading').textContent=emailAuthMode==='signup'?'Create your Sellbook account':'Sign in with email';
+    document.getElementById('emailAuthDescription').textContent=emailAuthMode==='signup'
+      ?'Use an email address you can access. We’ll ask you to confirm it before your first sign-in.'
+      :'Use the email address and password linked to your Sellbook account.';
+  }
+  if(mode!=='email')document.getElementById('resendConfirmationBtn')?.classList.add('hidden');
+}
+function passwordPolicyError(password) {
+  if(password.length<8)return 'Use at least 8 characters.';
+  if(!/[a-z]/.test(password))return 'Add at least one lowercase letter.';
+  if(!/[A-Z]/.test(password))return 'Add at least one uppercase letter.';
+  if(!/[0-9]/.test(password))return 'Add at least one number.';
+  if(!/[^A-Za-z0-9]/.test(password))return 'Add at least one symbol, such as ! or #.';
+  return '';
+}
+function friendlyAuthError(error) {
+  const code=String(error?.code||error?.name||'').toLowerCase();
+  const message=String(error?.message||'').toLowerCase();
+  if(code.includes('invalid_credentials')||message.includes('invalid login credentials'))return 'That email address or password is incorrect. Check your details and try again.';
+  if(code.includes('email_not_confirmed')||message.includes('email not confirmed'))return 'Please confirm your email address before signing in. You can resend the confirmation email below.';
+  if(code.includes('email_address_not_authorized')||message.includes('email address is not authorized')||message.includes('only authorized'))return 'Sellbook’s current email sender cannot deliver to this address yet. Email confirmation requires a verified sending service. You can still sign in with an already confirmed account or use Google.';
+  if(code.includes('over_email_send_rate_limit')||code.includes('rate_limit')||message.includes('rate limit'))return 'Too many email requests were made. Wait a little before trying again.';
+  if(code.includes('weak_password')||message.includes('password should'))return 'That password does not meet the security requirements. Use at least 8 characters with uppercase, lowercase, a number and a symbol.';
+  if(message.includes('failed to fetch')||message.includes('network')||!navigator.onLine)return 'Sellbook could not reach the account service. Check your internet connection and try again.';
+  return error?.message||'We could not complete that account request. Please try again.';
+}
 async function refreshAccountStatus(){
-  const status = document.getElementById('accountStatus');
-  const signIn = document.getElementById('googleSignIn');
-  const signOut = document.getElementById('googleSignOut');
-
-  if (!supabaseClient) {
-    status.textContent = 'Cloud connection unavailable. Check your internet connection and configuration.';
-    signIn.disabled = true;
+  const status=document.getElementById('accountStatus');
+  const signIn=document.getElementById('googleSignIn');
+  const emailEntry=document.getElementById('openEmailSignIn');
+  const signOut=document.getElementById('googleSignOut');
+  if(!supabaseClient){
+    status.textContent='Account service is unavailable. Check your connection and try again.';
+    signIn.disabled=true;
+    if(emailEntry)emailEntry.disabled=true;
     return;
   }
-
-  let data;
-  let error;
-  try {
-    ({ data, error } = await supabaseClient.auth.getSession());
-  } catch (sessionError) {
-    status.textContent = 'Could not check sign-in status. Check your connection and try again.';
-    document.getElementById('accountMessage').textContent = 'Sellbook could not verify your Google sign-in. Your saved records have not been changed.';
+  let data,error;
+  try{({data,error}=await supabaseClient.auth.getSession());}
+  catch(sessionError){
+    status.textContent='Could not check your sign-in status. Check your connection and try again.';
+    cloudMessage('Sellbook could not verify your secure sign-in. Your saved records have not been changed.');
     document.getElementById('appWorkspace').classList.add('hidden');
-    console.warn('Supabase session check failed:', sessionError);
+    console.warn('Supabase session check failed:',sessionError);
     return;
   }
-  if (error) {
-    status.textContent = 'Could not check sign-in status. Check your connection and try again.';
-    document.getElementById('accountMessage').textContent = 'Sellbook could not verify your Google sign-in. Your saved records have not been changed.';
+  if(error){
+    status.textContent='Could not check your sign-in status. Check your connection and try again.';
+    cloudMessage('Sellbook could not verify your secure sign-in. Your saved records have not been changed.');
     document.getElementById('appWorkspace').classList.add('hidden');
-    console.warn('Supabase session check returned an error:', error);
+    console.warn('Supabase session check returned an error:',error);
     return;
   }
-
-  const user = data.session?.user;
-  status.textContent = user
-    ? 'Signed in as ' + (user.email || 'Google account') + '.'
-    : (!navigator.onLine
-      ? 'Internet is required for Google sign-in. Connect and try again.'
-      : 'Sign in with Google to access your private business records.');
-  signIn.classList.toggle('hidden', !!user);
-  signOut.classList.toggle('hidden', !user);
-  document.getElementById('emailAuthPanel').classList.toggle('hidden', !!user);
-  document.getElementById('accountManagePanel').classList.toggle('hidden', !user);
+  const user=data.session?.user||null;
+  status.textContent=user?'Signed in as '+(user.email||'your account')+'.':(!navigator.onLine?'Connect to the internet to sign in or create an account.':'Choose how you would like to sign in to your private business records.');
+  signIn.classList.toggle('hidden',!!user);
+  if(emailEntry)emailEntry.classList.toggle('hidden',!!user);
+  if(signOut)signOut.classList.toggle('hidden',!user);
+  document.getElementById('authSignInChoices').classList.toggle('hidden',!!user||authScreenMode!=='choices');
+  document.getElementById('emailAuthPanel').classList.toggle('hidden',!!user||authScreenMode!=='email');
+  document.getElementById('accountRecoveryRequestForm').classList.toggle('hidden',!!user||authScreenMode!=='recovery');
+  document.getElementById('accountManagePanel').classList.toggle('hidden',!user);
   document.getElementById('securityPinGate')?.classList.toggle('hidden',!securityPinGateVisible);
   document.getElementById('accountCard').classList.toggle('hidden',!!user&&(securityPinGateVisible||(workspaceReady&&!recoveryMode)));
-  document.getElementById('settingsAccountStatus').textContent=user?'Signed in as '+(user.email||'Google account')+'.':'Not signed in.';
+  document.getElementById('settingsAccountStatus').textContent=user?'Signed in as '+(user.email||'your account')+'.':'Not signed in.';
   document.getElementById('settingsAccountMessage').textContent=document.getElementById('accountMessage').textContent||'';
-  if (recoveryMode) {
-    document.getElementById('recoveryPasswordForm').classList.remove('hidden');
-    document.getElementById('emailAuthPanel').classList.add('hidden');
+  if(recoveryMode){
+    setAuthScreen('new-password');
     document.getElementById('accountManagePanel').classList.add('hidden');
     document.getElementById('appWorkspace').classList.add('hidden');
-  } else {
-    document.getElementById('recoveryPasswordForm').classList.add('hidden');
-  }
-  const importButton = document.getElementById('importLocalRecordsBtn');
-  const hasLocal = !!(localSnapshot && (localSnapshot.products.length || localSnapshot.sales.length || localSnapshot.expenses.length));
-  const importOwner = localStorage.getItem('my-sales-book-legacy-import-owner-v1');
-  const alreadyImported = user && (localStorage.getItem('my-sales-book-imported-v1:' + user.id) === 'yes' || (importOwner && importOwner !== user.id));
-  importButton.classList.toggle('hidden', !user || !hasLocal || alreadyImported);
-  document.getElementById('appWorkspace').classList.toggle('hidden', !user || !workspaceReady || securityPinGateVisible);
-  // The current page controls the floating + button; do not force it visible here.
+  }else if(user)document.getElementById('recoveryPasswordForm').classList.add('hidden');
+  const importButton=document.getElementById('importLocalRecordsBtn');
+  const hasLocal=!!(localSnapshot&&(localSnapshot.products.length||localSnapshot.sales.length||localSnapshot.expenses.length));
+  const importOwner=localStorage.getItem('my-sales-book-legacy-import-owner-v1');
+  const alreadyImported=user&&(localStorage.getItem('my-sales-book-imported-v1:'+user.id)==='yes'||(importOwner&&importOwner!==user.id));
+  importButton.classList.toggle('hidden',!user||!hasLocal||alreadyImported);
+  document.getElementById('appWorkspace').classList.toggle('hidden',!user||!workspaceReady||securityPinGateVisible||recoveryMode);
   document.getElementById('securityPinGate')?.classList.toggle('hidden',!securityPinGateVisible);
   document.getElementById('accountCard').classList.toggle('hidden',!!user&&(securityPinGateVisible||(workspaceReady&&!recoveryMode)));
-  if(user&&workspaceReady){document.getElementById('settingsAccountStatus').textContent='Signed in as '+(user.email||'Google account')+'.';document.getElementById('settingsAccountMessage').textContent=document.getElementById('accountMessage').textContent||'';}
+  if(user&&workspaceReady){
+    document.getElementById('settingsAccountStatus').textContent='Signed in as '+(user.email||'your account')+'.';
+    document.getElementById('settingsAccountMessage').textContent=document.getElementById('accountMessage').textContent||'';
+  }
 }
-
 let googleSignInInProgress = false;
 document.getElementById('googleSignIn').addEventListener('click', async () => {
   const button = document.getElementById('googleSignIn');
@@ -2510,65 +2554,139 @@ document.getElementById('googleSignIn').addEventListener('click', async () => {
   }
 });
 
-let emailAuthMode = 'signin';
-document.getElementById('toggleEmailAuth').addEventListener('click', () => {
-  emailAuthMode = emailAuthMode === 'signin' ? 'signup' : 'signin';
-  document.getElementById('emailAuthSubmit').textContent = emailAuthMode === 'signup' ? 'Create account' : 'Sign in with email';
-  document.getElementById('toggleEmailAuth').textContent = emailAuthMode === 'signup' ? 'I already have an account' : 'Create account';
-  document.getElementById('authPassword').autocomplete = emailAuthMode === 'signup' ? 'new-password' : 'current-password';
-  cloudMessage(emailAuthMode === 'signup' ? 'Create a new account with your email and a password of at least 8 characters.' : 'Sign in to access your private business records.');
+
+document.getElementById('openEmailSignIn').addEventListener('click',()=>{
+  if(!supabaseClient)return cloudMessage('Account service is unavailable right now. Check your connection and try again.');
+  emailAuthMode='signin';
+  document.getElementById('emailAuthForm').reset();
+  document.getElementById('authPasswordConfirmField').classList.add('hidden');
+  document.getElementById('authPasswordConfirm').disabled=true;
+  document.getElementById('authPasswordConfirm').required=false;
+  document.getElementById('authPassword').autocomplete='current-password';
+  document.getElementById('authPasswordHint').textContent='Enter your account password.';
+  document.getElementById('toggleEmailAuth').textContent='New to Sellbook? Create an account';
+  setAuthScreen('email');
+  cloudMessage('');
+  document.getElementById('authEmail').focus();
 });
-document.getElementById('emailAuthForm').addEventListener('submit', async event => {
+document.getElementById('backToAuthOptions').addEventListener('click',()=>{
+  document.getElementById('emailAuthForm').reset();
+  emailAuthMode='signin';setAuthScreen('choices');cloudMessage('');
+});
+document.getElementById('toggleEmailAuth').addEventListener('click',()=>{
+  emailAuthMode=emailAuthMode==='signin'?'signup':'signin';
+  const confirmWrap=document.getElementById('authPasswordConfirmField');
+  const confirmInput=document.getElementById('authPasswordConfirm');
+  confirmWrap.classList.toggle('hidden',emailAuthMode!=='signup');
+  confirmInput.disabled=emailAuthMode!=='signup';
+  confirmInput.required=emailAuthMode==='signup';
+  if(emailAuthMode!=='signup')confirmInput.value='';
+  document.getElementById('authPassword').autocomplete=emailAuthMode==='signup'?'new-password':'current-password';
+  document.getElementById('authPasswordHint').textContent=emailAuthMode==='signup'
+    ?'At least 8 characters, including uppercase and lowercase letters, a number and a symbol.'
+    :'Enter your account password.';
+  document.getElementById('emailAuthSubmit').textContent=emailAuthMode==='signup'?'Create account':'Sign in with email';
+  document.getElementById('toggleEmailAuth').textContent=emailAuthMode==='signup'?'Already have an account? Sign in':'New to Sellbook? Create an account';
+  document.getElementById('emailAuthHeading').textContent=emailAuthMode==='signup'?'Create your Sellbook account':'Sign in with email';
+  document.getElementById('emailAuthDescription').textContent=emailAuthMode==='signup'
+    ?'Use an email address you can access. We’ll ask you to confirm it before your first sign-in.'
+    :'Use the email address and password linked to your Sellbook account.';
+  document.getElementById('resendConfirmationBtn').classList.add('hidden');
+  cloudMessage(emailAuthMode==='signup'?'Create an account with a strong password. Email confirmation is required before the first sign-in.':'Sign in to access your private business records.');
+});
+document.getElementById('emailAuthForm').addEventListener('submit',async event=>{
   event.preventDefault();
-  if (!supabaseClient) return cloudMessage('Account service is unavailable. Check your internet connection.');
-  const email = document.getElementById('authEmail').value.trim();
-  const password = document.getElementById('authPassword').value;
-  const submit = document.getElementById('emailAuthSubmit');
-  if (!navigator.onLine) return cloudMessage('Internet is required for first sign-in or account creation. Connect and try again.');
-  submit.disabled = true;
-  try {
-    cloudMessage(emailAuthMode === 'signup' ? 'Creating your account...' : 'Signing in...');
-    const result = emailAuthMode === 'signup'
-      ? await supabaseClient.auth.signUp({ email, password, options: { emailRedirectTo: window.location.href } })
-      : await supabaseClient.auth.signInWithPassword({ email, password });
-    if (result.error) throw result.error;
-    if (emailAuthMode === 'signup' && !result.data.session) {
-      cloudMessage('Account created. Check your email for the verification link, then return here and sign in.');
-    } else {
-      cloudMessage(emailAuthMode === 'signup' ? 'Account created. Loading your private business records...' : 'Signed in. Loading your private business records...');
+  if(emailAuthInProgress)return;
+  if(!supabaseClient)return cloudMessage('Account service is unavailable. Check your internet connection.');
+  const emailInput=document.getElementById('authEmail'),passwordInput=document.getElementById('authPassword');
+  const confirmInput=document.getElementById('authPasswordConfirm'),submit=document.getElementById('emailAuthSubmit');
+  const email=emailInput.value.trim().toLowerCase(),password=passwordInput.value;
+  if(!emailInput.checkValidity()){emailInput.reportValidity();return;}
+  if(!password){passwordInput.reportValidity();return;}
+  if(!navigator.onLine)return cloudMessage('Internet is required for email sign-in and account creation. Connect and try again.');
+  if(emailAuthMode==='signup'){
+    const policyError=passwordPolicyError(password);
+    if(policyError){cloudMessage(policyError);passwordInput.focus();return;}
+    if(password!==confirmInput.value){cloudMessage('The passwords do not match. Check both fields and try again.');confirmInput.focus();return;}
+  }
+  emailAuthInProgress=true;submit.disabled=true;submit.setAttribute('aria-busy','true');
+  submit.textContent=emailAuthMode==='signup'?'Creating account…':'Signing in…';
+  document.getElementById('toggleEmailAuth').disabled=true;
+  document.getElementById('backToAuthOptions').disabled=true;
+  document.getElementById('resendConfirmationBtn').classList.add('hidden');
+  try{
+    if(emailAuthMode==='signup'){
+      cloudMessage('Creating your Sellbook account securely…');
+      const {data,error}=await supabaseClient.auth.signUp({email,password,options:{emailRedirectTo:window.location.origin+window.location.pathname+window.location.search}});
+      if(error)throw error;
+      if(!data.user||(Array.isArray(data.user.identities)&&data.user.identities.length===0)){
+        confirmationEmail=email;emailInput.value=email;
+        cloudMessage('If this address can be registered, a confirmation email will be sent. Try signing in if you already have an account.');
+        return;
+      }
+      if(!data.session){
+        confirmationEmail=email;emailInput.value=email;passwordInput.value='';confirmInput.value='';
+        document.getElementById('resendConfirmationBtn').classList.remove('hidden');
+        cloudMessage('Your account has been created. Confirm your email using the link we sent, then return here to sign in. Check your spam folder too.');
+        return;
+      }
+      cloudMessage('Account created. Opening your protected business records…');
+      await handleCloudAuthChange();
+    }else{
+      cloudMessage('Signing in securely…');
+      const {data,error}=await supabaseClient.auth.signInWithPassword({email,password});
+      if(error)throw error;
+      if(!data.session?.user)throw new Error('The account service did not return a valid sign-in session. Please try again.');
+      confirmationEmail='';
+      cloudMessage('Signed in. Checking your Sellbook security PIN…');
       await handleCloudAuthChange();
     }
-  } catch (error) {
-    cloudMessage('Account action failed: ' + (error.message || String(error)));
-  } finally {
-    submit.disabled = false;
+  }catch(error){
+    console.warn('Sellbook email authentication failed:',error);
+    const code=String(error?.code||'').toLowerCase();
+    if(code.includes('email_not_confirmed')||String(error?.message||'').toLowerCase().includes('email not confirmed')){
+      confirmationEmail=email;emailInput.value=email;
+      document.getElementById('resendConfirmationBtn').classList.remove('hidden');
+    }
+    cloudMessage(friendlyAuthError(error));
+  }finally{
+    emailAuthInProgress=false;submit.disabled=false;submit.removeAttribute('aria-busy');
+    submit.textContent=emailAuthMode==='signup'?'Create account':'Sign in with email';
+    document.getElementById('toggleEmailAuth').disabled=false;
+    document.getElementById('backToAuthOptions').disabled=false;
   }
 });
-// The email-password recovery request is deliberately separate from email sign-in.
-// Email sign-in remains disabled; this only exposes the existing Supabase recovery flow.
+document.getElementById('resendConfirmationBtn').addEventListener('click',async()=>{
+  const email=(confirmationEmail||document.getElementById('authEmail').value).trim().toLowerCase();
+  const button=document.getElementById('resendConfirmationBtn');
+  if(!email){cloudMessage('Enter the email address you used to create your account first.');document.getElementById('authEmail').focus();return;}
+  if(!navigator.onLine)return cloudMessage('Connect to the internet before requesting another confirmation email.');
+  if(!supabaseClient)return cloudMessage('Account service is unavailable right now. Try again later.');
+  button.disabled=true;button.setAttribute('aria-busy','true');button.textContent='Sending…';
+  try{
+    const {error}=await supabaseClient.auth.resend({type:'signup',email,options:{emailRedirectTo:window.location.origin+window.location.pathname+window.location.search}});
+    if(error)throw error;
+    cloudMessage('If this account still needs confirmation, a new email has been requested. Check your inbox and spam folder.');
+  }catch(error){cloudMessage(friendlyAuthError(error));}
+  finally{button.disabled=false;button.removeAttribute('aria-busy');button.textContent='Resend confirmation email';}
+});
+
+// Password recovery is a distinct state on the full authentication page.
 const accountRecoveryRequestForm = document.getElementById('accountRecoveryRequestForm');
 const openPasswordRecoveryButton = document.getElementById('openPasswordRecovery');
 const cancelPasswordRecoveryButton = document.getElementById('cancelPasswordRecovery');
-
-openPasswordRecoveryButton?.addEventListener('click', () => {
-  if (!supabaseClient) {
-    cloudMessage('Account recovery is unavailable right now. Check your connection and try again.');
-    return;
-  }
-  document.getElementById('accountCard').classList.add('auth-recovery-request-open');
-  accountRecoveryRequestForm.classList.remove('hidden');
-  document.getElementById('googleSignIn').classList.add('hidden');
-  openPasswordRecoveryButton.classList.add('hidden');
-  document.getElementById('recoveryEmail').focus();
-});
-
-cancelPasswordRecoveryButton?.addEventListener('click', () => {
-  accountRecoveryRequestForm.classList.add('hidden');
-  document.getElementById('accountCard').classList.remove('auth-recovery-request-open');
-  document.getElementById('recoveryEmail').value = '';
-  cloudMessage('');
-  document.getElementById('googleSignIn').classList.remove('hidden');
-  openPasswordRecoveryButton.classList.remove('hidden');
+let recoveryReturnScreen = 'choices';
+function openRecoveryScreen(){
+  if(!supabaseClient){cloudMessage('Account recovery is unavailable right now. Check your connection and try again.');return;}
+  recoveryReturnScreen=authScreenMode==='email'?'email':'choices';
+  document.getElementById('recoveryEmail').value=document.getElementById('authEmail').value.trim();
+  setAuthScreen('recovery');cloudMessage('');document.getElementById('recoveryEmail').focus();
+}
+openPasswordRecoveryButton?.addEventListener('click',openRecoveryScreen);
+document.getElementById('emailPasswordRecovery')?.addEventListener('click',openRecoveryScreen);
+cancelPasswordRecoveryButton?.addEventListener('click',()=>{
+  accountRecoveryRequestForm.classList.add('hidden');document.getElementById('recoveryEmail').value='';
+  setAuthScreen(recoveryReturnScreen);cloudMessage('');
 });
 
 accountRecoveryRequestForm?.addEventListener('submit', async event => {
@@ -2622,6 +2740,8 @@ document.getElementById('resetPasswordBtn').addEventListener('click', async () =
 document.getElementById('recoveryPasswordForm').addEventListener('submit', async event => {
   event.preventDefault();
   const password = document.getElementById('recoveryPassword').value;
+  const policyError = passwordPolicyError(password);
+  if (policyError) { cloudMessage(policyError); document.getElementById('recoveryPassword').focus(); return; }
   try {
     const { error } = await supabaseClient.auth.updateUser({ password });
     if (error) throw error;
@@ -3502,9 +3622,8 @@ if (supabaseClient) {
     if (event === 'PASSWORD_RECOVERY') {
       recoveryMode = true;
       document.getElementById('appWorkspace').classList.add('hidden');
-      document.getElementById('recoveryPasswordForm').classList.remove('hidden');
       document.getElementById('accountManagePanel').classList.add('hidden');
-      document.getElementById('emailAuthPanel').classList.add('hidden');
+      setAuthScreen('new-password');
       cloudMessage('Choose a new password to finish recovering your account.');
     }
     if (event === 'SIGNED_IN' || event === 'SIGNED_OUT' || event === 'INITIAL_SESSION' || event === 'TOKEN_REFRESHED') {
