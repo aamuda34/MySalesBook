@@ -1664,9 +1664,18 @@ function syncCategoryPicker(prefix,value){
   renderProductCategoryOptions();renderProductCategorySelected();return;
  }
  const selector='[data-edit-product-category]',count=document.getElementById('editProductCategoryCount'),hidden=document.getElementById('editProductCategory');
- let values=categoryValues(value).filter(x=>SELLBOOK_CATEGORIES.includes(x)).slice(0,3);
- if(!values.length&&value&&!SELLBOOK_CATEGORIES.includes(String(value).trim()))values=['Other'];
- document.querySelectorAll(selector).forEach(x=>{x.checked=values.includes(x.value);x.disabled=false;});
+ let values=[...new Set(categoryValues(value).map(cleanProductCategory).filter(Boolean))].slice(0,3);
+ const optionList=document.getElementById('editProductCategoryOptions');
+ values.forEach(category=>{
+  const exists=[...document.querySelectorAll(selector)].some(input=>input.value.toLocaleLowerCase()===category.toLocaleLowerCase());
+  if(!exists&&optionList){
+   const label=document.createElement('label');label.className='category-choice';
+   const input=document.createElement('input');input.type='checkbox';input.dataset.editProductCategory='';input.value=category;
+   const text=document.createElement('span');text.textContent=category;
+   label.append(input,text);optionList.appendChild(label);
+  }
+ });
+ document.querySelectorAll(selector).forEach(x=>{x.checked=values.some(value=>value.toLocaleLowerCase()===x.value.toLocaleLowerCase());x.disabled=false;});
  if(hidden)hidden.value=values.join(' | ');if(count)count.textContent=values.length+' of 3 selected';updateCategoryPickerLimits('editProduct');
 }
 function updateCategoryPickerLimits(prefix){
@@ -2364,15 +2373,16 @@ function setProductSellingType(type){
  document.getElementById('ppackunit').disabled=!pack;
  document.getElementById('punitsperpack').disabled=!pack;
  document.getElementById('ppackprice').disabled=!pack;
+ document.getElementById('packPriceField').classList.toggle('hidden',!pack);
  document.getElementById('ppackunit').required=pack;
  document.getElementById('ppackprice').required=pack;
  const unitPrice=document.getElementById('pprice');
- unitPrice.readOnly=pack;
- unitPrice.setAttribute('aria-readonly',String(pack));
- document.getElementById('productTypeHelp').textContent=pack?'Set up the pack size. Sellbook calculates the price and stock for each individual unit.':'Set up a product that you sell one unit at a time.';
+ unitPrice.readOnly=false;
+ unitPrice.removeAttribute('aria-readonly');
+ document.getElementById('productTypeHelp').textContent=pack?'Set up the pack size and prices. Sellbook keeps track of the pack and individual units.':'Set up a product that you sell one unit at a time.';
  document.getElementById('pcostLabel').textContent=pack?'Purchase cost for one pack (₦)':'Cost price per individual unit (₦)';
  document.getElementById('pstockLabel').textContent=pack?'Opening stock (number of packs)':'Opening stock (individual units)';
- document.getElementById('ppriceLabel').textContent=pack?'Selling price per individual unit (calculated)':'Selling price per individual unit (₦)';
+ document.getElementById('ppriceLabel').textContent='Selling price per individual unit (₦)';
  document.getElementById('pcost').placeholder=pack?'e.g. 10,000 for one carton':'e.g. 1,000 for one item';
  document.getElementById('pstock').placeholder=pack?'e.g. 5 cartons':'e.g. 24';
  document.getElementById('productStockHelp').textContent=pack?'Enter the number of full packs you currently have. Sellbook converts this to individual units for stock tracking.':'Enter the number of individual units you currently have.';
