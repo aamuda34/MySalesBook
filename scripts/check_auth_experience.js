@@ -33,7 +33,7 @@ assert.ok(account.includes('autocomplete="new-password"'), 'New password fields 
 const authPasswordInput = account.match(/<input id="authPassword"[^>]*>/)?.[0] || '';
 assert.ok(authPasswordInput && !/\bminlength=/.test(authPasswordInput), 'Existing email users must not be locked out by signup-only length rules.');
 const passwordPolicyStart = app.indexOf('function passwordPolicyError(password) {');
-const passwordPolicyEnd = passwordPolicyStart >= 0 ? app.indexOf('\\n}', passwordPolicyStart) : -1;
+const passwordPolicyEnd = passwordPolicyStart >= 0 ? app.indexOf('\n}', passwordPolicyStart) : -1;
 assert.ok(passwordPolicyStart >= 0 && passwordPolicyEnd > passwordPolicyStart, 'Password strength policy function is missing.');
 const passwordPolicySource = app.slice(passwordPolicyStart, passwordPolicyEnd + 2);
 const passwordPolicy = new Function(passwordPolicySource + '\nreturn passwordPolicyError;')();
