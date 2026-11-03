@@ -293,6 +293,7 @@ function restoreCloudCache(userId) {
   } catch (_) {}
   return false;
 }
+let lastSyncAlertKey='';
 function updateSyncStatus() {
   const el = document.getElementById('syncStatus');
   const button = document.getElementById('syncNowBtn');
@@ -300,6 +301,13 @@ function updateSyncStatus() {
   const waiting = pendingSync.filter(item => item.status !== 'synced').length;
   const conflicts = pendingSync.filter(item => item.status === 'conflict').length;
   const queueRecoveryRequired=!!cloudUser&&queueReadErrors.has(cloudUser.id);
+  const syncAlertKey=queueRecoveryRequired?'recovery:'+cloudUser.id:conflicts?'conflict:'+cloudUser?.id+':'+conflicts:'';
+  if(syncAlertKey&&syncAlertKey!==lastSyncAlertKey){
+    showToast(queueRecoveryRequired
+      ?'Your saved sync queue needs recovery. Sellbook has stopped syncing to protect your unsynchronised records.'
+      :conflicts+' change(s) need attention before sync can finish. Open Sync and data to review them.','error');
+  }
+  lastSyncAlertKey=syncAlertKey;
   el.textContent = !cloudUser ? 'Sign in to sync your business records.' :
     queueRecoveryRequired ? 'The saved sync queue needs recovery. Sellbook has stopped syncing to protect your unsynchronised records.' :
     conflicts ? conflicts + ' change(s) need attention. ' + waiting + ' change(s) remain unsynchronised.' :
