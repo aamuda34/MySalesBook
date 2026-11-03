@@ -2447,7 +2447,9 @@ function setAuthScreen(mode) {
     document.getElementById('accountStatus').textContent='Sign in securely to access your business records.';
   } else if(mode==='email'){
     document.getElementById('authCardTitle').textContent=emailAuthMode==='signup'?'Create your account':'Sign in with email';
+  document.getElementById('accountStatus').textContent=emailAuthMode==='signup'?'Set up an account to keep your business records safely in one place.':'Enter your email and password to access your business records.';
     document.getElementById('emailAuthHeading').textContent=emailAuthMode==='signup'?'Create your Sellbook account':'Sign in with email';
+    document.getElementById('accountStatus').textContent=emailAuthMode==='signup'?'Set up an account to keep your business records safely in one place.':'Enter your email and password to access your business records.';
     document.getElementById('emailAuthDescription').textContent=emailAuthMode==='signup'
       ?'Use an email address you can access. We’ll ask you to confirm it before your first sign-in.'
       :'Use the email address and password linked to your Sellbook account.';
