@@ -2576,7 +2576,7 @@ async function completePendingGoogleSecurityReauth(){
       sessionStorage.removeItem('sellbook-pin-reset-after-auth');
       await supabaseClient.auth.signOut({scope:'local'}).catch(()=>{});
       refreshAccountStatus();
-      cloudMessage('Google sign-in used a different account. Sign in with the same Google account linked to your Sellbook account, then try again.');
+      showToast('Google sign-in used a different account. Sign in with the same Google account linked to your Sellbook account, then try again.','error');
       return;
     }
     if(!user.email_confirmed_at||String(user.email||'').toLowerCase()!==pending.email.toLowerCase()){
@@ -2619,13 +2619,11 @@ async function completePendingGoogleSecurityReauth(){
       return;
     }
     await handleCloudAuthChange();
-    {
-      showPage('settings-account');
+    showPage('settings-account');
       document.getElementById('accountManagePanel')?.classList.remove('hidden');
       document.getElementById('changeEmailForm')?.classList.remove('hidden');
       showToast('Google verification successful. Enter the new email address; Supabase will ask you to confirm it before it becomes active.','success');
       document.getElementById('newAccountEmail').focus();
-    }
   }catch(error){
     sessionStorage.removeItem(SECURITY_OAUTH_PENDING_KEY);
     if(pending.recovery)sessionStorage.removeItem('sellbook-pin-reset-after-auth');
@@ -2754,14 +2752,14 @@ function clearAccountEmailOtp(){
   if(sessionStorage.getItem('sellbook-pin-reset-after-auth')==='yes')showSecurityPinGate('verify','Email verification is required before Sellbook can reset your PIN.');
 }
 document.getElementById('changeEmailVerifyButton')?.addEventListener('click',async()=>{
-  const button=document.getElementById('changeEmailVerifyButton'),message=document.getElementById('settingsAccountMessage');
+  const button=document.getElementById('changeEmailVerifyButton');
   button.disabled=true;button.textContent='Sending verification code…';
   try{await requestAccountActionEmailOtp('change_email');}
   catch(error){showToast('Could not send the verification code: '+(error.message||'Please try again.'),'error');}
   finally{button.disabled=false;button.textContent='Verify current email';}
 });
 document.getElementById('changeSecurityPinButton')?.addEventListener('click',async()=>{
-  const button=document.getElementById('changeSecurityPinButton'),message=document.getElementById('settingsAccountMessage');
+  const button=document.getElementById('changeSecurityPinButton');
   button.disabled=true;button.textContent='Sending verification code…';
   try{await requestAccountActionEmailOtp('change_pin');}
   catch(error){showToast('Could not send the verification code: '+(error.message||'Please try again.'),'error');}
