@@ -131,7 +131,7 @@ async function saveCloudChangeLocally(type,payload,options={}) { return saveClou
 let statusPopupTimer=null;
 function inferToastType(message){
  const value=String(message||'').toLowerCase();
- if(/could not|cannot|can't|failed|failure|error|unable|not sent|not saved|not updated|not connected|incorrect|invalid|unavailable|expired|does not match|do not match|must be|enter exactly|choose at least|connect to the internet|blocked|denied/.test(value))return 'error';
+ if(/could not|cannot|can't|failed|failure|error|unable|not sent|not saved|not updated|not connected|incorrect|invalid|unavailable|expired|does not match|do not match|must be|enter exactly|choose at least|connect to the internet|blocked|denied|already exists|^choose\\b|^enter\\b|^select\\b|^provide\\b|^type\\b|^confirm\\b/.test(value))return 'error';
  if(/saved|created|sent|updated|approved|rejected|restored|deleted|verified|connected successfully|successfully|synchronised|synchronized|all changes|queued .*record|backup file created|notification published|message sent|account created|signed out|unlocked/.test(value))return 'success';
  return 'info';
 }
