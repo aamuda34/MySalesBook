@@ -3381,3 +3381,20 @@ body.dark #authPage #securityPinGate input{background:#fff;color:#17231c;border-
 @media(max-width:480px){
   #appWorkspace .record-entry-page>.card{padding:15px}
 }
+
+
+/* Record-entry tasks are focused standalone pages: hide the global seller chrome. */
+body.record-entry-page-open>.seller-welcome-header{display:none!important}
+body.record-entry-page-open #appWorkspace>nav,
+body.record-entry-page-open #quickSaleFab{display:none!important}
+body.record-entry-page-open #appWorkspace>main{padding-top:0!important}
+body.record-entry-page-open #record-sale,
+body.record-entry-page-open #record-product,
+body.record-entry-page-open #record-expense{
+  padding-top:14px!important;
+  padding-bottom:24px!important;
+}
+body.record-entry-page-open #appWorkspace>main>.record-entry-page{
+  min-height:calc(100vh - 32px);
+  min-height:calc(100dvh - 32px);
+}
