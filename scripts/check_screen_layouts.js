@@ -109,4 +109,10 @@ assert.ok(css.includes('--green:#14532d'), 'Sellbook green design token must rem
 assert.ok(css.includes('--page:#f3f6f3'), 'Sellbook page background token must remain unchanged.');
 assert.ok(css.includes('body.dark{'), 'Existing dark appearance support must remain present.');
 assert.ok(!layer.includes('display:none!important'), 'Layout layer must not hide app controls or pages.');
+
+const spacingLayer = css.slice(css.lastIndexOf('/* Final spacing and scroll-safety refinement'));
+assert.ok(spacingLayer.includes('#me.me-page{'), 'Me page spacing refinements are missing.');
+assert.ok(spacingLayer.includes('#me .me-footer-note{'), 'Me footer readability rules are missing.');
+assert.ok(spacingLayer.includes('padding:0 0 calc(32px + env(safe-area-inset-bottom, 0px))'), 'Me page must reserve room above bottom navigation.');
+assert.ok(spacingLayer.includes('#appWorkspace>main>.page{'), 'Shared pages must reserve scroll space.');
 console.log('PASS: all 30 app screens are present, screen-specific layouts are covered, responsive breakpoints are present, Sellbook themes are preserved and layout CSS is balanced.');
