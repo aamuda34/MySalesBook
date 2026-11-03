@@ -62,6 +62,7 @@ for (const token of [
   '#accountCard .auth-google-button',
   '#accountCard .auth-recovery-request',
   '#accountCard .auth-new-password-form',
+  '#accountCard:has(#emailAuthPanel:not(.hidden))>#authCardTitle',
   '#accountCard:has(#recoveryPasswordForm:not(.hidden))',
   'prefers-reduced-motion',
   '@media(max-width:380px)',
