@@ -101,7 +101,7 @@ let storageMode='memory';
 // Keep the last confirmed local snapshot so failed writes cannot leave unsaved edits visible.
 let lastSavedSnapshot=JSON.stringify(normalizeDb(db));
 function load(){try{const raw=localStorage.getItem(DBKEY);if(raw)db=normalizeDb(JSON.parse(raw));else db=normalizeDb(db);lastSavedSnapshot=JSON.stringify(db);storageMode='browser';}catch(e){db=normalizeDb(db);lastSavedSnapshot=JSON.stringify(db);storageMode='memory';}}
-function save(){try{db=normalizeDb(db);const serialized=JSON.stringify(db);localStorage.setItem(DBKEY,serialized);lastSavedSnapshot=serialized;storageMode='browser';return true;}catch(e){if(lastSavedSnapshot){try{db=normalizeDb(JSON.parse(lastSavedSnapshot));}catch(restoreError){console.error('Could not restore the last saved local records:',restoreError);}}storageMode=lastSavedSnapshot?'browser':'memory';render();alert('Could not save this change permanently. Your last successfully saved records have been restored. Check device storage and try again.');return false;}}
+function save(){try{db=normalizeDb(db);const serialized=JSON.stringify(db);localStorage.setItem(DBKEY,serialized);lastSavedSnapshot=serialized;storageMode='browser';return true;}catch(e){if(lastSavedSnapshot){try{db=normalizeDb(JSON.parse(lastSavedSnapshot));}catch(restoreError){console.error('Could not restore the last saved local records:',restoreError);}}storageMode=lastSavedSnapshot?'browser':'memory';render();showToast('Could not save this change permanently. Your last successfully saved records have been restored. Check device storage and try again.');return false;}}
 
 let cloudUser = null;
 let accountSessionEpoch = 0;
@@ -128,19 +128,57 @@ async function saveCloudChangesLocally(changes,options={}) {
 }
 async function saveCloudChangeLocally(type,payload,options={}) { return saveCloudChangesLocally([{type,payload}],options); }
 
-function cloudMessage(text){const el=document.getElementById('accountMessage'),settings=document.getElementById('settingsAccountMessage');if(el)el.textContent=text;if(settings)settings.textContent=text;}
 let statusPopupTimer=null;
-function showToast(message,type='info'){
+function inferToastType(message){
+ const value=String(message||'').toLowerCase();
+ if(/could not|cannot|can't|failed|failure|error|unable|not sent|not saved|not updated|not connected|incorrect|invalid|unavailable|expired|does not match|do not match|must be|enter exactly|choose at least|connect to the internet|blocked|denied/.test(value))return 'error';
+ if(/saved|created|sent|updated|approved|rejected|restored|deleted|verified|connected successfully|successfully|synchronised|synchronized|all changes|queued .*record|backup file created|notification published|message sent|account created|signed out|unlocked/.test(value))return 'success';
+ return 'info';
+}
+function dismissToast(){
+ const popup=document.getElementById('appStatusPopup');
+ if(!popup)return;
+ popup.classList.remove('visible');
+ popup.setAttribute('aria-hidden','true');
+ if(statusPopupTimer){clearTimeout(statusPopupTimer);statusPopupTimer=null;}
+}
+function showToast(message,type){
  const popup=document.getElementById('appStatusPopup');
  const text=String(message??'').trim();
  if(!popup||!text)return;
- const kind=['success','error','info'].includes(type)?type:'info';
- popup.textContent=text;popup.dataset.type=kind;
+ const kind=['success','error','info'].includes(type)?type:inferToastType(text);
+ const textNode=popup.querySelector('[data-toast-message]');
+ const icon=popup.querySelector('[data-toast-icon]');
+ // Keep the notification above native dialogs (PIN and email verification).
+ const activeDialog=document.querySelector('dialog[open]');
+ const destination=activeDialog||document.body;
+ if(popup.parentElement!==destination)destination.appendChild(popup);
+ if(textNode){textNode.textContent='';textNode.textContent=text;}else popup.textContent=text;
+ if(icon)icon.textContent=kind==='error'?'!':kind==='success'?'✓':'i';
+ popup.dataset.type=kind;
+ popup.setAttribute('role',kind==='error'?'alert':'status');
+ popup.setAttribute('aria-live',kind==='error'?'assertive':'polite');
+ popup.setAttribute('aria-atomic','true');
+ popup.setAttribute('aria-hidden','false');
  popup.classList.remove('visible');
  void popup.offsetWidth;
  popup.classList.add('visible');
  if(statusPopupTimer)clearTimeout(statusPopupTimer);
- statusPopupTimer=setTimeout(()=>{popup.classList.remove('visible');statusPopupTimer=null;},5000);
+ const duration=kind==='error'?10000:kind==='success'?4800:6500;
+ statusPopupTimer=setTimeout(dismissToast,duration);
+}
+function notifyStatus(target,message,type){
+ const element=typeof target==='string'?document.getElementById(target):target;
+ const value=String(message??'').trim();
+ if(element)element.textContent=value;
+ if(value)showToast(value,type);
+}
+function cloudMessage(text,type){
+ const value=String(text??'');
+ const el=document.getElementById('accountMessage'),settings=document.getElementById('settingsAccountMessage');
+ if(el)el.textContent=value;
+ if(settings)settings.textContent=value;
+ if(value.trim())showToast(value,type);
 }
 
 
@@ -705,7 +743,7 @@ async function recheckSellbookPinStatus(){
   // only until the previously-issued server expiry timer fires.
   if(navigator.onLine){
    lockSellbookForPin('Sellbook could not confirm your PIN session. Reconnect and verify your PIN again.');
-   document.getElementById('securityPinMessage').textContent=error.message||'PIN verification service is unavailable.';
+   notifyStatus('securityPinMessage',error.message||'PIN verification service is unavailable.','error');
   }
  }finally{
   securityPinStatusCheckInFlight=false;
@@ -780,7 +818,7 @@ function showSecurityPinGate(mode='verify',message=''){
   input.autocomplete='current-password';
  }
  input.value='';confirmInput.value='';
- document.getElementById('securityPinMessage').textContent=message||'';
+ notifyStatus('securityPinMessage',message||'');
  setTimeout(()=>input.focus(),40);
 }
 function hideSecurityPinGate(){
@@ -793,7 +831,7 @@ async function ensureSellbookPinAccess(){
   showSecurityPinGate('verify','Verify your registered email address to reset your Sellbook PIN.');
   if(!accountEmailOtpState&&!accountEmailOtpBusy){
    requestAccountActionEmailOtp('change_pin').catch(error=>{
-    document.getElementById('securityPinMessage').textContent='Could not send the email verification code: '+(error.message||'Please retry PIN recovery.');
+    notifyStatus('securityPinMessage','Could not send the email verification code: '+(error.message||'Please retry PIN recovery.'),'error');
    });
   }
   return false;
@@ -828,10 +866,10 @@ document.getElementById('securityPinForm')?.addEventListener('submit',async even
  const confirmation=document.getElementById('securityPinConfirm').value;
  const status=document.getElementById('securityPinMessage');
  const button=document.getElementById('securityPinSubmit');
- if(pin.length!==6||!Array.from(pin).every(ch=>ch>='0'&&ch<='9')){status.textContent='Enter exactly six digits.';return;}
- if((securityPinGateMode==='setup'||securityPinGateMode==='change')&&pin!==confirmation){status.textContent='The two PIN entries do not match.';return;}
+ if(pin.length!==6||!Array.from(pin).every(ch=>ch>='0'&&ch<='9')){notifyStatus(status,'Enter exactly six digits.','error');return;}
+ if((securityPinGateMode==='setup'||securityPinGateMode==='change')&&pin!==confirmation){notifyStatus(status,'The two PIN entries do not match.','error');return;}
  button.disabled=true;button.textContent=(securityPinGateMode==='setup'||securityPinGateMode==='change')?'Saving…':'Verifying…';
- status.textContent='Checking your PIN securely…';
+ notifyStatus(status,'Checking your PIN securely…','info');
  try{
   const settingPin=securityPinGateMode==='setup'||securityPinGateMode==='change';
   const {data,error}=await supabaseClient.rpc(settingPin?'set_app_pin':'verify_app_pin',{p_pin:pin});
@@ -839,7 +877,7 @@ document.getElementById('securityPinForm')?.addEventListener('submit',async even
   if(data?.requires_setup===true){showSecurityPinGate('setup','Create a new six-digit PIN to secure this account.');return;}
   if(data?.verified!==true){
    const locked=data?.locked_until?(' Locked until '+new Date(data.locked_until).toLocaleTimeString()+'.'):'';
-   status.textContent=(data?.message||'The PIN could not be verified.')+(Number.isFinite(Number(data?.attempts_remaining))?' Attempts remaining: '+data.attempts_remaining+'.':'')+locked;
+   notifyStatus(status,(data?.message||'The PIN could not be verified.')+(Number.isFinite(Number(data?.attempts_remaining))?' Attempts remaining: '+data.attempts_remaining+'.':'')+locked,'error');
    return;
   }
   document.getElementById('securityPinForm').reset();
@@ -847,27 +885,27 @@ document.getElementById('securityPinForm')?.addEventListener('submit',async even
   hideSecurityPinGate();
   await handleCloudAuthChange();
  }catch(error){
-  status.textContent='PIN operation failed: '+(error.message||'Please try again.');
+  notifyStatus(status,'PIN operation failed: '+(error.message||'Please try again.'),'error');
  }finally{
   button.disabled=false;
   button.textContent=(securityPinGateMode==='setup'||securityPinGateMode==='change')?(securityPinGateMode==='setup'?'Create PIN':'Save new PIN'):'Unlock Sellbook';
  }
 });
 document.getElementById('securityPinForgot')?.addEventListener('click',async()=>{
- if(!supabaseClient||!navigator.onLine){document.getElementById('securityPinMessage').textContent='Connect to the internet before resetting your PIN.';return;}
+ if(!supabaseClient||!navigator.onLine){notifyStatus('securityPinMessage','Connect to the internet before resetting your PIN.','error');return;}
  const button=document.getElementById('securityPinForgot');button.disabled=true;
- document.getElementById('securityPinMessage').textContent='Signing out so you can securely sign in again…';
+ notifyStatus('securityPinMessage','Signing out so you can securely sign in again…','info');
  try{
   sessionStorage.setItem('sellbook-pin-reset-after-auth','yes');
   const {error}=await supabaseClient.auth.signOut({scope:'local'});
   if(error)throw error;
   hideSecurityPinGate();
   document.getElementById('accountCard')?.classList.remove('hidden');
-  document.getElementById('accountMessage').textContent='Sign in again with Google or email to reset your PIN. The reset is allowed only immediately after a fresh sign-in.';
+  cloudMessage('Sign in again with Google or email to reset your PIN. The reset is allowed only immediately after a fresh sign-in.','info');
   await refreshAccountStatus();
  }catch(error){
   sessionStorage.removeItem('sellbook-pin-reset-after-auth');
-  document.getElementById('securityPinMessage').textContent='Could not start PIN recovery: '+(error.message||'Please try again.');
+  notifyStatus('securityPinMessage','Could not start PIN recovery: '+(error.message||'Please try again.'),'error');
  }finally{button.disabled=false;}
 });
 // Existing PIN changes are started only after successful email OTP verification.
@@ -1033,7 +1071,7 @@ async function handleCloudAuthChange() {
       document.getElementById('appWorkspace').classList.add('hidden');
       document.getElementById('accountCard').classList.add('hidden');
       showSecurityPinGate('verify','Sellbook could not confirm this session\'s PIN status. Reconnect and verify again.');
-      document.getElementById('securityPinMessage').textContent=err.message||'PIN verification service is unavailable.';
+      notifyStatus('securityPinMessage',err.message||'PIN verification service is unavailable.','error');
       coreWorkspaceLoaded = true;
       finishStartup();
       console.error('Sellbook PIN gate check failed:',err);
@@ -1179,12 +1217,12 @@ document.getElementById('buybookConnectionForm')?.addEventListener('submit',asyn
  }catch(err){message.textContent='Could not connect: '+(err.message||'Please try again when online.');console.error('Buybook connection error:',err);}finally{button.disabled=false;}
 });
 document.getElementById('buybookDisconnectButton')?.addEventListener('click',async()=>{
- if(!cloudUser){alert('Sign in to Sellbook first.');return;}if(!confirm('Disconnect your shop from Buybook? Your Sellbook records will remain unchanged.'))return;
+ if(!cloudUser){showToast('Sign in to Sellbook first.');return;}if(!confirm('Disconnect your shop from Buybook? Your Sellbook records will remain unchanged.'))return;
  const message=document.getElementById('buybookConnectionMessage');try{const user=await requireCloudUser();const {error}=await supabaseClient.from('marketplace_shops').update({is_connected:false}).eq('owner_id',user.id);if(error)throw error;const sync=await supabaseClient.rpc('sync_owner_marketplace_listings',{p_owner_id:user.id});if(sync.error)throw sync.error;message.textContent='Disconnected. Your products are no longer listed on Buybook. Sellbook records remain unchanged.';await loadBuybookConnection();}catch(err){message.textContent='Could not disconnect: '+(err.message||'Please try again.');}
 });
 async function cloudAction(action) {
   if (cloudBusy) {
-    alert('Please wait for the current cloud operation to finish.');
+    showToast('Please wait for the current cloud operation to finish.');
     return false;
   }
   cloudBusy = true;
@@ -1192,7 +1230,7 @@ async function cloudAction(action) {
     await action();
     return true;
   } catch (err) {
-    alert('Cloud operation failed: ' + (err.message || String(err)));
+    showToast('Cloud operation failed: ' + (err.message || String(err)));
     console.error(err);
     return false;
   } finally {
@@ -1598,11 +1636,11 @@ async function retryReservationNotification(id,button){
   const result=await supabaseClient.functions.invoke('notify-reservation-decision',{body:{reservation_id:id,decision}});
   if(!current())return;
   if(result.error)throw result.error;
-  if(typeof showToast==='function')showToast('Buyer notification sent.');else alert('Buyer notification sent.');
+  if(typeof showToast==='function')showToast('Buyer notification sent.');else showToast('Buyer notification sent.');
   if(button){button.textContent='Notification sent';button.disabled=true;}
  }catch(err){
   if(!current())return;
-  if(typeof showToast==='function')showToast('Notification could not be sent. Please try again.');else alert('Notification could not be sent: '+(err.message||'Please try again.'));
+  if(typeof showToast==='function')showToast('Notification could not be sent. Please try again.');else showToast('Notification could not be sent: '+(err.message||'Please try again.'));
   if(button){button.disabled=false;button.textContent=original||'Resend buyer notification';}
  }
 }
@@ -1638,8 +1676,8 @@ async function updateReservationDecision(id,decision,button){
   showReservationDetails(id,{history:false});
   const message=(decision==='approved'?'Reservation approved.':'Reservation rejected.')+(notificationFailed?' Buyer notification could not be sent; please try again later.':' Buyer notification sent.');
   if(typeof showToast==='function')showToast(message);
-  else alert(message);
- }catch(err){if(current())alert('Could not update reservation: '+(err.message||'Please try again.'));if(button){button.disabled=false;button.textContent=original||'Try again';}}
+  else showToast(message);
+ }catch(err){if(current())showToast('Could not update reservation: '+(err.message||'Please try again.'));if(button){button.disabled=false;button.textContent=original||'Try again';}}
 }
 function showReservationDetails(id,options={}){
  const r=marketplaceReservationsCache.find(x=>String(x.id)===String(id));if(!r)return;marketplaceSelectedReservationId=r.id;
@@ -2031,13 +2069,13 @@ document.getElementById('restockForm').addEventListener('submit',async e=>{
  try {
  const p=db.products.find(x=>x.id===document.getElementById('restockProduct').value);
  const purchaseQuantity=Number(document.getElementById('restockPurchaseQty').value),purchaseUnit=document.getElementById('restockPurchaseUnit').value.trim(),unitsPerPurchase=Number(document.getElementById('restockUnitsPerPurchase').value),costPerPurchaseUnit=Number(document.getElementById('restockCostPerPurchase').value);
- if(!p)return alert('Choose a product.');
- if(!Number.isSafeInteger(purchaseQuantity)||purchaseQuantity<1||!purchaseUnit||purchaseUnit.length>30||!Number.isSafeInteger(unitsPerPurchase)||unitsPerPurchase<1||!Number.isFinite(costPerPurchaseUnit)||costPerPurchaseUnit<0)return alert('Check the purchase quantity, unit, units per purchase, and cost.');
- if(purchaseQuantity>Math.floor(2000000000/unitsPerPurchase))return alert('This purchase quantity is too large.');
+ if(!p)return showToast('Choose a product.');
+ if(!Number.isSafeInteger(purchaseQuantity)||purchaseQuantity<1||!purchaseUnit||purchaseUnit.length>30||!Number.isSafeInteger(unitsPerPurchase)||unitsPerPurchase<1||!Number.isFinite(costPerPurchaseUnit)||costPerPurchaseUnit<0)return showToast('Check the purchase quantity, unit, units per purchase, and cost.');
+ if(purchaseQuantity>Math.floor(2000000000/unitsPerPurchase))return showToast('This purchase quantity is too large.');
  const baseQuantity=purchaseQuantity*unitsPerPurchase;
- let totalCost;try{totalCost=roundMoney(purchaseQuantity*costPerPurchaseUnit);}catch(error){return alert(error.message||'Purchase cost is too large.');}
+ let totalCost;try{totalCost=roundMoney(purchaseQuantity*costPerPurchaseUnit);}catch(error){return showToast(error.message||'Purchase cost is too large.');}
  const newStock=p.stock+baseQuantity;
- if(!Number.isSafeInteger(baseQuantity)||!Number.isSafeInteger(newStock)||newStock>2000000000||!Number.isFinite(totalCost))return alert('This purchase quantity is too large.');
+ if(!Number.isSafeInteger(baseQuantity)||!Number.isSafeInteger(newStock)||newStock>2000000000||!Number.isFinite(totalCost))return showToast('This purchase quantity is too large.');
  const baseCost=Math.round((totalCost/baseQuantity+Number.EPSILON)*10000)/10000,averageCostAfter=p.stock>0?Math.round((((p.stock*p.cost+baseQuantity*baseCost)/newStock)+Number.EPSILON)*10000)/10000:baseCost;
  if(!confirm('Record purchase of '+purchaseQuantity+' '+purchaseUnit+' for '+money(totalCost)+'? This adds '+baseQuantity+' units and updates average cost.'))return;
  const restock={id:crypto.randomUUID(),productId:p.id,productName:p.name,purchaseQuantity,purchaseUnit,unitsPerPurchase,costPerPurchaseUnit,date:now(),previousStock:p.stock,newStock,baseQuantity,totalCost,averageCostAfter};db.restocks.push(restock);
@@ -2070,13 +2108,13 @@ document.getElementById('restockForm').addEventListener('submit',async e=>{
    refreshStockHistoryBadges();
   }
   e.target.reset();document.getElementById('restockPurchaseQty').value=1;document.getElementById('restockUnitsPerPurchase').value=1;document.getElementById('restockPurchaseUnit').value='unit';updateRestockPreview();
-  alert(cloudUser&&pendingSync.some(item=>item.type==='stock_restock'&&item.payload?.restock?.id===restock.id)
+  showToast(cloudUser&&pendingSync.some(item=>item.type==='stock_restock'&&item.payload?.restock?.id===restock.id)
    ? 'Restock saved on this phone. Cloud synchronization is still pending.'
    : 'Restock recorded and saved.');
- }catch(err){p.stock=oldStock;p.cost=oldCost;db.restocks=db.restocks.filter(item=>item.id!==restock.id);render();alert('Restock could not be saved: '+(err.message||String(err)));}
+ }catch(err){p.stock=oldStock;p.cost=oldCost;db.restocks=db.restocks.filter(item=>item.id!==restock.id);render();showToast('Restock could not be saved: '+(err.message||String(err)));}
  } finally {restockSubmitting=false;if(submitButton)submitButton.disabled=false;}
 });
-document.getElementById('stockAdjustmentForm').addEventListener('submit',async e=>{e.preventDefault();const p=db.products.find(x=>x.id===document.getElementById('adjustProduct').value),next=Number(document.getElementById('adjustNewStock').value),reason=document.getElementById('adjustReason').value.trim();if(!p)return alert('Choose a product first.');if(!Number.isSafeInteger(next)||next<0||next>2000000000)return alert('Enter a whole-number stock quantity between 0 and 2,000,000,000.');if(next===p.stock)return alert('The new stock quantity is the same as the current quantity.');if(!confirm('Change '+p.name+' stock from '+p.stock+' to '+next+' units?'))return;const old=p.stock,oldVersion=p.updatedAt,a={id:crypto.randomUUID(),productId:p.id,productName:p.name,previousStock:old,newStock:next,quantityChange:next-old,reason,date:now()};p.stock=next;if(cloudUser){try{db.stockAdjustments.push(a);await saveCloudChangesLocally([{type:'product_save',payload:{product:{...p},isNew:false}},{type:'stock_adjustment',payload:{adjustment:a}}]);}catch(err){p.stock=old;p.updatedAt=oldVersion;db.stockAdjustments=db.stockAdjustments.filter(x=>x.id!==a.id);render();return alert(err.message||String(err));}}else{db.stockAdjustments.push(a);if(!save()){p.stock=old;db.stockAdjustments.pop();return;}render();}document.getElementById('adjustReason').value='';alert('Stock adjustment saved.');});
+document.getElementById('stockAdjustmentForm').addEventListener('submit',async e=>{e.preventDefault();const p=db.products.find(x=>x.id===document.getElementById('adjustProduct').value),next=Number(document.getElementById('adjustNewStock').value),reason=document.getElementById('adjustReason').value.trim();if(!p)return showToast('Choose a product first.');if(!Number.isSafeInteger(next)||next<0||next>2000000000)return showToast('Enter a whole-number stock quantity between 0 and 2,000,000,000.');if(next===p.stock)return showToast('The new stock quantity is the same as the current quantity.');if(!confirm('Change '+p.name+' stock from '+p.stock+' to '+next+' units?'))return;const old=p.stock,oldVersion=p.updatedAt,a={id:crypto.randomUUID(),productId:p.id,productName:p.name,previousStock:old,newStock:next,quantityChange:next-old,reason,date:now()};p.stock=next;if(cloudUser){try{db.stockAdjustments.push(a);await saveCloudChangesLocally([{type:'product_save',payload:{product:{...p},isNew:false}},{type:'stock_adjustment',payload:{adjustment:a}}]);}catch(err){p.stock=old;p.updatedAt=oldVersion;db.stockAdjustments=db.stockAdjustments.filter(x=>x.id!==a.id);render();return showToast(err.message||String(err));}}else{db.stockAdjustments.push(a);if(!save()){p.stock=old;db.stockAdjustments.pop();return;}render();}document.getElementById('adjustReason').value='';showToast('Stock adjustment saved.');});
 
 function updateSalePrice(){
  const p=db.products.find(x=>x.id===document.getElementById('saleProduct').value);
@@ -2140,12 +2178,12 @@ async function handleImageSelection(event){
    if(!p)return;
    if(cloudUser){
     const updated={...p,image};
-    try { await saveCloudChangeLocally('product_save',{product:updated,isNew:false}); alert('Product photo saved on this device and queued for sync.'); }
-    catch(err){ alert(err.message || String(err)); }
+    try { await saveCloudChangeLocally('product_save',{product:updated,isNew:false}); showToast('Product photo saved on this device and queued for sync.'); }
+    catch(err){ showToast(err.message || String(err)); }
    }else{
     const oldImage=p.image,oldPath=p.imagePath;
     p.image=image;
-    if(save()){render();alert('Product photo updated.');}
+    if(save()){render();showToast('Product photo updated.');}
     else{p.image=oldImage;p.imagePath=oldPath;}
    }
    imageTargetId=null;
@@ -2158,7 +2196,7 @@ async function handleImageSelection(event){
    document.getElementById('photoStatus').textContent='Photo selected and compressed. It will be saved with the product.';
   }
  }catch(err){
-  alert(err.message||'Could not use that photo.');
+  showToast(err.message||'Could not use that photo.');
   imageTargetId=null;
  }finally{
   input.value='';
@@ -2214,28 +2252,28 @@ document.getElementById('productForm').addEventListener('submit',async e=>{
  const unitsPerPackInput=productSellingType==='pack'?Number(document.getElementById('punitsperpack').value):1;
  const cost=productSellingType==='pack'?enteredCost/unitsPerPackInput:enteredCost;
  const stock=productSellingType==='pack'?enteredStock*unitsPerPackInput:enteredStock;
- if(!name||name.length>100||!Number.isFinite(enteredCost)||enteredCost<0||enteredCost>MAX_MONEY||!Number.isFinite(cost)||cost<0||cost>MAX_MONEY||!Number.isFinite(price)||price<=0||price>MAX_MONEY||!Number.isSafeInteger(enteredStock)||enteredStock<0||!Number.isSafeInteger(stock)||stock<0||stock>2000000000)return alert('Check the product name, prices and stock quantity.');
- if(db.products.some(p=>p.name.toLowerCase()===name.toLowerCase()))return alert('A product with this name already exists.');
+ if(!name||name.length>100||!Number.isFinite(enteredCost)||enteredCost<0||enteredCost>MAX_MONEY||!Number.isFinite(cost)||cost<0||cost>MAX_MONEY||!Number.isFinite(price)||price<=0||price>MAX_MONEY||!Number.isSafeInteger(enteredStock)||enteredStock<0||!Number.isSafeInteger(stock)||stock<0||stock>2000000000)return showToast('Check the product name, prices and stock quantity.');
+ if(db.products.some(p=>p.name.toLowerCase()===name.toLowerCase()))return showToast('A product with this name already exists.');
  const category=normalizeCategory(getSelectedCategories('product').join(' | '));
- if(!getSelectedCategories('product').length)return alert('Choose at least one product category. You can select up to three.');
+ if(!getSelectedCategories('product').length)return showToast('Choose at least one product category. You can select up to three.');
  const baseUnit=((productSellingType==='pack'?document.getElementById('pbaseunitPack').value:document.getElementById('pbaseunit').value).trim()||'unit');
  const packUnit=productSellingType==='pack'?document.getElementById('ppackunit').value.trim():'';
  const unitsPerPack=productSellingType==='pack'?Number(document.getElementById('punitsperpack').value):1;
  const packPriceRaw=productSellingType==='pack'?document.getElementById('ppackprice').value.trim():'';
  const packPrice=packPriceRaw===''?null:Number(packPriceRaw);
- if(productSellingType==='pack'&&(!packUnit||!Number.isSafeInteger(unitsPerPack)||unitsPerPack<1||!Number.isFinite(packPrice)||packPrice<=0||packPrice>MAX_MONEY))return alert('Enter a pack name, the number of individual units in each pack, and a valid pack selling price.');
+ if(productSellingType==='pack'&&(!packUnit||!Number.isSafeInteger(unitsPerPack)||unitsPerPack<1||!Number.isFinite(packPrice)||packPrice<=0||packPrice>MAX_MONEY))return showToast('Enter a pack name, the number of individual units in each pack, and a valid pack selling price.');
  const product={id:crypto.randomUUID(),name,category,cost,price,stock,baseUnit,packUnit,unitsPerPack,packPrice,image:pendingProductImage,createdAt:now()};
  const addition=productCreationSnapshot(product);
  if(cloudUser){
    db.productAdditions=db.productAdditions||[];db.productAdditions.push(addition);
    try { await saveCloudChangeLocally('product_save',{product,isNew:true}); }
-   catch(err){db.productAdditions=db.productAdditions.filter(x=>String(x.productId||x.id)!==String(product.id));return alert(err.message || String(err));}
+   catch(err){db.productAdditions=db.productAdditions.filter(x=>String(x.productId||x.id)!==String(product.id));return showToast(err.message || String(err));}
  }else{
    db.products.push(product);db.productAdditions=db.productAdditions||[];db.productAdditions.push(addition);
    if(!save())return;
    render();
  }
- e.target.reset();clearPendingPhoto();alert('Product saved.');
+ e.target.reset();clearPendingPhoto();showToast('Product saved.');
 });
 
 
@@ -2302,8 +2340,8 @@ function closeProductEditor() {
 document.getElementById('deleteEditedProduct').addEventListener('click',async()=>{
   const id=document.getElementById('editProductId').value;
   const product=db.products.find(x=>x.id===id);
-  if(!product)return alert('This product could not be found.');
-  if(db.sales.some(sale=>sale.productId===id))return alert('This product has sales history and cannot be deleted. You can edit its details instead.');
+  if(!product)return showToast('This product could not be found.');
+  if(db.sales.some(sale=>sale.productId===id))return showToast('This product has sales history and cannot be deleted. You can edit its details instead.');
   if(!confirm('Delete '+product.name+'? This cannot be undone.'))return;
   const button=document.getElementById('deleteEditedProduct');
   button.disabled=true;
@@ -2320,8 +2358,8 @@ document.getElementById('deleteEditedProduct').addEventListener('click',async()=
       render();
     }
     closeProductEditor();
-    alert('Product deleted.');
-  }catch(err){alert(err.message||String(err));}
+    showToast('Product deleted.');
+  }catch(err){showToast(err.message||String(err));}
   finally{button.disabled=false;}
 });
 document.getElementById('cancelEditProduct').addEventListener('click',closeProductEditor);
@@ -2338,7 +2376,7 @@ async function handleEditProductImageSelection(event){
     editRemoveProductImage=false;
     const product=db.products.find(x=>x.id===document.getElementById('editProductId').value);
     updateEditProductPhotoPreview(product);
-  }catch(err){alert(err.message||'Could not use that photo.');}
+  }catch(err){showToast(err.message||'Could not use that photo.');}
   finally{input.value='';}
 }
 document.getElementById('editProductCamera').addEventListener('change',handleEditProductImageSelection);
@@ -2355,17 +2393,17 @@ document.getElementById('editProductForm').addEventListener('submit',async event
   event.preventDefault();
   const id=document.getElementById('editProductId').value;
   const product=db.products.find(x=>x.id===id);
-  if(!product)return alert('This product could not be found. Close the form and try again.');
+  if(!product)return showToast('This product could not be found. Close the form and try again.');
   const name=document.getElementById('editProductName').value.trim();
   const category=normalizeCategory(getSelectedCategories('editProduct').join(' | '));
-  if(!getSelectedCategories('editProduct').length)return alert('Choose at least one product category. You can select up to three.');
+  if(!getSelectedCategories('editProduct').length)return showToast('Choose at least one product category. You can select up to three.');
   const cost=Number(document.getElementById('editProductCost').value);
   const price=Number(document.getElementById('editProductPrice').value);
   const stock=Number(document.getElementById('editProductStock').value);
   if(!name||name.length>100||!Number.isFinite(cost)||cost<0||!Number.isFinite(price)||price<=0||!Number.isSafeInteger(stock)||stock<0||stock>2000000000||cost>MAX_MONEY||price>MAX_MONEY){
-    return alert('Enter a product name, a cost price of zero or more, a selling price above zero, and a whole-number stock quantity of zero or more.');
+    return showToast('Enter a product name, a cost price of zero or more, a selling price above zero, and a whole-number stock quantity of zero or more.');
   }
-  if(db.products.some(x=>x.id!==id&&x.name.trim().toLowerCase()===name.toLowerCase()))return alert('Another product already has this name.');
+  if(db.products.some(x=>x.id!==id&&x.name.trim().toLowerCase()===name.toLowerCase()))return showToast('Another product already has this name.');
   const updated={...product,name,category,cost,price,stock};
   if(editPendingProductImage)updated.image=editPendingProductImage;
   else if(editRemoveProductImage){updated.image='';updated.imagePath='';}
@@ -2394,7 +2432,7 @@ document.getElementById('editProductForm').addEventListener('submit',async event
         render();
         updateSyncStatus();
         saved=true;
-      } catch(err) { alert(err.message || String(err)); }
+      } catch(err) { showToast(err.message || String(err)); }
     }else{
       const old={...product};
       Object.assign(product,updated);
@@ -2407,7 +2445,7 @@ document.getElementById('editProductForm').addEventListener('submit',async event
         Object.assign(product,old);
       }
     }
-    if(saved){closeProductEditor();alert(stockChanged?'Product updated and stock adjustment recorded.':'Product details updated successfully.');}
+    if(saved){closeProductEditor();showToast(stockChanged?'Product updated and stock adjustment recorded.':'Product details updated successfully.');}
   }finally{
     document.getElementById('saveEditProduct').disabled=false;
   }
@@ -2445,7 +2483,7 @@ document.getElementById('productList').addEventListener('click',async e=>{
       const old = {...p};
       p.image=''; p.offlineImage=''; p.imagePath='';
       await saveCloudChangeLocally('product_remove_image',{product:old});
-    } catch(err){ alert(err.message || String(err)); }
+    } catch(err){ showToast(err.message || String(err)); }
   }else{
     const oldImage=p.image,oldPath=p.imagePath;
     delete p.image;delete p.imagePath;
@@ -2456,13 +2494,13 @@ document.getElementById('productList').addEventListener('click',async e=>{
  if(button.dataset.edit){
   openProductEditor(p);
  }else if(button.dataset.delete){
-  if(db.sales.some(s=>s.productId===id))return alert('This product has sales history. Edit it instead of deleting it.');
+  if(db.sales.some(s=>s.productId===id))return showToast('This product has sales history. Edit it instead of deleting it.');
   if(confirm('Delete '+p.name+'?')){
     if(cloudUser){
       const oldProducts=db.products;
       db.products=db.products.filter(x=>x.id!==id);
       try { await saveCloudChangeLocally('product_delete',{product:p}); }
-      catch(err){ db.products=oldProducts; render(); alert(err.message || String(err)); }
+      catch(err){ db.products=oldProducts; render(); showToast(err.message || String(err)); }
     }else{
       db.products=db.products.filter(x=>x.id!==id);if(save())render();
     }
@@ -2491,10 +2529,10 @@ document.getElementById('saleForm').addEventListener('submit',async e=>{
  try {
  const p=db.products.find(x=>x.id===document.getElementById('saleProduct').value);
  const qty=Number(document.getElementById('saleQty').value),price=Number(document.getElementById('salePrice').value),note=document.getElementById('saleNote').value.trim(),saleAsPack=document.getElementById('saleUnit').value==='pack',unitsPerSale=saleAsPack?Number(p?.unitsPerPack||1):1,baseQty=qty*unitsPerSale,saleUnit=saleAsPack?p?.packUnit:(p?.baseUnit||'unit');
- if(!p)return alert('Choose a product.');
- if(!Number.isSafeInteger(qty)||qty<1||!Number.isSafeInteger(baseQty)||baseQty>2000000000||baseQty>p.stock)return alert('Quantity must be a whole number and cannot exceed available stock.');
- if(!Number.isFinite(price)||price<=0||price>MAX_MONEY)return alert('Enter a valid selling price.');
- if(note.length>150)return alert('Sale note must be 150 characters or fewer.');
+ if(!p)return showToast('Choose a product.');
+ if(!Number.isSafeInteger(qty)||qty<1||!Number.isSafeInteger(baseQty)||baseQty>2000000000||baseQty>p.stock)return showToast('Quantity must be a whole number and cannot exceed available stock.');
+ if(!Number.isFinite(price)||price<=0||price>MAX_MONEY)return showToast('Enter a valid selling price.');
+ if(note.length>150)return showToast('Sale note must be 150 characters or fewer.');
  const amounts=calculateSaleAmounts(qty,price,p.cost,unitsPerSale),total=amounts.total;
  if(!confirm('Record this paid sale for '+money(total)+'?'))return;
  if(cloudUser){
@@ -2504,7 +2542,7 @@ document.getElementById('saleForm').addEventListener('submit',async e=>{
    p.stock-=baseQty;
    db.sales.push(sale);
    try { await saveCloudChangeLocally('sale',{sale,productUpdatedAt}); }
-   catch(err){ p.stock+=baseQty; db.sales=db.sales.filter(x=>x.id!==sale.id); render(); return alert(err.message || String(err)); }
+   catch(err){ p.stock+=baseQty; db.sales=db.sales.filter(x=>x.id!==sale.id); render(); return showToast(err.message || String(err)); }
  }else{
    const saleCost=amounts.cost,profit=amounts.profit;
    p.stock-=baseQty;
@@ -2512,26 +2550,26 @@ document.getElementById('saleForm').addEventListener('submit',async e=>{
    if(!save())return;
    render();
  }
- e.target.reset();document.getElementById('saleQty').value=1;alert('Sale recorded and stock updated.');
+ e.target.reset();document.getElementById('saleQty').value=1;showToast('Sale recorded and stock updated.');
  } finally {saleSubmitting=false;if(submitButton)submitButton.disabled=false;}
 });
 
 document.getElementById('expenseForm').addEventListener('submit',async e=>{
  e.preventDefault();
  const name=document.getElementById('ename').value.trim(),amount=Number(document.getElementById('eamount').value);
- if(!name||!Number.isFinite(amount)||amount<=0)return alert('Enter a description and valid amount.');
+ if(!name||!Number.isFinite(amount)||amount<=0)return showToast('Enter a description and valid amount.');
  const rounded=roundMoney(amount);
  if(cloudUser){
    const expense={id:crypto.randomUUID(),name,amount:rounded,date:now()};
    db.expenses.push(expense);
    try { await saveCloudChangeLocally('expense',{expense}); }
-   catch(err){ db.expenses=db.expenses.filter(x=>x.id!==expense.id); render(); return alert(err.message || String(err)); }
+   catch(err){ db.expenses=db.expenses.filter(x=>x.id!==expense.id); render(); return showToast(err.message || String(err)); }
  }else{
    db.expenses.push({id:crypto.randomUUID(),name,amount:rounded,date:now()});
    if(!save())return;
    render();
  }
- e.target.reset();alert('Expense saved.');
+ e.target.reset();showToast('Expense saved.');
 });
 
 const BACKUP_STATUS_KEY='my-sales-book-last-backup-v1';
@@ -2562,8 +2600,8 @@ document.getElementById('importFile').addEventListener('change',async e=>{
   if(!d||!Array.isArray(d.products)||!Array.isArray(d.sales)||!Array.isArray(d.expenses))throw Error('Invalid backup format.');
   if(cloudUser)throw Error('Backup restore is currently available only in local mode. Sign out of your cloud account before restoring a local backup. This prevents a local restore from being mistaken for a cloud restore.');
   if(!confirm('Replace all current records with this backup?'))return;
-  db=normalizeDb(d);if(save()){render();alert('Backup restored.');}
- }catch(err){alert('Could not restore backup: '+err.message);}
+  db=normalizeDb(d);if(save()){render();showToast('Backup restored.');}
+ }catch(err){showToast('Could not restore backup: '+err.message);}
  finally{e.target.value='';}
 });
 let emailAuthMode = 'signin';
@@ -3534,7 +3572,7 @@ document.getElementById('deleteAccountPinForm')?.addEventListener('submit',async
 
 document.getElementById('businessProfileForm').addEventListener('submit',async event=>{
   event.preventDefault();if(!cloudUser)return cloudMessage('Sign in to save your business profile.');
-  const name=document.getElementById('businessNameInput').value.trim();if(!name)return alert('Enter your business name.');
+  const name=document.getElementById('businessNameInput').value.trim();if(!name)return showToast('Enter your business name.');
   const logoPending=document.getElementById('businessProfileForm').dataset.logoPending==='yes';
   const profile={businessName:name.slice(0,100),businessLogo:logoPending?(pendingBusinessLogo||''):getProfile().businessLogo||''};
   try{enqueueChange('profile_save',{profile});db.profile=profile;cacheCloudData(cloudUser.id);render();updateSyncStatus();if(navigator.onLine)await syncPendingChanges();document.getElementById('businessProfileForm').dataset.logoPending='';document.getElementById('businessLogoInput').value='';pendingBusinessLogo='';cloudMessage('Business profile saved.');}
@@ -3545,7 +3583,7 @@ const businessLogoInput=document.getElementById('businessLogoInput');const busin
   const file=e.target.files?.[0];if(!file)return;
   try{const data=await processProductImage(file);if(data.length>150000)throw Error('Logo image is too large. Choose a smaller image.');pendingBusinessLogo=data;document.getElementById('businessLogoPreview').src=data;document.getElementById('businessLogoPreview').style.display='block';document.getElementById('businessLogoHint').textContent='Logo selected. Save your business profile to apply it.';document.getElementById('businessProfileForm').dataset.logoPending='yes';
   let b=document.querySelector('[id="removeBusinessLogo"]');if(!b){b=document.createElement('button');b.type='button';b.id='removeBusinessLogo';b.textContent='Remove logo';b.style.marginTop='8px';document.getElementById('businessProfileForm').appendChild(b);b.addEventListener('click',()=>{pendingBusinessLogo='';document.getElementById('businessLogoPreview').removeAttribute('src');document.getElementById('businessLogoPreview').style.display='none';document.getElementById('businessLogoHint').textContent='Logo will be removed when you save.';document.getElementById('businessProfileForm').dataset.logoPending='yes';});}
-  }catch(err){alert(err.message||String(err));e.target.value='';}
+  }catch(err){showToast(err.message||String(err));e.target.value='';}
 });
 document.querySelectorAll('[data-default-markup]').forEach(b=>b.addEventListener('click',()=>{
  defaultMarkup=Number(b.dataset.defaultMarkup);
@@ -3559,7 +3597,7 @@ document.querySelectorAll('[data-default-markup]').forEach(b=>b.addEventListener
 document.querySelectorAll('[data-default-markup]').forEach(x=>{const yes=Number(x.dataset.defaultMarkup)===defaultMarkup;x.classList.toggle('selected',yes);x.setAttribute('aria-pressed',String(yes));});
 
 document.getElementById('lowStockThreshold').value=lowStockThreshold;
-document.getElementById('savePreferencesBtn').addEventListener('click',()=>{const n=Number(document.getElementById('lowStockThreshold').value);if(!Number.isSafeInteger(n)||n<0||n>100000)return alert('Enter a whole-number threshold from 0 to 100000.');lowStockThreshold=n;localStorage.setItem('my-sales-book-low-stock-v1',String(n));render();alert('Preferences saved on this device.');});
+document.getElementById('savePreferencesBtn').addEventListener('click',()=>{const n=Number(document.getElementById('lowStockThreshold').value);if(!Number.isSafeInteger(n)||n<0||n>100000)return showToast('Enter a whole-number threshold from 0 to 100000.');lowStockThreshold=n;localStorage.setItem('my-sales-book-low-stock-v1',String(n));render();showToast('Preferences saved on this device.');});
 
 document.getElementById('changeEmailForm').addEventListener('submit',async event=>{
   event.preventDefault();
@@ -3889,7 +3927,7 @@ async function loadAdminFeedback(){
   const {error}=await supabaseClient.from('user_feedback').update({status,admin_reply:reply||null,replied_at:reply?new Date().toISOString():null,updated_at:new Date().toISOString()}).eq('id',id);
   if(!adminRequestIsCurrent(requestedUserId,requestEpoch))return;
   b.disabled=false;
-  if(error){alert('Could not save feedback: '+error.message);return;}
+  if(error){showToast('Could not save feedback: '+error.message);return;}
   await loadAdminFeedback();
   if(cloudUser?.id===requestedUserId)await loadUserSupport();
  }));
