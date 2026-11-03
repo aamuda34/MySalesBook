@@ -732,6 +732,10 @@ async function ensureSellbookPinAccess(){
   }
   return false;
  }
+ if(hasPersistedSecurityPinLock()){
+  showSecurityPinGate('verify','Sellbook is locked. Enter your six-digit PIN to continue.');
+  return false;
+ }
  const {data,error}=await supabaseClient.rpc('get_app_pin_status');
  if(error)throw error;
  // No PIN is an enrollment state, not an unlocked state. The database RLS
