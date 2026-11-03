@@ -2585,6 +2585,7 @@ document.getElementById('toggleEmailAuth').addEventListener('click',()=>{
   document.getElementById('authPasswordHint').textContent=emailAuthMode==='signup'
     ?'At least 8 characters, including uppercase and lowercase letters, a number and a symbol.'
     :'Enter your account password.';
+  document.getElementById('authCardTitle').textContent=emailAuthMode==='signup'?'Create your account':'Sign in with email';
   document.getElementById('emailAuthSubmit').textContent=emailAuthMode==='signup'?'Create account':'Sign in with email';
   document.getElementById('toggleEmailAuth').textContent=emailAuthMode==='signup'?'Already have an account? Sign in':'New to Sellbook? Create an account';
   document.getElementById('emailAuthHeading').textContent=emailAuthMode==='signup'?'Create your Sellbook account':'Sign in with email';
@@ -2725,18 +2726,7 @@ accountRecoveryRequestForm?.addEventListener('submit', async event => {
   }
 });
 
-document.getElementById('resetPasswordBtn').addEventListener('click', async () => {
-  if (!supabaseClient) return cloudMessage('Account service is unavailable.');
-  const email = document.getElementById('authEmail').value.trim();
-  if (!email) return cloudMessage('Enter your registered email address first.');
-  try {
-    const { error } = await supabaseClient.auth.resetPasswordForEmail(email, { redirectTo: window.location.href });
-    if (error) throw error;
-    cloudMessage('If that email is registered, a password-reset link has been sent. Check your inbox and spam folder.');
-  } catch (error) {
-    cloudMessage('Could not request a password reset: ' + (error.message || String(error)));
-  }
-});
+// Password-reset requests are handled by the dedicated recovery page above.
 document.getElementById('recoveryPasswordForm').addEventListener('submit', async event => {
   event.preventDefault();
   const password = document.getElementById('recoveryPassword').value;
