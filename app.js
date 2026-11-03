@@ -1159,7 +1159,7 @@ let marketplaceSelectedBuyerId=null;
 let marketplaceActivityBusy=false;
 let marketplaceActivityRequestId=0;
 function marketplaceBuyerName(id){return marketplaceSubscribersCache.find(x=>x.buyer_id===id)?.display_name||('Buyer '+String(id||'').slice(-6));}
-async function loadBuybookActivity(){
+async function loadBuybookActivity(options={}){
  const subscribersTarget=document.getElementById('marketplaceSubscriberList');
  const reservationsTarget=document.getElementById('marketplaceReservationsList');
  if(!subscribersTarget||!reservationsTarget)return;
@@ -1198,8 +1198,9 @@ async function loadBuybookActivity(){
   if(marketplaceSelectedBuyerId){const selector=document.getElementById('messageConversationSelect');if(selector)selector.value=marketplaceSelectedBuyerId;}
  }catch(err){
   if(current()){
-   if(!marketplaceSubscribersCache.length)subscribersTarget.innerHTML='Could not load subscribers: '+escAdmin(err.message||String(err));
-   reservationsTarget.innerHTML='Could not load reservations: '+escAdmin(err.message||String(err));
+   if(!options.quiet)showToast('Could not load Buybook activity: '+(err.message||'Please refresh and try again.'),'error');
+   if(!marketplaceSubscribersCache.length)subscribersTarget.innerHTML='<div class="empty">Subscriber information is temporarily unavailable.</div>';
+   reservationsTarget.innerHTML='<div class="empty">Reservation information is temporarily unavailable.</div>';
   }
  }finally{if(requestId===marketplaceActivityRequestId)marketplaceActivityBusy=false;}
 }
@@ -1623,7 +1624,7 @@ async function loadReservationsPage(){
   marketplaceReservationsCache.forEach(r=>r.items=byId[r.id]||[]);
   target.innerHTML=marketplaceReservationsCache.map(r=>{const products=r.items.map(x=>escAdmin(x.product_name)+' × '+Number(x.quantity||0)).join(', ');const status=String(r.status||'pending').replace(/[_-]+/g,' ').replace(/\b\w/g,ch=>ch.toUpperCase());return '<button type="button" class="messenger-picker-row reservation-page-row" data-reservation-id="'+escAdmin(r.id)+'" style="width:100%;text-align:left"><span class="chat-support-avatar" aria-hidden="true">▣</span><span class="subscriber-meta"><strong>'+escAdmin(marketplaceBuyerName(r.buyer_id))+'</strong><small>'+escAdmin(products||'Product details unavailable')+'</small><small>'+escAdmin(new Date(r.created_at).toLocaleString([], {dateStyle:'medium',timeStyle:'short'}))+' · '+escAdmin(status)+'</small></span><span aria-hidden="true">›</span></button>';}).join('');
   target.querySelectorAll('[data-reservation-id]').forEach(b=>b.addEventListener('click',()=>showReservationDetails(b.dataset.reservationId)));
- }catch(err){if(current())target.innerHTML='<div class="empty">Could not load reservations: '+escAdmin(err.message||'Please try again.')+'</div>';}
+ }catch(err){if(current()){showToast('Could not load reservations: '+(err.message||'Please try again.'),'error');target.innerHTML='<div class="empty">Reservations are temporarily unavailable. Refresh to try again.</div>';}}
 }
 async function retryReservationNotification(id,button){
  if(!cloudUser||!supabaseClient)return;
@@ -1704,7 +1705,7 @@ async function loadSubscribersPage(){
  if(!marketplaceSubscribersCache.length){target.innerHTML='<div class="empty">No subscribers yet. Buyers who subscribe to your shop on Buybook will appear here.</div>';return;}
  target.innerHTML=marketplaceSubscribersCache.slice().sort((a,b)=>new Date(b.created_at||0)-new Date(a.created_at||0)).map(s=>'<button type="button" class="messenger-picker-row subscriber-page-row" data-subscriber-id="'+escAdmin(s.buyer_id)+'" style="width:100%;text-align:left"><span class="chat-support-avatar" aria-hidden="true">👤</span><span class="subscriber-meta"><strong>'+escAdmin(s.display_name||marketplaceBuyerName(s.buyer_id))+'</strong><small>Subscribed '+escAdmin(s.created_at?new Date(s.created_at).toLocaleDateString():'date unavailable')+'</small></span><span aria-hidden="true">›</span></button>').join('');
  target.querySelectorAll('[data-subscriber-id]').forEach(b=>b.addEventListener('click',()=>showSubscriberDetails(b.dataset.subscriberId)));
- }catch(err){if(current())target.innerHTML='<div class="empty">Could not load subscribers: '+escAdmin(err.message||'Please try again.')+'</div>';}
+ }catch(err){if(current()){showToast('Could not load subscribers: '+(err.message||'Please try again.'),'error');target.innerHTML='<div class="empty">Subscribers are temporarily unavailable. Refresh to try again.</div>';}}
 }
 function showSubscriberDetails(id,options={}){
  const s=marketplaceSubscribersCache.find(x=>String(x.buyer_id)===String(id));if(!s)return;
@@ -4133,7 +4134,7 @@ async function loadMessengerConversations(options={}){
   messengerConversationCache=conversations.sort((a,b)=>new Date(b.time)-new Date(a.time));
   renderMessengerConversationList();
   if(options.refreshSelected&&messengerSelectedConversation&&document.body.classList.contains('messenger-conversation-open'))await openMessengerConversation(messengerSelectedConversation,{quiet:true});
- }catch(err){if(current()&&!options.quiet)list.innerHTML='<div class="empty">Could not load chats: '+escAdmin(err.message||'Please try again.')+'</div>';}
+ }catch(err){if(current()&&!options.quiet){showToast('Could not load conversations: '+(err.message||'Please try again.'),'error');list.innerHTML='<div class="empty">Conversations are temporarily unavailable. Refresh to try again.</div>';}}
 }
 async function openMessengerConversation(id,options={}){
  if(!cloudUser||!supabaseClient)return;
@@ -4162,7 +4163,7 @@ async function openMessengerConversation(id,options={}){
   else target.innerHTML=messageHtml||'<div class="empty">Say hello to start the conversation.</div>';
   if(wasNearBottom||!options.quiet)target.scrollTop=target.scrollHeight;
   const status=document.getElementById('messengerStatus');if(status)status.textContent='';
- }catch(err){if(current()&&!options.quiet)target.innerHTML='<div class="empty">Could not load messages: '+escAdmin(err.message||'Please try again.')+'</div>';}
+ }catch(err){if(current()&&!options.quiet){showToast('Could not load messages: '+(err.message||'Please try again.'),'error');target.innerHTML='<div class="empty">Messages are temporarily unavailable. Refresh to try again.</div>';}}
 }
 async function openMessengerSubscriberPicker(){
  const overlay=document.getElementById('messengerSubscriberPicker'),list=document.getElementById('messengerSubscriberPickerList');
@@ -4177,7 +4178,7 @@ async function openMessengerSubscriberPicker(){
   marketplaceSubscribersCache=data||[];
   if(!marketplaceSubscribersCache.length){list.innerHTML='<div class="empty">No subscribed buyers yet. Buyers who subscribe to your shop on Buybook will appear here.</div>';return;}
   renderMessengerSubscriberPicker();
- }catch(err){if(current())list.innerHTML='<div class="empty">Could not load subscribers: '+escAdmin(err.message||'Please try again.')+'</div>';}
+ }catch(err){if(current()){showToast('Could not load subscribers: '+(err.message||'Please try again.'),'error');list.innerHTML='<div class="empty">Subscriber information is temporarily unavailable.</div>';}}
 }
 function renderMessengerSubscriberPicker(){
  const list=document.getElementById('messengerSubscriberPickerList');if(!list)return;
@@ -4265,7 +4266,7 @@ async function loadAdminConversation(){
    .or('sender_id.eq.'+uid+',recipient_id.eq.'+uid)
    .order('created_at',{ascending:true}).limit(200);
   if(!current())return;
-  if(error){target.innerHTML='<div class="empty">Could not load conversation: '+escAdmin(error.message)+'</div>';return;}
+  if(error){showToast('Could not load this conversation: '+error.message,'error');target.innerHTML='<div class="empty">This conversation is temporarily unavailable.</div>';return;}
 
   const unread=(data||[]).filter(m=>m.sender_id===uid&&!m.read_at).map(m=>m.id);
   if(unread.length){
@@ -4298,7 +4299,7 @@ async function loadAdminConversation(){
   if(wasNearBottom)target.scrollTop=target.scrollHeight;
   if(current())await updateUnreadBadges();
  }catch(error){
-  if(current())target.innerHTML='<div class="empty">Could not load conversation: '+escAdmin(error.message||'Please try again.')+'</div>';
+  if(current()){showToast('Could not load this conversation: '+(error.message||'Please try again.'),'error');target.innerHTML='<div class="empty">This conversation is temporarily unavailable.</div>'; }
  }finally{
   if(adminConversationRequestId===requestId)adminConversationLoading=false;
  }
@@ -4324,7 +4325,7 @@ document.getElementById('adminReplyForm').addEventListener('submit',async e=>{
   send.disabled=false;
  }
 });
-setInterval(()=>{if(cloudUser&&!document.hidden&&currentPage()==='settings-buybook'){loadBuybookActivity();}},15000);
+setInterval(()=>{if(cloudUser&&!document.hidden&&currentPage()==='settings-buybook'){loadBuybookActivity({quiet:true});}},15000);
 setInterval(()=>{if(sellbookIsAdmin&&currentPage()==='admin'&&sessionStorage.getItem('sellbook-admin-panel')==='support'){if(!document.getElementById('adminChatConversationView').classList.contains('hidden')&&document.getElementById('adminMessageUser').value)loadAdminConversation();else loadAdminUsers();}},15000);
 setInterval(()=>{if(!cloudUser||document.hidden)return;if(!sellbookIsAdmin&&currentPage()==='support')loadUserSupport();else updateUnreadBadges();},30000);
 
