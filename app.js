@@ -2484,7 +2484,6 @@ function setAuthScreen(mode) {
     document.getElementById('accountStatus').textContent='Sign in securely to access your business records.';
   } else if(mode==='email'){
     document.getElementById('authCardTitle').textContent=emailAuthMode==='signup'?'Create your account':'Sign in with email';
-  document.getElementById('accountStatus').textContent=emailAuthMode==='signup'?'Set up an account to keep your business records safely in one place.':'Enter your email and password to access your business records.';
     document.getElementById('emailAuthHeading').textContent=emailAuthMode==='signup'?'Create your Sellbook account':'Sign in with email';
     document.getElementById('accountStatus').textContent=emailAuthMode==='signup'?'Set up an account to keep your business records safely in one place.':'Enter your email and password to access your business records.';
     document.getElementById('emailAuthDescription').textContent=emailAuthMode==='signup'
@@ -2583,7 +2582,8 @@ function friendlyAuthError(error) {
   const message=String(error?.message||'').toLowerCase();
   if(code.includes('invalid_credentials')||message.includes('invalid login credentials'))return 'That email address or password is incorrect. Check your details and try again.';
   if(code.includes('email_not_confirmed')||message.includes('email not confirmed'))return 'Please confirm your email address before signing in. We can send the confirmation link again.';
-  if(code.includes('email_address_not_authorized')||message.includes('email address is not authorized')||message.includes('only authorized'))return 'Sellbook’s email sender is not yet authorised to deliver to this address. Please try again later or use Google sign-in.';
+  if(message.includes('535')||message.includes('badcredentials')||message.includes('smtp')||message.includes('failed to send email')||message.includes('error sending confirmation email')||message.includes('error sending recovery email'))return 'Sellbook could not send the email right now. Email registration or recovery may be temporarily unavailable. Please try again later, or use Google sign-in if you already use it for Sellbook.';
+  if(code.includes('email_address_not_authorized')||message.includes('email address is not authorized')||message.includes('only authorized'))return 'Sellbook’s email service is not authorised to deliver to this address yet. Please try again later or use Google sign-in.';
   if(code.includes('over_email_send_rate_limit')||code.includes('over_request_rate_limit')||code.includes('rate_limit')||message.includes('rate limit'))return 'Too many email requests were made. Wait a little before trying again.';
   if(code.includes('weak_password')||message.includes('password should'))return 'That password does not meet the security requirements. Use at least 8 characters with uppercase, lowercase, a number and a symbol.';
   if(code.includes('signup_disabled'))return 'New email registrations are temporarily unavailable. You can still sign in to an existing account or use Google.';
