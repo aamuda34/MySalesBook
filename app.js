@@ -2388,7 +2388,13 @@ function updateSuggestedPrice(){
 document.querySelectorAll('[data-markup]').forEach(b=>b.addEventListener('click',()=>{selectedMarkup=Number(b.dataset.markup);productModeMarkup[productSellingType]=selectedMarkup;document.querySelectorAll('[data-markup]').forEach(x=>{x.classList.toggle('selected',x===b);x.setAttribute('aria-pressed',String(x===b));});updateSuggestedPrice();}));
 document.getElementById('pcost').addEventListener('input',updateSuggestedPrice);
 document.getElementById('punitsperpack').addEventListener('input',updateSuggestedPrice);
-document.getElementById('pbaseunitPack').addEventListener('input',updateSuggestedPrice);
+document.getElementById('pbaseunitPack').addEventListener('input',()=>{
+ if(productSellingType!=='pack')return;
+ const cost=Number(document.getElementById('pcost').value),count=Number(document.getElementById('punitsperpack').value);
+ if(document.getElementById('pcost').value.trim()===''||!Number.isFinite(cost)||cost<0||!Number.isSafeInteger(count)||count<1){document.getElementById('pcostPerUnit').textContent='Enter pack cost and unit count to calculate this.';return;}
+ const unitCost=Math.round((cost/count+Number.EPSILON)*100)/100,money=new Intl.NumberFormat('en-NG',{style:'currency',currency:'NGN',maximumFractionDigits:2});
+ document.getElementById('pcostPerUnit').textContent=money.format(unitCost)+' per '+(document.getElementById('pbaseunitPack').value.trim()||'unit');
+});
 document.getElementById('ppackprice').addEventListener('input',()=>{if(productSellingType!=='pack')return;const count=Number(document.getElementById('punitsperpack').value),packPrice=Number(document.getElementById('ppackprice').value);if(Number.isSafeInteger(count)&&count>0&&Number.isFinite(packPrice)&&packPrice>0){document.getElementById('pprice').value=(Math.round((packPrice/count+Number.EPSILON)*100)/100).toFixed(2);const money=n=>new Intl.NumberFormat('en-NG',{style:'currency',currency:'NGN',maximumFractionDigits:2}).format(n);document.getElementById('priceSuggestion').textContent='Your chosen selling prices — per pack: '+money(packPrice)+' · per '+(document.getElementById('pbaseunitPack').value.trim()||'unit')+': '+money(Number(document.getElementById('pprice').value));}});
 let productSellingType='unit';
 let productModeDrafts={unit:null,pack:null};
