@@ -1671,10 +1671,11 @@ function syncCategoryPicker(prefix,value){
  const selector='[data-edit-product-category]',count=document.getElementById('editProductCategoryCount'),hidden=document.getElementById('editProductCategory');
  let values=[...new Set(categoryValues(value).map(cleanProductCategory).filter(Boolean))].slice(0,3);
  const optionList=document.getElementById('editProductCategoryOptions');
+ optionList?.querySelectorAll('[data-edit-custom-category]').forEach(label=>label.remove());
  values.forEach(category=>{
   const exists=[...document.querySelectorAll(selector)].some(input=>input.value.toLocaleLowerCase()===category.toLocaleLowerCase());
   if(!exists&&optionList){
-   const label=document.createElement('label');label.className='category-choice';
+   const label=document.createElement('label');label.className='category-choice';label.dataset.editCustomCategory='';
    const input=document.createElement('input');input.type='checkbox';input.dataset.editProductCategory='';input.value=category;
    const text=document.createElement('span');text.textContent=category;
    label.append(input,text);optionList.appendChild(label);
@@ -2357,7 +2358,7 @@ document.getElementById('removePendingPhoto').addEventListener('click',clearPend
 const DEFAULT_MARKUP_KEY='my-sales-book-default-markup-v1';
 let defaultMarkup=Number(localStorage.getItem(DEFAULT_MARKUP_KEY)||30);if(![10,20,30,40,50].includes(defaultMarkup))defaultMarkup=30;
 let selectedMarkup=defaultMarkup;
-function syncDefaultMarkupUI(){const stored=Number(localStorage.getItem(DEFAULT_MARKUP_KEY)||30);defaultMarkup=[10,20,30,40,50].includes(stored)?stored:30;selectedMarkup=defaultMarkup;document.querySelectorAll('[data-markup]').forEach(x=>{const yes=Number(x.dataset.markup)===defaultMarkup;x.classList.toggle('selected',yes);x.setAttribute('aria-pressed',String(yes));});}
+function syncDefaultMarkupUI(){const stored=Number(localStorage.getItem(DEFAULT_MARKUP_KEY)||30);defaultMarkup=[10,20,30,40,50].includes(stored)?stored:30;selectedMarkup=defaultMarkup;if(typeof productModeMarkup!=='undefined')productModeMarkup={unit:defaultMarkup,pack:defaultMarkup};document.querySelectorAll('[data-markup]').forEach(x=>{const yes=Number(x.dataset.markup)===defaultMarkup;x.classList.toggle('selected',yes);x.setAttribute('aria-pressed',String(yes));});}
 function updateSuggestedPrice(){
  const c=document.getElementById('pcost'),p=document.getElementById('pprice'),pp=document.getElementById('ppackprice'),o=document.getElementById('priceSuggestion');
  const money=n=>new Intl.NumberFormat('en-NG',{style:'currency',currency:'NGN',maximumFractionDigits:2}).format(n);
