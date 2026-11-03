@@ -1753,7 +1753,7 @@ function paintPage(name,scroll){if(!VALID_PAGES.has(name))name='home';if(name===
 // the safe parent so Back cannot reopen the page the user just left.
 (function installUnifiedBackArrows(){
   const parentPages={
-    'product-details':'products','record-product':'products','record-sale':'sales','record-expense':'expenses','sale-details':'sales-history',
+    'product-details':'products','record-product':'products','record-sale':'home','record-expense':'expenses','sale-details':'sales-history',
     'sales-history':'home','products':'home','sales':'home','expenses':'home',
     'subscribers':'home','reservations':'home','low-stock':'products',
     'stock':'me','stock-history':'stock','stock-history-detail':'stock-history',
