@@ -4913,3 +4913,7 @@ body.expenses-history-page-open #appWorkspace>nav,body.expense-details-page-open
 body.expenses-history-page-open #appWorkspace>main,body.expense-details-page-open #appWorkspace>main{padding-top:0!important;padding-bottom:24px!important}
 body.expenses-history-page-open #expenses-history,body.expense-details-page-open #expense-details{max-width:760px;margin:0 auto;padding-top:14px!important;padding-bottom:24px!important}
 body.record-entry-page-open #record-expense{padding-top:14px!important;padding-bottom:24px!important}
+
+/* The app workspace sits inside #mainContent; target the real outer container. */
+body.expenses-history-page-open #mainContent,body.expense-details-page-open #mainContent,body.stock-history-detail-page-open #mainContent,body.reservations-page-open #mainContent,body.record-entry-page-open #mainContent{padding-top:0!important;padding-bottom:24px!important;min-height:100svh}
+body.expenses-history-page-open #appWorkspace,body.expense-details-page-open #appWorkspace,body.stock-history-detail-page-open #appWorkspace,body.reservations-page-open #appWorkspace,body.record-entry-page-open #appWorkspace{padding-top:0!important;padding-bottom:0!important}
