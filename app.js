@@ -90,7 +90,7 @@ function getLocalPeriodBounds(period,from='',to=''){const today=new Date();today
 function withinPeriod(row,bounds){const key=validDateKey(operationalDate(row));return !!key&&key<=bounds.to&&(!bounds.from||key>=bounds.from);}
 
 let selectedExpensePeriod='today';
-function setExpensePeriod(period){if(!['today','yesterday','week','month','year','all'].includes(period))return;selectedExpensePeriod=period;const selector=document.getElementById('expensePeriodSelect');if(selector&&selector.value!==period)selector.value=period;updateExpensePeriodTotal();}
+function setExpensePeriod(period){if(!['today','yesterday','week','month','year','all'].includes(period))return;selectedExpensePeriod=period;const selector=document.getElementById('expensePeriodSelect');if(selector&&selector.value!==period)selector.value=period;updateExpensePeriodTotal();renderExpenseOverview();}
 function updateExpensePeriodTotal(){const label=document.getElementById('expensePeriodLabel'),amount=document.getElementById('todayExpenses');if(!label||!amount)return;const bounds=getLocalPeriodBounds(selectedExpensePeriod),titles={today:'Total expenses today',yesterday:'Total expenses yesterday',week:'Total expenses this week',month:'Total expenses this month',year:'Total expenses this year',all:'Total expenses all time'};const rows=(db.expenses||[]).filter(x=>!isExpenseVoided(x)&&withinPeriod(x,bounds));label.textContent=titles[selectedExpensePeriod]||titles.today;amount.textContent=money(rows.reduce((sum,x)=>sum+(Number(x.amount)||0),0));}
 document.getElementById('expensePeriodSelect')?.addEventListener('change',event=>setExpensePeriod(event.target.value));
 let selectedSalesSummaryPeriod='today';
@@ -159,15 +159,36 @@ function openSalesHistoryPeriod(period='today'){
  render();
  showPage('sales-history');
 }
-function getSalesTransactions(rows){const groups=new Map();for(const sale of rows){const key=String(sale.transactionId||sale.transaction_id||sale.id);if(!groups.has(key))groups.set(key,{id:key,sales:[],date:operationalDate(sale)});const g=groups.get(key);g.sales.push(sale);if(safeDate(operationalDate(sale))>safeDate(g.date))g.date=operationalDate(sale);}return [...groups.values()].map(g=>({...g,total:g.sales.reduce((n,x)=>n+(Number(x.total)||0),0),profit:g.sales.reduce((n,x)=>n+(Number(x.profit??x.gross_profit)||0),0),items:g.sales.reduce((n,x)=>n+Number(x.qty??x.quantity??0),0)})).sort((a,b)=>safeDate(b.date)-safeDate(a.date));}
-function getSalesTransactions(rows){const groups=new Map();for(const sale of rows){const key=String(sale.transactionId||sale.transaction_id||sale.id);if(!groups.has(key))groups.set(key,{id:key,sales:[],date:operationalDate(sale)});const group=groups.get(key);group.sales.push(sale);if(safeDate(operationalDate(sale))>safeDate(group.date))group.date=operationalDate(sale);}return [...groups.values()].map(group=>({...group,total:group.sales.reduce((n,x)=>n+(Number(x.total)||0),0),profit:group.sales.reduce((n,x)=>n+(Number(x.profit??x.gross_profit)||0),0),items:group.sales.reduce((n,x)=>n+Number(x.qty??x.quantity??0),0)})).sort((a,b)=>safeDate(b.date)-safeDate(a.date));}
+function saleBaseQuantity(row){
+ const quantity=Math.max(0,Number(row?.qty??row?.quantity)||0);
+ const storedBase=Number(row?.baseQty??row?.base_quantity);
+ if(Number.isSafeInteger(storedBase)&&storedBase>0)return storedBase;
+ const units=Number(row?.unitsPerSale??row?.units_per_sale)||1;
+ const calculated=quantity*units;
+ return Number.isSafeInteger(calculated)&&calculated>0?calculated:quantity;
+}
+function getSalesTransactions(rows){
+ const groups=new Map();
+ for(const sale of rows){
+  const key=String(sale.transactionId||sale.transaction_id||sale.id);
+  if(!groups.has(key))groups.set(key,{id:key,sales:[],date:operationalDate(sale)});
+  const group=groups.get(key);group.sales.push(sale);
+  if(safeDate(operationalDate(sale))>safeDate(group.date))group.date=operationalDate(sale);
+ }
+ return [...groups.values()].map(group=>({
+  ...group,
+  total:group.sales.reduce((sum,row)=>sum+(Number(row.total)||0),0),
+  profit:group.sales.reduce((sum,row)=>sum+(Number(row.profit??row.gross_profit)||0),0),
+  items:group.sales.reduce((sum,row)=>sum+saleBaseQuantity(row),0)
+ })).sort((a,b)=>safeDate(b.date)-safeDate(a.date));
+}
 function renderSalesHistory(){
  const target=document.getElementById('salesHistoryList');if(!target)return;const range=getSalesHistoryRange(),todayKey=salesHistoryLocalDateKey(),query=(document.getElementById('historySalesProduct')?.value||'').trim().toLocaleLowerCase();
  const periodRows=(db.sales||[]).filter(sale=>{const key=validDateKey(operationalDate(sale));return !!key&&key<=todayKey&&(!range.from||key>=range.from)&&(!range.to||key<=range.to);});
  const groups=getSalesTransactions(periodRows),visible=groups.filter(group=>!query||group.sales.some(x=>String(x.name||x.product_name||'').toLocaleLowerCase().includes(query)));
- const total=periodRows.reduce((n,x)=>n+(Number(x.total)||0),0),gross=periodRows.reduce((n,x)=>n+(Number(x.profit??x.gross_profit)||0),0),items=periodRows.reduce((n,x)=>n+Number(x.qty??x.quantity??0),0),set=(id,v)=>{const el=document.getElementById(id);if(el)el.textContent=String(v);};
+ const total=periodRows.reduce((n,x)=>n+(Number(x.total)||0),0),gross=periodRows.reduce((n,x)=>n+(Number(x.profit??x.gross_profit)||0),0),items=periodRows.reduce((n,x)=>n+saleBaseQuantity(x),0),set=(id,v)=>{const el=document.getElementById(id);if(el)el.textContent=String(v);};
  set('salesHistoryPeriodLabel',range.label);set('salesHistoryTotal',money(total));set('salesHistoryTransactionCount',groups.length);set('salesHistoryItemsCount',items);set('salesHistoryGrossProfit',money(gross));
- target.innerHTML=visible.length?visible.map(group=>{const lines=group.sales.map(x=>String(x.name||x.product_name||'Product')+' × '+Number(x.qty??x.quantity??0)).join(', '),label=group.sales.length===1?lines:group.sales.length+' products · '+lines;return '<button type="button" class="item sales-history-row" data-sale-detail="'+esc(group.id)+'"><span class="sales-history-row-main"><span class="row"><strong>'+esc(label)+'</strong><strong>'+money(group.total)+'</strong></span><span class="muted">'+safeDate(group.date).toLocaleString()+' · Gross profit '+money(group.profit)+'</span></span><span class="sales-history-row-chevron" aria-hidden="true">›</span></button>';}).join(''):(periodRows.length?'<div class="empty">No sales match your product search.</div>':'<div class="empty">No sales recorded for this period yet.</div>');
+ target.innerHTML=visible.length?visible.map(group=>{const lines=group.sales.map(x=>String(x.name||x.product_name||'Product')+' × '+Number(x.qty??x.quantity??0)+' '+String(x.saleUnit||x.sale_unit||'unit')).join(', '),label=group.sales.length===1?lines:group.sales.length+' products · '+lines;return '<button type="button" class="item sales-history-row" data-sale-detail="'+esc(group.id)+'"><span class="sales-history-row-main"><span class="row"><strong>'+esc(label)+'</strong><strong>'+money(group.total)+'</strong></span><span class="muted">'+safeDate(group.date).toLocaleString()+' · Gross profit '+money(group.profit)+'</span></span><span class="sales-history-row-chevron" aria-hidden="true">›</span></button>';}).join(''):(periodRows.length?'<div class="empty">No sales match your product search.</div>':'<div class="empty">No sales recorded for this period yet.</div>');
 }
 function getProfile(){return db.profile||{businessName:'',businessLogo:''};}
 function renderBrand(){const p=getProfile(),name=String(p.businessName||'').trim();document.getElementById('businessTitle').textContent=name||'Sellbook';document.getElementById('businessSubtitle').textContent=name?'Business records · Nigerian naira (₦)':'Simple business records · Nigerian naira (₦)';const logo=document.getElementById('headerBusinessLogo'),mark=document.getElementById('brandMark');if(p.businessLogo){logo.src=p.businessLogo;logo.style.display='block';mark.style.display='none';}else{logo.removeAttribute('src');logo.style.display='none';mark.style.display='grid';mark.textContent=(name||'Sellbook').split(/\s+/).slice(0,2).map(x=>x[0]||'').join('').toUpperCase()||'MS';}const input=document.getElementById('businessNameInput');if(input&&document.activeElement!==input)input.value=name;const preview=document.getElementById('businessLogoPreview');if(preview&&document.activeElement!==preview){if(p.businessLogo){preview.src=p.businessLogo;preview.style.display='block';}else{preview.removeAttribute('src');preview.style.display='none';}}}
@@ -610,19 +631,21 @@ async function currentProductVersion(productId,expectedUserId=cloudUser?.id) {
   return data.updated_at;
 }
 function propagateQueuedProductVersion(queue, fromIndex, productId, version) {
+  const productKey=String(productId);
   for (let i=fromIndex+1;i<queue.length;i++) {
     const later=queue[i], payload=later.payload||{};
-    if (later.type==='product_save' && payload.product?.id===productId && !payload.isNew) {
+    if (later.type==='product_save' && String(payload.product?.id)===productKey && !payload.isNew) {
       payload.product.updatedAt=version;
-      // This queued edit has not reached the server yet. Give it its own future
-      // version marker so its write advances updated_at instead of reusing an
-      // earlier sale/restock timestamp.
       payload.product.syncUpdatedAt=now();
-    } else if (later.type==='product_delete' && payload.product?.id===productId) {
+    } else if (later.type==='product_delete' && String(payload.product?.id)===productKey) {
       payload.product.updatedAt=version;
-    } else if (later.type==='sale' && payload.sale?.productId===productId) {
+    } else if (later.type==='sale' && String(payload.sale?.productId)===productKey) {
       payload.productUpdatedAt=version;
-    } else if (later.type==='product_remove_image' && payload.product?.id===productId) {
+    } else if (later.type==='sale_batch') {
+      for (const line of payload.sales||[]) {
+        if (String(line.productId)===productKey) line.productUpdatedAt=version;
+      }
+    } else if (later.type==='product_remove_image' && String(payload.product?.id)===productKey) {
       payload.product.updatedAt=version;
     }
   }
@@ -708,9 +731,23 @@ async function syncPendingChanges() {
           const newVersion=await currentProductVersion(p.sale.productId,syncUserId);
           propagateQueuedProductVersion(queue,queueIndex,p.sale.productId,newVersion);
         } else if(item.type==='sale_batch'){
-          const sales=Array.isArray(p.sales)?p.sales:[];if(!sales.length)throw Error('This sale has no product lines.');
-          const {error}=await supabaseClient.rpc('record_sales_batch',{p_transaction_id:p.transactionId,p_sales:sales.map(s=>({id:s.id,product_id:s.productId,quantity:s.qty,unit_price:s.price,units_per_sale:s.unitsPerSale||1,sale_unit:s.saleUnit||'unit',note:s.note||null,sold_at:s.date,expected_updated_at:s.productUpdatedAt}))});if(error)throw error;
-          for(const productId of [...new Set(sales.map(s=>s.productId))]){const version=await currentProductVersion(productId,syncUserId);for(let i=queueIndex+1;i<queue.length;i++){const later=queue[i],payload=later.payload||{};if(later.type==='sale_batch'){for(const line of payload.sales||[])if(line.productId===productId)line.productUpdatedAt=version;}else if(later.type==='sale'&&payload.sale?.productId===productId)payload.productUpdatedAt=version;}}} else if (item.type === 'sale_import') {
+          const sales=Array.isArray(p.sales)?p.sales:[];
+          if(!sales.length)throw Error('This sale has no product lines.');
+          const {error}=await supabaseClient.rpc('record_sales_batch',{
+            p_transaction_id:p.transactionId,
+            p_sales:sales.map(line=>({
+              id:line.id,product_id:line.productId,quantity:line.qty,
+              unit_price:line.price,units_per_sale:line.unitsPerSale||1,
+              sale_unit:line.saleUnit||'unit',note:line.note||null,
+              sold_at:line.date,expected_updated_at:line.productUpdatedAt
+            }))
+          });
+          if(error)throw error;
+          for(const productId of [...new Set(sales.map(line=>String(line.productId)))]) {
+            const version=await currentProductVersion(productId,syncUserId);
+            propagateQueuedProductVersion(queue,queueIndex,productId,version);
+          }
+        } else if (item.type === 'sale_import') {
           const user = await requireCloudUser(syncUserId);
           const sale = p.sale;
           const {error} = await supabaseClient.from('sales').upsert({
@@ -728,8 +765,20 @@ async function syncPendingChanges() {
           if (error) throw error;
         } else if(item.type==='expense_void'){
           const user=await requireCloudUser(syncUserId);
-          const {error}=await supabaseClient.from('expenses').update({voided_at:p.voidedAt,void_reason:p.voidReason||null,updated_at:now()}).eq('id',p.expenseId).eq('user_id',user.id).is('voided_at',null);
+          const {data,error}=await supabaseClient.from('expenses')
+            .update({voided_at:p.voidedAt,void_reason:p.voidReason||null,updated_at:now()})
+            .eq('id',p.expenseId).eq('user_id',user.id).is('voided_at',null)
+            .select('id,voided_at').maybeSingle();
           if(error)throw error;
+          if(!data){
+            const {data:existing,error:checkError}=await supabaseClient.from('expenses')
+              .select('id,voided_at').eq('id',p.expenseId).eq('user_id',user.id).maybeSingle();
+            if(checkError)throw checkError;
+            const alreadyApplied=existing?.voided_at&&p.voidedAt&&
+              new Date(existing.voided_at).getTime()===new Date(p.voidedAt).getTime();
+            if(!alreadyApplied)throw Error('Conflict: this expense could not be voided in the cloud. Refresh the expense and try again.');
+          }
+        
 
         } else if(item.type==='stock_adjustment'){
           const user=await requireCloudUser(syncUserId),a=p.adjustment;
@@ -1708,7 +1757,7 @@ let buybookOverviewReturnPage='settings';
 let buybookShopRecordCache=null;
 let marketplaceSubscribersCache=[];
 let marketplaceSelectedBuyerId=null;
-function marketplaceBuyerName(id){return marketplaceSubscribersCache.find(x=>x.buyer_id===id)?.display_name||('Buyer '+String(id||'').slice(-6));}
+function marketplaceBuyerName(id){return marketplaceSubscribersCache.find(x=>String(x.buyer_id)===String(id))?.display_name||'Buybook customer';}
 async function reconnectBuybook(){
  const button=document.getElementById('buybookReconnectButton');
  if(!cloudUser){showToast('Sign in to Sellbook first.','error');return;}
@@ -2455,25 +2504,46 @@ document.querySelectorAll('[data-reservation-filter]').forEach(button=>button.ad
 document.getElementById('reservationSearch')?.addEventListener('input',renderReservationsFiltered);
 async function loadReservationsPage(){
  const target=document.getElementById('reservationsPageList');if(!target)return;
- document.getElementById('reservationsListView')?.classList.remove('hidden');document.getElementById('reservationDetailsView')?.classList.add('hidden');
+ document.getElementById('reservationsListView')?.classList.remove('hidden');
+ document.getElementById('reservationDetailsView')?.classList.add('hidden');
  target.innerHTML='<div class="empty">Loading reservations…</div>';
  if(!cloudUser||!supabaseClient){target.innerHTML='<div class="empty">Please sign in to view reservations.</div>';return;}
  const requestedUserId=cloudUser.id,requestEpoch=accountSessionEpoch;
  const current=()=>accountRequestIsCurrent(requestedUserId,requestEpoch);
  try{
-  const reservationResult=await fetchAllCloudRows(()=>supabaseClient.from('marketplace_reservations').select('id,buyer_id,status,buyer_note,created_at,expires_at').eq('owner_id',requestedUserId).order('created_at',{ascending:false}).order('id',{ascending:false}));
+  const [reservationResult,subscriberResult]=await Promise.all([
+   fetchAllCloudRows(()=>supabaseClient.from('marketplace_reservations')
+    .select('id,buyer_id,status,buyer_note,created_at,expires_at')
+    .eq('owner_id',requestedUserId).order('created_at',{ascending:false}).order('id',{ascending:false})),
+   supabaseClient.rpc('get_my_marketplace_subscribers')
+  ]);
   if(!current())return;
-  if(reservationResult.error)throw reservationResult.error;marketplaceReservationsCache=reservationResult.data||[];
-  if(!marketplaceReservationsCache.length){target.innerHTML='<div class="empty">No reservations yet. Customer reservations from Buybook will appear here.</div>';return;}
-  const byId={};const reservationIds=marketplaceReservationsCache.map(r=>r.id);
-  for(let offset=0;offset<reservationIds.length;offset+=100){
-   const result=await supabaseClient.from('marketplace_reservation_items').select('reservation_id,product_name,quantity,unit_price').in('reservation_id',reservationIds.slice(offset,offset+100));
-   if(!current())return;
-   if(result.error)throw result.error;for(const item of(result.data||[]))(byId[item.reservation_id] ||= []).push(item);
+  if(reservationResult.error)throw reservationResult.error;
+  if(!subscriberResult.error)marketplaceSubscribersCache=subscriberResult.data||[];
+  else console.warn('Sellbook: subscriber names could not be refreshed with reservations.',subscriberResult.error);
+  marketplaceReservationsCache=reservationResult.data||[];
+  if(!marketplaceReservationsCache.length){
+   target.innerHTML='<div class="empty">No reservations yet. Customer reservations from Buybook will appear here.</div>';
+   return;
   }
-  marketplaceReservationsCache.forEach(r=>r.items=byId[r.id]||[]);
+  const byId={};
+  const reservationIds=marketplaceReservationsCache.map(row=>row.id);
+  for(let offset=0;offset<reservationIds.length;offset+=100){
+   const ids=reservationIds.slice(offset,offset+100);
+   const result=await fetchAllCloudRows(()=>supabaseClient.from('marketplace_reservation_items')
+    .select('id,reservation_id,product_name,quantity,unit_price,created_at')
+    .in('reservation_id',ids).order('created_at',{ascending:true}).order('id',{ascending:true}));
+   if(!current())return;
+   if(result.error)throw result.error;
+   for(const item of result.data||[])(byId[item.reservation_id] ||= []).push(item);
+  }
+  marketplaceReservationsCache.forEach(row=>row.items=byId[row.id]||[]);
   renderReservationsFiltered();
- }catch(err){if(current()){showToast('Could not load reservations: '+(err.message||'Please try again.'),'error');target.innerHTML='<div class="empty">Reservations are temporarily unavailable. Refresh to try again.</div>';}}
+ }catch(err){
+  if(current()){
+   showToast('Could not load reservations: '+(err.message||'Please try again.'),'error');
+   target.innerHTML='<div class="empty">Reservations are temporarily unavailable. Refresh to try again.</div>';
+  }
 }
 async function retryReservationNotification(id,button){
  if(!cloudUser||!supabaseClient)return;
@@ -2534,7 +2604,7 @@ function showReservationDetails(id,options={}){
  const r=marketplaceReservationsCache.find(x=>String(x.id)===String(id));if(!r)return;marketplaceSelectedReservationId=r.id;
  if(options.history!==false&&!(history.state?.mySalesBookPage==='reservations'&&history.state?.mySalesBookSubview==='reservation-details'))history.pushState({...history.state,mySalesBookPage:'reservations',mySalesBookSubview:'reservation-details'},'','#reservations');
  document.getElementById('reservationsListView')?.classList.add('hidden');document.getElementById('reservationDetailsView')?.classList.remove('hidden');
- const isExpired=String(r.status||'pending').toLowerCase()==='expired'||(String(r.status||'pending').toLowerCase()==='pending'&&r.expires_at&&new Date(r.expires_at).getTime()<Date.now());
+ const isExpired=String(r.status||'pending').toLowerCase()==='expired'||(String(r.status||'pending').toLowerCase()==='pending'&&r.expires_at&&new Date(r.expires_at).getTime()<=Date.now());
  const status=isExpired?'Expired':String(r.status||'pending').replace(/[_-]+/g,' ').replace(/\b\w/g,ch=>ch.toUpperCase());
  const products=r.items.map(x=>'<div style="display:flex;justify-content:space-between;gap:12px;padding:10px 0;border-bottom:1px solid var(--border)"><span>'+escAdmin(x.product_name)+' × '+Number(x.quantity||0)+'</span><strong>'+escAdmin(money(Number(x.unit_price||0)*Number(x.quantity||0)))+'</strong></div>').join('');
  const total=r.items.reduce((sum,x)=>sum+Number(x.unit_price||0)*Number(x.quantity||0),0);
@@ -2665,18 +2735,62 @@ function refreshStockHistoryBadges(){
  const counts={added:(db.productAdditions||[]).length,sales:(db.sales||[]).length,adjustments:(db.stockAdjustments||[]).length,restocks:(db.restocks||[]).length,changes:(db.productActivity||[]).length};
  tabs.querySelectorAll('[data-stock-history-tab]').forEach(button=>{const count=button.querySelector('[data-history-count]');if(count)count.textContent=String(counts[button.dataset.stockHistoryTab]||0);});
 }
-function renderProductSalesHistory(){const target=document.getElementById('productSalesHistoryList');if(!target)return;const rows=[...(db.sales||[])].sort((a,b)=>safeDate(b.date||b.sold_at)-safeDate(a.date||a.sold_at));target.innerHTML=rows.length?rows.map(sale=>'<button type="button" class="stock-history-row" data-sale-detail="'+esc(String(sale.id))+'"><span class="row"><strong>'+esc(sale.name||sale.product_name||'Product')+' × '+Number((sale.qty??sale.quantity)||0)+'</strong><strong>'+money(Number(sale.total)||0)+'</strong></span><span class="muted">'+safeDate(sale.date||sale.sold_at).toLocaleString()+' · Gross profit '+money(Number(sale.profit??sale.gross_profit)||0)+'</span></button>').join(''):'<div class="empty">No product sales recorded yet.</div>';}
+const STOCK_HISTORY_PAGE_SIZE=50;
+const stockHistoryVisible={added:50,sales:50,adjustments:50,restocks:50,changes:50};
+function stockHistoryLoadMoreButton(kind,total,shown){
+ if(total<=shown)return '';
+ const remaining=total-shown,amount=Math.min(STOCK_HISTORY_PAGE_SIZE,remaining);
+ return '<button type="button" class="stock-history-load-more" data-history-load-more="'+kind+'">Show more · '+amount.toLocaleString('en-NG')+' of '+remaining.toLocaleString('en-NG')+'</button>';
+}
+function showMoreStockHistory(kind){
+ if(!Object.prototype.hasOwnProperty.call(stockHistoryVisible,kind))return;
+ stockHistoryVisible[kind]+=STOCK_HISTORY_PAGE_SIZE;
+ const renderers={added:renderProductCreationHistory,sales:renderProductSalesHistory,adjustments:renderStockAdjustments,restocks:renderRestockHistory,changes:renderProductActivityHistory};
+ renderers[kind]?.();
+}
+function stockHistoryBaseUnit(productId,fallback='unit'){
+ return db.products.find(product=>String(product.id)===String(productId))?.baseUnit||fallback;
+}
+function productActivityFieldLabel(key){
+ const labels={name:'Product name',category:'Category',cost_price:'Cost price',selling_price:'Selling price',image_path:'Product photo',base_unit:'Base unit',purchase_unit:'Purchase unit',units_per_purchase:'Units per purchase',pack_unit:'Pack unit',units_per_pack:'Units per pack',pack_selling_price:'Pack selling price'};
+ return labels[key]||key.replace(/_/g,' ').replace(/\b\w/g,letter=>letter.toUpperCase());
+}
+function productActivityChangeText(key,before,after){
+ if(key==='image_path'){
+  if(!before&&after)return 'Photo added';
+  if(before&&!after)return 'Photo removed';
+  return 'Photo updated';
+ }
+ const format=(value)=>{
+  if(value==null||value==='')return 'Not set';
+  if(['cost_price','selling_price','pack_selling_price'].includes(key)){
+   const amount=Number(value);return Number.isFinite(amount)?money(amount):String(value);
+  }
+  return String(value);
+ };
+ return format(before)+' → '+format(after);
+}
+function renderProductSalesHistory(){
+ const target=document.getElementById('productSalesHistoryList');if(!target)return;
+ const rows=[...(db.sales||[])].sort((a,b)=>safeDate(b.date||b.sold_at)-safeDate(a.date||a.sold_at));
+ const visible=rows.slice(0,stockHistoryVisible.sales);
+ target.innerHTML=rows.length?visible.map(sale=>{
+  const quantity=Number(sale.qty??sale.quantity)||0,unit=String(sale.saleUnit||sale.sale_unit||'unit');
+  return '<button type="button" class="stock-history-row" data-sale-detail="'+esc(String(sale.id))+'"><span class="row"><strong>'+esc(sale.name||sale.product_name||'Product')+' × '+quantity.toLocaleString('en-NG')+' '+esc(unit)+'</strong><strong>'+money(Number(sale.total)||0)+'</strong></span><span class="muted">'+safeDate(sale.date||sale.sold_at).toLocaleString()+' · Gross profit '+money(Number(sale.profit??sale.gross_profit)||0)+'</span></button>';
+ }).join('')+stockHistoryLoadMoreButton('sales',rows.length,visible.length):'<div class="empty">No product sales recorded yet.</div>';
+}
 function renderProductActivityHistory(){
  const target=document.getElementById('productActivityHistoryList');if(!target)return;
  const rows=[...(db.productActivity||[])].sort((a,b)=>safeDate(b.createdAt||b.created_at)-safeDate(a.createdAt||a.created_at));
- target.innerHTML=rows.length?rows.map(row=>{
+ const visible=rows.slice(0,stockHistoryVisible.changes);
+ target.innerHTML=rows.length?visible.map(row=>{
   const old=row.oldValues||row.old_values||{},next=row.newValues||row.new_values||{};
   const changed=Object.keys(next).filter(key=>JSON.stringify(old[key])!==JSON.stringify(next[key])).map(key=>{
-   const label=key.replace(/_/g,' '),before=old[key]==null?'—':String(old[key]),after=next[key]==null?'—':String(next[key]);
-   return '<div><span>'+esc(label)+'</span><small>'+esc(before)+' → '+esc(after)+'</small></div>';
+   const label=productActivityFieldLabel(key),change=productActivityChangeText(key,old[key],next[key]);
+   return '<div><span>'+esc(label)+'</span><small>'+esc(change)+'</small></div>';
   }).join('');
   return '<article class="stock-history-row"><span class="row"><strong>'+esc(row.productName||row.product_name||'Product')+'</strong><strong>Details updated</strong></span><span class="muted">'+safeDate(row.createdAt||row.created_at).toLocaleString()+'</span><div class="product-activity-diff">'+(changed||'<small>Product details updated.</small>')+'</div></article>';
- }).join(''):'<div class="empty">No product changes have been recorded yet.</div>';
+ }).join('')+stockHistoryLoadMoreButton('changes',rows.length,visible.length):'<div class="empty">No product changes have been recorded yet.</div>';
 }
 
 
@@ -2686,7 +2800,7 @@ async function refreshStockHistoryFromCloud(){
  const uid=cloudUser.id;
  try{
   const [result,historyResult,activityResult]=await Promise.all([
-   supabaseClient.from('stock_purchases').select('id,product_id,product_name,purchase_quantity,purchase_unit,units_per_purchase,base_quantity,cost_per_purchase_unit,total_cost,average_cost_before,average_cost_after,previous_stock,new_stock,restocked_at').eq('user_id',uid).order('restocked_at',{ascending:false}).limit(500),
+   fetchAllCloudRows(()=>supabaseClient.from('stock_purchases').select('id,product_id,product_name,purchase_quantity,purchase_unit,units_per_purchase,base_quantity,cost_per_purchase_unit,total_cost,average_cost_before,average_cost_after,previous_stock,new_stock,restocked_at').eq('user_id',uid).order('restocked_at',{ascending:false}).order('id',{ascending:false})),
    fetchAllCloudRows(()=>supabaseClient.from('product_creation_history').select('id,product_id,product_name,category,cost_price,selling_price,initial_stock,image_path,base_unit,purchase_unit,units_per_purchase,pack_unit,units_per_pack,pack_selling_price,added_at').eq('user_id',uid).order('added_at',{ascending:false}).order('id',{ascending:false})),
    fetchAllCloudRows(()=>supabaseClient.from('product_activity').select('id,product_id,product_name,activity_type,old_values,new_values,created_at').eq('user_id',uid).order('created_at',{ascending:false}).order('id',{ascending:false}))
   ]);
@@ -3011,71 +3125,91 @@ function renderProfitHistory(){
 function renderReports(){const {start,rows}=reportRows(),allTime=document.getElementById('reportRange')?.value==='all',key=dateKey(start),todayKey=dateKey(new Date()),inRange=x=>{const recordKey=validDateKey(x.date);return !!recordKey&&recordKey<=todayKey&&(allTime||recordKey>=key);},sales=db.sales.filter(inRange),expenses=db.expenses.filter(x=>!isExpenseVoided(x)&&inRange(x));const total=sales.reduce((n,x)=>n+x.total,0),gross=sales.reduce((n,x)=>n+x.profit,0),costs=expenses.reduce((n,x)=>n+x.amount,0);document.getElementById('reportSales').textContent=money(total);document.getElementById('reportGross').textContent=money(gross);document.getElementById('reportExpenses').textContent=money(costs);document.getElementById('reportNet').textContent=money(gross-costs);renderBarChart('salesTrendChart',reportRowsFor7(),x=>x.label,x=>x.sales);renderBarChart('reportSalesChart',rows,x=>x.label,x=>x.sales);const sums=new Map();sales.forEach(x=>sums.set(x.name,(sums.get(x.name)||0)+x.qty));const top=[...sums.entries()].map(([name,qty])=>({name,qty})).sort((a,b)=>b.qty-a.qty).slice(0,5),max=top[0]?.qty||1;document.getElementById('topProductsChart').innerHTML=top.length?top.map(x=>'<div class="progress-row"><strong>'+esc(x.name)+'</strong><div class="progress-track"><div class="progress-fill" style="width:'+(x.qty/max*100)+'%"></div></div><span class="muted">'+x.qty+' sold</span></div>').join(''):'<div class="empty">No product sales in this period.</div>';}
 document.getElementById('reportRange').addEventListener('change',renderReports);document.getElementById('profitHistoryRange')?.addEventListener('change',renderProfitHistory);
 function renderRestockHistory(){
- const target=document.getElementById('restockHistoryList');
- if(!target)return;
- const productById=new Map((db.products||[]).map(p=>[String(p.id),p]));
+ const target=document.getElementById('restockHistoryList');if(!target)return;
+ const productById=new Map((db.products||[]).map(product=>[String(product.id),product]));
  const unique=new Map();
  for(const row of Array.isArray(db.restocks)?db.restocks:[]){
   if(!row||row.id==null)continue;
-  const key=String(row.id);
-  const previous=unique.get(key);
+  const key=String(row.id),previous=unique.get(key);
   if(!previous||safeDate(row.date)>safeDate(previous.date))unique.set(key,{...previous,...row});
  }
- const rows=[...unique.values()].sort((a,b)=>safeDate(b.date)-safeDate(a.date)).slice(0,200);
+ const rows=[...unique.values()].sort((a,b)=>safeDate(b.date)-safeDate(a.date));
+ const visible=rows.slice(0,stockHistoryVisible.restocks);
  if(!rows.length){target.innerHTML='<div class="empty">No restocks recorded yet.</div>';return;}
- target.innerHTML=rows.map(r=>{
-  const product=productById.get(String(r.productId));
-  const name=String(r.productName||product?.name||'Product');
-  const quantity=Number(r.baseQuantity)||Number(r.purchaseQuantity)*Number(r.unitsPerPurchase)||0;
-  const purchaseQty=Number(r.purchaseQuantity)||0;
-  const unit=String(r.purchaseUnit||'unit');
-  const cost=Number(r.totalCost)||purchaseQty*(Number(r.costPerPurchaseUnit)||0);
-  const date=safeDate(r.date);
-  return '<button type="button" class="stock-history-row" data-stock-history-id="'+esc(String(r.id))+'" data-stock-history-kind="restock"><span class="row"><strong>'+esc(name)+'</strong><strong>+'+quantity.toLocaleString('en-NG')+' units</strong></span><span class="muted">'+(date.getTime()?date.toLocaleString():'Date unavailable')+' · '+purchaseQty.toLocaleString('en-NG')+' '+esc(unit)+' · '+money(cost)+'</span></button>';
- }).join('');
+ target.innerHTML=visible.map(row=>{
+  const product=productById.get(String(row.productId));
+  const name=String(row.productName||product?.name||'Product');
+  const baseUnit=String(product?.baseUnit||row.baseUnit||'units');
+  const quantity=Number(row.baseQuantity)||Number(row.purchaseQuantity)*Number(row.unitsPerPurchase)||0;
+  const purchaseQty=Number(row.purchaseQuantity)||0;
+  const purchaseUnit=String(row.purchaseUnit||'unit');
+  const cost=Number(row.totalCost)||purchaseQty*(Number(row.costPerPurchaseUnit)||0);
+  const date=safeDate(row.date);
+  return '<button type="button" class="stock-history-row" data-stock-history-id="'+esc(String(row.id))+'" data-stock-history-kind="restock"><span class="row"><strong>'+esc(name)+'</strong><strong>+'+quantity.toLocaleString('en-NG')+' '+esc(baseUnit)+'</strong></span><span class="muted">'+(date.getTime()?date.toLocaleString():'Date unavailable')+' · '+purchaseQty.toLocaleString('en-NG')+' '+esc(purchaseUnit)+' · '+money(cost)+'</span></button>';
+ }).join('')+stockHistoryLoadMoreButton('restocks',rows.length,visible.length);
 }
 function renderProductCreationHistory(){
  const target=document.getElementById('productCreationHistoryList');if(!target)return;
  const rows=[...(db.productAdditions||[])].sort((a,b)=>safeDate(b.addedAt)-safeDate(a.addedAt));
- target.innerHTML=rows.length?rows.map(row=>'<button type="button" class="stock-history-row" data-stock-history-id="'+esc(String(row.productId||row.id))+'" data-stock-history-kind="added"><span class="row"><strong>'+esc(row.productName||'Product')+'</strong><strong>'+Number(row.initialStock||0).toLocaleString('en-NG')+' units</strong></span><span class="muted">Added '+safeDate(row.addedAt).toLocaleString()+' · Cost '+money(row.cost)+' · Selling '+money(row.price)+'</span></button>').join(''):'<div class="empty">No products added in this history yet. New products will appear here from now on; earlier product details cannot be reconstructed reliably.</div>';
+ const visible=rows.slice(0,stockHistoryVisible.added);
+ target.innerHTML=rows.length?visible.map(row=>{
+  const unit=String(row.baseUnit||'unit');
+  return '<button type="button" class="stock-history-row" data-stock-history-id="'+esc(String(row.productId||row.id))+'" data-stock-history-kind="added"><span class="row"><strong>'+esc(row.productName||'Product')+'</strong><strong>'+Number(row.initialStock||0).toLocaleString('en-NG')+' '+esc(unit)+'</strong></span><span class="muted">Added '+safeDate(row.addedAt).toLocaleString()+' · Cost '+money(row.cost)+' · Selling '+money(row.price)+'</span></button>';
+ }).join('')+stockHistoryLoadMoreButton('added',rows.length,visible.length):'<div class="empty">No products added in this history yet. New products will appear here from now on; earlier product details cannot be reconstructed reliably.</div>';
 }
 function renderStockHistoryDetail(kind,id){
- const row=(kind==='added'?(db.productAdditions||[]):kind==='restock'?(db.restocks||[]):(db.stockAdjustments||[])).find(x=>String(kind==='added'?(x.productId||x.id):x.id)===String(id));
+ const row=(kind==='added'?(db.productAdditions||[]):kind==='restock'?(db.restocks||[]):(db.stockAdjustments||[])).find(item=>String(kind==='added'?(item.productId||item.id):item.id)===String(id));
  const target=document.getElementById('stockHistoryDetailContent');if(!target||!row)return;
+ const baseUnit=stockHistoryBaseUnit(row.productId||row.product_id,row.baseUnit||'unit');
  const fields=kind==='added'?[
   ['Type','Product added'],['Product',row.productName||'Product'],['Date and time',safeDate(row.addedAt).toLocaleString()],
-  ['Category',row.category||'Uncategorized'],['Initial stock',String(row.initialStock??0)+' units'],
+  ['Category',row.category||'Uncategorized'],['Initial stock',String(row.initialStock??0)+' '+baseUnit],
   ['Cost price',money(Number(row.cost)||0)],['Selling price',money(Number(row.price)||0)],
   ['Base unit',row.baseUnit||'unit'],['Pack unit',row.packUnit||'Not used'],
   ['Units per pack',row.packUnit?String(row.unitsPerPack||1):'Not applicable'],
   ['Pack selling price',row.packPrice==null?'Not set':money(Number(row.packPrice))]
  ]:kind==='restock'?[
-  ['Type','Restock'],['Product',row.productName||db.products.find(p=>p.id===row.productId)?.name||'Product'],['Date and time',safeDate(row.date).toLocaleString()],
-  ['Purchase quantity',(row.purchaseQuantity||0)+' '+(row.purchaseUnit||'unit')],['Units per purchase',row.unitsPerPurchase||1],
-  ['Total units added',row.baseQuantity||((row.purchaseQuantity||0)*(row.unitsPerPurchase||1))],
-  ['Cost per purchase unit',money(Number(row.costPerPurchaseUnit)||0)],['Total purchase cost',money(Number(row.totalCost)||((row.purchaseQuantity||0)*(Number(row.costPerPurchaseUnit)||0)))],
-  ['Stock after restock',row.newStock??'—'],['Average cost per unit',money(Number(row.averageCostAfter)||0)]
+  ['Type','Restock'],['Product',row.productName||db.products.find(product=>String(product.id)===String(row.productId))?.name||'Product'],
+  ['Date and time',safeDate(row.date).toLocaleString()],
+  ['Purchase quantity',(row.purchaseQuantity||0)+' '+(row.purchaseUnit||'unit')],
+  ['Units per purchase',row.unitsPerPurchase||1],
+  ['Total units added',String(row.baseQuantity||((row.purchaseQuantity||0)*(row.unitsPerPurchase||1)))+' '+baseUnit],
+  ['Cost per purchase unit',money(Number(row.costPerPurchaseUnit)||0)],
+  ['Total purchase cost',money(Number(row.totalCost)||((row.purchaseQuantity||0)*(Number(row.costPerPurchaseUnit)||0)))],
+  ['Stock after restock',String(row.newStock??'—')+' '+baseUnit],
+  ['Average cost per '+baseUnit,money(Number(row.averageCostAfter)||0)]
  ]:[
   ['Type','Stock adjustment'],['Product',row.productName||'Product'],['Date and time',safeDate(row.date).toLocaleString()],
-  ['Previous stock',String(row.previousStock??'—')+' units'],['New stock',String(row.newStock??'—')+' units'],
-  ['Change',((Number(row.quantityChange)>0?'+':'')+String(row.quantityChange??0))+' units'],['Reason',row.reason||'Not specified']
+  ['Previous stock',String(row.previousStock??'—')+' '+baseUnit],
+  ['New stock',String(row.newStock??'—')+' '+baseUnit],
+  ['Change',((Number(row.quantityChange)>0?'+':'')+String(row.quantityChange??0))+' '+baseUnit],
+  ['Reason',row.reason||'Not specified']
  ];
  target.innerHTML=fields.map(([label,value])=>'<div class="stock-history-detail-field"><span>'+esc(label)+'</span><strong>'+esc(String(value))+'</strong></div>').join('');
 }
-document.getElementById('stock-history').addEventListener('click',e=>{const b=e.target.closest('[data-stock-history-id]');if(!b)return;renderStockHistoryDetail(b.dataset.stockHistoryKind,b.dataset.stockHistoryId);showPage('stock-history-detail');});
+document.getElementById('stock-history').addEventListener('click',event=>{const more=event.target.closest('[data-history-load-more]');if(more){showMoreStockHistory(more.dataset.historyLoadMore);return;}const button=event.target.closest('[data-stock-history-id]');if(!button)return;renderStockHistoryDetail(button.dataset.stockHistoryKind,button.dataset.stockHistoryId);showPage('stock-history-detail');});
 
-function updateAdjustmentPreview(){const p=db.products.find(x=>x.id===document.getElementById('adjustProduct').value),v=document.getElementById('adjustNewStock').value;document.getElementById('adjustCurrentStock').textContent=p?String(p.stock):'—';const d=p&&v!==''?Number(v)-Number(p.stock):null;document.getElementById('adjustStockChange').textContent=d===null?'—':(d>0?'+':'')+d+' units';}
+function updateAdjustmentPreview(){const p=db.products.find(x=>x.id===document.getElementById('adjustProduct').value),v=document.getElementById('adjustNewStock').value;document.getElementById('adjustCurrentStock').textContent=p?String(p.stock):'—';const d=p&&v!==''?Number(v)-Number(p.stock):null;document.getElementById('adjustStockChange').textContent=d===null?'—':(d>0?'+':'')+d+' '+(p?.baseUnit||'unit');}
 document.getElementById('adjustProduct').addEventListener('change',()=>{const p=db.products.find(x=>x.id===document.getElementById('adjustProduct').value);document.getElementById('adjustNewStock').value=p?p.stock:'';updateAdjustmentPreview();});
 document.getElementById('adjustNewStock').addEventListener('input',updateAdjustmentPreview);
 document.getElementById('lowStockList').addEventListener('click',e=>{const b=e.target.closest('[data-adjust-from-list]');if(!b)return;showPage('stock');document.getElementById('adjustProduct').value=b.dataset.adjustFromList;const p=db.products.find(x=>x.id===b.dataset.adjustFromList);document.getElementById('adjustNewStock').value=p?p.stock:'';updateAdjustmentPreview();});
-function renderStockAdjustments(){const target=document.getElementById('stockAdjustmentList');if(!target)return;const rows=[...(db.stockAdjustments||[])].sort((a,b)=>safeDate(b.date)-safeDate(a.date)).slice(0,100);target.innerHTML=rows.length?rows.map(a=>'<button type="button" class="stock-history-row" data-stock-history-id="'+esc(a.id)+'" data-stock-history-kind="adjustment"><span class="row"><strong>'+esc(a.productName)+'</strong><strong>'+(a.quantityChange>0?'+':'')+a.quantityChange+' units</strong></span><span class="muted">'+safeDate(a.date).toLocaleString()+' · '+a.previousStock+' → '+a.newStock+' units'+(a.reason?' · '+esc(a.reason):'')+'</span></button>').join(''):'<div class="empty">No stock adjustments recorded yet.</div>';renderRestockHistory();}
+function renderStockAdjustments(){
+ const target=document.getElementById('stockAdjustmentList');if(!target)return;
+ const rows=[...(db.stockAdjustments||[])].sort((a,b)=>safeDate(b.date)-safeDate(a.date));
+ const visible=rows.slice(0,stockHistoryVisible.adjustments);
+ target.innerHTML=rows.length?visible.map(adjustment=>{
+  const unit=stockHistoryBaseUnit(adjustment.productId,adjustment.baseUnit||'unit');
+  const change=Number(adjustment.quantityChange)||0;
+  return '<button type="button" class="stock-history-row" data-stock-history-id="'+esc(adjustment.id)+'" data-stock-history-kind="adjustment"><span class="row"><strong>'+esc(adjustment.productName)+'</strong><strong>'+(change>0?'+':'')+change.toLocaleString('en-NG')+' '+esc(unit)+'</strong></span><span class="muted">'+safeDate(adjustment.date).toLocaleString()+' · '+adjustment.previousStock+' → '+adjustment.newStock+' '+esc(unit)+(adjustment.reason?' · '+esc(adjustment.reason):'')+'</span></button>';
+ }).join('')+stockHistoryLoadMoreButton('adjustments',rows.length,visible.length):'<div class="empty">No stock adjustments recorded yet.</div>';
+}
 function updateRestockPreview(){
  const p=db.products.find(x=>x.id===document.getElementById('restockProduct').value);
  const qty=Number(document.getElementById('restockPurchaseQty').value),units=Number(document.getElementById('restockUnitsPerPurchase').value),cost=Number(document.getElementById('restockCostPerPurchase').value);
  const out=document.getElementById('restockPreview');
  if(!p||!Number.isSafeInteger(qty)||qty<1||!Number.isSafeInteger(units)||units<1||!Number.isFinite(cost)||cost<0||qty>Math.floor(2000000000/units)){out.textContent='Choose a product and enter valid purchase details within the stock limit.';return;}
  const baseQty=qty*units,total=qty*cost,newStock=p.stock+baseQty;if(!Number.isSafeInteger(newStock)||newStock>2000000000||!Number.isFinite(total)||total>MAX_MONEY){out.textContent='This purchase exceeds the safe stock or cost limit.';return;}const baseCost=total/baseQty,avg=p.stock>0?((p.stock*p.cost+baseQty*baseCost)/newStock):baseCost;
- out.textContent='Adds '+baseQty+' units · Total purchase cost '+money(total)+' · New stock '+newStock+' · New average cost '+money(avg)+' per smallest unit.';
+ out.textContent='Adds '+baseQty+' '+(p.baseUnit||'unit')+' · Total purchase cost '+money(total)+' · New stock '+newStock+' · New average cost '+money(avg)+' per '+(p.baseUnit||'unit')+'.';
 }
 ['restockProduct','restockPurchaseQty','restockPurchaseUnit','restockUnitsPerPurchase','restockCostPerPurchase'].forEach(id=>document.getElementById(id).addEventListener('input',updateRestockPreview));
 let restockSubmitting=false;
@@ -3133,7 +3267,7 @@ document.getElementById('restockForm').addEventListener('submit',async e=>{
  }catch(err){p.stock=oldStock;p.cost=oldCost;db.restocks=db.restocks.filter(item=>item.id!==restock.id);render();showToast('Restock could not be saved: '+(err.message||String(err)));}
  } finally {restockSubmitting=false;if(submitButton)submitButton.disabled=false;}
 });
-document.getElementById('stockAdjustmentForm').addEventListener('submit',async e=>{e.preventDefault();const p=db.products.find(x=>x.id===document.getElementById('adjustProduct').value),next=Number(document.getElementById('adjustNewStock').value),reason=document.getElementById('adjustReason').value.trim();if(!p)return showToast('Choose a product first.');if(!Number.isSafeInteger(next)||next<0||next>2000000000)return showToast('Enter a whole-number stock quantity between 0 and 2,000,000,000.');if(next===p.stock)return showToast('The new stock quantity is the same as the current quantity.');if(!confirm('Change '+p.name+' stock from '+p.stock+' to '+next+' units?'))return;const old=p.stock,oldVersion=p.updatedAt,a={id:crypto.randomUUID(),productId:p.id,productName:p.name,previousStock:old,newStock:next,quantityChange:next-old,reason,date:now()};p.stock=next;if(cloudUser){try{db.stockAdjustments.push(a);await saveCloudChangesLocally([{type:'product_save',payload:{product:{...p},isNew:false}},{type:'stock_adjustment',payload:{adjustment:a}}]);}catch(err){p.stock=old;p.updatedAt=oldVersion;db.stockAdjustments=db.stockAdjustments.filter(x=>x.id!==a.id);render();return showToast(err.message||String(err));}}else{db.stockAdjustments.push(a);if(!save()){p.stock=old;db.stockAdjustments.pop();return;}render();}document.getElementById('adjustReason').value='';showToast('Stock adjustment saved.');});
+document.getElementById('stockAdjustmentForm').addEventListener('submit',async e=>{e.preventDefault();const p=db.products.find(x=>x.id===document.getElementById('adjustProduct').value),next=Number(document.getElementById('adjustNewStock').value),reason=document.getElementById('adjustReason').value.trim();if(!p)return showToast('Choose a product first.');if(!Number.isSafeInteger(next)||next<0||next>2000000000)return showToast('Enter a whole-number stock quantity between 0 and 2,000,000,000.');if(next===p.stock)return showToast('The new stock quantity is the same as the current quantity.');if(!confirm('Change '+p.name+' stock from '+p.stock+' to '+next+' '+(p.baseUnit||'unit')+'?'))return;const old=p.stock,oldVersion=p.updatedAt,a={id:crypto.randomUUID(),productId:p.id,productName:p.name,previousStock:old,newStock:next,quantityChange:next-old,reason,date:now()};p.stock=next;if(cloudUser){try{db.stockAdjustments.push(a);await saveCloudChangesLocally([{type:'product_save',payload:{product:{...p},isNew:false}},{type:'stock_adjustment',payload:{adjustment:a}}]);}catch(err){p.stock=old;p.updatedAt=oldVersion;db.stockAdjustments=db.stockAdjustments.filter(x=>x.id!==a.id);render();return showToast(err.message||String(err));}}else{db.stockAdjustments.push(a);if(!save()){p.stock=old;db.stockAdjustments.pop();return;}render();}document.getElementById('adjustReason').value='';showToast('Stock adjustment saved.');});
 
 function updateSalePrice(){
  const p=db.products.find(x=>x.id===document.getElementById('saleProduct').value);
@@ -3639,7 +3773,24 @@ document.getElementById('expenseForm').addEventListener('submit',async e=>{
 let selectedExpenseDetailId='';
 function getExpenseHistoryRows(){const period=document.getElementById('expenseHistoryPeriod')?.value||'today',from=document.getElementById('expenseHistoryFrom')?.value||'',to=document.getElementById('expenseHistoryTo')?.value||'',bounds=getLocalPeriodBounds(period,from,to),query=(document.getElementById('expenseHistorySearch')?.value||'').trim().toLocaleLowerCase(),category=document.getElementById('expenseHistoryCategory')?.value||'';return [...(db.expenses||[])].filter(x=>withinPeriod(x,bounds)&&(!category||String(x.category||'Other')===category)&&(!query||String(x.name||'').toLocaleLowerCase().includes(query)||String(x.note||'').toLocaleLowerCase().includes(query))).sort((a,b)=>safeDate(operationalDate(b))-safeDate(operationalDate(a)));}
 function renderExpenseHistory(){const target=document.getElementById('expenseHistoryList');if(!target)return;const period=document.getElementById('expenseHistoryPeriod')?.value||'today',from=document.getElementById('expenseHistoryFrom')?.value||'',to=document.getElementById('expenseHistoryTo')?.value||'',bounds=getLocalPeriodBounds(period,from,to),rows=getExpenseHistoryRows(),active=rows.filter(x=>!isExpenseVoided(x)),voided=rows.filter(isExpenseVoided),total=active.reduce((n,x)=>n+(Number(x.amount)||0),0),set=(id,value)=>{const el=document.getElementById(id);if(el)el.textContent=String(value);};const labels={today:'Today',yesterday:'Yesterday',week:'This week',month:'This month',year:'This year',all:'All time',custom:bounds.from===bounds.to?bounds.from:bounds.from+' – '+bounds.to};set('expenseHistoryPeriodLabel',labels[period]||'Today');set('expenseHistoryTotal',money(total));set('expenseHistoryCount',rows.length);set('expenseHistoryVoided',voided.length);set('expenseHistoryActiveCount',active.length);const custom=document.getElementById('expenseHistoryCustomRange');if(custom)custom.hidden=period!=='custom';const max=dateKey(new Date());['expenseHistoryFrom','expenseHistoryTo'].forEach(id=>{const el=document.getElementById(id);if(el)el.max=max;});target.innerHTML=rows.length?rows.map(x=>'<button type="button" class="item sales-history-row expense-history-row" data-expense-detail="'+esc(String(x.id))+'" style="width:100%;text-align:left"><span class="sales-history-row-main"><span class="row"><strong>'+esc(x.name||'Expense')+'</strong><strong>'+money(Number(x.amount)||0)+'</strong></span><span class="muted">'+esc(x.category||'Other')+' · '+safeDate(operationalDate(x)).toLocaleString()+(isExpenseVoided(x)?' · VOIDED':'')+(x.note?' · '+esc(x.note):'')+'</span></span><span aria-hidden="true">›</span></button>').join(''):'<div class="empty">No expenses match this period and filters.</div>';}
-function renderExpenseOverview(){const active=(db.expenses||[]).filter(x=>!isExpenseVoided(x)),recentRows=active.slice().sort((a,b)=>safeDate(operationalDate(b))-safeDate(operationalDate(a))).slice(0,5),recent=document.getElementById('expenseRecentList');if(recent)recent.innerHTML=recentRows.map(x=>'<button type="button" class="item expense-overview-row" data-expense-detail="'+esc(String(x.id))+'"><span><strong>'+esc(x.name||'Expense')+'</strong><small>'+esc(x.category||'Other')+' · '+safeDate(operationalDate(x)).toLocaleTimeString([], {hour:'numeric',minute:'2-digit'})+'</small></span><strong>'+money(Number(x.amount)||0)+'</strong></button>').join('')||'<div class="empty">No expenses recorded today.</div>';const categories=new Map();for(const x of active){const key=String(x.category||'Other');categories.set(key,(categories.get(key)||0)+(Number(x.amount)||0));}const summary=document.getElementById('expenseCategorySummary');if(summary)summary.innerHTML=[...categories].sort((a,b)=>b[1]-a[1]).slice(0,5).map(([name,value])=>'<div class="expense-category-row"><span>'+esc(name)+'</span><strong>'+money(value)+'</strong></div>').join('')||'<div class="empty">Expense categories will appear here.</div>';}
+function renderExpenseOverview(){
+ const active=(db.expenses||[]).filter(x=>!isExpenseVoided(x));
+ const recentRows=active.slice().sort((a,b)=>safeDate(operationalDate(b))-safeDate(operationalDate(a))).slice(0,5);
+ const recent=document.getElementById('expenseRecentList');
+ if(recent)recent.innerHTML=recentRows.map(x=>'<button type="button" class="item expense-overview-row" data-expense-detail="'+esc(String(x.id))+'"><span><strong>'+esc(x.name||'Expense')+'</strong><small>'+esc(x.category||'Other')+' · '+safeDate(operationalDate(x)).toLocaleString([], {dateStyle:'medium',timeStyle:'short'})+'</small></span><strong>'+money(Number(x.amount)||0)+'</strong></button>').join('')||'<div class="empty">No expenses recorded yet.</div>';
+ const bounds=getLocalPeriodBounds(selectedExpensePeriod);
+ const categories=new Map();
+ for(const expense of active){
+  if(!withinPeriod(expense,bounds))continue;
+  const key=String(expense.category||'Other');
+  categories.set(key,(categories.get(key)||0)+(Number(expense.amount)||0));
+ }
+ const labels={today:'today',yesterday:'yesterday',week:'this week',month:'this month',year:'this year',all:'all time'};
+ const periodLabel=document.getElementById('expenseCategoryPeriodLabel');
+ if(periodLabel)periodLabel.textContent='For '+(labels[selectedExpensePeriod]||'today');
+ const summary=document.getElementById('expenseCategorySummary');
+ if(summary)summary.innerHTML=[...categories].sort((a,b)=>b[1]-a[1]).slice(0,5).map(([name,value])=>'<div class="expense-category-row"><span>'+esc(name)+'</span><strong>'+money(value)+'</strong></div>').join('')||'<div class="empty">No expenses recorded for this period.</div>';
+}
 function renderExpenseDetails(){const target=document.getElementById('expenseDetailsContent'),expense=(db.expenses||[]).find(x=>String(x.id)===String(selectedExpenseDetailId));if(!target)return;if(!expense){target.innerHTML='<div class="empty">This expense could not be found.</div>';return;}const voided=isExpenseVoided(expense),fields=[['Description',expense.name||'Expense'],['Category',expense.category||'Other'],['Amount',money(Number(expense.amount)||0)],['Date paid',safeDate(operationalDate(expense)).toLocaleString()],['Note',expense.note||'None'],['Status',voided?'Voided':'Included in profit'],...(voided?[['Void reason',expense.voidReason||expense.void_reason||'Not provided']]:[])];target.innerHTML='<div class="card expense-detail-card">'+fields.map(([k,v])=>'<div class="sale-detail-line"><span>'+esc(k)+'</span><strong>'+esc(String(v))+'</strong></div>').join('')+'</div>'+(voided?'<p class="muted">This record is retained for audit purposes and is excluded from profit calculations.</p>':'<button type="button" class="secondary" data-void-expense>Void this expense</button><p class="muted">Voiding keeps the original record in history and removes it from profit calculations. It does not delete the record.</p>');target.querySelector('[data-void-expense]')?.addEventListener('click',async()=>{const reason=prompt('Why are you voiding this expense? (Optional, up to 200 characters)','');if(reason===null)return;if(reason.length>200)return showToast('The reason must be 200 characters or fewer.');if(!confirm('Void this expense? It will remain in history but will no longer affect profit.'))return;const old={...expense};expense.voidedAt=now();expense.voidReason=reason.trim();render();if(cloudUser){try{await saveCloudChangeLocally('expense_void',{expenseId:expense.id,voidedAt:expense.voidedAt,voidReason:expense.voidReason});}catch(err){Object.assign(expense,old);render();showToast('Could not void this expense: '+(err.message||String(err)));return;}}else if(!save()){Object.assign(expense,old);render();return;}render();renderExpenseDetails();showToast('Expense voided and retained in history.');});}
 document.getElementById('expenseHistoryPeriod')?.addEventListener('change',()=>renderExpenseHistory());
 ['expenseHistorySearch','expenseHistoryCategory','expenseHistoryFrom','expenseHistoryTo'].forEach(id=>document.getElementById(id)?.addEventListener('input',()=>{if(id==='expenseHistoryFrom'||id==='expenseHistoryTo'){const from=document.getElementById('expenseHistoryFrom'),to=document.getElementById('expenseHistoryTo'),period=document.getElementById('expenseHistoryPeriod');if(period)period.value='custom';if(from?.value&&to?.value&&from.value>to.value){if(id==='expenseHistoryFrom')to.value=from.value;else from.value=to.value;}}renderExpenseHistory();}));
