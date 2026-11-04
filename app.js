@@ -1314,8 +1314,10 @@ function applyBuybookShopLocation(location,options={}){
  return true;
 }
 function getBuybookLocationForSave(){
- const latitude=Number(document.getElementById('buybookLatitude')?.value);
- const longitude=Number(document.getElementById('buybookLongitude')?.value);
+ const latitudeText=String(document.getElementById('buybookLatitude')?.value??'').trim();
+ const longitudeText=String(document.getElementById('buybookLongitude')?.value??'').trim();
+ if(!latitudeText||!longitudeText)return null;
+ const latitude=Number(latitudeText),longitude=Number(longitudeText);
  if(!Number.isFinite(latitude)||!Number.isFinite(longitude)||latitude < -90||latitude > 90||longitude < -180||longitude > 180)return null;
  return {latitude,longitude,accuracy:buybookShopLocation?.accuracy??null,capturedAt:buybookShopLocation?.capturedAt||null};
 }
@@ -1323,10 +1325,6 @@ function getBuybookLocationForSave(){
 document.getElementById('captureBuybookLocationButton')?.addEventListener('click',()=>{
  const button=document.getElementById('captureBuybookLocationButton');
  const label=button?.querySelector('span');
- if(!navigator.onLine){
-  setBuybookLocationMessage('Connect to the internet before capturing your shop location.','error');
-  return;
- }
  if(!window.isSecureContext){
   setBuybookLocationMessage('Location access requires a secure connection. Open Sellbook using its HTTPS address and try again.','error');
   return;
@@ -1372,6 +1370,7 @@ async function loadBuybookConnection(options={}){
  const status=document.getElementById('buybookConnectionStatus');
  const form=document.getElementById('buybookConnectionForm');
  const disconnect=document.getElementById('buybookDisconnectButton');
+ const connectionBar=status?.closest('.buybook-connection-bar');
  const submitButton=document.getElementById('buybookConnectButton');
  if(!status||!form)return;
  const requestId=++buybookConnectionLoadSequence;
@@ -1379,9 +1378,11 @@ async function loadBuybookConnection(options={}){
   buybookConnectionState=connected;
   renderGettingStarted();
   status.textContent=connected?'Connected to Buybook':'Not connected to Buybook';
+  connectionBar?.classList.toggle('connected',connected);
+  connectionBar?.classList.toggle('not-connected',!connected);
+  connectionBar?.classList.toggle('is-loading',false);
   status.classList.toggle('connected',connected);
   status.classList.toggle('not-connected',!connected);
-  status.classList.toggle('is-loading',false);
   disconnect?.classList.toggle('hidden',!connected);
   if(submitButton)submitButton.textContent=connected?'Save shop details':'Connect and list my products';
  };
@@ -1393,6 +1394,7 @@ async function loadBuybookConnection(options={}){
  }
  form.querySelectorAll('input,textarea,button').forEach(control=>{control.disabled=false;});
  status.textContent='Checking Buybook connection…';
+ connectionBar?.classList.add('is-loading');
  status.classList.add('is-loading');
  const requestedUserId=cloudUser.id,requestEpoch=accountSessionEpoch;
  const current=()=>requestId===buybookConnectionLoadSequence&&accountRequestIsCurrent(requestedUserId,requestEpoch);
@@ -1438,6 +1440,8 @@ async function loadBuybookConnection(options={}){
   buybookConnectionState=null;
   status.textContent='Could not check your Buybook connection. Check your internet connection and try again.';
   status.classList.remove('is-loading','connected');
+  connectionBar?.classList.remove('is-loading','connected');
+  connectionBar?.classList.add('not-connected');
   status.classList.add('not-connected');
   if(!options.quiet)showToast('Could not check your Buybook connection. Please try again.','error');
   console.error('Buybook connection check failed:',error);
