@@ -2529,6 +2529,7 @@ async function updateReservationDecision(id,decision,button){
   if(error)throw error;
   if(!data)throw new Error('This reservation has already been updated. Refresh the page to see its latest status.');
   reservation.status=decision;
+  void refreshHomeReservationCount(true);
   let notificationFailed=false;
   try{
    const {error:notificationError}=await supabaseClient.functions.invoke('notify-reservation-decision',{body:{reservation_id:id,decision}});
@@ -5434,7 +5435,8 @@ document.getElementById('adminReplyForm').addEventListener('submit',async e=>{
  }
 });
 setInterval(()=>{if(sellbookIsAdmin&&currentPage()==='admin'&&sessionStorage.getItem('sellbook-admin-panel')==='support'){if(!document.getElementById('adminChatConversationView').classList.contains('hidden')&&document.getElementById('adminMessageUser').value)loadAdminConversation();else loadAdminUsers();}},15000);
-setInterval(()=>{if(!cloudUser||document.hidden)return;if(!sellbookIsAdmin&&currentPage()==='support')loadUserSupport();else updateUnreadBadges();},30000);
+setInterval(()=>{if(!cloudUser||document.hidden)return;if(!sellbookIsAdmin&&currentPage()==='support')loadUserSupport();else updateUnreadBadges();if(currentPage()==='home')refreshHomeReservationCount();},30000);
+window.addEventListener('focus',()=>{if(!cloudUser)return;void updateUnreadBadges();if(currentPage()==='home')void refreshHomeReservationCount(true);});
 
 document.getElementById('notificationAudience').addEventListener('change',e=>document.getElementById('notificationUserWrap').classList.toggle('hidden',e.target.value!=='selected'));
 document.getElementById('adminNotificationForm').addEventListener('submit',async e=>{
