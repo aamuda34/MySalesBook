@@ -600,18 +600,67 @@
  </div>
 </section>
 <section id="settings-buybook" class="page hidden">
- <div class="settings-page-heading">
-  <button type="button" class="settings-back-button" data-open-page="settings" aria-label="Back to Settings">
+ <div class="settings-page-heading buybook-overview-heading">
+  <button type="button" class="settings-back-button" aria-label="Back" title="Back">
    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
   </button>
   <h2 class="page-title">Connect to Buybook</h2>
+  <button type="button" id="openBuybookSetupButton" class="buybook-settings-icon hidden" data-open-page="settings-buybook-setup" aria-label="Edit shop details" title="Shop settings">
+   <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="m19.4 15 .1.1 1.1.9-1.5 2.6-1.3-.6a2 2 0 0 0-1.7.1l-.2.1-.2 1.5h-3l-.2-1.5a2 2 0 0 0-1.9-1.2l-1.3.6-1.5-2.6 1.1-.9a2 2 0 0 0 0-2.1l-1.1-.9 1.5-2.6 1.3.6a2 2 0 0 0 1.9-1.2l.2-1.5h3l.2 1.5a2 2 0 0 0 1.9 1.2l1.3-.6 1.5 2.6-1.1.9a2 2 0 0 0 0 2.1Z" transform="translate(-1 -1) scale(1.08)"/></svg>
+  </button>
  </div>
- <p class="settings-page-intro">Make your shop discoverable to buyers. Your Sellbook product records stay in Sellbook and are listed on Buybook automatically.</p>
+ <p class="settings-page-intro">Manage how buyers find and contact your shop on Buybook.</p>
 
- <div class="card settings-detail-card buybook-setup-card">
-  <div class="buybook-connection-bar">
+ <div class="card settings-detail-card buybook-overview-card">
+  <div class="buybook-connection-bar" id="buybookOverviewConnectionBar">
    <span class="buybook-status-dot" aria-hidden="true"></span>
    <strong id="buybookConnectionStatus" role="status" aria-live="polite">Checking Buybook connection…</strong>
+  </div>
+  <div id="buybookNotConnectedState" class="buybook-not-connected hidden">
+   <div class="buybook-overview-empty-icon" aria-hidden="true">
+    <svg viewBox="0 0 24 24"><path d="M3 10.5 12 3l9 7.5"/><path d="M5.5 9v11h13V9M9 20v-6h6v6"/><path d="M16.5 4.5h3v3"/></svg>
+   </div>
+   <h3 id="buybookNotConnectedTitle">Connect your shop to Buybook</h3>
+   <p id="buybookNotConnectedDescription">Let nearby buyers discover your products and find your shop.</p>
+   <button type="button" id="buybookConnectOpenButton" class="primary buybook-overview-primary" data-open-page="settings-buybook-setup">Connect to Buybook</button>
+   <button type="button" id="buybookReconnectButton" class="primary buybook-overview-primary hidden">Reconnect to Buybook</button>
+   <button type="button" id="buybookEditDisconnectedButton" class="buybook-review-details hidden" data-open-page="settings-buybook-setup">Review or edit shop details</button>
+  </div>
+  <div id="buybookConnectedDetails" class="buybook-connected-details hidden" aria-live="polite">
+   <div class="buybook-connected-heading">
+    <div><span class="buybook-connected-eyebrow">YOUR BUYBOOK SHOP</span><h3 id="buybookOverviewShopName">—</h3></div>
+    <span class="buybook-connected-pill"><span aria-hidden="true">✓</span> Connected</span>
+   </div>
+   <div class="buybook-overview-detail-list">
+    <div class="buybook-overview-detail"><span>WhatsApp number</span><a id="buybookOverviewPhone" href="#" target="_blank" rel="noopener noreferrer">—</a></div>
+    <div class="buybook-overview-detail"><span>Shop address</span><strong id="buybookOverviewAddress">—</strong></div>
+    <div class="buybook-overview-detail"><span>Town or city</span><strong id="buybookOverviewCity">—</strong></div>
+    <div class="buybook-overview-detail"><span>State</span><strong id="buybookOverviewState">—</strong></div>
+    <div class="buybook-overview-detail buybook-overview-description"><span>About the shop</span><p id="buybookOverviewDescription">Not provided</p></div>
+    <div class="buybook-overview-detail buybook-overview-location"><span>Exact shop location</span><div><strong id="buybookOverviewLocationStatus">GPS location saved</strong><a id="buybookOverviewMapLink" href="#" target="_blank" rel="noopener noreferrer">View shop location on map</a></div></div>
+   </div>
+   <div class="buybook-overview-footer">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 4.5 6v5.2c0 4.5 3.1 8.2 7.5 9.8 4.4-1.6 7.5-5.3 7.5-9.8V6L12 3Z"/><path d="m9 12 2 2 4-4"/></svg>
+    <p>Your Sellbook products are listed on Buybook automatically. Your sales, expenses and private reports remain in Sellbook.</p>
+   </div>
+  </div>
+  <p id="buybookOverviewMessage" class="settings-inline-status muted" role="status" aria-live="polite"></p>
+ </div>
+</section>
+
+<section id="settings-buybook-setup" class="page hidden">
+ <div class="settings-page-heading">
+  <button type="button" class="settings-back-button" data-app-back="settings-buybook" aria-label="Back to Buybook details">
+   <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+  </button>
+  <h2 class="page-title" id="buybookSetupPageTitle">Set up your Buybook shop</h2>
+ </div>
+ <p class="settings-page-intro" id="buybookSetupPageIntro">Add your shop details and capture its exact location so buyers can find you.</p>
+
+ <div class="card settings-detail-card buybook-setup-card">
+  <div class="buybook-connection-bar" id="buybookSetupConnectionBar">
+   <span class="buybook-status-dot" aria-hidden="true"></span>
+   <strong id="buybookSetupConnectionStatus" role="status" aria-live="polite">Checking Buybook connection…</strong>
    <button type="button" id="buybookDisconnectButton" class="danger hidden">Disconnect</button>
   </div>
 
