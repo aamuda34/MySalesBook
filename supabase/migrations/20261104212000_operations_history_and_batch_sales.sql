@@ -201,16 +201,16 @@ begin
 
   if exists (
     select 1
-    from jsonb_array_elements(p_sales) x
-    group by x->>'id'
-    having count(*) > 1 or x->>'id' is null
+    from jsonb_array_elements(p_sales) as x(value)
+    group by x.value->>'id'
+    having count(*) > 1 or x.value->>'id' is null
   ) then
     raise exception 'Every sale line must have a different unique ID.';
   end if;
 
-  select array_agg(distinct (x->>'product_id')::uuid order by (x->>'product_id')::uuid)
+  select array_agg(distinct (x.value->>'product_id')::uuid order by (x.value->>'product_id')::uuid)
     into v_product_ids
-  from jsonb_array_elements(p_sales) x;
+  from jsonb_array_elements(p_sales) as x(value);
 
   if coalesce(cardinality(v_product_ids),0) = 0 then
     raise exception 'Choose at least one product.';
