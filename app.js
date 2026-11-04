@@ -1647,7 +1647,7 @@ function renderProductCategoryOptions(){
  const options=[...new Set([...matches,...customSelected])];
  let markup=options.map(category=>'<label class="product-category-option"><input type="checkbox" data-product-category value="'+esc(category)+'" '+(selected.some(item=>item.toLocaleLowerCase()===category.toLocaleLowerCase())?'checked ':'')+(!selected.some(item=>item.toLocaleLowerCase()===category.toLocaleLowerCase())&&selected.length>=3?'disabled':'')+'><span>'+esc(category)+'</span></label>').join('');
  const exact=allCategories.some(category=>category.toLocaleLowerCase()===query)||selected.some(category=>category.toLocaleLowerCase()===query);
- if(query&&!exact){
+ if(query&&!exact&&options.length===0){
   const canAdd=selected.length<3;
   markup+='<button type="button" class="product-category-add-option" data-add-product-category="'+esc(cleanProductCategory(search.value))+'" '+(canAdd?'':'disabled')+'>＋ Add “'+esc(cleanProductCategory(search.value))+'” as a category</button>';
  }
