@@ -5486,7 +5486,7 @@ async function loadMessengerConversations(options={}){
  if(!options.quiet)list.innerHTML='<div class="empty">Loading chats…</div>';
  try{
   const [marketRes,subsRes]=await Promise.all([
-   supabaseClient.from('marketplace_messages').select('id,owner_id,buyer_id,sender_id,body,created_at,read_at').eq('owner_id',uid).order('created_at',{ascending:false}).order('id',{ascending:false}).limit(500),
+   fetchAllCloudRows(()=>supabaseClient.from('marketplace_messages').select('id,owner_id,buyer_id,sender_id,body,created_at,read_at').eq('owner_id',uid).order('created_at',{ascending:false}).order('id',{ascending:false})),
    supabaseClient.rpc('get_my_marketplace_subscribers')
   ]);
   if(!current())return;
