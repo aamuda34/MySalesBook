@@ -2544,6 +2544,7 @@ async function loadReservationsPage(){
    showToast('Could not load reservations: '+(err.message||'Please try again.'),'error');
    target.innerHTML='<div class="empty">Reservations are temporarily unavailable. Refresh to try again.</div>';
   }
+ }
 }
 async function retryReservationNotification(id,button){
  if(!cloudUser||!supabaseClient)return;
