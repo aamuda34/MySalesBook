@@ -2688,9 +2688,10 @@ async function refreshStockHistoryFromCloud(){
  try{
   const [result,historyResult]=await Promise.all([
    supabaseClient.from('stock_purchases').select('id,product_id,product_name,purchase_quantity,purchase_unit,units_per_purchase,base_quantity,cost_per_purchase_unit,total_cost,average_cost_before,average_cost_after,previous_stock,new_stock,restocked_at').eq('user_id',uid).order('restocked_at',{ascending:false}).limit(500),
-   fetchAllCloudRows(()=>supabaseClient.from('product_creation_history').select('id,product_id,product_name,category,cost_price,selling_price,initial_stock,image_path,base_unit,purchase_unit,units_per_purchase,pack_unit,units_per_pack,pack_selling_price,added_at').eq('user_id',uid).order('added_at',{ascending:false}).order('id',{ascending:false}))
+   fetchAllCloudRows(()=>supabaseClient.from('product_creation_history').select('id,product_id,product_name,category,cost_price,selling_price,initial_stock,image_path,base_unit,purchase_unit,units_per_purchase,pack_unit,units_per_pack,pack_selling_price,added_at').eq('user_id',uid).order('added_at',{ascending:false}).order('id',{ascending:false})),
+   fetchAllCloudRows(()=>supabaseClient.from('product_activity').select('id,product_id,product_name,activity_type,old_values,new_values,created_at').eq('user_id',uid).order('created_at',{ascending:false}))
   ]);
-  if(result.error)throw result.error;if(historyResult.error)throw historyResult.error;
+  if(result.error)throw result.error;if(historyResult.error)throw historyResult.error;if(activityResult.error)throw activityResult.error; 
   if(!cloudUser||cloudUser.id!==uid)return;
   const restocks=new Map();
   for(const row of db.restocks||[])if(row?.id!=null)restocks.set(String(row.id),row);
@@ -2703,6 +2704,7 @@ async function refreshStockHistoryFromCloud(){
   for(const row of historyResult.data||[])put({id:row.product_id,productId:row.product_id,productName:row.product_name,category:row.category,cost:Number(row.cost_price),price:Number(row.selling_price),initialStock:Number(row.initial_stock),imagePath:row.image_path||'',baseUnit:row.base_unit||'unit',purchaseUnit:row.purchase_unit||'unit',unitsPerPurchase:Number(row.units_per_purchase||1),packUnit:row.pack_unit||'',unitsPerPack:Number(row.units_per_pack||1),packPrice:row.pack_selling_price==null?null:Number(row.pack_selling_price),addedAt:row.added_at});
   for(const item of readQueue(uid)){const p=item.payload?.product;if(item.type==='product_save'&&item.payload?.isNew&&item.status!=='synced'&&p)put(productCreationSnapshot(p));}
   db.productAdditions=[...additions.values()].sort((a,b)=>safeDate(b.addedAt)-safeDate(a.addedAt));
+  db.productActivity=(activityResult.data||[]).map(row=>({id:row.id,productId:row.product_id,productName:row.product_name,activityType:row.activity_type,oldValues:row.old_values,newValues:row.new_values,createdAt:row.created_at}));
   renderAll();cacheCloudData(uid);
  }catch(error){console.warn('Product history refresh failed:',error);cloudMessage('Product history could not be refreshed. Showing the saved history on this phone.');renderAll();}
 }
