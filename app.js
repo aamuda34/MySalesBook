@@ -143,11 +143,45 @@ function dismissToast(){
  try{if(typeof popup.hidePopover==='function'&&popup.matches(':popover-open'))popup.hidePopover();}catch(_){}
  if(statusPopupTimer){clearTimeout(statusPopupTimer);statusPopupTimer=null;}
 }
+function friendlyToastMessage(message){
+ const value=String(message??'').trim(),lower=value.toLocaleLowerCase();
+ const rules=[
+  [/^could not load buybook activity\b/i,'Could not refresh Buybook activity. Check your internet connection and try again.'],
+  [/^could not load reservations\b/i,'Could not refresh reservations. Check your internet connection and try again.'],
+  [/^could not load subscribers\b/i,'Could not refresh subscribers. Check your internet connection and try again.'],
+  [/^could not load notifications\b/i,'Could not refresh notifications. Check your internet connection and try again.'],
+  [/^could not load conversations\b/i,'Could not refresh conversations. Check your internet connection and try again.'],
+  [/^could not load messages\b/i,'Could not refresh messages. Check your internet connection and try again.'],
+  [/^could not load this conversation\b/i,'Could not refresh this conversation. Check your internet connection and try again.'],
+  [/^could not load feedback\b|^could not load your feedback\b/i,'Could not refresh feedback. Check your internet connection and try again.'],
+  [/^could not load sellbook users\b/i,'Could not refresh the user list. Check your connection and try again.'],
+  [/^could not load chat previews\b/i,'Could not refresh chat previews. Check your connection and try again.'],
+  [/^traffic metrics are unavailable\b/i,'Could not refresh traffic information. Please try again.'],
+  [/^cloud operation failed\b/i,'Could not complete this action. Check your connection and try again.'],
+  [/^could not check buybook connection\b/i,'Could not check your Buybook connection. Please try again.'],
+  [/^could not connect:/i,'Could not connect your shop to Buybook. Check your connection and try again.'],
+  [/^could not disconnect:/i,'Could not disconnect your shop from Buybook. Please try again.'],
+  [/^could not publish notification:/i,'Could not send the notification. Check your connection and try again.'],
+  [/^could not restore backup:/i,'Could not restore the backup. Check that it is a valid Sellbook backup and try again.'],
+  [/^could not send the verification code:/i,'Could not send the verification code. Check your connection and try again.'],
+  [/^could not send feedback:/i,'Could not send your feedback. Check your connection and try again.'],
+  [/^could not send message:/i,'Your message could not be sent. Check your connection and try again.']
+ ];
+ for(const [pattern,replacement] of rules)if(pattern.test(value))return replacement;
+ if(/failed to fetch|network request failed|networkerror|load failed|connection (?:was )?lost|timed? ?out/i.test(lower))return 'Could not connect. Check your internet connection and try again.';
+ if(/row-level security|permission denied|not authorized|unauthorized|jwt expired|invalid jwt|invalid refresh token/i.test(lower))return 'Sellbook could not complete that action. Sign in again or contact Sellbook Support for help.';
+ if(/duplicate key|unique constraint/i.test(lower))return 'This information already exists. Check the details and try again.';
+ if(/foreign key|violates.*constraint|sqlstate|relation .* does not exist|column .* does not exist|postgrest|postgresql/i.test(lower))return 'Sellbook could not complete that change. Please try again. If it continues, contact Sellbook Support.';
+ if(value.length>220)return 'Sellbook could not complete that action. Please try again. If it continues, contact Sellbook Support.';
+ return value;
+}
+let pageRefreshDepth=0,pageRefreshErrorShown=false,pageRefreshSuccessPending=false;
 function showToast(message,type){
  const popup=document.getElementById('appStatusPopup');
- const text=String(message??'').trim();
+ const text=friendlyToastMessage(message);
  if(!popup||!text)return;
  const kind=['success','error','info'].includes(type)?type:inferToastType(text);
+ if(pageRefreshDepth>0){if(kind!=='error')return;if(pageRefreshErrorShown)return;pageRefreshErrorShown=true;}
  const textNode=popup.querySelector('[data-toast-message]');
  const icon=popup.querySelector('[data-toast-icon]');
  // Prefer the browser top layer so notices stay above every modal dialog.
@@ -177,6 +211,35 @@ function showToast(message,type){
  if(statusPopupTimer)clearTimeout(statusPopupTimer);
  const duration=kind==='error'?10000:kind==='success'?4800:6500;
  statusPopupTimer=setTimeout(dismissToast,duration);
+}
+async function runPageRefresh(button,action,options={}){
+ if(button?.disabled)return false;
+ if(!cloudUser||!supabaseClient){showToast('Sign in to Sellbook to refresh this information.','error');return false;}
+ if(options.admin&&!sellbookIsAdmin){showToast('You do not have permission to refresh this information.','error');return false;}
+ if(pageRefreshDepth===0){pageRefreshErrorShown=false;pageRefreshSuccessPending=false;}
+ const requestedUserId=cloudUser.id,requestEpoch=accountSessionEpoch;
+ if(button){button.disabled=true;button.setAttribute('aria-busy','true');}
+ pageRefreshDepth++;
+ let refreshed=false;
+ try{
+  const result=await action();
+  const sameAccount=cloudUser?.id===requestedUserId&&accountSessionEpoch===requestEpoch;
+  refreshed=result!==false&&sameAccount&&(!options.admin||sellbookIsAdmin)&&!pageRefreshErrorShown;
+  if(!refreshed&&!pageRefreshErrorShown)showToast('Could not refresh this page. Check your internet connection and try again.','error');
+ }catch(error){
+  if(!pageRefreshErrorShown)showToast('Could not refresh this page. Check your internet connection and try again.','error');
+  console.warn('Sellbook page refresh failed:',error);
+ }finally{
+  if(refreshed)pageRefreshSuccessPending=true;
+  pageRefreshDepth--;
+  if(pageRefreshDepth===0){
+   const notifySuccess=pageRefreshSuccessPending&&!pageRefreshErrorShown;
+   pageRefreshSuccessPending=false;pageRefreshErrorShown=false;
+   if(notifySuccess)showToast('Refreshed','success');
+  }
+  if(button){button.disabled=false;button.removeAttribute('aria-busy');}
+ }
+ return refreshed;
 }
 function notifyStatus(target,message,type){
  const element=typeof target==='string'?document.getElementById(target):target;
@@ -1234,7 +1297,7 @@ async function loadBuybookActivity(options={}){
  }finally{if(requestId===marketplaceActivityRequestId)marketplaceActivityBusy=false;}
 }
 document.getElementById('marketplaceSubscriberList')?.addEventListener('click',event=>{const button=event.target.closest('[data-marketplace-buyer]');if(button){marketplaceSelectedBuyerId=button.dataset.marketplaceBuyer;showPage('support');loadUserSupport();}});
-document.getElementById('refreshBuybookActivity')?.addEventListener('click',async()=>{await loadBuybookConnection();await loadBuybookActivity();});
+
 document.getElementById('buybookConnectionForm')?.addEventListener('submit',async e=>{
  e.preventDefault();const message=document.getElementById('buybookConnectionMessage'),button=document.getElementById('buybookConnectButton');
  if(!navigator.onLine){notifyStatus(message,'Connect to the internet to set up Buybook.','error');return;}
@@ -1634,151 +1697,176 @@ const PRODUCT_CATEGORIES=[
 ];
 function categoryValues(value){return String(value||'').split('|').map(x=>x.trim()).filter(Boolean);}
 function cleanProductCategory(value){return String(value||'').replace(/[|<>]/g,' ').replace(/\s+/g,' ').trim().slice(0,48);}
+function categorySearchKey(value){return String(value||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim().toLocaleLowerCase();}
 function getSelectedCategories(prefix){
  const id=prefix==='editProduct'?'editProductCategory':'pcategory';
  return categoryValues(document.getElementById(id)?.value||'').slice(0,3);
 }
 function updateCategoryCount(prefix,values){
- const id=prefix==='editProduct'?'editProductCategoryCount':'productCategoryCount';
- const target=document.getElementById(id);
+ const target=document.getElementById(prefix==='editProduct'?'editProductCategoryCount':'productCategoryCount');
  if(!target)return;
- target.textContent=values.length
-  ? values.length+' of 3 selected'
-  : 'Choose up to 3 categories';
+ target.textContent=values.length?values.length+' of 3 selected':'Choose up to 3 categories';
  target.title=values.length?values.join(' · '):'Choose up to three product categories';
 }
-function productCategoryPickerOpen(open=true){
- const dropdown=document.getElementById('productCategoryDropdown'),search=document.getElementById('productCategorySearch'),toggle=document.getElementById('productCategoryToggle');
+function setCategoryPickerOpen(prefix,open=true){
+ const edit=prefix==='editProduct';
+ const dropdown=document.getElementById(edit?'editProductCategoryDropdown':'productCategoryDropdown');
+ const search=document.getElementById(edit?'editProductCategorySearch':'productCategorySearch');
+ const toggle=document.getElementById(edit?'editProductCategoryToggle':'productCategoryToggle');
  if(!dropdown||!search||!toggle)return;
  dropdown.classList.toggle('hidden',!open);
  search.setAttribute('aria-expanded',String(open));
  toggle.setAttribute('aria-expanded',String(open));
  toggle.textContent=open?'Close':'Browse';
+ toggle.setAttribute('aria-label',open?'Close category list':'Browse all categories');
 }
-function editProductCategoryPickerOpen(open=true){
- const dropdown=document.getElementById('editProductCategoryDropdown'),search=document.getElementById('editProductCategorySearch'),toggle=document.getElementById('editProductCategoryToggle');
- if(!dropdown||!search||!toggle)return;
- dropdown.classList.toggle('hidden',!open);
- search.setAttribute('aria-expanded',String(open));
- toggle.setAttribute('aria-expanded',String(open));
- toggle.textContent=open?'Close':'Browse';
-}
+function productCategoryPickerOpen(open=true){setCategoryPickerOpen('product',open);}
+function editProductCategoryPickerOpen(open=true){setCategoryPickerOpen('editProduct',open);}
 function getProductCategoryChoices(){
  const used=(db.products||[]).flatMap(product=>categoryValues(product.category));
- return [...new Set([...PRODUCT_CATEGORIES,...used.map(cleanProductCategory).filter(Boolean)])];
+ const seen=new Set(),choices=[];
+ [...PRODUCT_CATEGORIES,...used.map(cleanProductCategory).filter(Boolean)].forEach(category=>{
+  const key=categorySearchKey(category);
+  if(key&&!seen.has(key)){seen.add(key);choices.push(category);}
+ });
+ return choices;
 }
 function renderCategoryOptions(prefix){
  const edit=prefix==='editProduct';
  const target=document.getElementById(edit?'editProductCategoryOptions':'productCategoryOptions');
  const search=document.getElementById(edit?'editProductCategorySearch':'productCategorySearch');
  if(!target||!search)return;
- const query=search.value.trim().toLocaleLowerCase(),selected=getSelectedCategories(prefix);
+ const rawQuery=search.value.trim(),query=categorySearchKey(rawQuery);
+ const selected=getSelectedCategories(prefix);
  const allCategories=getProductCategoryChoices();
- const matches=allCategories.filter(category=>!query||category.toLocaleLowerCase().includes(query));
- const customSelected=selected.filter(category=>!allCategories.some(item=>item.toLocaleLowerCase()===category.toLocaleLowerCase())&&(!query||category.toLocaleLowerCase().includes(query)));
- const options=[...new Set([...matches,...customSelected])];
+ const matches=allCategories.filter(category=>!query||categorySearchKey(category).includes(query));
+ const selectedCustom=selected.filter(category=>!allCategories.some(item=>categorySearchKey(item)===categorySearchKey(category))&&(!query||categorySearchKey(category).includes(query)));
+ const options=[...matches,...selectedCustom];
  const inputAttribute=edit?'data-edit-product-category':'data-product-category';
  let markup=options.map(category=>{
-  const checked=selected.some(item=>item.toLocaleLowerCase()===category.toLocaleLowerCase());
-  return '<label class="product-category-option"><input type="checkbox" '+inputAttribute+' value="'+esc(category)+'" '+(checked?'checked ':'')+(!checked&&selected.length>=3?'disabled':'')+'><span>'+esc(category)+'</span></label>';
+  const checked=selected.some(item=>categorySearchKey(item)===categorySearchKey(category));
+  const disabled=!checked&&selected.length>=3;
+  return '<label class="product-category-option"><input type="checkbox" '+inputAttribute+' value="'+esc(category)+'" '+(checked?'checked ':'')+(disabled?'disabled ':'')+'><span>'+esc(category)+'</span></label>';
  }).join('');
- const exact=allCategories.some(category=>category.toLocaleLowerCase()===query)||selected.some(category=>category.toLocaleLowerCase()===query);
- if(query&&!exact){
-  const custom=cleanProductCategory(search.value),canAdd=!!custom&&selected.length<3;
-  const dataAttribute=edit?'data-add-edit-product-category':'data-add-product-category';
-  if(custom)markup+='<button type="button" class="product-category-add-option" '+dataAttribute+'="'+esc(custom)+'" '+(canAdd?'':'disabled')+'>＋ Use “'+esc(custom)+'” as a custom category</button>';
+ const exact=allCategories.some(category=>categorySearchKey(category)===query)||selected.some(category=>categorySearchKey(category)===query);
+ const custom=cleanProductCategory(rawQuery);
+ const alreadySelected=selected.some(category=>categorySearchKey(category)===categorySearchKey(custom));
+ if(rawQuery&&!exact&&!alreadySelected&&custom){
+  const addAttribute=edit?'data-add-edit-product-category':'data-add-product-category';
+  markup+='<button type="button" class="product-category-add-option" '+addAttribute+'="'+esc(custom)+'" '+(selected.length<3?'':'disabled')+'>＋ Add "'+esc(custom)+'" as a category</button>';
  }
- target.innerHTML=markup||'<p class="product-category-no-results">No matching category. Try another search or add a custom category.</p>';
+ if(!markup)markup='<p class="product-category-no-results">No matching category. Try another name or add it as a custom category.</p>';
+ if(selected.length>=3)markup+='<p class="product-category-limit-note">You have selected 3 categories. Remove one to choose another.</p>';
+ target.innerHTML=markup;
 }
 function renderProductCategoryOptions(){renderCategoryOptions('product');}
 function renderEditProductCategoryOptions(){renderCategoryOptions('editProduct');}
-function renderProductCategorySelected(){updateCategoryCount('product',getSelectedCategories('product'));}
-function renderEditProductCategorySelected(){updateCategoryCount('editProduct',getSelectedCategories('editProduct'));}
+function renderSelectedCategoryChips(prefix,values){
+ const edit=prefix==='editProduct';
+ const target=document.getElementById(edit?'editProductCategorySelected':'productCategorySelected');
+ if(target){
+  const removeAttribute=edit?'data-remove-edit-product-category':'data-remove-product-category';
+  target.innerHTML=values.map(category=>'<span class="product-category-chip"><span>'+esc(category)+'</span><button type="button" '+removeAttribute+'="'+esc(category)+'" aria-label="Remove '+esc(category)+' category" title="Remove category">×</button></span>').join('');
+  target.classList.toggle('has-selections',values.length>0);
+ }
+ updateCategoryCount(prefix,values);
+}
+function renderProductCategorySelected(){renderSelectedCategoryChips('product',getSelectedCategories('product'));}
+function renderEditProductCategorySelected(){renderSelectedCategoryChips('editProduct',getSelectedCategories('editProduct'));}
 function syncCategoryPicker(prefix,value){
  const edit=prefix==='editProduct',id=edit?'editProductCategory':'pcategory';
- const values=[...new Set(categoryValues(value).map(cleanProductCategory).filter(Boolean))].slice(0,3);
+ const unique=new Map();
+ categoryValues(value).map(cleanProductCategory).filter(Boolean).forEach(category=>{const key=categorySearchKey(category);if(key&&!unique.has(key))unique.set(key,category);});
+ const values=[...unique.values()].slice(0,3);
  const hidden=document.getElementById(id);
  if(hidden)hidden.value=values.join(' | ');
- if(edit){
-  renderEditProductCategoryOptions();
-  renderEditProductCategorySelected();
- }else{
-  renderProductCategoryOptions();
-  renderProductCategorySelected();
- }
+ if(edit){renderEditProductCategoryOptions();renderEditProductCategorySelected();}
+ else{renderProductCategoryOptions();renderProductCategorySelected();}
 }
-function updateCategoryPickerLimits(prefix){
- if(prefix==='editProduct'){
-  renderEditProductCategoryOptions();
-  renderEditProductCategorySelected();
- }else{
-  renderProductCategoryOptions();
-  renderProductCategorySelected();
- }
+function removeProductCategory(prefix,value){
+ const selected=getSelectedCategories(prefix).filter(category=>categorySearchKey(category)!==categorySearchKey(value));
+ syncCategoryPicker(prefix,selected.join(' | '));
+ const search=document.getElementById(prefix==='editProduct'?'editProductCategorySearch':'productCategorySearch');
+ if(search){setCategoryPickerOpen(prefix,true);search.focus({preventScroll:true});}
 }
 function addProductCategory(value){
  const category=cleanProductCategory(value);if(!category)return;
  const selected=getSelectedCategories('product');
- if(selected.some(item=>item.toLocaleLowerCase()===category.toLocaleLowerCase())){productCategoryPickerOpen(false);return;}
- if(selected.length>=3){showToast('You can choose up to three product categories.');return;}
+ if(selected.some(item=>categorySearchKey(item)===categorySearchKey(category))||selected.length>=3)return;
  syncCategoryPicker('product',[...selected,category].join(' | '));
- const search=document.getElementById('productCategorySearch');if(search)search.value='';
- renderProductCategoryOptions();
- productCategoryPickerOpen(false);
+ const search=document.getElementById('productCategorySearch');
+ if(search){search.value='';renderProductCategoryOptions();search.focus({preventScroll:true});}
+ productCategoryPickerOpen(true);
 }
 function addEditProductCategory(value){
  const category=cleanProductCategory(value);if(!category)return;
  const selected=getSelectedCategories('editProduct');
- if(selected.some(item=>item.toLocaleLowerCase()===category.toLocaleLowerCase())){editProductCategoryPickerOpen(false);return;}
- if(selected.length>=3){showToast('You can choose up to three product categories.');return;}
+ if(selected.some(item=>categorySearchKey(item)===categorySearchKey(category))||selected.length>=3)return;
  syncCategoryPicker('editProduct',[...selected,category].join(' | '));
- const search=document.getElementById('editProductCategorySearch');if(search)search.value='';
- renderEditProductCategoryOptions();
- editProductCategoryPickerOpen(false);
+ const search=document.getElementById('editProductCategorySearch');
+ if(search){search.value='';renderEditProductCategoryOptions();search.focus({preventScroll:true});}
+ editProductCategoryPickerOpen(true);
+}
+function handleCategorySearchKeydown(prefix,event){
+ if(event.key==='Escape'){event.preventDefault();setCategoryPickerOpen(prefix,false);event.currentTarget.blur();return;}
+ if(event.key!=='Enter')return;
+ event.preventDefault();
+ const edit=prefix==='editProduct';
+ const target=document.getElementById(edit?'editProductCategoryOptions':'productCategoryOptions');
+ const add=target?.querySelector(edit?'[data-add-edit-product-category]':'[data-add-product-category]');
+ if(add&&!add.disabled){add.click();return;}
+ const exact=[...(target?.querySelectorAll('input[type="checkbox"]')||[])].find(input=>categorySearchKey(input.value)===categorySearchKey(event.currentTarget.value)&&!input.checked&&!input.disabled);
+ if(exact){exact.checked=true;exact.dispatchEvent(new Event('change',{bubbles:true}));}
 }
 document.getElementById('productCategoryOptions')?.addEventListener('change',event=>{
  const input=event.target.closest('[data-product-category]');if(!input)return;
  const selected=getSelectedCategories('product');
- const next=input.checked?[...selected,input.value]:selected.filter(value=>value!==input.value);
- syncCategoryPicker('product',next.join(' | '));
+ const next=input.checked?[...selected,input.value]:selected.filter(value=>categorySearchKey(value)!==categorySearchKey(input.value));
+ syncCategoryPicker('product',next.join(' | '));productCategoryPickerOpen(true);
+});
+document.getElementById('productCategoryOptions')?.addEventListener('click',event=>{
+ const add=event.target.closest('[data-add-product-category]');if(add&&!add.disabled)addProductCategory(add.dataset.addProductCategory);
+});
+document.getElementById('productCategorySelected')?.addEventListener('click',event=>{
+ const button=event.target.closest('[data-remove-product-category]');if(button)removeProductCategory('product',button.dataset.removeProductCategory);
 });
 document.getElementById('productCategorySearch')?.addEventListener('focus',()=>{renderProductCategoryOptions();productCategoryPickerOpen(true);});
 document.getElementById('productCategorySearch')?.addEventListener('input',()=>{renderProductCategoryOptions();productCategoryPickerOpen(true);});
+document.getElementById('productCategorySearch')?.addEventListener('keydown',event=>handleCategorySearchKeydown('product',event));
 document.getElementById('productCategoryToggle')?.addEventListener('click',()=>{
  const open=document.getElementById('productCategoryDropdown')?.classList.contains('hidden');
- if(open)renderProductCategoryOptions();
- productCategoryPickerOpen(open);
-});
-document.getElementById('productCategoryOptions')?.addEventListener('click',event=>{
- const add=event.target.closest('[data-add-product-category]');if(add)addProductCategory(add.dataset.addProductCategory);
+ const search=document.getElementById('productCategorySearch');
+ if(open&&search)search.value='';
+ renderProductCategoryOptions();productCategoryPickerOpen(open);
+ if(open)search?.focus({preventScroll:true});
 });
 document.getElementById('editProductCategoryOptions')?.addEventListener('change',event=>{
  const input=event.target.closest('[data-edit-product-category]');if(!input)return;
  const selected=getSelectedCategories('editProduct');
- const next=input.checked?[...selected,input.value]:selected.filter(value=>value!==input.value);
- syncCategoryPicker('editProduct',next.join(' | '));
+ const next=input.checked?[...selected,input.value]:selected.filter(value=>categorySearchKey(value)!==categorySearchKey(input.value));
+ syncCategoryPicker('editProduct',next.join(' | '));editProductCategoryPickerOpen(true);
+});
+document.getElementById('editProductCategoryOptions')?.addEventListener('click',event=>{
+ const add=event.target.closest('[data-add-edit-product-category]');if(add&&!add.disabled)addEditProductCategory(add.dataset.addEditProductCategory);
+});
+document.getElementById('editProductCategorySelected')?.addEventListener('click',event=>{
+ const button=event.target.closest('[data-remove-edit-product-category]');if(button)removeProductCategory('editProduct',button.dataset.removeEditProductCategory);
 });
 document.getElementById('editProductCategorySearch')?.addEventListener('focus',()=>{renderEditProductCategoryOptions();editProductCategoryPickerOpen(true);});
 document.getElementById('editProductCategorySearch')?.addEventListener('input',()=>{renderEditProductCategoryOptions();editProductCategoryPickerOpen(true);});
+document.getElementById('editProductCategorySearch')?.addEventListener('keydown',event=>handleCategorySearchKeydown('editProduct',event));
 document.getElementById('editProductCategoryToggle')?.addEventListener('click',()=>{
  const open=document.getElementById('editProductCategoryDropdown')?.classList.contains('hidden');
- if(open)renderEditProductCategoryOptions();
- editProductCategoryPickerOpen(open);
-});
-document.getElementById('editProductCategoryOptions')?.addEventListener('click',event=>{
- const add=event.target.closest('[data-add-edit-product-category]');if(add)addEditProductCategory(add.dataset.addEditProductCategory);
+ const search=document.getElementById('editProductCategorySearch');
+ if(open&&search)search.value='';
+ renderEditProductCategoryOptions();editProductCategoryPickerOpen(open);
+ if(open)search?.focus({preventScroll:true});
 });
 document.addEventListener('click',event=>{
  const addPicker=document.getElementById('productCategoryPicker');
  if(addPicker&&!addPicker.contains(event.target))productCategoryPickerOpen(false);
  const editPicker=document.getElementById('editProductCategoryPicker');
  if(editPicker&&!editPicker.contains(event.target))editProductCategoryPickerOpen(false);
-});
-document.getElementById('productCategorySearch')?.addEventListener('keydown',event=>{
- if(event.key==='Escape'){productCategoryPickerOpen(false);event.currentTarget.blur();}
-});
-document.getElementById('editProductCategorySearch')?.addEventListener('keydown',event=>{
- if(event.key==='Escape'){editProductCategoryPickerOpen(false);event.currentTarget.blur();}
 });
 
 function showLegalSection(section){const privacy=section!=='terms';const privacyPanel=document.getElementById('legalPrivacyContent'),termsPanel=document.getElementById('legalTermsContent'),privacyTab=document.getElementById('legalPrivacyTab'),termsTab=document.getElementById('legalTermsTab');if(!privacyPanel||!termsPanel||!privacyTab||!termsTab)return;privacyPanel.classList.toggle('hidden',!privacy);termsPanel.classList.toggle('hidden',privacy);privacyTab.classList.toggle('active',privacy);termsTab.classList.toggle('active',!privacy);privacyTab.setAttribute('aria-selected',String(privacy));termsTab.setAttribute('aria-selected',String(!privacy));}
@@ -4323,7 +4411,8 @@ async function loadConversationList(){
   fetchAllCloudRows(()=>supabaseClient.from('marketplace_messages').select('id,buyer_id,sender_id,body,created_at,read_at').eq('owner_id',requestedUserId).order('created_at',{ascending:false}).order('id',{ascending:false}))
  ]);
  if(!current())return;
- if(!subsRes.error)marketplaceSubscribersCache=subsRes.data||[];
+ if(subsRes.error||supportRes.error||marketRes.error){showToast('Could not refresh conversations. Check your internet connection and try again.','error');target.innerHTML='<div class="empty">Conversations are temporarily unavailable. Check your connection and try again.</div>';return false;}
+ marketplaceSubscribersCache=subsRes.data||[];
  const conversations=[];
  const latestSupport=(supportRes.data||[])[0];
  if(latestSupport)conversations.push({id:'support',name:'Sellbook Support',body:latestSupport.body,time:latestSupport.created_at,unread:(supportRes.data||[]).filter(m=>m.sender_id!==requestedUserId&&m.recipient_id===requestedUserId&&!m.read_at).length});
@@ -4434,7 +4523,7 @@ async function loadMessengerConversations(options={}){
   if(!supportRes.error&&(supportRes.data||[]).length){const rows=supportRes.data;const m=rows[0];conversations.push({id:'support',title:'Sellbook Support',body:m.body,time:m.created_at,unread:rows.filter(x=>x.sender_id!==uid&&x.recipient_id===uid&&!x.read_at).length,lastMine:m.sender_id===uid,lastDelivered:!!m.delivered_at,lastRead:!!m.read_at});}
   const subs=subsRes.data||[],msgs=marketRes.data||[],ids=[...new Set([...subs.map(x=>x.buyer_id),...msgs.map(x=>x.buyer_id)])];
   for(const id of ids){const m=msgs.find(x=>x.buyer_id===id);const sub=subs.find(x=>x.buyer_id===id);if(!m&&!sub)continue;conversations.push({id,title:sub?.display_name||marketplaceBuyerName(id),body:m?.body||'Start a conversation',time:m?.created_at||sub?.created_at||new Date().toISOString(),unread:msgs.filter(x=>x.buyer_id===id&&x.sender_id!==uid&&!x.read_at).length,lastMine:!!m&&m.sender_id===uid,lastDelivered:false,lastRead:!!m&&!!m.read_at});}
-  if(supportRes.error&&marketRes.error&&subsRes.error)throw supportRes.error;
+  if(supportRes.error||marketRes.error||subsRes.error)throw new Error('One or more chat lists could not be loaded.');
   messengerConversationCache=conversations.sort((a,b)=>new Date(b.time)-new Date(a.time));
   renderMessengerConversationList();
   if(options.refreshSelected&&messengerSelectedConversation&&document.body.classList.contains('messenger-conversation-open'))await openMessengerConversation(messengerSelectedConversation,{quiet:true});
@@ -4495,7 +4584,7 @@ document.getElementById('messengerNewChat')?.addEventListener('click',openMessen
 document.getElementById('closeMessengerSubscriberPicker')?.addEventListener('click',()=>document.getElementById('messengerSubscriberPicker')?.classList.add('hidden'));
 document.getElementById('messengerSubscriberSearch')?.addEventListener('input',renderMessengerSubscriberPicker);
 document.getElementById('messengerSubscriberPicker')?.addEventListener('click',e=>{if(e.target.id==='messengerSubscriberPicker')e.currentTarget.classList.add('hidden');});
-document.getElementById('refreshMessenger')?.addEventListener('click',()=>loadMessengerConversations({refreshSelected:true}));
+
 document.getElementById('messengerSearch')?.addEventListener('input',renderMessengerConversationList);
 document.querySelectorAll('[data-messenger-filter]').forEach(button=>button.addEventListener('click',()=>{messengerListFilter=button.dataset.messengerFilter;document.querySelectorAll('[data-messenger-filter]').forEach(b=>b.classList.toggle('active',b===button));renderMessengerConversationList();}));
 document.getElementById('messengerBackToChats')?.addEventListener('click',()=>{if(document.body.classList.contains('messenger-conversation-open')&&history.state?.mySalesBookMessengerChat){history.back();return;}document.body.classList.remove('messenger-conversation-open');messengerSelectedConversation=null;const input=document.getElementById('messengerBody');const send=document.querySelector('#messengerComposer button[type="submit"]');if(input)input.disabled=true;if(send)send.disabled=true;});
@@ -4523,7 +4612,7 @@ document.getElementById('messengerComposer')?.addEventListener('submit',async e=
 if(messengerRefreshTimer)clearInterval(messengerRefreshTimer);
 messengerRefreshTimer=setInterval(()=>{if(document.visibilityState==='visible'&&currentPage()==='messenger'&&cloudUser)loadMessengerConversations({quiet:true,refreshSelected:true});},12000);
 
-document.getElementById('refreshSupportChat').addEventListener('click',()=>messageListOpen?loadConversationList():loadUserSupport());document.getElementById('refreshConversationList')?.addEventListener('click',loadConversationList);
+
 document.getElementById('messageConversationSelect')?.addEventListener('change',()=>{marketplaceSelectedBuyerId=document.getElementById('messageConversationSelect').value==='support'?null:document.getElementById('messageConversationSelect').value;loadUserSupport();});
 document.getElementById('openFeedbackPage').addEventListener('click',()=>showPage('feedback'));
 document.querySelectorAll('[data-open-page="support"]').forEach(b=>b.addEventListener('click',async()=>{if(sellbookIsAdmin){showPage('admin');showAdminPanel('support');await loadAdminUsers();}else{showPage('support');loadUserSupport();}}));
@@ -4542,7 +4631,7 @@ function backToAdminChatList(){
  loadAdminUsers();
 }
 document.getElementById('backAdminChatList').addEventListener('click',backToAdminChatList);
-document.getElementById('refreshAdminChatConversation').addEventListener('click',loadAdminConversation);
+
 let adminConversationLoading=false;
 let adminConversationRequestId=0;
 async function loadAdminConversation(){
@@ -4654,24 +4743,22 @@ document.getElementById('adminNotificationForm').addEventListener('submit',async
   if(button)button.disabled=false;
  }
 });
-document.getElementById('refreshUserNotifications').addEventListener('click',async event=>{
- const button=event.currentTarget;
- if(button.disabled)return;
- button.disabled=true;
- button.setAttribute('aria-busy','true');
- try{
-  const refreshed=await loadUserNotifications();
-  if(refreshed)showToast('Refreshed','success');
- }finally{
-  button.disabled=false;
-  button.removeAttribute('aria-busy');
- }
-});
-document.getElementById('refreshFeedback').addEventListener('click',loadUserSupport);
-document.getElementById('refreshAdminUsers').addEventListener('click',loadAdminUsers);
-document.getElementById('refreshAdminFeedback').addEventListener('click',loadAdminFeedback);
-document.getElementById('refreshAdminOverview').addEventListener('click',loadAdminDashboard);
-document.getElementById('refreshAdminTraffic').addEventListener('click',loadAdminTraffic);
+function bindPageRefresh(id,action,options={}){
+ const button=document.getElementById(id);
+ button?.addEventListener('click',()=>runPageRefresh(button,action,options));
+}
+bindPageRefresh('refreshUserNotifications',()=>loadUserNotifications());
+bindPageRefresh('refreshMessenger',()=>loadMessengerConversations({refreshSelected:true}));
+bindPageRefresh('refreshSupportChat',()=>messageListOpen?loadConversationList():loadUserSupport());
+bindPageRefresh('refreshConversationList',()=>loadConversationList());
+bindPageRefresh('refreshFeedback',()=>loadUserSupport());
+bindPageRefresh('refreshAdminOverview',()=>loadAdminDashboard(),{admin:true});
+bindPageRefresh('refreshAdminTraffic',()=>loadAdminTraffic(),{admin:true});
+bindPageRefresh('refreshAdminUsers',()=>loadAdminUsers(),{admin:true});
+bindPageRefresh('refreshAdminFeedback',()=>loadAdminFeedback(),{admin:true});
+bindPageRefresh('refreshAdminChat',()=>loadAdminUsers(),{admin:true});
+bindPageRefresh('refreshAdminChatConversation',()=>adminConversationLoading?false:loadAdminConversation(),{admin:true});
+bindPageRefresh('refreshBuybookActivity',()=>loadBuybookConnection());
 document.getElementById('adminSignOut').addEventListener('click',async()=>{
  if(!supabaseClient)return;
  const queued=cloudUser?readQueue(cloudUser.id).filter(item=>item.status!=='synced'):[];
