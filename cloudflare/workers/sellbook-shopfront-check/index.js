@@ -90,6 +90,12 @@ export default {
         question: "Classify this image for a local business marketplace. A PASS is allowed only when the main subject is clearly a real photograph of the OUTSIDE FRONT / storefront / entrance of a physical shop, kiosk, stall or market shop, with enough of the physical shop structure visible to recognise it. Nigerian informal shops and market stalls count. REJECT product close-ups, individual goods, indoor shelves or stock, logos, posters, screenshots, drawings, generated illustrations, selfies, people, houses without visible business frontage, streets without a visible shop, and anything unclear. Be strict. Reply with exactly one word: PASS or REJECT."
       });
       const answer = String(model?.answer || "").trim().toUpperCase();
+      if (answer !== "PASS" && answer !== "REJECT") {
+        return json(503, {
+          error: "photo_check_inconclusive",
+          message: "Sellbook could not finish checking this photo. Please try again."
+        });
+      }
       const accepted = answer === "PASS";
       return json(200, {
         success: true,
@@ -97,7 +103,7 @@ export default {
         message: accepted
           ? "Your shop-front photo passed the automatic check."
           : "This photo does not clearly show the outside front of a shop. Please take a clearer photo of your shop entrance.",
-        decision: accepted ? "PASS" : "REJECT"
+        decision: answer
       });
     } catch (error) {
       return json(503, { error: "photo_check_unavailable", message: "Automatic photo checking is temporarily unavailable. Please try again." });
