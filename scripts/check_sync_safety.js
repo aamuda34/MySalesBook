@@ -248,3 +248,57 @@ assert.ok(!/create\s+unique\s+index[^;]*transaction_id/i.test(operationsSql),
 requireText(correctionSql, 'drop index if exists public.sales_transaction_id_unique_idx', 'existing installations drop the incorrect unique index');
 requireText(correctionSql, 'create index if not exists sales_transaction_id_idx', 'existing installations retain a non-unique transaction lookup index');
 console.log('PASS: database migration contracts allow multiple rows for each basket transaction.');
+
+
+// Add Sale navigation must return to the actual page that opened it.
+const returnPageStart=app.indexOf('function resolveSaleReturnPage(previousPage,fallback=\'home\'){');
+const returnPageEnd=app.indexOf('\nfunction showPage(name',returnPageStart);
+assert.ok(returnPageStart>=0&&returnPageEnd>returnPageStart,'Could not isolate the production Add Sale return-page helper.');
+const returnPageContext={};
+vm.runInNewContext(app.slice(returnPageStart,returnPageEnd)+
+  '\nglobalThis.__routes=[resolveSaleReturnPage("home"),resolveSaleReturnPage("sales"),resolveSaleReturnPage("products"),resolveSaleReturnPage(null,"sales"),resolveSaleReturnPage(null,"invalid")];',
+  returnPageContext);
+assert.deepEqual(Array.from(returnPageContext.__routes),['home','sales','home','sales','home']);
+requireText(app,'if(name===\'record-sale\'&&previous!==\'record-sale\')saleReturnPage=resolveSaleReturnPage(previous,saleReturnPage)',
+  'opening Add Sale remembers its real origin');
+requireText(app,"if(current==='record-sale')return resolveSaleReturnPage(previous,saleReturnPage)",
+  'Add Sale arrow uses the real originating page');
+const addSaleMarkup=indexHtml.slice(indexHtml.indexOf('<section id="record-sale"'),indexHtml.indexOf('<section id="sales-history"'));
+requireText(addSaleMarkup,'data-app-back="home"','Add Sale has a delegated back control');
+requireText(addSaleMarkup,'M15 18 9 12l6-6M9 12h11','Add Sale uses a correctly drawn left arrow');
+requireText(addSaleMarkup,'aria-label="Back to previous page"','Add Sale back arrow has a useful accessible name');
+requireText(app,"money(x.price)+' per '+esc(x.saleUnit)",'sale basket describes its actual selling unit');
+console.log('PASS: Add Sale returns to Home or Sales correctly and the back arrow is clear.');
+
+// Reservation expiry is consistent at, before and after the exact expiry instant.
+const statusStart=app.indexOf('function reservationStatusBucket(reservation,nowTime=Date.now()){');
+const statusEnd=app.indexOf('\nfunction renderReservationsFiltered',statusStart);
+assert.ok(statusStart>=0&&statusEnd>statusStart,'Could not isolate the production Reservation status helper.');
+const statusContext={};
+vm.runInNewContext(app.slice(statusStart,statusEnd)+
+  '\nglobalThis.__buckets=['+
+  'reservationStatusBucket({status:"pending"},1000),'+
+  'reservationStatusBucket({status:"pending",expires_at:"1970-01-01T00:00:02.000Z"},1000),'+
+  'reservationStatusBucket({status:"pending",expires_at:"1970-01-01T00:00:01.000Z"},1000),'+
+  'reservationStatusBucket({status:"pending",expires_at:"1969-12-31T23:59:59.000Z"},1000),'+
+  'reservationStatusBucket({status:"approved",expires_at:"1969-12-31T23:59:59.000Z"},1000),'+
+  'reservationStatusBucket({status:"expired"},1000)];',
+  statusContext);
+assert.deepEqual(Array.from(statusContext.__buckets),['pending','pending','expired','expired','approved','expired']);
+const decisionStart=app.indexOf('async function updateReservationDecision');
+const decisionEnd=app.indexOf('\nfunction showReservationDetails',decisionStart);
+const decisionSource=app.slice(decisionStart,decisionEnd);
+requireText(decisionSource,'reservationStatusBucket(reservation)!==\'pending\'','stale expired reservation actions are blocked');
+requireText(decisionSource,".or('expires_at.is.null,expires_at.gt.'+decisionTime)",'the Reservation update is protected against expiry races on the server');
+requireText(app,".or('expires_at.is.null,expires_at.gt.'+new Date().toISOString())",'Home pending count excludes expired reservations');
+requireText(app,'const items=Array.isArray(r.items)?r.items:[]','Reservation details safely render without a populated item list');
+console.log('PASS: Reservation expiry, pending counts and approve/reject updates use one expiry boundary.');
+
+// Reservation and subscriber detail arrows consume their nested history entry.
+const backStart=app.indexOf('(function installUnifiedBackArrows(){');
+const backEnd=app.indexOf('\nfunction refreshStockHistoryBadges',backStart);
+const backSource=app.slice(backStart,backEnd);
+requireText(backSource,'history.state?.mySalesBookSubview===subview','nested detail back detects the active detail history entry');
+requireText(backSource,'history.back();','nested detail back consumes the detail entry');
+requireText(backSource,'mySalesBookSubview:undefined','directly restored detail views clear their nested state on fallback');
+console.log('PASS: Reservation and Subscriber detail back arrows keep browser history in sync.');
