@@ -4796,3 +4796,43 @@ body.quick-guide-page-open #quick-guide{max-width:760px;margin:0 auto;padding-to
 body.sales-history-page-open #mainContent{padding-top:0!important;padding-bottom:24px!important;min-height:100svh}
 body.sales-history-page-open #appWorkspace{padding-top:0!important;padding-bottom:0!important}
 @media(max-width:360px){#sales-history .sales-history-summary-stats{gap:5px}#sales-history .sales-history-summary-stats strong{font-size:13px}#sales-history .sales-history-summary-stats span{font-size:10px}}
+
+
+/* Home dashboard hierarchy and live status counters */
+.seller-welcome-header{padding-bottom:14px!important}
+.seller-welcome-header .header-brand{gap:10px}
+.seller-welcome-header .header-actions{gap:8px;align-items:center}
+.header-connect-action{display:flex;flex:0 0 76px;min-width:76px;max-width:76px;flex-direction:column;align-items:center;justify-content:center;gap:4px;padding:0;border:0;border-radius:12px;background:transparent;color:var(--ink);box-shadow:none;white-space:normal}
+.header-connect-action:active{transform:scale(.97)}
+.header-connect-action:focus-visible{outline:3px solid #b7f7d0;outline-offset:2px}
+.header-connect-icon{display:grid;width:40px;height:40px;place-items:center;border:1px solid var(--border,#e4ebe5);border-radius:50%;background:var(--surface,#fff);color:var(--green,#14532d);box-shadow:0 2px 7px #00000012}
+.header-connect-icon svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.header-connect-caption{display:block;max-width:76px;min-height:18px;color:var(--muted,#647269);font-size:8.5px;font-weight:700;line-height:1.05;text-align:center;overflow-wrap:anywhere}
+#home .home-sales-board{padding-bottom:18px}
+#home .home-sales-board-bottom{align-items:stretch;gap:0}
+#home .home-board-metric,#home .home-board-metric-right{display:flex;min-width:0;flex-direction:column;justify-content:flex-start;text-align:left!important;padding:0 10px}
+#home .home-board-metric:first-child{padding-left:0}
+#home .home-board-metric:last-child{padding-right:0}
+#home .home-board-metric-label{display:flex;min-height:17px;align-items:center;justify-content:flex-start;gap:5px}
+#home .home-sales-subs-label{font-size:11px;line-height:1.2;white-space:nowrap}
+#home .home-sales-subs-value{margin-top:7px;font-size:clamp(16px,4.2vw,19px);font-variant-numeric:tabular-nums;text-align:left}
+#home .recent-sales-strip{min-height:62px;padding:10px 13px;white-space:normal}
+#home .recent-sales-strip-content{display:flex;min-width:0;flex:1;flex-direction:column;align-items:flex-start;gap:3px;overflow:hidden;white-space:normal}
+#home .recent-sales-strip-content strong{display:block;flex:0 0 auto;font-size:11px;line-height:1.2}
+#home .recent-sales-strip-content span{display:block;width:100%;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px;line-height:1.25}
+#home .recent-sales-history{flex:0 0 auto}
+#home .home-marketplace-board .reservations-home-card>button{position:relative;padding-right:39px!important}
+#home .home-reservation-unread-badge{top:8px;right:8px;min-width:18px;height:18px;font-size:9px;border-color:var(--surface,#fff)}
+nav button{position:relative}
+nav .nav-unread-badge{top:2px;right:calc(50% - 31px);min-width:19px;height:19px;font-size:10px;border-color:var(--surface,#fff)}
+@media(max-width:380px){
+ .seller-welcome-header .header-brand{gap:7px}
+ .seller-welcome-header .header-actions{gap:5px}
+ .header-connect-action{flex-basis:70px;min-width:70px;max-width:70px}
+ .header-connect-caption{max-width:70px;font-size:8px}
+ .header-connect-icon{width:38px;height:38px}
+ #home .home-board-metric,#home .home-board-metric-right{padding-inline:7px}
+ #home .home-sales-subs-label{font-size:10px}
+ #home .home-sales-subs-value{font-size:14px}
+ #home .recent-sales-strip{gap:6px;padding-inline:9px}
+}
