@@ -3,6 +3,33 @@
 // Main application and UI logic.
 'use strict';
 
+// Detect a real browser reload (including Android's pull-to-refresh) so it
+// can report a refresh result instead of presenting it as a new sign-in.
+const GOOGLE_LOGIN_INTENT_KEY='sellbook-google-login-intent-v1';
+function consumeGoogleLoginIntent(){
+  try{
+    const startedAt=Number(sessionStorage.getItem(GOOGLE_LOGIN_INTENT_KEY));
+    sessionStorage.removeItem(GOOGLE_LOGIN_INTENT_KEY);
+    const age=Date.now()-startedAt;
+    if(!Number.isFinite(startedAt)||startedAt<=0||age<0||age>10*60*1000)return false;
+    const query=new URLSearchParams(window.location.search);
+    const hash=new URLSearchParams(String(window.location.hash||'').replace(/^#/,''));
+    return query.has('code')||query.has('error')||query.has('error_description')||
+      hash.has('access_token')||hash.has('error')||hash.has('error_description');
+  }catch(_){
+    try{sessionStorage.removeItem(GOOGLE_LOGIN_INTENT_KEY);}catch(__){}
+    return false;
+  }
+}
+let pendingGoogleLoginSuccess=consumeGoogleLoginIntent();
+let pageReloadRefreshPending=(()=>{
+  try{
+    const entry=window.performance?.getEntriesByType?.('navigation')?.[0];
+    if(entry)return entry.type==='reload'&&!pendingGoogleLoginSuccess;
+    return window.performance?.navigation?.type===1&&!pendingGoogleLoginSuccess;
+  }catch(_){return false;}
+})();
+
 const SUPABASE_URL = window.MY_SALES_BOOK_SUPABASE?.url;
 const SUPABASE_PUBLISHABLE_KEY = window.MY_SALES_BOOK_SUPABASE?.publishableKey;
 const supabaseClient = window.supabase?.createClient(
@@ -271,8 +298,15 @@ let localSnapshot = null;
 let authTransition = false;
 let authTransitionPending = false;
 let pendingLoginSuccessUserId=null;
-function showPendingLoginSuccess(userId){
- if(!userId||pendingLoginSuccessUserId!==userId)return false;
+function showPendingLoginSuccess(userId,refreshSucceeded=true){
+ if(!userId)return false;
+ if(pageReloadRefreshPending){
+  pageReloadRefreshPending=false;
+  pendingLoginSuccessUserId=null;
+  showToast(refreshSucceeded?'Refreshed':'Could not refresh this page. Check your internet connection and try again.',refreshSucceeded?'success':'error');
+  return true;
+ }
+ if(pendingLoginSuccessUserId!==userId)return false;
  pendingLoginSuccessUserId=null;
  showToast('Login successful','success');
  return true;
@@ -1047,6 +1081,12 @@ async function handleCloudAuthChange() {
     if (error) throw error;
     const user = data.session?.user || null;
     activeUser = user;
+    // Only a deliberate Google sign-in callback may request a login-success notice.
+    // A restored Supabase session during a normal page refresh is not a new login.
+    if(user&&pendingGoogleLoginSuccess){
+      pendingLoginSuccessUserId=user.id;
+      pendingGoogleLoginSuccess=false;
+    }
 
     // A session can change accounts without a full page reload. Clear any
     // previous administrator privilege before the new identity is checked.
@@ -1132,7 +1172,7 @@ async function handleCloudAuthChange() {
         coreWorkspaceLoaded = true;
         finishStartup();
         cloudMessage('Showing your last saved copy while Sellbook reconnects. Changes will be kept on this device until they can sync.');
-        showPendingLoginSuccess(user.id);
+        showPendingLoginSuccess(user.id,false);
       }
     } else {
       // The local PIN-recovery sign-out path skips restoreLocalRecords so it
@@ -1186,7 +1226,7 @@ async function handleCloudAuthChange() {
         coreWorkspaceLoaded = true;
         finishStartup();
         cloudMessage('Could not reach the cloud. Showing the last saved copy; queued changes remain on this device.');
-        if(pinCheckCompleted)showPendingLoginSuccess(activeUser.id);
+        if(pinCheckCompleted)showPendingLoginSuccess(activeUser.id,false);
         refreshAccountStatus().catch(error => console.warn('Account status refresh failed:', error));
       } else {
         workspaceReady = false;
@@ -3539,6 +3579,8 @@ document.getElementById('googleSignIn').addEventListener('click', async () => {
   notifyStatus(message,'Opening secure Google sign-in. Please wait…','info');
 
   try {
+    // Preserve the user's explicit sign-in intent across Google's redirect.
+    sessionStorage.setItem(GOOGLE_LOGIN_INTENT_KEY,String(Date.now()));
     const { error } = await supabaseClient.auth.signInWithOAuth({
       provider: 'google',
       options: {
@@ -3552,6 +3594,7 @@ document.getElementById('googleSignIn').addEventListener('click', async () => {
     // Supabase redirects the browser to Google. Keep the button locked during navigation
     // so repeated taps cannot start overlapping OAuth requests.
   } catch (error) {
+    try{sessionStorage.removeItem(GOOGLE_LOGIN_INTENT_KEY);}catch(_){}
     console.error('Google sign-in could not be started:', error);
     notifyStatus(message,'Google sign-in could not be started. Check your connection and try again.','error');
     googleSignInInProgress = false;
@@ -4807,7 +4850,8 @@ if (supabaseClient) {
       }
       if(event==='TOKEN_REFRESHED')return;
     }
-    if(event==='SIGNED_IN'&&session?.user?.id)pendingLoginSuccessUserId=session.user.id;
+    // SIGNED_IN can also be emitted while an existing session is restored.
+    // Login notices are set by the explicit email/Google sign-in flows instead.
     if(event==='SIGNED_OUT')pendingLoginSuccessUserId=null;
     if (event === 'PASSWORD_RECOVERY') {
       recoveryMode = true;
