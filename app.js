@@ -596,7 +596,7 @@ function applyPendingToDb() {
       }
     } else if(item.type==='sale_batch'){
       for(const sale of (p.sales||[])){if(!db.sales.some(x=>String(x.id)===String(sale.id))){const product=db.products.find(x=>String(x.id)===String(sale.productId));if(product)product.stock=Math.max(0,Number(product.stock||0)-Number(sale.baseQty||sale.qty||0));db.sales.push(sale);}}
-    } else if (item.type === 'expense') {
+    } else if(item.type==='sale_batch'){for(const sale of (p.sales||[])){if(!db.sales.some(x=>String(x.id)===String(sale.id))){const product=db.products.find(x=>String(x.id)===String(sale.productId));if(product)product.stock=Math.max(0,Number(product.stock||0)-Number(sale.baseQty||sale.qty||0));db.sales.push(sale);}}} else if (item.type === 'expense') {
       if (!db.expenses.some(x => x.id === p.expense.id)) db.expenses.push(p.expense);
     } else if(item.type==='expense_void'){const expense=db.expenses.find(x=>String(x.id)===String(p.expenseId));if(expense){expense.voidedAt=p.voidedAt;expense.voidReason=p.voidReason||'';}
     } else if (item.type === 'sale_import') {
@@ -725,7 +725,7 @@ async function syncPendingChanges() {
           const sales=Array.isArray(p.sales)?p.sales:[];if(!sales.length)throw Error('This sale has no product lines.');
           const {error}=await supabaseClient.rpc('record_sales_batch',{p_transaction_id:p.transactionId,p_sales:sales.map(s=>({id:s.id,product_id:s.productId,quantity:s.qty,unit_price:s.price,units_per_sale:s.unitsPerSale||1,sale_unit:s.saleUnit||'unit',note:s.note||null,sold_at:s.date,expected_updated_at:s.productUpdatedAt}))});if(error)throw error;
           for(const productId of [...new Set(sales.map(s=>s.productId))]){const version=await currentProductVersion(productId,syncUserId);for(let i=queueIndex+1;i<queue.length;i++){const later=queue[i],payload=later.payload||{};if(later.type==='sale_batch'){for(const line of payload.sales||[])if(line.productId===productId)line.productUpdatedAt=version;}else if(later.type==='sale'&&payload.sale?.productId===productId)payload.productUpdatedAt=version;}}
-        } else if (item.type === 'sale_import') {
+        } else if(item.type==='sale_batch'){const lines=Array.isArray(p.sales)?p.sales:[];if(!lines.length)throw Error('This sale has no product lines.');const {error}=await supabaseClient.rpc('record_sales_batch',{p_transaction_id:p.transactionId,p_sales:lines.map(x=>({id:x.id,product_id:x.productId,quantity:x.qty,unit_price:x.price,units_per_sale:x.unitsPerSale||1,sale_unit:x.saleUnit||'unit',note:x.note||null,sold_at:x.date,expected_updated_at:x.productUpdatedAt}))});if(error)throw error;for(const productId of [...new Set(lines.map(x=>x.productId))]){const version=await currentProductVersion(productId,syncUserId);for(let i=queueIndex+1;i<queue.length;i++){const later=queue[i],payload=later.payload||{};if(later.type==='sale_batch'){for(const line of payload.sales||[])if(line.productId===productId)line.productUpdatedAt=version;}else if(later.type==='sale'&&payload.sale?.productId===productId)payload.productUpdatedAt=version;}}} else if (item.type === 'sale_import') {
           const user = await requireCloudUser(syncUserId);
           const sale = p.sale;
           const {error} = await supabaseClient.from('sales').upsert({
@@ -745,6 +745,7 @@ async function syncPendingChanges() {
           const user=await requireCloudUser(syncUserId);
           const {error}=await supabaseClient.from('expenses').update({voided_at:p.voidedAt,void_reason:p.voidReason||null,updated_at:now()}).eq('id',p.expenseId).eq('user_id',user.id).is('voided_at',null);
           if(error)throw error;
+        } else if(item.type==='expense_void'){const user=await requireCloudUser(syncUserId);const {error}=await supabaseClient.from('expenses').update({voided_at:p.voidedAt,void_reason:p.voidReason||'',updated_at:now()}).eq('id',p.expenseId).eq('user_id',user.id);if(error)throw error;
         } else if(item.type==='stock_adjustment'){
           const user=await requireCloudUser(syncUserId),a=p.adjustment;
           const blocked=queue.slice(0,queueIndex).some(q=>q.status==='conflict'&&q.type==='product_save'&&q.payload?.product?.id===a.productId);
