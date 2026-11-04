@@ -4692,3 +4692,44 @@ body.dark #home .recent-sales-history,body.dark #home .recent-sales-chevron{colo
 body.dark #home .getting-started-dismiss{background:#292033;color:var(--muted)}
 body.dark #home .home-marketplace-board .buybook-home-card{background:var(--surface)!important;border-color:var(--border)!important}
 body.dark #home .home-marketplace-board .buybook-home-card .quick-icon{background:#183d2c;color:#36a269}
+
+
+/* Home dashboard metrics are real, keyboard-accessible navigation controls. */
+#home button.home-board-metric{display:flex;flex-direction:column;align-items:stretch;justify-content:center;width:100%;min-height:54px;margin:0;padding:0 9px;border:0;border-right:1px solid #ffffff30;border-radius:0;background:transparent;color:inherit;font:inherit;text-align:left;cursor:pointer;touch-action:manipulation;-webkit-appearance:none;appearance:none;transition:background-color .15s ease}
+#home button.home-board-metric:first-child{padding-left:0}
+#home button.home-board-metric:last-child{padding-right:0;border-right:0}
+#home .home-board-metric-label{display:flex;align-items:center;justify-content:space-between;gap:4px;min-width:0}
+#home .home-board-metric-label .home-sales-subs-label{min-width:0}
+#home .home-board-metric-chevron{flex:0 0 auto;color:#c4dbca;font-size:15px;line-height:1;opacity:.9}
+#home .home-board-metric-right .home-board-metric-label{justify-content:flex-end}
+#home button.home-board-metric .home-sales-subs-value{display:block;width:100%;text-align:inherit}
+#home button.home-board-metric:active{background:#ffffff18}
+#home button.home-board-metric:focus-visible{outline:2px solid #fff;outline-offset:-3px;border-radius:5px}
+#profit-history .profit-history-intro{margin:12px 2px;color:var(--muted);font-size:13px;line-height:1.5}
+#profit-history .profit-history-controls{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0 0 12px;padding:11px 13px;border:1px solid var(--border);border-radius:13px;background:var(--surface)}
+#profit-history .profit-history-controls label{margin:0;color:var(--ink);font-size:13px;font-weight:650}
+#profit-history .profit-history-controls select{width:auto;max-width:62%;min-height:38px;margin:0;padding:7px 28px 7px 10px;border:1px solid var(--border);border-radius:9px;background:var(--surface);color:var(--ink);font:inherit;font-size:12px}
+#profit-history .profit-history-summary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-bottom:18px}
+#profit-history .profit-history-total{display:flex;min-width:0;flex-direction:column;gap:6px;padding:12px 9px;border:1px solid var(--border);border-radius:12px;background:var(--surface)}
+#profit-history .profit-history-total span{color:var(--muted);font-size:11px;line-height:1.25}
+#profit-history .profit-history-total strong{overflow-wrap:anywhere;color:var(--ink);font-size:clamp(13px,3.5vw,16px);font-weight:750;line-height:1.25}
+#profit-history .profit-history-total:last-child strong{color:var(--green)}
+#profit-history .profit-history-list-heading{margin:0 2px 9px}
+#profit-history .profit-history-list-heading h2{margin:0;font-size:15px;font-weight:750}
+#profit-history .profit-history-day{margin:0 0 8px;padding:12px 13px;border:1px solid var(--border);border-radius:12px;background:var(--surface)}
+#profit-history .profit-history-day-heading{display:flex;align-items:center;justify-content:space-between;gap:12px}
+#profit-history .profit-history-day-heading>strong:first-child{color:var(--ink);font-size:13px;font-weight:700}
+#profit-history .profit-history-day-net{font-size:14px;font-weight:800;text-align:right}
+#profit-history .profit-history-day-net.is-positive{color:var(--green)}
+#profit-history .profit-history-day-net.is-negative{color:var(--danger,#b42318)}
+#profit-history .profit-history-day-net.is-neutral{color:var(--ink)}
+#profit-history .profit-history-day-breakdown{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:9px;padding-top:9px;border-top:1px solid var(--border)}
+#profit-history .profit-history-day-breakdown span{display:flex;min-width:0;flex-direction:column;gap:4px;color:var(--muted);font-size:11px}
+#profit-history .profit-history-day-breakdown strong{overflow-wrap:anywhere;color:var(--ink);font-size:13px;font-weight:650}
+@media(max-width:380px){
+ #home button.home-board-metric{padding-inline:6px}
+ #profit-history .profit-history-summary{gap:6px}
+ #profit-history .profit-history-total{padding:10px 7px}
+ #profit-history .profit-history-total span{font-size:10px}
+ #profit-history .profit-history-total strong{font-size:12px}
+}
