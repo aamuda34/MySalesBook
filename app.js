@@ -3391,12 +3391,19 @@ function openProductEditor(product) {
   document.querySelectorAll('[data-edit-markup]').forEach(b=>{const yes=Number(b.dataset.editMarkup)===editMarkup;b.classList.toggle('selected',yes);b.setAttribute('aria-pressed',String(yes));});
   updateEditSuggestedPrice(true);
   document.getElementById('editProductStock').value=product.stock;
+  document.getElementById('editProductBaseUnit').value=product.baseUnit||'unit';
+  document.getElementById('editProductHasPack').checked=!!(product.packUnit&&Number(product.unitsPerPack)>1);
+  document.getElementById('editProductPackUnit').value=product.packUnit||'';
+  document.getElementById('editProductUnitsPerPack').value=product.unitsPerPack||1;
+  document.getElementById('editProductPackPrice').value=product.packPrice??'';
+  document.getElementById('editProductPackFields').classList.toggle('hidden',!document.getElementById('editProductHasPack').checked);
   editPendingProductImage='';
   editRemoveProductImage=false;
   updateEditProductPhotoPreview(product);
   document.getElementById('editProductDialog').showModal();
 }
 
+document.getElementById('editProductHasPack')?.addEventListener('change',event=>document.getElementById('editProductPackFields')?.classList.toggle('hidden',!event.target.checked));
 function closeProductEditor() {
   document.getElementById('editProductDialog').close();
   editPendingProductImage='';
@@ -3469,11 +3476,18 @@ document.getElementById('editProductForm').addEventListener('submit',async event
   const cost=Number(document.getElementById('editProductCost').value);
   const price=Number(document.getElementById('editProductPrice').value);
   const stock=Number(document.getElementById('editProductStock').value);
+  const baseUnit=document.getElementById('editProductBaseUnit').value.trim()||'unit';
+  const hasPack=document.getElementById('editProductHasPack').checked;
+  const packUnit=document.getElementById('editProductPackUnit').value.trim();
+  const unitsPerPack=Number(document.getElementById('editProductUnitsPerPack').value);
+  const packPrice=Number(document.getElementById('editProductPackPrice').value);
   if(!name||name.length>100||!Number.isFinite(cost)||cost<0||!Number.isFinite(price)||price<=0||!Number.isSafeInteger(stock)||stock<0||stock>2000000000||cost>MAX_MONEY||price>MAX_MONEY){
     return showToast('Enter a product name, a cost price of zero or more, a selling price above zero, and a whole-number stock quantity of zero or more.');
   }
+  if(baseUnit.length>30)return showToast('Individual unit name must be 30 characters or fewer.');
+  if(hasPack&&(!packUnit||packUnit.length>30||!Number.isSafeInteger(unitsPerPack)||unitsPerPack<2||!Number.isFinite(packPrice)||packPrice<=0||packPrice>MAX_MONEY))return showToast('Enter a pack name, at least 2 individual units per pack and a valid pack selling price.');
   if(db.products.some(x=>x.id!==id&&x.name.trim().toLowerCase()===name.toLowerCase()))return showToast('Another product already has this name.');
-  const updated={...product,name,category,cost,price,stock};
+  const updated={...product,name,category,cost,price,stock,baseUnit,packUnit:hasPack?packUnit:'',unitsPerPack:hasPack?unitsPerPack:1,packPrice:hasPack?roundMoney(packPrice):null};
   if(editPendingProductImage)updated.image=editPendingProductImage;
   else if(editRemoveProductImage){updated.image='';updated.imagePath='';}
   const stockChanged=updated.stock!==product.stock;
