@@ -1265,42 +1265,183 @@ async function handleCloudAuthChange() {
     if (currentPage() === 'me') render();
   }
 }
-async function loadBuybookConnection() {
-  const status=document.getElementById('buybookConnectionStatus');
-  const form=document.getElementById('buybookConnectionForm');
-  const disconnect=document.getElementById('buybookDisconnectButton');
-  const activity=document.getElementById('buybookSellerActivity');
-  if(!status)return;
-  const setConnectionView=(connected)=>{buybookConnectionState=connected;renderGettingStarted();
-    status.textContent=connected?'Connected to Buybook':'Not connected to Buybook';
-    status.classList.toggle('connected',connected);
-    status.classList.toggle('not-connected',!connected);
-    if(form)form.classList.toggle('hidden',connected);
-    if(disconnect)disconnect.classList.toggle('hidden',!connected);
-    if(activity)activity.classList.toggle('hidden',!connected);
-  };
-  if(!cloudUser||!supabaseClient){setConnectionView(false);status.textContent='Sign in to Sellbook to connect to Buybook.';if(activity)activity.classList.add('hidden');return;}
-  const requestedUserId=cloudUser.id,requestEpoch=accountSessionEpoch;
-  const current=()=>accountRequestIsCurrent(requestedUserId,requestEpoch);
-  status.textContent='Checking Buybook connection…';
-  const {data,error}=await supabaseClient.from('marketplace_shops').select('name,description,phone,address,city,state,is_connected,is_active').eq('owner_id',requestedUserId).maybeSingle();
-  if(!current())return;
-  if(error){buybookConnectionState=null;setConnectionView(false);buybookConnectionState=null;renderGettingStarted();status.textContent='Could not check Buybook connection. Please try again.';showToast('Could not check Buybook connection. Please try again.','error');console.error(error);return;}
-  const connected=!!(data&&data.is_connected&&data.is_active);
-  if(data){
-    document.getElementById('buybookShopName').value=data.name||'';
-    document.getElementById('buybookDescription').value=data.description||'';
-    document.getElementById('buybookPhone').value=data.phone||'';
-    document.getElementById('buybookAddress').value=data.address||'';
-    document.getElementById('buybookCity').value=data.city||'';
-    document.getElementById('buybookState').value=data.state||'Osun';
+const BUYBOOK_SHOP_LOCATION_MAX_ACCURACY_METERS=75;
+let buybookShopLocation=null;
+let buybookConnectionLoadSequence=0;
+
+function normalizeNigerianWhatsAppNumber(value){
+ let digits=String(value||'').replace(/[^0-9]/g,'');
+ if(digits.startsWith('00'))digits=digits.slice(2);
+ if(digits.startsWith('234'))digits=digits.slice(3);
+ else if(digits.startsWith('0'))digits=digits.slice(1);
+ if(!/^[789][0-9]{9}$/.test(digits))return null;
+ return '+234'+digits;
+}
+function setBuybookLocationMessage(message,type='info'){
+ const status=document.getElementById('buybookLocationStatus');
+ if(!status)return;
+ status.textContent=message;
+ status.dataset.state=type;
+ status.classList.toggle('is-error',type==='error');
+ status.classList.toggle('is-success',type==='success');
+}
+function applyBuybookShopLocation(location,options={}){
+ const latitude=Number(location?.latitude),longitude=Number(location?.longitude);
+ if(!Number.isFinite(latitude)||!Number.isFinite(longitude)||latitude < -90||latitude > 90||longitude < -180||longitude > 180){
+  buybookShopLocation=null;
+  document.getElementById('buybookLatitude').value='';
+  document.getElementById('buybookLongitude').value='';
+  document.getElementById('buybookLocationMapLink')?.classList.add('hidden');
+  setBuybookLocationMessage('Location not captured yet. This step is required to connect your shop.');
+  return false;
+ }
+ const accuracy=Number.isFinite(Number(location.accuracy))&&location.accuracy!==null?Number(location.accuracy):null;
+ buybookShopLocation={latitude,longitude,accuracy,capturedAt:location.capturedAt||new Date().toISOString(),source:location.source||'device-gps'};
+ document.getElementById('buybookLatitude').value=String(latitude);
+ document.getElementById('buybookLongitude').value=String(longitude);
+ const link=document.getElementById('buybookLocationMapLink');
+ if(link){
+  link.href='https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(latitude+','+longitude);
+  link.classList.remove('hidden');
+ }
+ const status=options.saved
+  ?'Shop location is saved. Capture it again if your shop has moved.'
+  :'Location captured successfully'+(accuracy!==null?' · GPS accuracy ±'+Math.round(accuracy)+' m.':'')+'.';
+ setBuybookLocationMessage(status,'success');
+ const captureButton=document.getElementById('captureBuybookLocationButton');
+ const label=captureButton?.querySelector('span');
+ if(label)label.textContent=options.saved?'Update shop location':'Update shop location';
+ return true;
+}
+function getBuybookLocationForSave(){
+ const latitude=Number(document.getElementById('buybookLatitude')?.value);
+ const longitude=Number(document.getElementById('buybookLongitude')?.value);
+ if(!Number.isFinite(latitude)||!Number.isFinite(longitude)||latitude < -90||latitude > 90||longitude < -180||longitude > 180)return null;
+ return {latitude,longitude,accuracy:buybookShopLocation?.accuracy??null,capturedAt:buybookShopLocation?.capturedAt||null};
+}
+
+document.getElementById('captureBuybookLocationButton')?.addEventListener('click',()=>{
+ const button=document.getElementById('captureBuybookLocationButton');
+ const label=button?.querySelector('span');
+ if(!navigator.onLine){
+  setBuybookLocationMessage('Connect to the internet before capturing your shop location.','error');
+  return;
+ }
+ if(!window.isSecureContext){
+  setBuybookLocationMessage('Location access requires a secure connection. Open Sellbook using its HTTPS address and try again.','error');
+  return;
+ }
+ if(!navigator.geolocation){
+  setBuybookLocationMessage('This browser cannot access GPS location. Try opening Sellbook in an up-to-date browser on your phone.','error');
+  return;
+ }
+ if(button?.disabled)return;
+ if(button)button.disabled=true;
+ if(label)label.textContent='Finding your shop…';
+ setBuybookLocationMessage('Finding your shop location. Stay at the shop and keep precise location turned on…');
+ navigator.geolocation.getCurrentPosition(position=>{
+  const latitude=Number(position.coords.latitude);
+  const longitude=Number(position.coords.longitude);
+  const accuracy=Number(position.coords.accuracy);
+  if(!Number.isFinite(latitude)||!Number.isFinite(longitude)||!Number.isFinite(accuracy)||accuracy<=0){
+   setBuybookLocationMessage('Your phone did not return a usable GPS reading. Turn on location services and try again.','error');
+  }else if(accuracy>BUYBOOK_SHOP_LOCATION_MAX_ACCURACY_METERS){
+   setBuybookLocationMessage('GPS accuracy is currently about ±'+Math.round(accuracy)+' m. Sellbook needs accuracy of '+BUYBOOK_SHOP_LOCATION_MAX_ACCURACY_METERS+' m or better. Move closer to an open area, turn on precise location and try again.','error');
   }else{
-    document.getElementById('buybookShopName').value=db.profile?.businessName||'';
-    if(!db.profile?.businessName&&cloudUser?.id===requestedUserId)document.getElementById('buybookShopName').value=cloudUser.user_metadata?.business_name||cloudUser.user_metadata?.full_name||'';
+   applyBuybookShopLocation({latitude,longitude,accuracy,capturedAt:new Date().toISOString(),source:'device-gps'});
+  }
+  if(button)button.disabled=false;
+  if(label)label.textContent='Update shop location';
+ },error=>{
+  let message='Sellbook could not get your shop location. Turn on your phone location and try again.';
+  if(error?.code===1)message='Location permission was denied. Allow location access for Sellbook in your browser settings, then try again.';
+  else if(error?.code===2)message='Your phone could not determine its location. Turn on GPS or precise location and try again.';
+  else if(error?.code===3)message='Finding your location took too long. Move closer to a window or open area and try again.';
+  setBuybookLocationMessage(message,'error');
+  if(button)button.disabled=false;
+  if(label)label.textContent='Try capturing location again';
+ },{enableHighAccuracy:true,maximumAge:0,timeout:25000});
+});
+
+document.getElementById('buybookPhone')?.addEventListener('blur',event=>{
+ const normalized=normalizeNigerianWhatsAppNumber(event.target.value);
+ if(normalized)event.target.value=normalized;
+});
+
+async function loadBuybookConnection(options={}){
+ const status=document.getElementById('buybookConnectionStatus');
+ const form=document.getElementById('buybookConnectionForm');
+ const disconnect=document.getElementById('buybookDisconnectButton');
+ const submitButton=document.getElementById('buybookConnectButton');
+ if(!status||!form)return;
+ const requestId=++buybookConnectionLoadSequence;
+ const setConnectionView=connected=>{
+  buybookConnectionState=connected;
+  renderGettingStarted();
+  status.textContent=connected?'Connected to Buybook':'Not connected to Buybook';
+  status.classList.toggle('connected',connected);
+  status.classList.toggle('not-connected',!connected);
+  status.classList.toggle('is-loading',false);
+  disconnect?.classList.toggle('hidden',!connected);
+  if(submitButton)submitButton.textContent=connected?'Save shop details':'Connect and list my products';
+ };
+ if(!cloudUser||!supabaseClient){
+  setConnectionView(false);
+  status.textContent='Sign in to Sellbook to connect to Buybook.';
+  form.querySelectorAll('input,textarea,button').forEach(control=>{if(control.id!=='buybookDisconnectButton')control.disabled=true;});
+  return;
+ }
+ form.querySelectorAll('input,textarea,button').forEach(control=>{control.disabled=false;});
+ status.textContent='Checking Buybook connection…';
+ status.classList.add('is-loading');
+ const requestedUserId=cloudUser.id,requestEpoch=accountSessionEpoch;
+ const current=()=>requestId===buybookConnectionLoadSequence&&accountRequestIsCurrent(requestedUserId,requestEpoch);
+ try{
+  const {data,error}=await supabaseClient.from('marketplace_shops')
+   .select('name,description,phone,address,city,state,is_connected,is_active,latitude,longitude')
+   .eq('owner_id',requestedUserId).maybeSingle();
+  if(!current())return;
+  if(error)throw error;
+  if(data){
+   document.getElementById('buybookShopName').value=data.name||'';
+   document.getElementById('buybookDescription').value=data.description||'';
+   document.getElementById('buybookPhone').value=data.phone||'';
+   document.getElementById('buybookAddress').value=data.address||'';
+   document.getElementById('buybookCity').value=data.city||'';
+   document.getElementById('buybookState').value=data.state||'';
+   if(data.latitude!==null&&data.latitude!==undefined&&data.longitude!==null&&data.longitude!==undefined){
+    applyBuybookShopLocation({latitude:data.latitude,longitude:data.longitude,accuracy:null,source:'saved-shop-location'},{saved:true});
+   }else{
+    buybookShopLocation=null;
+    document.getElementById('buybookLatitude').value='';
+    document.getElementById('buybookLongitude').value='';
+    document.getElementById('buybookLocationMapLink')?.classList.add('hidden');
+    setBuybookLocationMessage('Your shop is saved, but it does not have a GPS pin yet. Capture the shop location to finish the setup.','error');
+   }
+  }else{
+   document.getElementById('buybookShopName').value=db.profile?.businessName||cloudUser.user_metadata?.business_name||cloudUser.user_metadata?.full_name||'';
+   document.getElementById('buybookDescription').value='';
+   document.getElementById('buybookPhone').value='';
+   document.getElementById('buybookAddress').value='';
+   document.getElementById('buybookCity').value='';
+   document.getElementById('buybookState').value='';
+   buybookShopLocation=null;
+   document.getElementById('buybookLatitude').value='';
+   document.getElementById('buybookLongitude').value='';
+   document.getElementById('buybookLocationMapLink')?.classList.add('hidden');
+   setBuybookLocationMessage('Location not captured yet. This step is required to connect your shop.');
   }
   if(!current())return;
-  setConnectionView(connected);
-  if(connected) await loadBuybookActivity();
+  setConnectionView(!!(data&&data.is_connected&&data.is_active));
+ }catch(error){
+  if(!current())return;
+  buybookConnectionState=null;
+  status.textContent='Could not check your Buybook connection. Check your internet connection and try again.';
+  status.classList.remove('is-loading','connected');
+  status.classList.add('not-connected');
+  if(!options.quiet)showToast('Could not check your Buybook connection. Please try again.','error');
+  console.error('Buybook connection check failed:',error);
+ }
 }
 let buybookConnectionState=null;
 let marketplaceSubscribersCache=[];
@@ -1355,20 +1496,106 @@ async function loadBuybookActivity(options={}){
 }
 document.getElementById('marketplaceSubscriberList')?.addEventListener('click',event=>{const button=event.target.closest('[data-marketplace-buyer]');if(button){marketplaceSelectedBuyerId=button.dataset.marketplaceBuyer;showPage('support');loadUserSupport();}});
 
-document.getElementById('buybookConnectionForm')?.addEventListener('submit',async e=>{
- e.preventDefault();const message=document.getElementById('buybookConnectionMessage'),button=document.getElementById('buybookConnectButton');
- if(!navigator.onLine){notifyStatus(message,'Connect to the internet to set up Buybook.','error');return;}
- button.disabled=true;notifyStatus(message,'Connecting your shop…','info');
- try{const user=await requireCloudUser();const shop={owner_id:user.id,name:document.getElementById('buybookShopName').value.trim(),description:document.getElementById('buybookDescription').value.trim()||null,phone:document.getElementById('buybookPhone').value.trim()||null,address:document.getElementById('buybookAddress').value.trim(),city:document.getElementById('buybookCity').value.trim(),state:document.getElementById('buybookState').value.trim(),country:'Nigeria',is_connected:true,is_active:true};
- const {error}=await supabaseClient.from('marketplace_shops').upsert(shop,{onConflict:'owner_id'});if(error)throw error;
- const sync=await supabaseClient.rpc('sync_owner_marketplace_listings',{p_owner_id:user.id});if(sync.error)throw sync.error;
- for(const product of (db.products||[])){if(product.imagePath){try{await cloudPublishMarketplaceImage(product,user,product.offlineImage||null,product.imagePath);}catch(imageError){console.warn('Buybook image sync skipped for product:',product.id,imageError);}}}
- notifyStatus(message,'Connected successfully. Your products will appear automatically on Buybook. Only marketplace product details and shop information are shared.','success');await loadBuybookConnection();
- }catch(err){notifyStatus(message,'Could not connect: '+(err.message||'Please try again when online.'),'error');console.error('Buybook connection error:',err);}finally{button.disabled=false;}
+document.getElementById('buybookConnectionForm')?.addEventListener('submit',async event=>{
+ event.preventDefault();
+ const form=event.currentTarget;
+ const message=document.getElementById('buybookConnectionMessage');
+ const button=document.getElementById('buybookConnectButton');
+ if(button?.disabled||form.dataset.submitting==='yes')return;
+ if(!navigator.onLine){notifyStatus(message,'Connect to the internet before connecting your shop to Buybook.','error');return;}
+ if(!form.reportValidity())return;
+ const shopName=document.getElementById('buybookShopName').value.trim();
+ const whatsapp=normalizeNigerianWhatsAppNumber(document.getElementById('buybookPhone').value);
+ if(!whatsapp){
+  notifyStatus(message,'Enter a valid Nigerian mobile number linked to WhatsApp. Example: 0803 123 4567.','error');
+  document.getElementById('buybookPhone').focus();
+  return;
+ }
+ const location=getBuybookLocationForSave();
+ if(!location){
+  notifyStatus(message,'Capture your exact shop location before connecting. Buyers need this pin to find your shop.','error');
+  document.getElementById('captureBuybookLocationButton')?.focus();
+  return;
+ }
+ if(location.accuracy!==null&&location.accuracy>BUYBOOK_SHOP_LOCATION_MAX_ACCURACY_METERS){
+  notifyStatus(message,'Your shop GPS pin is not accurate enough yet. Capture it again with precise location turned on.','error');
+  return;
+ }
+ if(button){button.disabled=true;button.textContent=buybookConnectionState?'Saving changes…':'Connecting your shop…';}
+ form.dataset.submitting='yes';
+ notifyStatus(message,'Saving your shop details…','info');
+ let shopSaved=false;
+ try{
+  const user=await requireCloudUser();
+  const shop={
+   owner_id:user.id,
+   name:shopName,
+   description:document.getElementById('buybookDescription').value.trim(),
+   phone:whatsapp,
+   address:document.getElementById('buybookAddress').value.trim(),
+   city:document.getElementById('buybookCity').value.trim(),
+   state:document.getElementById('buybookState').value.trim(),
+   country:'Nigeria',
+   latitude:location.latitude,
+   longitude:location.longitude,
+   is_connected:true,
+   is_active:true
+  };
+  const {error}=await supabaseClient.from('marketplace_shops').upsert(shop,{onConflict:'owner_id'});
+  if(error)throw error;
+  shopSaved=true;
+  document.getElementById('buybookPhone').value=whatsapp;
+
+  // Sync the public listings only after the shop details have been saved.
+  const sync=await supabaseClient.rpc('sync_owner_marketplace_listings',{p_owner_id:user.id});
+  if(sync.error)throw new Error('Your shop details were saved, but Buybook could not refresh your product listings. Tap Save again to retry. '+(sync.error.message||''));
+
+  // Product images are helpful but must not prevent the shop connection from completing.
+  for(const product of (db.products||[])){
+   if(product.imagePath){
+    try{await cloudPublishMarketplaceImage(product,user,product.offlineImage||null,product.imagePath);}
+    catch(imageError){console.warn('Buybook image sync skipped for product:',product.id,imageError);}
+   }
+  }
+  await loadBuybookConnection({quiet:true});
+  notifyStatus(message,'Your shop is connected to Buybook. Your Sellbook products are now listed automatically.','success');
+ }catch(error){
+  if(shopSaved)await loadBuybookConnection({quiet:true});
+  const text=shopSaved
+   ?(error.message||'Your shop details were saved, but Buybook could not finish updating your products. Tap Save again to retry.')
+   :'Could not save your shop details: '+(error.message||'Please check your connection and try again.');
+  notifyStatus(message,text,'error');
+  console.error('Buybook connection save failed:',error);
+ }finally{
+  form.dataset.submitting='';
+  if(button){
+   button.disabled=false;
+   button.textContent=buybookConnectionState?'Save shop details':'Connect and list my products';
+  }
+ }
 });
-document.getElementById('buybookDisconnectButton')?.addEventListener('click',async()=>{
- if(!cloudUser){showToast('Sign in to Sellbook first.');return;}if(!confirm('Disconnect your shop from Buybook? Your Sellbook records will remain unchanged.'))return;
- const message=document.getElementById('buybookConnectionMessage');try{notifyStatus(message,'Disconnecting your shop from Buybook…','info');const user=await requireCloudUser();const {error}=await supabaseClient.from('marketplace_shops').update({is_connected:false}).eq('owner_id',user.id);if(error)throw error;const sync=await supabaseClient.rpc('sync_owner_marketplace_listings',{p_owner_id:user.id});if(sync.error)throw sync.error;notifyStatus(message,'Disconnected. Your products are no longer listed on Buybook. Sellbook records remain unchanged.','success');await loadBuybookConnection();}catch(err){notifyStatus(message,'Could not disconnect: '+(err.message||'Please try again.'),'error');}
+
+document.getElementById('buybookDisconnectButton')?.addEventListener('click',async event=>{
+ const button=event.currentTarget;
+ if(!cloudUser){showToast('Sign in to Sellbook first.');return;}
+ if(button.disabled)return;
+ if(!confirm('Disconnect your shop from Buybook? Buyers will no longer see your shop or products there. Your Sellbook records will remain unchanged.'))return;
+ const message=document.getElementById('buybookConnectionMessage');
+ button.disabled=true;
+ try{
+  notifyStatus(message,'Disconnecting your shop from Buybook…','info');
+  const user=await requireCloudUser();
+  const {error}=await supabaseClient.from('marketplace_shops').update({is_connected:false}).eq('owner_id',user.id);
+  if(error)throw error;
+  const sync=await supabaseClient.rpc('sync_owner_marketplace_listings',{p_owner_id:user.id});
+  if(sync.error)throw new Error('Your shop was disconnected, but Buybook could not refresh the public listings. '+(sync.error.message||''));
+  await loadBuybookConnection({quiet:true});
+  notifyStatus(message,'Your shop is disconnected from Buybook. Your Sellbook products and business records are unchanged.','success');
+ }catch(error){
+  notifyStatus(message,'Could not fully disconnect your shop: '+(error.message||'Please try again.'),'error');
+  console.error('Buybook disconnect failed:',error);
+  await loadBuybookConnection({quiet:true});
+ }finally{button.disabled=false;}
 });
 async function cloudAction(action) {
   if (cloudBusy) {
