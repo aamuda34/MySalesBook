@@ -187,14 +187,15 @@
 <div class="entry-form-field">
 <label for="productCategorySearch">Product category <span class="entry-optional">(choose up to 3)</span></label>
 <div class="product-category-picker" id="productCategoryPicker">
+<div id="productCategorySelected" class="product-category-selected" aria-live="polite"></div>
 <div class="product-category-search-row">
-<input id="productCategorySearch" type="search" role="combobox" aria-autocomplete="list" aria-controls="productCategoryOptions" aria-expanded="false" placeholder="Search or browse categories" autocomplete="off" autocapitalize="words">
+<input id="productCategorySearch" type="search" role="combobox" aria-autocomplete="list" aria-controls="productCategoryOptions" aria-expanded="false" aria-describedby="productCategoryCount" placeholder="Type a category name, e.g. Drinks" autocomplete="off" autocapitalize="words">
 <button type="button" id="productCategoryToggle" class="category-browse-button" aria-label="Browse all categories" aria-expanded="false" aria-controls="productCategoryDropdown">Browse</button>
 </div>
 <div id="productCategoryDropdown" class="product-category-dropdown hidden">
 <div id="productCategoryOptions" class="product-category-options" role="group" aria-label="Available product categories"><span class="entry-field-help">Type to search or browse all categories.</span></div>
 </div>
-<div id="productCategorySelected" class="product-category-selected" aria-live="polite"></div>
+
 <input type="hidden" id="pcategory">
 <p id="productCategoryCount" class="entry-field-help">0 of 3 selected</p>
 <datalist id="categorySuggestions"></datalist>
@@ -482,8 +483,9 @@
     <input id="editProductName" required maxlength="100" autocomplete="off">
     <label for="editProductCategorySearch">Product category <span class="muted">(choose up to 3)</span></label>
     <div class="product-category-picker edit-product-category-picker" id="editProductCategoryPicker">
-      <div class="product-category-search-row">
-        <input id="editProductCategorySearch" class="product-category-search" type="search" role="combobox" aria-autocomplete="list" aria-controls="editProductCategoryOptions" aria-expanded="false" placeholder="Search or browse categories" autocomplete="off" autocapitalize="words">
+      <div id="editProductCategorySelected" class="product-category-selected" aria-live="polite"></div>
+  <div class="product-category-search-row">
+        <input id="editProductCategorySearch" class="product-category-search" type="search" role="combobox" aria-autocomplete="list" aria-controls="editProductCategoryOptions" aria-expanded="false" aria-describedby="editProductCategoryCount" placeholder="Type a category name, e.g. Drinks" autocomplete="off" autocapitalize="words">
         <button type="button" id="editProductCategoryToggle" class="category-browse-button" aria-label="Browse all categories" aria-expanded="false" aria-controls="editProductCategoryDropdown">Browse</button>
       </div>
       <div id="editProductCategoryDropdown" class="product-category-dropdown hidden">
