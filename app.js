@@ -1232,6 +1232,10 @@ async function handleCloudAuthChange() {
         workspaceReady = false;
         document.getElementById('appWorkspace').classList.add('hidden');
         cloudMessage('Could not reach the cloud and no saved copy exists on this device. Connect to the internet to load your account for the first time.');
+        if(pageReloadRefreshPending){
+          pageReloadRefreshPending=false;
+          showToast('Could not refresh this page. Check your internet connection and try again.','error');
+        }
         refreshAccountStatus().catch(error => console.warn('Account status refresh failed:', error));
       }
     } else {
@@ -1246,6 +1250,8 @@ async function handleCloudAuthChange() {
     }
     console.error('Cloud authentication/load error:', err);
   } finally {
+    // A refresh notice must never leak into a later, user-initiated sign-in.
+    pageReloadRefreshPending=false;
     clearTimeout(loadingWatchdog);
     finishStartup();
     authTransition = false;
