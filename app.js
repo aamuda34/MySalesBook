@@ -1306,7 +1306,7 @@ function applyBuybookShopLocation(location,options={}){
  }
  const status=options.saved
   ?'Shop location is saved. Capture it again if your shop has moved.'
-  :'Location captured successfully'+(accuracy!==null?' · GPS accuracy ±'+Math.round(accuracy)+' m.':'')+'.';
+  :'Location captured successfully'+(accuracy!==null?' · GPS accuracy ±'+Math.round(accuracy)+' m':'')+'.';
  setBuybookLocationMessage(status,'success');
  const captureButton=document.getElementById('captureBuybookLocationButton');
  const label=captureButton?.querySelector('span');
