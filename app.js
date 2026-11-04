@@ -4530,7 +4530,7 @@ async function loadMessengerConversations(options={}){
  }catch(err){if(current()&&!options.quiet){showToast('Could not load conversations: '+(err.message||'Please try again.'),'error');list.innerHTML='<div class="empty">Conversations are temporarily unavailable. Refresh to try again.</div>';}}
 }
 async function openMessengerConversation(id,options={}){
- if(!cloudUser||!supabaseClient)return;
+ if(!cloudUser||!supabaseClient)return false;
  const uid=cloudUser.id,requestEpoch=accountSessionEpoch,requestId=++messengerConversationRequestId;
  const current=()=>accountRequestIsCurrent(uid,requestEpoch)&&requestId===messengerConversationRequestId&&String(messengerSelectedConversation)===String(id);
  const wasConversationOpen=document.body.classList.contains('messenger-conversation-open');
@@ -4548,7 +4548,7 @@ async function openMessengerConversation(id,options={}){
   let rows=[],error=null;
   if(id==='support'){const query=()=>supabaseClient.from('support_messages').select('id,sender_id,recipient_id,body,created_at,delivered_at,read_at').or('sender_id.eq.'+uid+',recipient_id.eq.'+uid);const r=options.quiet?await query().order('created_at',{ascending:false}).order('id',{ascending:false}).limit(100):await fetchAllCloudRows(()=>query().order('created_at',{ascending:true}).order('id',{ascending:true}));rows=r.data||[];if(options.quiet)rows.reverse();error=r.error;if(!error){const incoming=rows.filter(m=>m.recipient_id===uid&&!m.delivered_at).map(m=>m.id);if(incoming.length){const stamp=now();const ack=await supabaseClient.from('support_messages').update({delivered_at:stamp}).in('id',incoming).eq('recipient_id',uid).is('delivered_at',null);if(!ack.error)rows=rows.map(m=>incoming.includes(m.id)?{...m,delivered_at:stamp}:m);}}}
   else{const query=()=>supabaseClient.from('marketplace_messages').select('id,owner_id,buyer_id,sender_id,body,created_at,read_at').eq('owner_id',uid).eq('buyer_id',id);const r=options.quiet?await query().order('created_at',{ascending:false}).order('id',{ascending:false}).limit(100):await fetchAllCloudRows(()=>query().order('created_at',{ascending:true}).order('id',{ascending:true}));rows=r.data||[];if(options.quiet)rows.reverse();error=r.error;}
-  if(!current())return;
+  if(!current())return false;
   if(error)throw error;
   const wasNearBottom=target.scrollHeight-target.scrollTop-target.clientHeight<120;
   const messageHtml=rows.map(m=>'<div data-message-id="'+escAdmin(m.id)+'" class="chat-message '+(m.sender_id===uid?'from-user':'from-support')+'"><strong>'+(m.sender_id===uid?'You':(id==='support'?'Sellbook Support':escAdmin(convo?.title||marketplaceBuyerName(id))))+'</strong><p>'+escAdmin(m.body)+'</p><time class="chat-time">'+escAdmin(messengerTime(m.created_at))+(m.sender_id===uid?' · <span class="messenger-message-ticks'+(m.read_at?' is-read':'')+'">'+(m.read_at?'✓✓ Read':(id==='support'&&m.delivered_at?'✓✓ Delivered':'✓ Sent'))+'</span>':'')+'</time></div>').join('');
@@ -4556,7 +4556,8 @@ async function openMessengerConversation(id,options={}){
   else target.innerHTML=messageHtml||'<div class="empty">Say hello to start the conversation.</div>';
   if(wasNearBottom||!options.quiet)target.scrollTop=target.scrollHeight;
   const status=document.getElementById('messengerStatus');if(status)status.textContent='';
- }catch(err){if(current()&&!options.quiet){showToast('Could not load messages: '+(err.message||'Please try again.'),'error');target.innerHTML='<div class="empty">Messages are temporarily unavailable. Refresh to try again.</div>';}}
+  return true;
+ }catch(err){if(current()&&!options.quiet){showToast('Could not load messages: '+(err.message||'Please try again.'),'error');target.innerHTML='<div class="empty">Messages are temporarily unavailable. Refresh to try again.</div>';}return false;}
 }
 async function openMessengerSubscriberPicker(){
  const overlay=document.getElementById('messengerSubscriberPicker'),list=document.getElementById('messengerSubscriberPickerList');
