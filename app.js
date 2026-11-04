@@ -2908,6 +2908,7 @@ document.querySelectorAll('[data-open-sales-period]').forEach(button=>button.add
 document.querySelectorAll('[data-notification-category]').forEach(b=>b.addEventListener('click',()=>{userNotificationCategory=b.dataset.notificationCategory||'all';document.querySelectorAll('[data-notification-category]').forEach(x=>{const active=x===b;x.classList.toggle('active',active);x.setAttribute('aria-pressed',active?'true':'false');});renderUserNotifications();}));
 document.getElementById('markAllNotificationsRead')?.addEventListener('click',markAllUserNotificationsRead);
 document.getElementById('userNotificationsList')?.addEventListener('click',async event=>{
+ if(event.target.closest('[data-load-more-notifications]')){void loadUserNotifications({append:true});return;}
  const row=event.target.closest('[data-notification-id]');if(!row||row.disabled)return;
  const item=userNotificationsCache.find(n=>String(n.id)===String(row.dataset.notificationId));if(!item)return;
  row.disabled=true;
@@ -5302,8 +5303,7 @@ function renderUserNotifications(){
   return '<button type="button" class="user-notification-row'+(n.isRead?' is-read':' is-unread')+'" data-notification-id="'+escAdmin(n.id)+'" aria-label="'+escAdmin(n.title)+(n.reservation_id?'. Open reservation':'')+'"><span class="notification-read-indicator" aria-hidden="true"></span><span class="user-notification-copy"><span class="user-notification-heading"><strong>'+escAdmin(n.title)+'</strong><small>'+escAdmin(kindLabel)+'</small></span><span class="user-notification-body">'+escAdmin(n.body)+'</span><time>'+escAdmin(new Date(n.created_at).toLocaleString([], {dateStyle:'medium',timeStyle:'short'}))+'</time></span>'+(n.reservation_id?'<span class="notification-action" aria-hidden="true">›</span>':'')+'</button>';
  }).join('')+'</section>').join('');
  const empty='<div class="empty">'+(userNotificationCategory==='all'?'No notifications yet.':'No '+escAdmin(userNotificationCategory==='reservation'?'reservation':userNotificationCategory)+' notifications yet.')+'</div>';
- target.innerHTML=(groupHtml||empty)+(userNotificationsHasMore?'<button type="button" id="loadMoreUserNotifications" class="secondary notification-load-more">Load older notifications</button>':'');
- document.getElementById('loadMoreUserNotifications')?.addEventListener('click',()=>loadUserNotifications({append:true}));
+ target.innerHTML=(groupHtml||empty)+(userNotificationsHasMore?'<button type="button" data-load-more-notifications class="secondary notification-load-more">Load older notifications</button>':'');
 }
 
 async function markUserNotificationRead(notificationId){
