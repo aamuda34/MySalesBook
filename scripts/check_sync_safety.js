@@ -145,3 +145,106 @@ requireText(restockSql, 'from public, anon', 'restock RPC is not executable by p
 const shellVersion=Number((sw.match(/const CACHE_NAME = 'sellbook-shell-v(\d+)';/)||[])[1]||0);
 assert.ok(shellVersion>=78,'Service worker cache must be bumped for the current hardened app shell.');
 console.log('PASS: sale/restock database transaction contracts and offline-shell cache version.');
+
+
+// Grouped sales use one transaction ID across multiple line rows; exercise the real helpers.
+const saleQuantityStart = app.indexOf('function saleBaseQuantity(row){');
+const saleQuantityEnd = app.indexOf('\nfunction getSalesTransactions(rows){', saleQuantityStart);
+const transactionStart = saleQuantityEnd;
+const transactionEnd = app.indexOf('\nfunction renderSalesHistory', transactionStart);
+assert.ok(saleQuantityStart >= 0 && saleQuantityEnd > saleQuantityStart && transactionEnd > transactionStart,
+  'Could not isolate production base-quantity and transaction grouping helpers.');
+const saleQuantityHelper = app.slice(saleQuantityStart, saleQuantityEnd);
+const transactionHelper = app.slice(transactionStart, transactionEnd);
+assert.equal((app.match(/function getSalesTransactions\(rows\)/g) || []).length, 1,
+  'Sales History must have one authoritative transaction grouping helper.');
+const transactionContext = {
+  rows: [
+    {id:'line-1',transactionId:'basket-1',date:'2026-11-04T09:00:00+01:00',qty:2,unitsPerSale:12,baseQty:24,total:100,profit:30},
+    {id:'line-2',transactionId:'basket-1',date:'2026-11-04T09:02:00+01:00',qty:3,unitsPerSale:1,baseQty:3,total:50,profit:10},
+    {id:'line-3',transactionId:'sale-2',date:'2026-11-04T08:00:00+01:00',qty:1,unitsPerSale:1,baseQty:1,total:20,profit:5}
+  ],
+  operationalDate: row => row.date,
+  safeDate: value => new Date(value)
+};
+vm.runInNewContext(
+  saleQuantityHelper + '\n' + transactionHelper + '\nglobalThis.__groups=getSalesTransactions(rows);',
+  transactionContext
+);
+const groupedSales = JSON.parse(JSON.stringify(transactionContext.__groups));
+assert.equal(groupedSales.length, 2, 'Two rows from one basket must count as one transaction.');
+assert.equal(groupedSales[0].id, 'basket-1');
+assert.equal(groupedSales[0].total, 150);
+assert.equal(groupedSales[0].profit, 40);
+assert.equal(groupedSales[0].items, 27, 'Pack quantities must be converted to base units for the sales summary.');
+requireText(app, 'items=periodRows.reduce((n,x)=>n+saleBaseQuantity(x),0)', 'Sales History summary counts base units, not only packs');
+console.log('PASS: grouped sales count as one transaction and aggregate converted stock units.');
+
+// Exercise the real queued product-version propagation for edits, restocks and basket sales.
+const propagationStart = app.indexOf('function propagateQueuedProductVersion(queue, fromIndex, productId, version) {');
+const propagationEnd = app.indexOf('\n\nasync function syncPendingChanges()', propagationStart);
+assert.ok(propagationStart >= 0 && propagationEnd > propagationStart, 'Could not isolate queued product-version propagation.');
+const propagationContext = {
+  queue: [
+    {type:'sale_batch',payload:{sales:[
+      {productId:'p1',productUpdatedAt:'stale'},
+      {productId:'p2',productUpdatedAt:'keep'}
+    ]}},
+    {type:'product_save',payload:{isNew:false,product:{id:'p1',updatedAt:'stale'}}},
+    {type:'sale',payload:{sale:{productId:'p1'},productUpdatedAt:'stale'}},
+    {type:'product_remove_image',payload:{product:{id:'p1',updatedAt:'stale'}}}
+  ],
+  now: () => 'fresh-sync-marker'
+};
+vm.runInNewContext(
+  app.slice(propagationStart, propagationEnd) +
+  '\npropagateQueuedProductVersion(queue, -1, "p1", "server-version");',
+  propagationContext
+);
+assert.equal(propagationContext.queue[0].payload.sales[0].productUpdatedAt,'server-version');
+assert.equal(propagationContext.queue[0].payload.sales[1].productUpdatedAt,'keep');
+assert.equal(propagationContext.queue[1].payload.product.updatedAt,'server-version');
+assert.equal(propagationContext.queue[1].payload.product.syncUpdatedAt,'fresh-sync-marker');
+assert.equal(propagationContext.queue[2].payload.productUpdatedAt,'server-version');
+assert.equal(propagationContext.queue[3].payload.product.updatedAt,'server-version');
+const batchSyncStart = app.indexOf('async function syncPendingChanges()');
+const batchSyncBranchStart = app.indexOf("} else if(item.type==='sale_batch'){", batchSyncStart);
+const batchSyncBranchEnd = app.indexOf("} else if (item.type === 'sale_import') {", batchSyncBranchStart);
+assert.ok(batchSyncBranchStart >= 0 && batchSyncBranchEnd > batchSyncBranchStart,
+  'Could not isolate grouped-sale queue sync branch.');
+const batchSyncBranch = app.slice(batchSyncBranchStart, batchSyncBranchEnd);
+requireText(batchSyncBranch, "rpc('record_sales_batch'", 'queued baskets use the atomic multi-sale RPC');
+requireText(batchSyncBranch, 'p_transaction_id:p.transactionId', 'basket retry uses a stable transaction ID');
+requireText(batchSyncBranch, 'expected_updated_at:line.productUpdatedAt', 'each basket line carries its expected product version');
+requireText(batchSyncBranch, 'propagateQueuedProductVersion(queue,queueIndex,productId,version)', 'successful basket sync refreshes later edits and sales');
+console.log('PASS: offline basket retries propagate product versions through future queue operations.');
+
+// Product and expense history must remain complete and consistent as records grow.
+requireText(app, 'fetchAllCloudRows(()=>supabaseClient.from(\'stock_purchases\')', 'restock history uses deterministic complete pagination');
+requireText(app, 'data-history-load-more', 'product history exposes older records instead of silently truncating them');
+requireText(app, 'productActivityFieldLabel', 'product edit history uses readable field labels');
+requireText(app, 'if(!withinPeriod(expense,bounds))continue;', 'expense category breakdown follows the selected period');
+requireText(app, "toLocaleString([], {dateStyle:'medium',timeStyle:'short'})", 'recent expenses include their actual date and time');
+requireText(app, "select('id,voided_at').maybeSingle()", 'expense void sync verifies the updated cloud row');
+requireText(app, 'new Date(existing.voided_at).getTime()===new Date(p.voidedAt).getTime()', 'expense void retry accepts only the same already-applied operation');
+console.log('PASS: complete product history, period-consistent expense totals and retry-safe voids.');
+
+// Reservation pages independently hydrate buyer names and page all line items.
+const reservationStart = app.indexOf('async function loadReservationsPage(){');
+const reservationEnd = app.indexOf('\nasync function retryReservationNotification', reservationStart);
+assert.ok(reservationStart >= 0 && reservationEnd > reservationStart, 'Could not isolate reservation loader.');
+const reservationLoader = app.slice(reservationStart, reservationEnd);
+requireText(reservationLoader, "rpc('get_my_marketplace_subscribers')", 'reservation page hydrates buyer names on direct entry');
+requireText(reservationLoader, 'fetchAllCloudRows(()=>supabaseClient.from(\'marketplace_reservation_items\')', 'reservation detail items are fully paginated');
+requireText(app, "||'Buybook customer'", 'reservation buyer fallback is readable and does not expose an ID fragment');
+console.log('PASS: reservation entry hydrates buyer identities and loads every reservation line.');
+
+// Grouped transaction IDs are non-unique row-grouping keys in both fresh and upgraded databases.
+const operationsSql = fs.readFileSync('supabase/migrations/20261104211229_operations_history_and_batch_sales.sql', 'utf8');
+const correctionSql = fs.readFileSync('supabase/migrations/20261104222039_allow_multiple_sales_per_transaction.sql', 'utf8');
+requireText(operationsSql, 'create index if not exists sales_transaction_id_idx', 'new installs get a non-unique basket lookup index');
+assert.ok(!/create\s+unique\s+index[^;]*transaction_id/i.test(operationsSql),
+  'Grouped sales cannot use a unique transaction_id index.');
+requireText(correctionSql, 'drop index if exists public.sales_transaction_id_unique_idx', 'existing installations drop the incorrect unique index');
+requireText(correctionSql, 'create index if not exists sales_transaction_id_idx', 'existing installations retain a non-unique transaction lookup index');
+console.log('PASS: database migration contracts allow multiple rows for each basket transaction.');
