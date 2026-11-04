@@ -33,7 +33,9 @@ create index if not exists expenses_user_category_idx
 alter table public.sales
   add column if not exists transaction_id uuid;
 
-create unique index if not exists sales_transaction_id_unique_idx
+-- A single basket intentionally creates multiple sales rows that share one
+-- transaction_id. Keep this index non-unique so every line can be committed.
+create index if not exists sales_transaction_id_idx
   on public.sales(transaction_id)
   where transaction_id is not null;
 
