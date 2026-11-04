@@ -731,10 +731,14 @@ async function syncPendingChanges() {
         } else if (item.type === 'expense') {
           const user = await requireCloudUser(syncUserId);
           const {error} = await supabaseClient.from('expenses').upsert({
-            id:p.expense.id,user_id:user.id,description:p.expense.name,
-            amount:p.expense.amount,spent_at:p.expense.date
+            id:p.expense.id,user_id:user.id,description:p.expense.name,amount:p.expense.amount,spent_at:p.expense.date,
+            category:p.expense.category||'Other',note:p.expense.note||null
           }, {onConflict:'id',ignoreDuplicates:true});
           if (error) throw error;
+        } else if(item.type==='expense_void'){
+          const user=await requireCloudUser(syncUserId);
+          const {error}=await supabaseClient.from('expenses').update({voided_at:p.voidedAt,void_reason:p.voidReason||null,updated_at:now()}).eq('id',p.expenseId).eq('user_id',user.id).is('voided_at',null);
+          if(error)throw error;
         } else if(item.type==='stock_adjustment'){
           const user=await requireCloudUser(syncUserId),a=p.adjustment;
           const blocked=queue.slice(0,queueIndex).some(q=>q.status==='conflict'&&q.type==='product_save'&&q.payload?.product?.id===a.productId);
@@ -2445,7 +2449,17 @@ const VALID_PAGES=new Set(['home','quick-guide','about-sellbook','stock-history'
 function currentPage(){return [...document.querySelectorAll('.page')].find(x=>!x.classList.contains('hidden'))?.id||'home';}
 async function renderDailySalesSummary(){const target=document.getElementById('dailySalesSummary');if(!target)return;const rows=new Map(),today=new Date();today.setHours(0,0,0,0);for(let i=0;i<7;i++){const d=new Date(today);d.setDate(today.getDate()-i);const key=dateKey(d);rows.set(key,{label:i===0?'Today':i===1?'Yesterday':d.toLocaleDateString(undefined,{weekday:'short',day:'numeric',month:'short'}),total:0,count:0});}for(const sale of db.sales||[]){const key=validDateKey(operationalDate(sale)),row=key?rows.get(key):null;if(row){row.total+=Number(sale.total)||0;row.count++;}}target.innerHTML=[...rows.values()].map(r=>'<div class="daily-sales-row"><span>'+escAdmin(r.label)+' · '+r.count+' sale'+(r.count===1?'':'s')+'</span><strong>'+escAdmin(new Intl.NumberFormat('en-NG',{style:'currency',currency:'NGN',maximumFractionDigits:2}).format(r.total))+'</strong></div>').join('');}
 function refreshHomeWeeklySales(){const el=document.getElementById('weeklySalesHome');if(!el)return;const bounds=getLocalPeriodBounds('week');const total=(db.sales||[]).filter(s=>withinPeriod(s,bounds)).reduce((sum,s)=>sum+(Number(s.total)||0),0);el.textContent=money(total);}
-let marketplaceReservationsCache=[];let marketplaceSelectedReservationId=null;
+let marketplaceReservationsCache=[];let marketplaceSelectedReservationId=null;let selectedReservationFilter='pending';
+function renderReservationsFiltered(){
+ const target=document.getElementById('reservationsPageList');if(!target)return;
+ const query=(document.getElementById('reservationSearch')?.value||'').trim().toLocaleLowerCase(),nowTime=Date.now();
+ const rows=marketplaceReservationsCache.filter(r=>{const raw=String(r.status||'pending').toLowerCase(),expired=raw==='expired'||(r.expires_at&&new Date(r.expires_at).getTime()<nowTime&&raw==='pending'),bucket=expired?'expired':raw,products=(r.items||[]).map(x=>x.product_name||'').join(' '),searchText=[marketplaceBuyerName(r.buyer_id),products,r.buyer_note||''].join(' ').toLocaleLowerCase();return(selectedReservationFilter==='all'||bucket===selectedReservationFilter)&&(!query||searchText.includes(query));});
+ document.querySelectorAll('[data-reservation-filter]').forEach(button=>{const active=button.dataset.reservationFilter===selectedReservationFilter;button.classList.toggle('active',active);button.setAttribute('aria-pressed',String(active));});
+ target.innerHTML=rows.length?rows.map(r=>{const products=(r.items||[]).map(x=>escAdmin(x.product_name)+' × '+Number(x.quantity||0)).join(', '),raw=String(r.status||'pending').toLowerCase(),expired=raw==='expired'||(r.expires_at&&new Date(r.expires_at).getTime()<nowTime&&raw==='pending'),status=expired?'Expired':raw.replace(/[_-]+/g,' ').replace(/\b\w/g,ch=>ch.toUpperCase());return '<button type="button" class="messenger-picker-row reservation-page-row" data-reservation-id="'+escAdmin(r.id)+'" style="width:100%;text-align:left"><span class="chat-support-avatar" aria-hidden="true">▣</span><span class="subscriber-meta"><strong>'+escAdmin(marketplaceBuyerName(r.buyer_id))+'</strong><small>'+escAdmin(products||'Product details unavailable')+'</small><small>'+escAdmin(new Date(r.created_at).toLocaleString([], {dateStyle:'medium',timeStyle:'short'}))+' · '+escAdmin(status)+'</small></span><span aria-hidden="true">›</span></button>';}).join(''):'<div class="empty">No '+(selectedReservationFilter==='all'?'':selectedReservationFilter+' ')+'reservations match your search.</div>';
+ target.querySelectorAll('[data-reservation-id]').forEach(button=>button.addEventListener('click',()=>showReservationDetails(button.dataset.reservationId)));
+}
+document.querySelectorAll('[data-reservation-filter]').forEach(button=>button.addEventListener('click',()=>{selectedReservationFilter=button.dataset.reservationFilter;renderReservationsFiltered();}));
+document.getElementById('reservationSearch')?.addEventListener('input',renderReservationsFiltered);
 async function loadReservationsPage(){
  const target=document.getElementById('reservationsPageList');if(!target)return;
  document.getElementById('reservationsListView')?.classList.remove('hidden');document.getElementById('reservationDetailsView')?.classList.add('hidden');
@@ -2465,8 +2479,7 @@ async function loadReservationsPage(){
    if(result.error)throw result.error;for(const item of(result.data||[]))(byId[item.reservation_id] ||= []).push(item);
   }
   marketplaceReservationsCache.forEach(r=>r.items=byId[r.id]||[]);
-  target.innerHTML=marketplaceReservationsCache.map(r=>{const products=r.items.map(x=>escAdmin(x.product_name)+' × '+Number(x.quantity||0)).join(', ');const status=String(r.status||'pending').replace(/[_-]+/g,' ').replace(/\b\w/g,ch=>ch.toUpperCase());return '<button type="button" class="messenger-picker-row reservation-page-row" data-reservation-id="'+escAdmin(r.id)+'" style="width:100%;text-align:left"><span class="chat-support-avatar" aria-hidden="true">▣</span><span class="subscriber-meta"><strong>'+escAdmin(marketplaceBuyerName(r.buyer_id))+'</strong><small>'+escAdmin(products||'Product details unavailable')+'</small><small>'+escAdmin(new Date(r.created_at).toLocaleString([], {dateStyle:'medium',timeStyle:'short'}))+' · '+escAdmin(status)+'</small></span><span aria-hidden="true">›</span></button>';}).join('');
-  target.querySelectorAll('[data-reservation-id]').forEach(b=>b.addEventListener('click',()=>showReservationDetails(b.dataset.reservationId)));
+  renderReservationsFiltered();
  }catch(err){if(current()){showToast('Could not load reservations: '+(err.message||'Please try again.'),'error');target.innerHTML='<div class="empty">Reservations are temporarily unavailable. Refresh to try again.</div>';}}
 }
 async function retryReservationNotification(id,button){
