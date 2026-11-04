@@ -1569,6 +1569,8 @@ function buybookShopHasReconnectDetails(shop){
  const latitude=Number(shop.latitude),longitude=Number(shop.longitude);
  return !!String(shop.name||'').trim()&&!!phone&&String(shop.address||'').trim().length>=5&&
   !!String(shop.city||'').trim()&&!!String(shop.state||'').trim()&&
+  shop.latitude!==null&&shop.latitude!==undefined&&String(shop.latitude).trim()!==''&&
+  shop.longitude!==null&&shop.longitude!==undefined&&String(shop.longitude).trim()!==''&&
   Number.isFinite(latitude)&&latitude>=-90&&latitude<=90&&
   Number.isFinite(longitude)&&longitude>=-180&&longitude<=180;
 }
@@ -1624,6 +1626,7 @@ document.getElementById('buybookConnectionForm')?.addEventListener('submit',asyn
  const form=event.currentTarget;
  const message=document.getElementById('buybookConnectionMessage');
  const button=document.getElementById('buybookConnectButton');
+ const wasConnected=buybookConnectionState===true;
  if(button?.disabled||form.dataset.submitting==='yes')return;
  if(!navigator.onLine){notifyStatus(message,'Connect to the internet before connecting your shop to Buybook.','error');return;}
  if(!form.reportValidity())return;
@@ -1684,7 +1687,7 @@ document.getElementById('buybookConnectionForm')?.addEventListener('submit',asyn
   }
   await loadBuybookConnection({quiet:true});
   showPage('settings-buybook');
-  showToast(buybookShopSetupExists?'Your Buybook shop details have been saved.':'Your shop is connected to Buybook. Your products are listed automatically.','success');
+  showToast(wasConnected?'Your Buybook shop details have been saved.':'Your shop is connected to Buybook. Your products are listed automatically.','success');
  }catch(error){
   if(shopSaved)await loadBuybookConnection({quiet:true});
   notifyStatus(message,error.message||'Could not save your shop details. Please check your connection and try again.','error');
