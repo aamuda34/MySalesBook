@@ -323,3 +323,77 @@ requireText(salesHistoryMarkup,'data-app-back="sales"','Sales History fallback r
 requireText(salesHistoryMarkup,'aria-label="Back to Sales"','Sales History back arrow is clearly labelled');
 requireText(app,"const label=destination==='sales'?'Back to Sales':'Back to Home'","Add Sale back arrow names its actual destination");
 console.log('PASS: Sales and Add Sale back arrows have clear contextual destinations.');
+
+
+// Sellbook Support is a dedicated inbox; buyer messaging stays in Buybook Messenger.
+const supportMarkup=indexHtml.slice(indexHtml.indexOf('<section id="support"'),indexHtml.indexOf('<section id="feedback"'));
+requireText(supportMarkup,'Sellbook Support','Support has its own clear page identity');
+requireText(supportMarkup,'id="userSupportMessages"','Support keeps its own transcript');
+requireText(supportMarkup,'id="supportMessageForm"','Support keeps its own composer');
+assert.ok(!supportMarkup.includes('messageConversationSelect')&&!supportMarkup.includes('conversationListView')&&!supportMarkup.includes('marketplace_messages'),
+  'Sellbook Support must not contain Buybook buyer chat selectors or inboxes.');
+const supportLogic=app.slice(app.indexOf('async function loadUserSupport(options={})'),app.indexOf("document.getElementById('userFeedbackForm').addEventListener"));
+requireText(supportLogic,"from('support_messages')",'Support reads its own support thread');
+assert.ok(!supportLogic.includes("from('marketplace_messages')")&&!supportLogic.includes('get_my_marketplace_subscribers'),
+  'Support loading must not depend on Buybook buyer messaging.');
+const supportComposer=app.slice(app.indexOf("document.getElementById('supportMessageForm').addEventListener"),app.indexOf('let messengerSelectedConversation'));
+requireText(supportComposer,"from('support_messages').insert",'Support sends only to the Sellbook Support inbox');
+assert.ok(!supportComposer.includes("from('marketplace_messages')"),'Support composer cannot send buyer messages.');
+console.log('PASS: Sellbook Support is separate from Buybook buyer conversations.');
+
+// Messages contains only Buybook subscriber conversations and acknowledges inbound reads.
+const messengerMarkup=indexHtml.slice(indexHtml.indexOf('<section id="messenger"'),indexHtml.indexOf('<section id="support"'));
+requireText(messengerMarkup,'data-messenger-filter="all"','Messages has the All filter');
+requireText(messengerMarkup,'data-messenger-filter="unread"','Messages has the Unread filter');
+assert.ok(!messengerMarkup.includes('data-messenger-filter="support"')&&!messengerMarkup.includes('data-messenger-filter="buyers"'),
+  'Messages no longer duplicates Support or Buyer filters.');
+const messengerListLogic=app.slice(app.indexOf('function renderMessengerConversationList(){'),app.indexOf('async function openMessengerSubscriberPicker(){'));
+assert.ok(!messengerListLogic.includes("from('support_messages')")&&!messengerListLogic.includes("id:'support'"),
+  'Messenger lists only Buybook buyer threads.');
+const messengerOpenStart=app.indexOf('async function openMessengerConversation(id,options={})');
+const messengerOpenEnd=app.indexOf('\nasync function openMessengerSubscriberPicker()',messengerOpenStart);
+assert.ok(messengerOpenStart>=0&&messengerOpenEnd>messengerOpenStart,'Could not isolate buyer conversation loader.');
+const messengerOpen=app.slice(messengerOpenStart,messengerOpenEnd);
+requireText(messengerOpen,"from('marketplace_messages')",'buyer chat opens from marketplace messages');
+requireText(messengerOpen,".update({read_at:stamp})",'opening a buyer chat records read receipts');
+requireText(messengerOpen,".eq('owner_id',uid).eq('buyer_id',id)",'buyer read receipts are scoped to the signed-in seller and selected buyer');
+assert.ok(messengerOpen.indexOf(".update({read_at:stamp})")<messengerOpen.indexOf("const messageHtml="),
+  'Buyer read receipts are persisted before rendering the read conversation.');
+const messengerComposer=app.slice(app.indexOf("document.getElementById('messengerComposer')?.addEventListener"),app.indexOf('if(messengerRefreshTimer)clearInterval',app.indexOf("document.getElementById('messengerComposer')?.addEventListener")));
+requireText(messengerComposer,"from('marketplace_messages').insert",'Messenger sends buyer messages only');
+assert.ok(!messengerComposer.includes("from('support_messages')"),'Messenger cannot send support messages.');
+console.log('PASS: Buybook Messenger is buyer-only and persists buyer-message read receipts.');
+
+// Notification reads are account-scoped, actionable and paginated (not device-local timestamps).
+requireText(app,"rpc('get_my_unread_notification_count')",'notification badge uses the account-scoped unread counter');
+requireText(app,"rpc('mark_my_notifications_read')",'Mark all as read uses the protected RPC');
+requireText(app,"from('notification_reads').insert",'individual notification reads persist per account');
+requireText(app,"'id,title,body,kind,created_at,expires_at,reservation_id'",'notification payload includes expiry and its reservation destination');
+requireText(app,'USER_NOTIFICATIONS_PAGE_SIZE=50','notification history is paginated');
+requireText(app,'showReservationDetails(item.reservation_id)','reservation notifications open their matching reservation');
+assert.ok(!app.includes('sellbook-notifications-seen-'),'opening Notifications cannot clear the badge using a device-local timestamp.');
+const unreadLogic=app.slice(app.indexOf('async function updateUnreadBadges(){'),app.indexOf('let userNotificationsCache=[]'));
+requireText(unreadLogic,"setUnreadBadge('supportBadge',supportCount)",'Sellbook Support has its own unread badge');
+requireText(unreadLogic,"setUnreadBadge('messageBadge',marketplaceCount)",'Messages badge counts only Buybook buyer conversations');
+const notificationMigration=fs.readFileSync('supabase/migrations/20261104233924_account_scoped_notification_reads.sql','utf8');
+requireText(notificationMigration,'enable row level security','notification receipts enforce row-level security');
+requireText(notificationMigration,'with check ((select auth.uid()) = user_id)','users can create only their own read receipts');
+requireText(notificationMigration,'grant select, insert on public.notification_reads to authenticated','Data API table access is explicitly granted to authenticated users');
+requireText(notificationMigration,'security invoker','notification count and mark-all functions run as the caller');
+requireText(notificationMigration,'revoke all on function public.mark_my_notifications_read() from public, anon','mark-all function is not publicly executable');
+console.log('PASS: account-scoped notification reads, reservation actions and unread badges.');
+
+ // Me restores Buybook/customer navigation and makes the business metrics actionable.
+const meMarkup=indexHtml.slice(indexHtml.indexOf('<section id="me"'),indexHtml.indexOf('<section id="notifications"'));
+requireText(meMarkup,'class="me-buybook-section"','Me has a dedicated Buybook and Customers section');
+requireText(meMarkup,'id="meBuybookStatus"','Me shows the current Buybook connection status');
+requireText(meMarkup,'data-open-page="settings-buybook"','Buybook setup opens from Me');
+requireText(meMarkup,'data-open-page="reservations"','Reservations open from Me');
+requireText(meMarkup,'data-open-page="subscribers"','Subscribers open from Me');
+requireText(meMarkup,'data-open-page="profit-history"','Net profit opens profit history');
+requireText(meMarkup,'data-open-page="products"','Products metric opens products');
+requireText(meMarkup,'data-open-page="stock"','Units in stock opens stock management');
+requireText(app,"document.getElementById('meBuybookStatus')",'Buybook connection state refreshes the Me page');
+requireText(app,"setUnreadBadge('meSupportBadge',supportCount)",'Me displays a separate unread Support indicator');
+requireText(sw,'sellbook-shell-v132','the communication changes refresh the installed PWA shell cache');
+console.log('PASS: Me page has direct Buybook/customer actions and actionable business metrics.');
