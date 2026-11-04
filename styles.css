@@ -4133,3 +4133,314 @@ body.dark #me .me-signout-button{
   background:#302326;
   color:#f0aaaa;
 }
+
+/* Settings: grouped overview and clear, consistent detail-page sections. */
+#settings .settings-main-page-heading{
+  display:flex;
+  align-items:center;
+  gap:11px;
+  margin:0 0 17px;
+  padding:2px 0 14px;
+  border-bottom:1px solid var(--border);
+}
+#settings .settings-heading-copy{display:flex;flex:1;min-width:0;flex-direction:column;gap:3px}
+#settings .settings-heading-copy .page-title{font-size:22px}
+#settings .settings-heading-copy p{
+  margin:0;color:var(--muted);font-size:13px;line-height:1.4;
+}
+#settings .settings-menu-list{
+  display:grid;
+  gap:16px;
+}
+#settings .settings-category{
+  display:grid;
+  gap:7px;
+  min-width:0;
+}
+#settings .settings-category>h3{
+  margin:0 2px;
+  color:var(--muted);
+  font-size:11px;
+  font-weight:800;
+  line-height:1.35;
+  letter-spacing:.075em;
+}
+#settings .settings-menu-item{
+  display:flex;
+  align-items:center;
+  gap:12px;
+  width:100%;
+  min-width:0;
+  min-height:72px;
+  padding:11px 13px;
+  border:1px solid var(--border);
+  border-radius:15px;
+  background:var(--surface);
+  color:var(--ink);
+  text-align:left;
+  box-shadow:0 2px 8px rgba(20,50,30,.035);
+}
+#settings .settings-summary-icon{
+  display:grid;
+  place-items:center;
+  width:42px;
+  height:42px;
+  flex:0 0 42px;
+  border-radius:12px;
+  background:var(--soft);
+  color:var(--green);
+}
+#settings .settings-summary-icon svg{
+  width:22px;height:22px;fill:none;stroke:currentColor;
+  stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;
+}
+#settings .settings-item-copy{
+  display:flex;
+  flex:1 1 auto;
+  min-width:0;
+  flex-direction:column;
+  gap:4px;
+}
+#settings .settings-item-copy strong{
+  color:var(--ink);font-size:14px;font-weight:700;line-height:1.3;
+}
+#settings .settings-item-copy small{
+  color:var(--muted);font-size:12px;line-height:1.4;
+}
+#settings .settings-chevron-icon{
+  width:19px;height:19px;flex:0 0 19px;margin-left:auto;
+  fill:none;stroke:var(--muted);stroke-width:1.9;
+  stroke-linecap:round;stroke-linejoin:round;
+}
+#settings .settings-menu-item:active{background:var(--soft)}
+#settings .settings-menu-item:focus-visible,
+#settings .settings-main-back-button:focus-visible{
+  outline:2px solid var(--green);outline-offset:3px;
+}
+#appWorkspace .settings-page-intro{
+  margin:0 0 13px;
+  color:var(--muted);
+  font-size:13px;
+  line-height:1.55;
+}
+#appWorkspace .settings-detail-card{
+  display:grid;
+  gap:0;
+  padding:15px;
+  border:1px solid var(--border);
+  border-radius:17px;
+  background:var(--surface);
+  box-shadow:0 2px 10px rgba(20,50,30,.035);
+}
+#appWorkspace .settings-form-group{
+  display:grid;
+  gap:10px;
+  min-width:0;
+  padding:14px 0;
+  border-bottom:1px solid var(--border);
+}
+#appWorkspace .settings-form-group:first-child{padding-top:2px}
+#appWorkspace .settings-form-group:last-child{padding-bottom:2px;border-bottom:0}
+#appWorkspace .settings-form-heading{
+  display:grid;
+  gap:4px;
+  margin-bottom:1px;
+}
+#appWorkspace .settings-form-heading h3{
+  margin:0;color:var(--ink);font-size:15px;font-weight:750;line-height:1.35;
+}
+#appWorkspace .settings-form-heading p{
+  margin:0;color:var(--muted);font-size:12.5px;line-height:1.5;
+}
+#appWorkspace .settings-form-group>label,
+#appWorkspace .settings-restore-group>label{
+  margin:1px 0 -4px;
+  color:var(--ink);
+  font-size:13px;
+  font-weight:650;
+}
+#appWorkspace .settings-form-group :where(input:not([type="file"]),select,textarea),
+#appWorkspace .settings-restore-group input[type="file"]{
+  width:100%;
+  min-height:46px;
+  padding:11px 12px;
+  border:1px solid var(--border);
+  border-radius:11px;
+  background:var(--surface);
+  color:var(--ink);
+  font:inherit;
+  font-size:14px;
+}
+#appWorkspace .settings-form-group textarea{min-height:92px;resize:vertical}
+#appWorkspace .settings-help-text{
+  margin:-3px 0 0;
+  color:var(--muted);
+  font-size:12px;
+  line-height:1.5;
+}
+#appWorkspace .settings-form-actions{
+  display:grid;
+  gap:8px;
+  margin-top:3px;
+}
+#appWorkspace .settings-form-actions button,
+#appWorkspace .settings-form-group>button,
+#appWorkspace .settings-inline-form button{
+  width:100%;
+  min-height:46px;
+  margin:0;
+  border-radius:11px;
+}
+#appWorkspace .settings-inline-status{
+  margin:0;
+  color:var(--muted);
+  font-size:12px;
+  line-height:1.5;
+  overflow-wrap:anywhere;
+}
+#appWorkspace .settings-sync-status{
+  margin:0;
+  padding:12px;
+  border:1px solid var(--border);
+  border-radius:11px;
+  background:var(--page);
+  color:var(--ink);
+  font-size:13px;
+  line-height:1.5;
+}
+#settings-business .business-logo-editor{
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  gap:9px;
+  padding:5px 0 0;
+}
+#settings-business .business-logo-title{display:none}
+#settings-business .business-logo-editor #businessLogoHint{
+  max-width:36ch;
+  margin:0;
+  color:var(--muted);
+  font-size:12px;
+  line-height:1.45;
+  text-align:center;
+}
+#settings-business .business-logo-avatar-wrap{margin:0 auto}
+#settings-business .settings-form-actions .primary{width:100%}
+#settings-preferences .markup-options{
+  display:grid;
+  grid-template-columns:repeat(5,minmax(0,1fr));
+  gap:7px;
+  margin:0;
+}
+#settings-preferences .markup-options button{
+  min-width:0;min-height:43px;margin:0;padding:8px 3px;
+  border:1px solid var(--border);border-radius:10px;
+  background:var(--page);color:var(--ink);font-size:13px;font-weight:700;
+}
+#settings-preferences .markup-options button.selected,
+#settings-preferences .markup-options button[aria-pressed="true"]{
+  border-color:var(--green);background:var(--soft);color:var(--green);
+  box-shadow:inset 0 0 0 1px var(--green);
+}
+#settings-sync .settings-backup-group .secondary-button,
+#settings-account .secondary-button{
+  border:1px solid var(--border);
+  background:var(--soft);
+  color:var(--green);
+  font-weight:700;
+}
+#settings-sync .settings-restore-group{
+  display:grid;
+  gap:8px;
+  padding:12px;
+  border:1px solid var(--border);
+  border-radius:12px;
+  background:var(--page);
+}
+#settings-sync .settings-restore-group>label{margin:0}
+#settings-sync #importFile{padding:8px;background:var(--surface)}
+#settings-sync #syncDetails .item{
+  margin-top:8px;padding:11px;border:1px solid var(--border);
+  border-radius:11px;background:var(--page);
+}
+#settings-sync #syncDetails .item p{
+  color:var(--muted);font-size:12px;line-height:1.5;
+}
+#settings-sync #syncDetails button{min-height:42px;border-radius:10px}
+#settings-account .settings-account-content{display:grid;gap:0}
+#settings-account .settings-account-content.hidden{display:none}
+#settings-account .settings-account-email{
+  margin:0;padding:12px;border:1px solid var(--border);
+  border-radius:11px;background:var(--page);
+  color:var(--ink);font-size:14px;font-weight:650;overflow-wrap:anywhere;
+}
+#settings-account .settings-inline-form{
+  display:grid;gap:9px;margin-top:5px;
+}
+#settings-account .settings-inline-form.hidden{display:none}
+#settings-account .settings-inline-form label{
+  font-size:13px;font-weight:650;color:var(--ink);
+}
+#settings-account .settings-danger-group{
+  margin-top:4px;padding:14px 12px!important;
+  border:1px solid #eed8d6;border-radius:12px;
+  background:#fff9f8;
+}
+#settings-account .settings-danger-group .settings-form-heading h3{color:#9f3737}
+#settings-account .settings-danger-group .settings-form-heading p{color:#785f5f}
+#settings-account .settings-danger-group .danger{
+  background:#fff1f0;color:#a12f2f;border:1px solid #e9c5c2;font-weight:750;
+}
+#settings-account #settingsAccountMessage:not(:empty){margin-top:12px}
+#settings-buybook .buybook-connection-bar{
+  display:flex;align-items:center;justify-content:space-between;gap:10px;
+  margin:0;padding:11px 12px;border:1px solid var(--border);
+  border-radius:11px;background:var(--page);
+}
+#settings-buybook .buybook-connection-bar strong{
+  min-width:0;color:var(--ink);font-size:13px;line-height:1.4;
+}
+#settings-buybook .buybook-connection-bar .danger{
+  flex:0 0 auto;width:auto;min-height:40px;padding:8px 12px;
+  border-radius:10px;
+}
+#settings-buybook #buybookConnectionForm{display:grid;gap:8px}
+#settings-buybook #buybookConnectionForm>label{
+  margin:5px 0 -4px;color:var(--ink);font-size:13px;font-weight:650;
+}
+#settings-buybook #buybookConnectionForm>input,
+#settings-buybook #buybookConnectionForm>textarea{
+  width:100%;min-height:45px;padding:10px 12px;
+  border:1px solid var(--border);border-radius:10px;
+  background:var(--surface);color:var(--ink);font:inherit;font-size:14px;
+}
+#settings-buybook #buybookConnectionForm>textarea{min-height:84px}
+#settings-buybook #buybookConnectionForm>button.primary{margin-top:6px}
+#settings-buybook .settings-optional-label{
+  color:var(--muted);font-weight:450;font-size:11px;
+}
+#settings-buybook .settings-marketplace-activity{margin-top:12px}
+#settings-buybook .settings-activity-divider{
+  display:grid;gap:4px;margin-top:17px;padding-top:15px;
+  border-top:1px solid var(--border);
+}
+#settings-buybook .settings-activity-divider h3{margin:0;font-size:15px;color:var(--ink)}
+#settings-buybook .settings-activity-divider p{margin:0;color:var(--muted);font-size:12px;line-height:1.45}
+body.dark #settings-account .settings-danger-group{
+  border-color:#56383b;background:#281f24;
+}
+body.dark #settings-account .settings-danger-group .settings-form-heading h3{color:#f0b5b5}
+body.dark #settings-account .settings-danger-group .settings-form-heading p{color:#cfb4b4}
+body.dark #settings-account .settings-danger-group .danger{
+  border-color:#624044;background:#35262a;color:#f2baba;
+}
+@media(max-width:380px){
+  #settings .settings-menu-item{min-height:68px;padding:10px}
+  #settings .settings-summary-icon{width:38px;height:38px;flex-basis:38px}
+  #settings .settings-item-copy strong{font-size:13px}
+  #settings .settings-item-copy small{font-size:11px}
+  #appWorkspace .settings-detail-card{padding:12px}
+  #settings-preferences .markup-options{gap:5px}
+  #settings-preferences .markup-options button{min-height:41px;font-size:12px}
+  #settings-buybook .buybook-connection-bar{align-items:flex-start}
+}
