@@ -1715,64 +1715,13 @@ async function loadBuybookActivity(options={}){
 }
 document.getElementById('marketplaceSubscriberList')?.addEventListener('click',event=>{const button=event.target.closest('[data-marketplace-buyer]');if(button){marketplaceSelectedBuyerId=button.dataset.marketplaceBuyer;showPage('support');loadUserSupport();}});
 
-function buybookShopHasReconnectDetails(shop){
- if(!shop)return false;
- const phone=normalizeNigerianWhatsAppNumber(shop.phone);
- const latitude=Number(shop.latitude),longitude=Number(shop.longitude);
- const whatsappChecked=!!shop.whatsapp_checked_at;
- const shopFrontReady=!!(shop.shop_front_image_url&&shop.shop_front_image_path&&shop.shop_front_confirmed_at);
- return !!String(shop.name||'').trim()&&!!phone&&whatsappChecked&&shopFrontReady&&
-  !!String(shop.address||'').trim()&&String(shop.address||'').trim().length>=5&&
-  !!String(shop.city||'').trim()&&!!String(shop.state||'').trim()&&
-  shop.latitude!==null&&shop.latitude!==undefined&&String(shop.latitude).trim()!==''&&
-  shop.longitude!==null&&shop.longitude!==undefined&&String(shop.longitude).trim()!==''&&
-  Number.isFinite(latitude)&&latitude>=-90&&latitude<=90&&
-  Number.isFinite(longitude)&&longitude>=-180&&longitude<=180;
-}
-
 async function reconnectBuybook(){
  const button=document.getElementById('buybookReconnectButton');
- const message=document.getElementById('buybookOverviewMessage');
  if(!cloudUser){showToast('Sign in to Sellbook first.','error');return;}
  if(button?.disabled)return;
- if(!buybookShopHasReconnectDetails(buybookShopRecordCache)){
-  showPage('settings-buybook-setup');
-  window.setTimeout(()=>notifyStatus(document.getElementById('buybookConnectionMessage'),'Complete the WhatsApp number check, upload and confirm your real shop-front photo, and capture the shop GPS location before reconnecting.','info'),150);
-  return;
- }
- if(!navigator.onLine){notifyStatus(message,'Connect to the internet before reconnecting your shop.','error');return;}
- if(button){button.disabled=true;button.textContent='Reconnecting…';}
- try{
-  const user=await requireCloudUser();
-  const {data,error}=await supabaseClient.from('marketplace_shops')
-   .update({is_connected:true,is_active:true})
-   .eq('owner_id',user.id)
-   .select('owner_id,is_connected,is_active')
-   .maybeSingle();
-  if(error)throw error;
-  if(!data||!data.is_connected||!data.is_active)throw new Error('Your shop was not reconnected. Please review its details and try again.');
-
-  const sync=await supabaseClient.rpc('sync_owner_marketplace_listings',{p_owner_id:user.id});
-  if(sync.error){
-   await supabaseClient.from('marketplace_shops').update({is_connected:false}).eq('owner_id',user.id);
-   await supabaseClient.rpc('sync_owner_marketplace_listings',{p_owner_id:user.id});
-   throw new Error('Buybook could not refresh your products. Your shop remains disconnected. Please try again. '+(sync.error.message||''));
-  }
-  for(const product of (db.products||[])){
-   if(product.imagePath){
-    try{await cloudPublishMarketplaceImage(product,user,product.offlineImage||null,product.imagePath);}
-    catch(imageError){console.warn('Buybook image sync skipped for product:',product.id,imageError);}
-   }
-  }
-  await loadBuybookConnection({quiet:true});
-  notifyStatus(message,'Your shop is reconnected. Your Sellbook products are now listed on Buybook.','success');
- }catch(error){
-  notifyStatus(message,error.message||'Could not reconnect your shop. Please try again.','error');
-  console.error('Buybook reconnection failed:',error);
-  await loadBuybookConnection({quiet:true});
- }finally{
-  if(button){button.disabled=false;button.textContent='Reconnect to Buybook';}
- }
+ if(!navigator.onLine){notifyStatus(document.getElementById('buybookOverviewMessage'),'Connect to the internet before reconnecting your shop.','error');return;}
+ showPage('settings-buybook-setup');
+ notifyStatus(document.getElementById('buybookConnectionMessage'),'Review your saved details and tap Reconnect. Sellbook will automatically check your shop photo.','info');
 }
 document.getElementById('buybookReconnectButton')?.addEventListener('click',reconnectBuybook);
 
