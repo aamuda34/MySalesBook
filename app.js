@@ -2906,7 +2906,7 @@ document.getElementById('messengerPageBack')?.addEventListener('click',()=>{cons
 document.querySelectorAll('[data-open-page]').forEach(b=>b.addEventListener('click',()=>{if(b.dataset.openPage==='admin'&&!sellbookIsAdmin)return cloudMessage('Administrator access is required.');if(b.dataset.openPage==='support'&&sellbookIsAdmin){showPage('admin');showAdminPanel('support');void loadAdminUsers();return;}showPage(b.dataset.openPage);if(b.dataset.openPage==='admin')loadAdminDashboard();if(b.dataset.openPage==='notifications')loadUserNotifications();if(b.dataset.openPage==='subscribers')loadSubscribersPage();}));
 document.querySelectorAll('[data-open-sales-period]').forEach(button=>button.addEventListener('click',()=>openSalesHistoryPeriod(button.dataset.openSalesPeriod||'today')));
 document.querySelectorAll('[data-notification-category]').forEach(b=>b.addEventListener('click',()=>{userNotificationCategory=b.dataset.notificationCategory||'all';document.querySelectorAll('[data-notification-category]').forEach(x=>{const active=x===b;x.classList.toggle('active',active);x.setAttribute('aria-pressed',active?'true':'false');});renderUserNotifications();}));
-document.querySelectorAll('[data-open-support-direct]').forEach(b=>b.addEventListener('click',()=>showPage('support')));
+document.querySelectorAll('[data-open-support-direct]').forEach(b=>b.addEventListener('click',()=>{if(sellbookIsAdmin){showPage('admin');showAdminPanel('support');void loadAdminUsers();}else showPage('support');}));
 function openEntryForm(type){
  const routes={sale:{page:'record-sale',field:'saleProduct'},product:{page:'record-product',field:'pname'},expense:{page:'record-expense',field:'ename'}};
  const route=routes[type];if(!route||!document.getElementById(route.page))return;
