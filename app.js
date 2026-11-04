@@ -1646,56 +1646,7 @@ let buybookOverviewReturnPage='settings';
 let buybookShopRecordCache=null;
 let marketplaceSubscribersCache=[];
 let marketplaceSelectedBuyerId=null;
-let marketplaceActivityBusy=false;
-let marketplaceActivityRequestId=0;
 function marketplaceBuyerName(id){return marketplaceSubscribersCache.find(x=>x.buyer_id===id)?.display_name||('Buyer '+String(id||'').slice(-6));}
-async function loadBuybookActivity(options={}){
- const subscribersTarget=document.getElementById('marketplaceSubscriberList');
- const reservationsTarget=document.getElementById('marketplaceReservationsList');
- if(!subscribersTarget||!reservationsTarget)return;
- if(!cloudUser||!supabaseClient){subscribersTarget.innerHTML='<div class="empty">Sign in to see your subscribers.</div>';reservationsTarget.innerHTML='<div class="empty">Sign in to view product reservations.</div>';return;}
- if(marketplaceActivityBusy)return;
- marketplaceActivityBusy=true;
- const requestId=++marketplaceActivityRequestId;
- const requestedUserId=cloudUser.id,requestEpoch=accountSessionEpoch;
- const current=()=>requestId===marketplaceActivityRequestId&&accountRequestIsCurrent(requestedUserId,requestEpoch);
- try{
-  const {data:subs,error:subsError}=await supabaseClient.rpc('get_my_marketplace_subscribers');
-  if(!current())return;
-  if(subsError)throw subsError;
-  marketplaceSubscribersCache=subs||[];
-  subscribersTarget.className=marketplaceSubscribersCache.length?'marketplace-subscriber-list':'empty';
-  subscribersTarget.innerHTML=marketplaceSubscribersCache.length?marketplaceSubscribersCache.map(sub=>'<button type="button" class="marketplace-subscriber-button '+(marketplaceSelectedBuyerId===sub.buyer_id?'active':'')+'" data-marketplace-buyer="'+escAdmin(sub.buyer_id)+'"><span class="chat-support-avatar" aria-hidden="true">👤</span><span class="subscriber-meta"><strong>'+escAdmin(sub.display_name||marketplaceBuyerName(sub.buyer_id))+'</strong><small>Subscribed '+escAdmin(new Date(sub.created_at).toLocaleDateString())+'</small></span><span aria-hidden="true">›</span></button>').join(''):'No subscribers yet. When a buyer subscribes to your shop on Buybook, they will appear here.';
-  const reservationResult=await fetchAllCloudRows(()=>supabaseClient.from('marketplace_reservations').select('id,buyer_id,status,buyer_note,created_at,expires_at').eq('owner_id',requestedUserId).order('created_at',{ascending:false}).order('id',{ascending:false}));
-  if(!current())return;
-  if(reservationResult.error)throw reservationResult.error;
-  const reservations=reservationResult.data||[];
-  const itemsByReservation={};const reservationIds=reservations.map(r=>r.id);
-  for(let offset=0;offset<reservationIds.length;offset+=100){
-   const {data,error}=await supabaseClient.from('marketplace_reservation_items').select('reservation_id,product_name,quantity,unit_price').in('reservation_id',reservationIds.slice(offset,offset+100));
-   if(!current())return;
-   if(error)throw error;
-   for(const item of (data||[])){(itemsByReservation[item.reservation_id] ||= []).push(item);}
-  }
-  reservationsTarget.className=(reservations||[]).length?'':'empty';
-  reservationsTarget.innerHTML=(reservations||[]).length?reservations.map(r=>{
-   const lines=itemsByReservation[r.id]||[];
-   const products=lines.map(x=>escAdmin(x.product_name)+' × '+Number(x.quantity||0)+' · '+money(Number(x.unit_price||0)*Number(x.quantity||0))).join('<br>');
-   const status=String(r.status||'pending').replace(/[_-]+/g,' ').replace(/\b\w/g,ch=>ch.toUpperCase());
-   return '<div class="marketplace-reservation"><div class="reservation-top"><strong>'+escAdmin(marketplaceBuyerName(r.buyer_id))+'</strong><span class="status-pill">'+escAdmin(status)+'</span></div><p>'+ (products||'Product details unavailable') +'</p>'+(r.buyer_note?'<p class="muted">Buyer note: '+escAdmin(r.buyer_note)+'</p>':'')+'<div class="muted">'+escAdmin(new Date(r.created_at).toLocaleString([], {dateStyle:'medium',timeStyle:'short'}))+(r.expires_at?' · Expires '+escAdmin(new Date(r.expires_at).toLocaleString([], {dateStyle:'short',timeStyle:'short'})):'')+'</div></div>';
-  }).join(''):'No product reservations yet.';
-  if(marketplaceSelectedBuyerId&&!marketplaceSubscribersCache.some(x=>x.buyer_id===marketplaceSelectedBuyerId)){marketplaceSelectedBuyerId=null;}
-  if(marketplaceSelectedBuyerId){const selector=document.getElementById('messageConversationSelect');if(selector)selector.value=marketplaceSelectedBuyerId;}
- }catch(err){
-  if(current()){
-   if(!options.quiet)showToast('Could not load Buybook activity: '+(err.message||'Please refresh and try again.'),'error');
-   if(!marketplaceSubscribersCache.length)subscribersTarget.innerHTML='<div class="empty">Subscriber information is temporarily unavailable.</div>';
-   reservationsTarget.innerHTML='<div class="empty">Reservation information is temporarily unavailable.</div>';
-  }
- }finally{if(requestId===marketplaceActivityRequestId)marketplaceActivityBusy=false;}
-}
-document.getElementById('marketplaceSubscriberList')?.addEventListener('click',event=>{const button=event.target.closest('[data-marketplace-buyer]');if(button){marketplaceSelectedBuyerId=button.dataset.marketplaceBuyer;showPage('support');loadUserSupport();}});
-
 async function reconnectBuybook(){
  const button=document.getElementById('buybookReconnectButton');
  if(!cloudUser){showToast('Sign in to Sellbook first.','error');return;}
@@ -4819,9 +4770,7 @@ function clearAccountScopedUiState(){
  setAdminAccess(false);
  setUnreadBadge('notificationBadge',0);
  setUnreadBadge('messageBadge',0);
- marketplaceActivityBusy=false;
- marketplaceActivityRequestId++;
- marketplaceSubscribersCache=[];
+  marketplaceSubscribersCache=[];
  marketplaceSelectedBuyerId=null;
  marketplaceReservationsCache=[];
  marketplaceSelectedReservationId=null;
@@ -4838,8 +4787,6 @@ function clearAccountScopedUiState(){
   ['userNotificationsList','Sign in to view notifications.'],
   ['userSupportMessages','Sign in to view support messages.'],
   ['userFeedbackList','Sign in to view feedback.'],
-  ['marketplaceSubscriberList','Sign in to view subscribers.'],
-  ['marketplaceReservationsList','Sign in to view reservations.'],
   ['reservationsPageList','Sign in to view reservations.'],
   ['subscribersPageList','Sign in to view subscribers.'],
   ['messengerConversationList','Sign in to use Messenger.'],
@@ -5375,7 +5322,6 @@ document.getElementById('adminReplyForm').addEventListener('submit',async e=>{
   send.disabled=false;
  }
 });
-setInterval(()=>{if(cloudUser&&!document.hidden&&currentPage()==='settings-buybook'){loadBuybookActivity({quiet:true});}},15000);
 setInterval(()=>{if(sellbookIsAdmin&&currentPage()==='admin'&&sessionStorage.getItem('sellbook-admin-panel')==='support'){if(!document.getElementById('adminChatConversationView').classList.contains('hidden')&&document.getElementById('adminMessageUser').value)loadAdminConversation();else loadAdminUsers();}},15000);
 setInterval(()=>{if(!cloudUser||document.hidden)return;if(!sellbookIsAdmin&&currentPage()==='support')loadUserSupport();else updateUnreadBadges();},30000);
 
