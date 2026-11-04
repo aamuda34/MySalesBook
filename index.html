@@ -675,8 +675,7 @@
   <form id="buybookConnectionForm" novalidate>
    <section class="settings-form-group buybook-form-section" aria-labelledby="buybookShopDetailsHeading">
     <div class="settings-form-heading">
-     <h3 id="buybookShopDetailsHeading">Shop details</h3>
-     <p>Use the details buyers will recognise when they visit your shop.</p>
+     <h3 id="buybookShopDetailsHeading">Shop information</h3>
     </div>
 
     <label for="buybookShopName">Shop or business name</label>
@@ -729,8 +728,8 @@
 
    <section class="settings-form-group buybook-location-section" aria-labelledby="buybookLocationHeading">
     <div class="settings-form-heading">
-     <h3 id="buybookLocationHeading">Exact shop location</h3>
-     <p>Capture the location while you are at your shop so buyers can find it.</p>
+     <h3 id="buybookLocationHeading">Shop location</h3>
+     <p>Capture your current location while you are at the shop.</p>
     </div>
     <div class="buybook-location-card">
      <div class="buybook-location-icon" aria-hidden="true">
@@ -744,15 +743,15 @@
     </div>
     <button type="button" id="captureBuybookLocationButton" class="secondary-button buybook-capture-location">
      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2v3m0 14v3M2 12h3m14 0h3"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
-     <span>Capture shop location</span>
+     <span>Use my current location</span>
     </button>
-    <p class="settings-help-text">Allow location access and wait for an accurate GPS pin.</p>
+    <p class="settings-help-text">Allow location access when your phone asks.</p>
     <input type="hidden" id="buybookLatitude">
     <input type="hidden" id="buybookLongitude">
    </section>
 
    <div class="buybook-submit-area">
-    <button type="submit" id="buybookConnectButton" class="primary">Connect and list my products</button>
+    <button type="submit" id="buybookConnectButton" class="primary">Connect to Buybook</button>
     <p id="buybookConnectionMessage" class="settings-inline-status muted" role="status" aria-live="polite"></p>
    </div>
   </form>
