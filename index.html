@@ -683,9 +683,8 @@
     <input id="buybookShopName" type="text" required minlength="2" maxlength="100" placeholder="e.g. Amuda Stores" autocomplete="organization">
 
     <label for="buybookPhone">WhatsApp number</label>
-    <input id="buybookPhone" type="tel" inputmode="tel" pattern="[+0-9(). -]{7,25}" required maxlength="25" placeholder="e.g. 0803 123 4567" autocomplete="tel" aria-describedby="buybookPhoneHelp">
-    <p class="settings-help-text" id="buybookPhoneHelp">Enter a Nigerian mobile number. Sellbook checks its format automatically; it cannot confirm WhatsApp registration without sending a verification code.</p>
-    <p id="buybookWhatsAppCheckStatus" class="settings-inline-status muted" role="status" aria-live="polite">Enter a Nigerian mobile number.</p>
+    <input id="buybookPhone" type="tel" inputmode="tel" minlength="3" maxlength="40" required placeholder="Enter your preferred number" autocomplete="tel" aria-describedby="buybookPhoneHelp">
+    <p class="settings-help-text" id="buybookPhoneHelp">Enter the number customers should use to contact your shop on WhatsApp. Include the country code for international numbers.</p>
 
     <label for="buybookAddress">Shop address</label>
     <input id="buybookAddress" type="text" required minlength="5" maxlength="250" placeholder="Street, market, shop number or nearby landmark" autocomplete="street-address">
