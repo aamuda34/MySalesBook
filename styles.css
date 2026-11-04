@@ -4861,3 +4861,15 @@ body.dark #settings-buybook .buybook-connection-bar{background:var(--page);borde
  #settings-buybook .buybook-overview-requirements{align-items:stretch;flex-direction:column}
  #settings-buybook .buybook-overview-requirements button{width:100%}
 }
+
+/* Buybook connection: compact, easy-to-scan setup on small screens. */
+.buybook-setup-card #buybookConnectionForm{display:grid;gap:14px}
+.buybook-setup-card .buybook-form-section,.buybook-setup-card .buybook-shop-front-section,.buybook-setup-card .buybook-location-section{padding:0;margin:0;border:0}
+.buybook-setup-card .settings-form-heading{margin:0 0 10px}
+.buybook-setup-card .settings-form-heading p{margin-top:4px}
+.buybook-setup-card .settings-help-text{margin:5px 0 10px}
+.buybook-setup-card .settings-inline-status{margin:5px 0}
+.buybook-setup-card .buybook-shop-front-upload{gap:8px}
+.buybook-setup-card .buybook-submit-area{margin-top:2px}
+.buybook-setup-card #buybookConnectButton{width:100%;min-height:48px}
+@media(max-width:480px){.buybook-setup-card{padding:14px}.buybook-setup-card .buybook-form-two-columns{gap:10px}}
