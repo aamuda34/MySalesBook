@@ -387,7 +387,7 @@ console.log('PASS: account-scoped notification reads, reservation actions and un
 const meStart=indexHtml.indexOf('<section id="me"');
 const meNextPage=indexHtml.indexOf('<section id="notifications"',meStart);
 const meMarkup=indexHtml.slice(meStart,meNextPage>meStart?meNextPage:indexHtml.length);
-requireText(meMarkup,'class="me-buybook-section"','Me has a dedicated Buybook and Customers section');
+requireText(meMarkup,'me-buybook-section','Me has a dedicated Buybook and Customers section');
 requireText(meMarkup,'id="meBuybookStatus"','Me shows the current Buybook connection status');
 requireText(meMarkup,'data-open-page="settings-buybook"','Buybook setup opens from Me');
 requireText(meMarkup,'data-open-page="reservations"','Reservations open from Me');
