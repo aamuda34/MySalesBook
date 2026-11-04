@@ -3758,3 +3758,7 @@ body.dark #editProductDialog .product-category-chip>button{
   #appWorkspace .record-entry-page #productCategorySearch,
   #editProductDialog #editProductCategorySearch{padding-inline:10px;font-size:15px}
 }
+
+/* Previously used categories are now searchable in the main picker; avoid a second, duplicated chip list. */
+#appWorkspace #categorySuggestionChips,
+#editProductDialog #editCategorySuggestionChips{display:none!important}
