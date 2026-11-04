@@ -1409,7 +1409,7 @@ function setBuybookShopFrontPreview(url,options={}){
 function setBuybookWhatsAppNumberStatus(phone){
  const normalized=normalizeNigerianWhatsAppNumber(phone);
  if(normalized){
-  setBuybookWhatsAppStatus('Number format looks valid. Buyers can use this number to contact your shop.','success');
+  setBuybookWhatsAppStatus('Valid Nigerian number format.','info');
  }else{
   setBuybookWhatsAppStatus('Enter a Nigerian mobile number, for example 0803 123 4567.','info');
  }
@@ -1458,7 +1458,7 @@ document.getElementById('buybookPhone')?.addEventListener('input',event=>{
  const normalized=normalizeNigerianWhatsAppNumber(event.target.value);
  if(normalized){
   event.target.removeAttribute('aria-invalid');
-  setBuybookWhatsAppStatus('Number format looks valid.','success');
+  setBuybookWhatsAppStatus('Valid Nigerian number format.','info');
  }else if(event.target.value.trim()){
   setBuybookWhatsAppStatus('Enter a Nigerian mobile number, for example 0803 123 4567.','info');
  }
@@ -1468,7 +1468,7 @@ document.getElementById('buybookPhone')?.addEventListener('blur',event=>{
  if(normalized){
   event.target.value=normalized;
   event.target.removeAttribute('aria-invalid');
-  setBuybookWhatsAppStatus('Number format looks valid.','success');
+  setBuybookWhatsAppStatus('Valid Nigerian number format.','info');
  }else if(event.target.value.trim()){
   event.target.setAttribute('aria-invalid','true');
   setBuybookWhatsAppStatus('Enter a valid Nigerian mobile number. Example: 0803 123 4567.','error');
@@ -1802,7 +1802,6 @@ document.getElementById('buybookConnectionForm')?.addEventListener('submit',asyn
    name:shopName,
    description:document.getElementById('buybookDescription').value.trim(),
    phone:whatsapp,
-   whatsapp_checked_at:null,
    shop_front_image_url:shopFrontUrl,
    shop_front_image_path:shopFrontPath,
    shop_front_confirmed_at:shopFrontVerifiedAt,
