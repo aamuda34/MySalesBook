@@ -169,30 +169,67 @@
 
 <section id="record-product" class="page hidden record-entry-page">
 <div class="products-page-header"><button type="button" class="products-back-button" data-app-back="products" aria-label="Back to Products" title="Back to Products"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6M9 12h11"/></svg></button><h1>Add a product</h1></div>
-<p class="page-intro">Add what you sell, set its prices and enter the stock you have.</p>
+<p class="page-intro">Choose how you sell it, then enter the details below.</p>
 <div class="card entry-form-card" id="productFormCard">
 <form id="productForm" class="organized-entry-form">
+<div class="product-type-switcher">
+<div class="entry-form-group-heading"><h2>How do you sell this product?</h2><p>Select a setup. You can switch at any time.</p></div>
+<div class="product-type-options" role="tablist" aria-label="Product type">
+<button type="button" id="productTypeUnit" class="product-type-tab selected" role="tab" aria-selected="true" aria-controls="unitProductPanel">Individual unit</button>
+<button type="button" id="productTypePack" class="product-type-tab" role="tab" aria-selected="false" aria-controls="packProductPanel" tabindex="-1">Packs</button>
+</div>
+<p id="productTypeHelp" class="product-type-help" aria-live="polite">Add a product that you sell one unit at a time.</p>
+</div>
+
 <section class="entry-form-group" aria-labelledby="productBasicsHeading">
-<div class="entry-form-group-heading"><h2 id="productBasicsHeading">Product details</h2><p>Start with the product name and category.</p></div>
+<div class="entry-form-group-heading"><h2 id="productBasicsHeading">Product details</h2><p>What is the product called and what category does it belong to?</p></div>
 <div class="entry-form-field"><label for="pname">Product name</label><input id="pname" required maxlength="100" placeholder="e.g. Bottled water" autocomplete="off"></div>
-<div class="entry-form-field"><span class="entry-form-label">Product categories</span><input type="hidden" id="pcategory"><p class="entry-field-help">Choose at least one category. You can select up to three.</p><div id="productCategoryOptions" class="product-category-options"><label class="category-choice"><input type="checkbox" data-product-category value="Food & Groceries"><span>Food & Groceries</span></label><label class="category-choice"><input type="checkbox" data-product-category value="Drinks & Beverages"><span>Drinks & Beverages</span></label><label class="category-choice"><input type="checkbox" data-product-category value="Fruits & Vegetables"><span>Fruits & Vegetables</span></label><label class="category-choice"><input type="checkbox" data-product-category value="Health & Beauty"><span>Health & Beauty</span></label><label class="category-choice"><input type="checkbox" data-product-category value="Household Items"><span>Household Items</span></label><label class="category-choice"><input type="checkbox" data-product-category value="Clothing & Fashion"><span>Clothing & Fashion</span></label><label class="category-choice"><input type="checkbox" data-product-category value="Electronics & Accessories"><span>Electronics & Accessories</span></label><label class="category-choice"><input type="checkbox" data-product-category value="Building Materials"><span>Building Materials</span></label><label class="category-choice"><input type="checkbox" data-product-category value="Stationery & School Supplies"><span>Stationery & School Supplies</span></label><label class="category-choice"><input type="checkbox" data-product-category value="Other"><span>Other</span></label></div><p id="productCategoryCount" class="entry-field-help" aria-live="polite">0 of 3 selected</p><datalist id="categorySuggestions"></datalist><div id="categorySuggestionChips" class="category-suggestions" aria-label="Existing category suggestions"></div></div>
+<div class="entry-form-field">
+<label for="productCategorySearch">Product category <span class="entry-optional">(choose up to 3)</span></label>
+<div class="product-category-picker" id="productCategoryPicker">
+<div class="product-category-search-row">
+<input id="productCategorySearch" type="search" role="combobox" aria-autocomplete="list" aria-controls="productCategoryOptions" aria-expanded="false" placeholder="Search or browse categories" autocomplete="off" autocapitalize="words">
+<button type="button" id="productCategoryToggle" class="category-browse-button" aria-label="Browse all categories" aria-expanded="false" aria-controls="productCategoryDropdown">Browse</button>
+</div>
+<div id="productCategoryDropdown" class="product-category-dropdown hidden">
+<div id="productCategoryOptions" class="product-category-options" role="group" aria-label="Available product categories"><span class="entry-field-help">Type to search or browse all categories.</span></div>
+</div>
+<div id="productCategorySelected" class="product-category-selected" aria-live="polite"></div>
+<input type="hidden" id="pcategory">
+<p id="productCategoryCount" class="entry-field-help">0 of 3 selected</p>
+<datalist id="categorySuggestions"></datalist>
+<div id="categorySuggestionChips" class="category-suggestions" aria-label="Your previously used categories"></div>
+</div>
+</div>
 </section>
-<section class="entry-form-group" aria-labelledby="productSellingMethodHeading">
-<div class="entry-form-group-heading"><h2 id="productSellingMethodHeading">How do you sell it?</h2><p>Choose the option that matches how customers buy this product.</p></div>
-<div class="product-type-picker" role="group" aria-label="Product selling type"><div class="product-type-options"><button type="button" id="productTypeUnit" class="selected" aria-pressed="true">Individual units</button><button type="button" id="productTypePack" aria-pressed="false">Packs and units</button></div><p id="productTypeHelp" class="muted" aria-live="polite">Sell this product by individual unit only.</p></div>
-<div id="unitProductPanel" class="entry-subpanel"><div class="entry-form-field"><label for="pbaseunit">What is one unit called?</label><input id="pbaseunit" maxlength="30" value="unit" placeholder="e.g. bottle, piece"></div></div>
-<div id="packProductPanel" class="entry-subpanel hidden"><h3>Pack details</h3><div class="entry-form-field"><label for="ppackunit">What is one pack called?</label><input id="ppackunit" maxlength="30" placeholder="e.g. carton, dozen, pack"></div><div class="entry-form-field"><label for="punitsperpack">How many individual units are in one pack?</label><input id="punitsperpack" type="number" min="1" step="1" value="1" inputmode="numeric"></div><div class="entry-form-field"><span class="entry-form-label">Cost price per individual unit</span><output id="pcostPerUnit" class="price-suggestion">Enter pack cost and unit count.</output></div><div class="entry-form-field"><label for="pbaseunitPack">What is one individual unit called?</label><input id="pbaseunitPack" maxlength="30" value="unit" placeholder="e.g. bottle, piece"></div><div class="entry-form-field"><label for="ppackprice">Selling price for one full pack (₦)</label><input id="ppackprice" type="number" min="0.01" step="0.01" inputmode="decimal" placeholder="e.g. 2,500"></div><p class="entry-field-help">You can record sales by full pack or by individual unit.</p></div>
+
+<section id="unitProductPanel" class="product-type-page" role="tabpanel" aria-labelledby="productTypeUnit">
+<div class="product-type-page-heading"><span class="product-type-page-icon" aria-hidden="true">1</span><div><h2>Individual unit setup</h2><p>Use this when customers buy one item at a time.</p></div></div>
+<div class="entry-form-field"><label for="pbaseunit">What is one item called?</label><input id="pbaseunit" maxlength="30" value="unit" placeholder="e.g. bottle, piece, bag"></div>
 </section>
+
+<section id="packProductPanel" class="product-type-page hidden" role="tabpanel" aria-labelledby="productTypePack" aria-hidden="true">
+<div class="product-type-page-heading"><span class="product-type-page-icon" aria-hidden="true">▦</span><div><h2>Pack setup</h2><p>Use this when you buy or sell items in cartons, packs, dozens or other groups.</p></div></div>
+<div class="entry-form-field"><label for="ppackunit">What is one pack called?</label><input id="ppackunit" maxlength="30" placeholder="e.g. carton, dozen, pack"></div>
+<div class="entry-form-field"><label for="punitsperpack">How many individual units are in one pack?</label><input id="punitsperpack" type="number" min="1" step="1" value="1" inputmode="numeric" placeholder="e.g. 12"></div>
+<div class="entry-form-field"><label for="pbaseunitPack">What is one individual unit called?</label><input id="pbaseunitPack" maxlength="30" value="unit" placeholder="e.g. bottle, piece"></div>
+<div class="entry-pack-example">Example: A carton contains 12 bottles. Enter <strong>carton</strong> as the pack and <strong>12</strong> as the number of units.</div>
+<div class="entry-form-field"><span class="entry-form-label">Cost per individual unit</span><output id="pcostPerUnit" class="price-suggestion">Enter pack cost and unit count to calculate this.</output></div>
+</section>
+
 <section class="entry-form-group" aria-labelledby="productPricingHeading">
-<div class="entry-form-group-heading"><h2 id="productPricingHeading">Product prices</h2><p>Enter what it costs you, then set the price customers pay.</p></div>
+<div class="entry-form-group-heading"><h2 id="productPricingHeading">Prices</h2><p>Enter your cost. Sellbook can suggest a selling price, which you can change.</p></div>
 <div class="entry-form-field"><label for="pcost" id="pcostLabel">Cost price per unit (₦)</label><input id="pcost" type="number" min="0" step="0.01" inputmode="decimal" required placeholder="e.g. 1,000"></div>
-<div class="price-calculator"><strong>Suggested markup</strong><p class="entry-field-help">Choose a suggested increase to calculate a selling price. You can still enter your own price.</p><div class="markup-options category-suggestions" role="group" aria-label="Choose markup percentage"><button type="button" data-markup="10" aria-pressed="false">10%</button><button type="button" data-markup="20" aria-pressed="false">20%</button><button type="button" data-markup="30" class="selected" aria-pressed="true">30%</button><button type="button" data-markup="40" aria-pressed="false">40%</button><button type="button" data-markup="50" aria-pressed="false">50%</button></div><p id="priceSuggestion" class="price-suggestion">Enter a cost price to calculate a suggested price.</p></div>
+<div class="price-calculator"><strong>Suggested markup</strong><p class="entry-field-help">Choose how much to add to your cost price.</p><div class="markup-options category-suggestions" role="group" aria-label="Choose markup percentage"><button type="button" data-markup="10" aria-pressed="false">10%</button><button type="button" data-markup="20" aria-pressed="false">20%</button><button type="button" data-markup="30" class="selected" aria-pressed="true">30%</button><button type="button" data-markup="40" aria-pressed="false">40%</button><button type="button" data-markup="50" aria-pressed="false">50%</button></div><p id="priceSuggestion" class="price-suggestion">Enter a cost price to calculate a suggested selling price.</p></div>
+<div id="packPriceField" class="entry-form-field hidden"><label for="ppackprice">Selling price for one full pack (₦)</label><input id="ppackprice" type="number" min="0.01" step="0.01" inputmode="decimal" placeholder="e.g. 12,000"></div>
 <div class="entry-form-field"><label for="pprice" id="ppriceLabel">Selling price per unit (₦)</label><input id="pprice" type="number" min="0.01" step="0.01" inputmode="decimal" required placeholder="e.g. 1,300"></div>
 </section>
+
 <section class="entry-form-group" aria-labelledby="productStockHeading">
-<div class="entry-form-group-heading"><h2 id="productStockHeading">Opening stock</h2><p>Enter how many you have available to sell.</p></div>
-<div class="entry-form-field"><label for="pstock" id="pstockLabel">Opening stock (individual units)</label><input id="pstock" type="number" min="0" step="1" inputmode="numeric" required placeholder="e.g. 24"></div>
+<div class="entry-form-group-heading"><h2 id="productStockHeading">Opening stock</h2><p>How many do you currently have available to sell?</p></div>
+<div class="entry-form-field"><label for="pstock" id="pstockLabel">Opening stock (individual units)</label><input id="pstock" type="number" min="0" step="1" inputmode="numeric" required placeholder="e.g. 24"><p id="productStockHelp" class="entry-field-help">Enter the number of individual units you have.</p></div>
 </section>
+
 <section class="entry-form-group entry-form-group-last" aria-labelledby="productPhotoHeading">
 <div class="entry-form-group-heading"><h2 id="productPhotoHeading">Product photo <span class="entry-optional">(optional)</span></h2><p>A clear photo can help you recognise this product.</p></div>
 <div class="photo-actions"><button type="button" id="takeProductPhoto">Take photo</button><button type="button" id="chooseProductPhoto">Choose from gallery</button></div>
@@ -201,7 +238,7 @@
 <div id="photoStatus" class="photo-help">You can save a product without a photo.</div>
 <button type="button" id="removePendingPhoto" class="danger hidden">Remove selected photo</button>
 </section>
-<div class="entry-form-actions"><button type="submit" class="primary">Save product</button><p class="entry-submit-note">You can edit product details and stock later.</p></div>
+<div class="entry-form-actions"><button type="submit" class="primary">Save product</button><p class="entry-submit-note">You can update prices and stock later.</p></div>
 </form>
 </div>
 </section>

@@ -3445,3 +3445,100 @@ body.dark #appWorkspace .record-entry-page .entry-form-group-heading h2,
 body.dark #appWorkspace .record-entry-page .entry-form-field>label,
 body.dark #appWorkspace .record-entry-page .entry-form-label,
 body.dark #appWorkspace .record-entry-page .entry-subpanel h3{color:var(--ink)}
+
+
+/* Product type setup: two clear, switchable form views with a compact category finder. */
+#appWorkspace .record-entry-page .product-type-switcher{
+  display:grid;gap:10px;padding:14px;margin:0 0 18px;
+  border:1px solid var(--border);border-radius:15px;background:var(--surface);
+}
+#appWorkspace .record-entry-page .product-type-options{display:grid;grid-template-columns:1fr 1fr;gap:7px;padding:5px;border-radius:13px;background:var(--page)}
+#appWorkspace .record-entry-page .product-type-options .product-type-tab{
+  min-height:48px;margin:0;padding:10px 8px;border:1px solid transparent;border-radius:10px;
+  background:transparent;color:var(--muted);font-size:14px;font-weight:700;
+}
+#appWorkspace .record-entry-page .product-type-options .product-type-tab.selected{
+  background:var(--green);border-color:var(--green);color:#fff;box-shadow:0 2px 6px #14532d22;
+}
+#appWorkspace .record-entry-page .product-type-help{margin:0;color:var(--muted);font-size:12px;line-height:1.45}
+#appWorkspace .record-entry-page .product-type-page{
+  display:grid;gap:14px;padding:16px;margin:0 0 20px;border:1px solid var(--border);
+  border-radius:14px;background:var(--surface);
+}
+#appWorkspace .record-entry-page .product-type-page.hidden{display:none!important}
+#appWorkspace .record-entry-page .product-type-page-heading{display:flex;align-items:center;gap:11px}
+#appWorkspace .record-entry-page .product-type-page-heading h2{margin:0;color:var(--ink);font-size:16px}
+#appWorkspace .record-entry-page .product-type-page-heading p{margin:4px 0 0;color:var(--muted);font-size:12px;line-height:1.4}
+#appWorkspace .record-entry-page .product-type-page-icon{
+  display:grid;place-items:center;width:38px;height:38px;flex:0 0 38px;border-radius:11px;
+  background:var(--soft);color:var(--green);font-size:16px;font-weight:800;
+}
+#appWorkspace .record-entry-page .entry-pack-example{
+  padding:11px 12px;border-radius:10px;background:var(--page);color:var(--muted);
+  font-size:12px;line-height:1.5;
+}
+#appWorkspace .record-entry-page #pprice[readonly]{
+  background:var(--page);color:var(--green);font-weight:700;cursor:default;
+}
+#appWorkspace .record-entry-page .product-category-picker{position:relative;display:grid;gap:8px}
+#appWorkspace .record-entry-page .product-category-search-row{display:flex;align-items:stretch;gap:7px}
+#appWorkspace .record-entry-page #productCategorySearch{
+  min-width:0;min-height:48px;flex:1;padding:12px 13px;border:1px solid var(--border);
+  border-radius:11px;background:var(--surface);color:var(--ink);font:inherit;font-size:15px;
+}
+#appWorkspace .record-entry-page .category-browse-button{
+  min-width:82px;min-height:48px;margin:0;padding:9px 12px;border:1px solid #c9dccd;
+  border-radius:11px;background:var(--soft);color:var(--green);font-size:13px;font-weight:700;
+}
+#appWorkspace .record-entry-page .product-category-dropdown{
+  position:absolute;z-index:30;top:54px;left:0;right:0;max-height:min(42vh,300px);overflow:auto;
+  padding:7px;border:1px solid var(--border);border-radius:12px;background:var(--surface);
+  box-shadow:0 10px 28px #12271920;
+}
+#appWorkspace .record-entry-page .product-category-dropdown.hidden{display:none!important}
+#appWorkspace .record-entry-page .product-category-options{
+  display:grid;grid-template-columns:1fr;gap:4px;margin:0;
+}
+#appWorkspace .record-entry-page .product-category-option{
+  display:flex;align-items:center;gap:10px;min-height:42px;margin:0;padding:9px 10px;
+  border:1px solid transparent;border-radius:9px;background:transparent;color:var(--ink);
+  font-size:13px;line-height:1.35;cursor:pointer;
+}
+#appWorkspace .record-entry-page .product-category-option:has(input:checked){background:var(--soft);border-color:#cde1d1;color:var(--green);font-weight:700}
+#appWorkspace .record-entry-page .product-category-option input{width:18px;height:18px;flex:0 0 18px;margin:0;accent-color:var(--green)}
+#appWorkspace .record-entry-page .product-category-option input:disabled{opacity:.45}
+#appWorkspace .record-entry-page .product-category-add-option{
+  width:100%;min-height:42px;margin:5px 0 0;padding:10px;text-align:left;
+  border:1px dashed #a9c8b0;border-radius:9px;background:var(--page);color:var(--green);font-size:13px;
+}
+#appWorkspace .record-entry-page .product-category-add-option:disabled{opacity:.45}
+#appWorkspace .record-entry-page .product-category-no-results{margin:0;padding:10px;color:var(--muted);font-size:12px}
+#appWorkspace .record-entry-page .product-category-selected{display:flex;flex-wrap:wrap;gap:6px}
+#appWorkspace .record-entry-page .product-category-selected:not(.has-selections){display:none}
+#appWorkspace .record-entry-page .product-category-chip{
+  display:inline-flex;align-items:center;gap:7px;min-height:32px;margin:0;padding:6px 9px;
+  border:1px solid #c9dccd;border-radius:999px;background:var(--soft);color:var(--green);
+  font-size:12px;font-weight:650;
+}
+#appWorkspace .record-entry-page .product-category-chip span:last-child{font-size:17px;line-height:1}
+#appWorkspace .record-entry-page #productCategoryCount{margin:0}
+#appWorkspace .record-entry-page #categorySuggestionChips{display:flex;flex-wrap:wrap;gap:6px}
+#appWorkspace .record-entry-page #categorySuggestionChips .suggestion-label{width:100%;margin:0;color:var(--muted);font-size:11px}
+#appWorkspace .record-entry-page #categorySuggestionChips button{
+  width:auto;margin:0;padding:6px 9px;border:1px solid var(--border);border-radius:999px;
+  background:var(--page);color:var(--ink);font-size:11px;font-weight:600;
+}
+#appWorkspace .record-entry-page .price-calculator{display:grid;gap:6px}
+#appWorkspace .record-entry-page .price-calculator .entry-field-help{margin:0}
+#appWorkspace .record-entry-page #pcostPerUnit{display:block;padding:9px 11px;border-radius:9px;background:var(--page)}
+body.dark #appWorkspace .record-entry-page #pprice[readonly]{background:#272333;color:#b8e4c2}
+body.dark #appWorkspace .record-entry-page .product-category-dropdown{background:var(--surface);border-color:var(--border)}
+body.dark #appWorkspace .record-entry-page .product-category-option:has(input:checked){background:#1c4b31;color:#fff;border-color:#33734b}
+@media(max-width:380px){
+ #appWorkspace .record-entry-page .product-type-options .product-type-tab{font-size:13px;padding-inline:5px}
+ #appWorkspace .record-entry-page .product-category-search-row{gap:5px}
+ #appWorkspace .record-entry-page .category-browse-button{min-width:74px;padding-inline:8px}
+}
+
+/* Category lookup replaces the long category chip wall with one compact searchable control. */
+#appWorkspace .record-entry-page #categorySuggestionChips{display:none!important}

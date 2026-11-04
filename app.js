@@ -1609,12 +1609,126 @@ async function cloudAddExpense(name,amount,date) {
 function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 function normalizeCategory(value){const category=String(value??'').trim();return category||'Uncategorized';}
 const SELLBOOK_CATEGORIES=["Food & Groceries","Drinks & Beverages","Fruits & Vegetables","Health & Beauty","Household Items","Clothing & Fashion","Electronics & Accessories","Building Materials","Stationery & School Supplies","Other"];
+const PRODUCT_CATEGORIES=[
+ "Food & Groceries","Rice, Grains & Cereals","Pasta & Noodles","Cooking Oil, Spices & Condiments",
+ "Meat, Poultry & Seafood","Dairy & Eggs","Bread & Bakery","Snacks & Sweets","Frozen Foods",
+ "Drinks & Beverages","Fruits & Vegetables","Water & Soft Drinks",
+ "Health & Personal Care","Medicines & Health Supplies","Beauty & Cosmetics","Hair Care","Skin Care",
+ "Cleaning & Laundry","Household Supplies","Home & Kitchen","Furniture & Home Décor","Bedding & Bath",
+ "Clothing & Fashion","Shoes & Footwear","Bags & Accessories","Jewellery & Watches","Baby & Kids",
+ "Toys & Games","Phones & Accessories","Computers & Electronics","TV, Audio & Cameras",
+ "Electrical & Lighting","Building Materials","Tools & Hardware","Plumbing Supplies",
+ "Automotive & Motor Parts","Agriculture & Farming","Garden Supplies","Pet Supplies",
+ "Office & Stationery","Books & Education","Sports & Fitness","Luggage & Travel",
+ "Industrial Supplies","Packaging Materials","Safety Equipment","Other"
+];
 function categoryValues(value){return String(value||'').split('|').map(x=>x.trim()).filter(Boolean);}
-function getSelectedCategories(prefix){const selector=prefix==='editProduct'?'[data-edit-product-category]':'[data-product-category]';return [...document.querySelectorAll(selector+':checked')].map(x=>x.value).slice(0,3);}
-function syncCategoryPicker(prefix,value){const edit=prefix==='editProduct';const selector=edit?'[data-edit-product-category]':'[data-product-category]';const count=document.getElementById(edit?'editProductCategoryCount':'productCategoryCount');const hidden=document.getElementById(edit?'editProductCategory':'pcategory');let values=categoryValues(value);values=values.filter(x=>SELLBOOK_CATEGORIES.includes(x)).slice(0,3);if(!values.length&&value&& !SELLBOOK_CATEGORIES.includes(String(value).trim()))values=['Other'];document.querySelectorAll(selector).forEach(x=>{x.checked=values.includes(x.value);x.disabled=false;});if(hidden)hidden.value=values.join(' | ');if(count)count.textContent=values.length+' of 3 selected';updateCategoryPickerLimits(prefix);}
-function updateCategoryPickerLimits(prefix){const edit=prefix==='editProduct';const selector=edit?'[data-edit-product-category]':'[data-product-category]';const selected=[...document.querySelectorAll(selector+':checked')].length;document.querySelectorAll(selector).forEach(x=>{x.disabled=!x.checked&&selected>=3;});const hidden=document.getElementById(edit?'editProductCategory':'pcategory');if(hidden)hidden.value=getSelectedCategories(prefix).join(' | ');const count=document.getElementById(edit?'editProductCategoryCount':'productCategoryCount');if(count)count.textContent=selected+' of 3 selected';}
-document.querySelectorAll('[data-product-category]').forEach(x=>x.addEventListener('change',()=>updateCategoryPickerLimits('product')));
-document.querySelectorAll('[data-edit-product-category]').forEach(x=>x.addEventListener('change',()=>updateCategoryPickerLimits('editProduct')));
+function cleanProductCategory(value){return String(value||'').replace(/[|<>]/g,' ').replace(/\s+/g,' ').trim().slice(0,48);}
+function getSelectedCategories(prefix){
+ if(prefix==='product')return categoryValues(document.getElementById('pcategory')?.value||'').slice(0,3);
+ return [...document.querySelectorAll('[data-edit-product-category]:checked')].map(x=>x.value).slice(0,3);
+}
+function productCategoryPickerOpen(open=true){
+ const dropdown=document.getElementById('productCategoryDropdown'),search=document.getElementById('productCategorySearch'),toggle=document.getElementById('productCategoryToggle');
+ if(!dropdown||!search||!toggle)return;
+ dropdown.classList.toggle('hidden',!open);search.setAttribute('aria-expanded',String(open));toggle.setAttribute('aria-expanded',String(open));toggle.textContent=open?'Close':'Browse';
+}
+function getProductCategoryChoices(){
+ const used=(db.products||[]).flatMap(product=>categoryValues(product.category));
+ return [...new Set([...PRODUCT_CATEGORIES,...used.map(cleanProductCategory).filter(Boolean)])];
+}
+function renderProductCategoryOptions(){
+ const target=document.getElementById('productCategoryOptions'),search=document.getElementById('productCategorySearch');
+ if(!target||!search)return;
+ const query=search.value.trim().toLocaleLowerCase(),selected=getSelectedCategories('product');
+ const allCategories=getProductCategoryChoices();
+ const matches=allCategories.filter(category=>!query||category.toLocaleLowerCase().includes(query));
+ const customSelected=selected.filter(category=>!allCategories.some(item=>item.toLocaleLowerCase()===category.toLocaleLowerCase())&&(!query||category.toLocaleLowerCase().includes(query)));
+ const options=[...new Set([...matches,...customSelected])];
+ let markup=options.map(category=>'<label class="product-category-option"><input type="checkbox" data-product-category value="'+esc(category)+'" '+(selected.some(item=>item.toLocaleLowerCase()===category.toLocaleLowerCase())?'checked ':'')+(!selected.some(item=>item.toLocaleLowerCase()===category.toLocaleLowerCase())&&selected.length>=3?'disabled':'')+'><span>'+esc(category)+'</span></label>').join('');
+ const exact=allCategories.some(category=>category.toLocaleLowerCase()===query)||selected.some(category=>category.toLocaleLowerCase()===query);
+ if(query&&!exact){
+  const canAdd=selected.length<3;
+  markup+='<button type="button" class="product-category-add-option" data-add-product-category="'+esc(cleanProductCategory(search.value))+'" '+(canAdd?'':'disabled')+' >＋ Use “'+esc(cleanProductCategory(search.value))+'” as a custom category</button>';
+ }
+ target.innerHTML=markup||'<p class="product-category-no-results">No matching category. You can add “'+esc(cleanProductCategory(search.value))+'” as a category.</p>';
+}
+function renderProductCategorySelected(){
+ const target=document.getElementById('productCategorySelected');if(!target)return;
+ const values=getSelectedCategories('product');
+ target.innerHTML=values.map(category=>'<button type="button" class="product-category-chip" data-remove-product-category="'+esc(category)+'" aria-label="Remove '+esc(category)+' category"><span>'+esc(category)+'</span><span aria-hidden="true">×</span></button>').join('');
+ target.classList.toggle('has-selections',values.length>0);
+}
+function syncCategoryPicker(prefix,value){
+ const edit=prefix==='editProduct';
+ if(!edit){
+  const values=[...new Set(categoryValues(value).map(cleanProductCategory).filter(Boolean))].slice(0,3);
+  const hidden=document.getElementById('pcategory'),count=document.getElementById('productCategoryCount');
+  if(hidden)hidden.value=values.join(' | ');
+  if(count)count.textContent=values.length+' of 3 selected';
+  renderProductCategoryOptions();renderProductCategorySelected();return;
+ }
+ const selector='[data-edit-product-category]',count=document.getElementById('editProductCategoryCount'),hidden=document.getElementById('editProductCategory');
+ let values=[...new Set(categoryValues(value).map(cleanProductCategory).filter(Boolean))].slice(0,3);
+ const optionList=document.getElementById('editProductCategoryOptions');
+ optionList?.querySelectorAll('[data-edit-custom-category]').forEach(label=>label.remove());
+ values.forEach(category=>{
+  const exists=[...document.querySelectorAll(selector)].some(input=>input.value.toLocaleLowerCase()===category.toLocaleLowerCase());
+  if(!exists&&optionList){
+   const label=document.createElement('label');label.className='category-choice';label.dataset.editCustomCategory='';
+   const input=document.createElement('input');input.type='checkbox';input.dataset.editProductCategory='';input.value=category;
+   const text=document.createElement('span');text.textContent=category;
+   label.append(input,text);optionList.appendChild(label);
+  }
+ });
+ optionList?.querySelectorAll(selector).forEach(x=>{x.checked=values.some(value=>value.toLocaleLowerCase()===x.value.toLocaleLowerCase());x.disabled=false;});
+ if(hidden)hidden.value=values.join(' | ');if(count)count.textContent=values.length+' of 3 selected';updateCategoryPickerLimits('editProduct');
+}
+function updateCategoryPickerLimits(prefix){
+ if(prefix==='product'){renderProductCategoryOptions();renderProductCategorySelected();return;}
+ const selector='[data-edit-product-category]',selected=[...document.querySelectorAll(selector+':checked')].length;
+ document.querySelectorAll(selector).forEach(x=>{x.disabled=!x.checked&&selected>=3;});
+ const hidden=document.getElementById('editProductCategory');if(hidden)hidden.value=getSelectedCategories('editProduct').join(' | ');
+ const count=document.getElementById('editProductCategoryCount');if(count)count.textContent=selected+' of 3 selected';
+}
+function addProductCategory(value){
+ const category=cleanProductCategory(value);if(!category)return;
+ const selected=getSelectedCategories('product');
+ if(selected.includes(category)){productCategoryPickerOpen(false);return;}
+ if(selected.length>=3){showToast('You can choose up to three product categories.');return;}
+ syncCategoryPicker('product',[...selected,category].join(' | '));
+ const search=document.getElementById('productCategorySearch');if(search)search.value='';
+ renderProductCategoryOptions();productCategoryPickerOpen(false);
+}
+const productCategoryOptions=document.getElementById('productCategoryOptions');
+productCategoryOptions?.addEventListener('change',event=>{
+ const input=event.target.closest('[data-product-category]');if(!input)return;
+ const selected=getSelectedCategories('product');
+ const next=input.checked?[...selected,input.value]:selected.filter(value=>value!==input.value);
+ syncCategoryPicker('product',next.join(' | '));renderProductCategoryOptions();
+});
+document.getElementById('productCategorySearch')?.addEventListener('focus',()=>{renderProductCategoryOptions();productCategoryPickerOpen(true);});
+document.getElementById('productCategorySearch')?.addEventListener('input',()=>{renderProductCategoryOptions();productCategoryPickerOpen(true);});
+document.getElementById('productCategoryToggle')?.addEventListener('click',()=>{
+ const open=document.getElementById('productCategoryDropdown')?.classList.contains('hidden');
+ if(open)renderProductCategoryOptions();
+ productCategoryPickerOpen(open);
+});
+document.getElementById('productCategoryOptions')?.addEventListener('click',event=>{
+ const add=event.target.closest('[data-add-product-category]');if(add)addProductCategory(add.dataset.addProductCategory);
+});
+document.getElementById('productCategorySelected')?.addEventListener('click',event=>{
+ const remove=event.target.closest('[data-remove-product-category]');if(!remove)return;
+ syncCategoryPicker('product',getSelectedCategories('product').filter(value=>value!==remove.dataset.removeProductCategory).join(' | '));
+});
+document.addEventListener('click',event=>{
+ const picker=document.getElementById('productCategoryPicker');
+ if(picker&&!picker.contains(event.target))productCategoryPickerOpen(false);
+});
+document.getElementById('productCategorySearch')?.addEventListener('keydown',event=>{
+ if(event.key==='Escape'){productCategoryPickerOpen(false);event.currentTarget.blur();}
+});
+document.getElementById('editProductCategoryOptions')?.addEventListener('change',event=>{if(event.target.matches('[data-edit-product-category]'))updateCategoryPickerLimits('editProduct');});
 
 function showLegalSection(section){const privacy=section!=='terms';const privacyPanel=document.getElementById('legalPrivacyContent'),termsPanel=document.getElementById('legalTermsContent'),privacyTab=document.getElementById('legalPrivacyTab'),termsTab=document.getElementById('legalTermsTab');if(!privacyPanel||!termsPanel||!privacyTab||!termsTab)return;privacyPanel.classList.toggle('hidden',!privacy);termsPanel.classList.toggle('hidden',privacy);privacyTab.classList.toggle('active',privacy);termsTab.classList.toggle('active',!privacy);privacyTab.setAttribute('aria-selected',String(privacy));termsTab.setAttribute('aria-selected',String(!privacy));}
 const VALID_PAGES=new Set(['home','about-sellbook','stock-history','stock-history-detail','sales-history','sale-details','subscribers','reservations','products','record-product','product-details','low-stock','sales','record-sale','more','expenses','record-expense','reports','stock','settings','business-details','settings-business','settings-sync','settings-preferences','settings-account','settings-legal','settings-buybook','support','messenger','feedback','admin','me','notifications']);
@@ -1915,7 +2029,7 @@ document.getElementById('quickSaleFab').addEventListener('click',()=>{
 });
 function closeProductLightbox(){document.getElementById('productImageLightbox').classList.add('hidden');document.body.style.overflow='';}
 function openProductLightbox(src,caption){const box=document.getElementById('productImageLightbox');document.getElementById('largeProductImage').src=src;document.getElementById('largeProductImage').alt=caption+' photo';document.getElementById('largeProductImageCaption').textContent=caption;box.classList.remove('hidden');document.body.style.overflow='hidden';document.getElementById('closeProductImage').focus();}
-document.getElementById('categorySuggestionChips').addEventListener('click',event=>{const button=event.target.closest('[data-category-suggestion]');if(button)document.getElementById('pcategory').value=button.dataset.categorySuggestion;});
+document.getElementById('categorySuggestionChips').addEventListener('click',event=>{const button=event.target.closest('[data-category-suggestion]');if(button)addProductCategory(button.dataset.categorySuggestion);});
 document.getElementById('editCategorySuggestionChips').addEventListener('click',event=>{const button=event.target.closest('[data-category-suggestion]');if(button)document.getElementById('editProductCategory').value=button.dataset.categorySuggestion;});
 document.getElementById('productList').addEventListener('click',event=>{const img=event.target.closest('img.product-photo');if(!img||!img.src)return;event.preventDefault();openProductLightbox(img.src,img.alt.replace(/ photo$/,''));});
 document.getElementById('closeProductImage').addEventListener('click',closeProductLightbox);
@@ -2248,42 +2362,113 @@ document.getElementById('removePendingPhoto').addEventListener('click',clearPend
 const DEFAULT_MARKUP_KEY='my-sales-book-default-markup-v1';
 let defaultMarkup=Number(localStorage.getItem(DEFAULT_MARKUP_KEY)||30);if(![10,20,30,40,50].includes(defaultMarkup))defaultMarkup=30;
 let selectedMarkup=defaultMarkup;
-function syncDefaultMarkupUI(){const stored=Number(localStorage.getItem(DEFAULT_MARKUP_KEY)||30);defaultMarkup=[10,20,30,40,50].includes(stored)?stored:30;selectedMarkup=defaultMarkup;document.querySelectorAll('[data-markup]').forEach(x=>{const yes=Number(x.dataset.markup)===defaultMarkup;x.classList.toggle('selected',yes);x.setAttribute('aria-pressed',String(yes));});}
-function updateSuggestedPrice(){const c=document.getElementById('pcost'),p=document.getElementById('pprice'),pp=document.getElementById('ppackprice'),o=document.getElementById('priceSuggestion');if(c.value.trim()===''||!Number.isFinite(Number(c.value))||Number(c.value)<0){o.textContent='Enter a cost price to calculate a suggested price.';return;}const money=n=>new Intl.NumberFormat('en-NG',{style:'currency',currency:'NGN',maximumFractionDigits:2}).format(n);if(productSellingType==='pack'){const count=Number(document.getElementById('punitsperpack').value);if(!Number.isSafeInteger(count)||count<1){o.textContent='Enter how many individual units are in each pack.';return;}const packCost=Number(c.value),packPrice=Math.round((packCost*(1+selectedMarkup/100)+Number.EPSILON)*100)/100,unitCost=Math.round((packCost/count+Number.EPSILON)*100)/100,unitPrice=Math.round((packPrice/count+Number.EPSILON)*100)/100;pp.value=packPrice.toFixed(2);p.value=unitPrice.toFixed(2);document.getElementById('pcostPerUnit').textContent=money(unitCost)+' per '+(document.getElementById('pbaseunitPack').value.trim()||'unit');o.textContent='Suggested selling price for one full pack: '+money(packPrice);return;}const cost=Number(c.value),price=Math.round((cost*(1+selectedMarkup/100)+Number.EPSILON)*100)/100;p.value=price.toFixed(2);o.textContent='Suggested unit price: '+money(price)+' · Gross profit per unit: '+money(price-cost);}
-document.querySelectorAll('[data-markup]').forEach(b=>b.addEventListener('click',()=>{selectedMarkup=Number(b.dataset.markup);document.querySelectorAll('[data-markup]').forEach(x=>{x.classList.toggle('selected',x===b);x.setAttribute('aria-pressed',String(x===b));});updateSuggestedPrice();}));
+function syncDefaultMarkupUI(){const stored=Number(localStorage.getItem(DEFAULT_MARKUP_KEY)||30);defaultMarkup=[10,20,30,40,50].includes(stored)?stored:30;selectedMarkup=defaultMarkup;if(typeof productModeMarkup!=='undefined')productModeMarkup={unit:defaultMarkup,pack:defaultMarkup};document.querySelectorAll('[data-markup]').forEach(x=>{const yes=Number(x.dataset.markup)===defaultMarkup;x.classList.toggle('selected',yes);x.setAttribute('aria-pressed',String(yes));});}
+function updateSuggestedPrice(){
+ const c=document.getElementById('pcost'),p=document.getElementById('pprice'),pp=document.getElementById('ppackprice'),o=document.getElementById('priceSuggestion');
+ const money=n=>new Intl.NumberFormat('en-NG',{style:'currency',currency:'NGN',maximumFractionDigits:2}).format(n);
+ const round=n=>Math.round((n+Number.EPSILON)*100)/100;
+ const costText=c.value.trim(),hasCost=costText!==''&&Number.isFinite(Number(costText))&&Number(costText)>=0;
+ if(productSellingType==='pack'){
+  const count=Number(document.getElementById('punitsperpack').value);
+  if(!Number.isSafeInteger(count)||count<1){document.getElementById('pcostPerUnit').textContent='Enter how many individual units are in each pack.';o.textContent='Enter a valid number of units per pack.';return;}
+  const unitName=document.getElementById('pbaseunitPack').value.trim()||'unit';
+  if(hasCost){
+   const packCost=Number(costText),packPrice=round(packCost*(1+selectedMarkup/100)),unitCost=round(packCost/count),unitPrice=round(packPrice/count);
+   pp.value=packPrice.toFixed(2);p.value=unitPrice.toFixed(2);
+   document.getElementById('pcostPerUnit').textContent=money(unitCost)+' per '+unitName;
+   o.textContent='Suggested selling price for one full pack: '+money(packPrice)+'. You can change either selling price.';
+  }else{
+   document.getElementById('pcostPerUnit').textContent='Enter pack cost and unit count to calculate this.';
+   const packPrice=Number(pp.value);
+   if(Number.isFinite(packPrice)&&packPrice>0){p.value=round(packPrice/count).toFixed(2);o.textContent='Selling price per individual unit is calculated from the pack price.';}
+   else{p.value='';o.textContent='Enter the purchase cost for one pack to get a suggested price.';}
+  }
+  return;
+ }
+ if(!hasCost){p.value='';o.textContent='Enter a cost price to calculate a suggested price.';return;}
+ const cost=Number(costText),price=round(cost*(1+selectedMarkup/100));
+ p.value=price.toFixed(2);o.textContent='Suggested unit price: '+money(price)+' · Gross profit per unit: '+money(price-cost);
+}
+document.querySelectorAll('[data-markup]').forEach(b=>b.addEventListener('click',()=>{selectedMarkup=Number(b.dataset.markup);productModeMarkup[productSellingType]=selectedMarkup;document.querySelectorAll('[data-markup]').forEach(x=>{x.classList.toggle('selected',x===b);x.setAttribute('aria-pressed',String(x===b));});updateSuggestedPrice();}));
 document.getElementById('pcost').addEventListener('input',updateSuggestedPrice);
 document.getElementById('punitsperpack').addEventListener('input',updateSuggestedPrice);
+document.getElementById('pbaseunitPack').addEventListener('input',()=>{
+ if(productSellingType!=='pack')return;
+ const cost=Number(document.getElementById('pcost').value),count=Number(document.getElementById('punitsperpack').value);
+ if(document.getElementById('pcost').value.trim()===''||!Number.isFinite(cost)||cost<0||!Number.isSafeInteger(count)||count<1){document.getElementById('pcostPerUnit').textContent='Enter pack cost and unit count to calculate this.';return;}
+ const unitCost=Math.round((cost/count+Number.EPSILON)*100)/100,money=new Intl.NumberFormat('en-NG',{style:'currency',currency:'NGN',maximumFractionDigits:2});
+ document.getElementById('pcostPerUnit').textContent=money.format(unitCost)+' per '+(document.getElementById('pbaseunitPack').value.trim()||'unit');
+});
 document.getElementById('ppackprice').addEventListener('input',()=>{if(productSellingType!=='pack')return;const count=Number(document.getElementById('punitsperpack').value),packPrice=Number(document.getElementById('ppackprice').value);if(Number.isSafeInteger(count)&&count>0&&Number.isFinite(packPrice)&&packPrice>0){document.getElementById('pprice').value=(Math.round((packPrice/count+Number.EPSILON)*100)/100).toFixed(2);const money=n=>new Intl.NumberFormat('en-NG',{style:'currency',currency:'NGN',maximumFractionDigits:2}).format(n);document.getElementById('priceSuggestion').textContent='Your chosen selling prices — per pack: '+money(packPrice)+' · per '+(document.getElementById('pbaseunitPack').value.trim()||'unit')+': '+money(Number(document.getElementById('pprice').value));}});
 let productSellingType='unit';
-function setProductSellingType(type){
- productSellingType=type;
- const pack=type==='pack';
- document.getElementById('productTypeUnit').classList.toggle('selected',!pack);
- document.getElementById('productTypeUnit').setAttribute('aria-pressed',String(!pack));
- document.getElementById('productTypePack').classList.toggle('selected',pack);
- document.getElementById('productTypePack').setAttribute('aria-pressed',String(pack));
- document.getElementById('unitProductPanel').classList.toggle('hidden',pack);
- document.getElementById('packProductPanel').classList.toggle('hidden',!pack);
+let productModeDrafts={unit:null,pack:null};
+let productModeMarkup={unit:defaultMarkup,pack:defaultMarkup};
+function captureProductModeDraft(type){
+ const value=id=>document.getElementById(id).value;
+ const draft={cost:value('pcost'),price:value('pprice'),stock:value('pstock'),priceSuggestion:document.getElementById('priceSuggestion').textContent};
+ if(type==='pack'){
+  draft.packUnit=value('ppackunit');draft.unitsPerPack=value('punitsperpack');draft.baseUnit=value('pbaseunitPack');draft.packPrice=value('ppackprice');draft.unitCostText=document.getElementById('pcostPerUnit').textContent;
+ }else{draft.baseUnit=value('pbaseunit');}
+ return draft;
+}
+function restoreProductModeDraft(type){
+ const draft=productModeDrafts[type];
+ const set=(id,value)=>{document.getElementById(id).value=value;};
+ if(type==='pack'){
+  set('ppackunit',draft?.packUnit??'');set('punitsperpack',draft?.unitsPerPack??'1');set('pbaseunitPack',draft?.baseUnit??'unit');set('ppackprice',draft?.packPrice??'');
+ }else{set('pbaseunit',draft?.baseUnit??'unit');}
+ set('pcost',draft?.cost??'');set('pprice',draft?.price??'');set('pstock',draft?.stock??'');
+ document.getElementById('priceSuggestion').textContent=draft?.priceSuggestion||(type==='pack'?'Enter a purchase cost for one pack to get a suggested price.':'Enter a cost price to calculate a suggested price.');
+ document.getElementById('pcostPerUnit').textContent=draft?.unitCostText||'Enter pack cost and unit count to calculate this.';
+}
+function setProductSellingType(type,options={}){
+ const nextType=type==='pack'?'pack':'unit',previousType=productSellingType,changed=nextType!==previousType;
+ if(changed&&!options.reset)productModeDrafts[previousType]=captureProductModeDraft(previousType);
+ productSellingType=nextType;
+ if(changed&&!options.reset){
+  selectedMarkup=productModeMarkup[nextType]||defaultMarkup;
+  restoreProductModeDraft(nextType);
+  document.querySelectorAll('[data-markup]').forEach(x=>{const yes=Number(x.dataset.markup)===selectedMarkup;x.classList.toggle('selected',yes);x.setAttribute('aria-pressed',String(yes));});
+ }
+ const pack=productSellingType==='pack';
+ const unitTab=document.getElementById('productTypeUnit'),packTab=document.getElementById('productTypePack');
+ unitTab.classList.toggle('selected',!pack);unitTab.setAttribute('aria-selected',String(!pack));unitTab.setAttribute('tabindex',!pack?'0':'-1');
+ packTab.classList.toggle('selected',pack);packTab.setAttribute('aria-selected',String(pack));packTab.setAttribute('tabindex',pack?'0':'-1');
+ const unitPanel=document.getElementById('unitProductPanel'),packPanel=document.getElementById('packProductPanel');
+ unitPanel.classList.toggle('hidden',pack);unitPanel.setAttribute('aria-hidden',String(pack));
+ packPanel.classList.toggle('hidden',!pack);packPanel.setAttribute('aria-hidden',String(!pack));
  document.getElementById('pbaseunit').disabled=pack;
  document.getElementById('pbaseunitPack').disabled=!pack;
  document.getElementById('ppackunit').disabled=!pack;
  document.getElementById('punitsperpack').disabled=!pack;
  document.getElementById('ppackprice').disabled=!pack;
- document.getElementById('productTypeHelp').textContent=pack?'Enter what you pay for one pack and how many units it contains. Sell complete packs or individual units.':'Enter the cost and opening stock in individual units.';
- document.getElementById('pcostLabel').textContent=pack?'Purchase cost per pack (₦)':'Cost price per unit (₦)';
- document.getElementById('pstockLabel').textContent=pack?'Opening stock (number of packs purchased)':'Opening stock (individual units)';
- document.getElementById('ppriceLabel').textContent=pack?'Selling price per individual unit (₦)':'Selling price per unit (₦)';
- document.getElementById('pcost').placeholder=pack?'Enter cost for one pack':'Enter cost for one unit';
- document.getElementById('pstock').placeholder=pack?'e.g. 5 packs':'e.g. 24 units';
- updateSuggestedPrice();
+ document.getElementById('packPriceField').classList.toggle('hidden',!pack);
  document.getElementById('ppackunit').required=pack;
  document.getElementById('ppackprice').required=pack;
+ const unitPrice=document.getElementById('pprice');
+ unitPrice.readOnly=false;
+ unitPrice.removeAttribute('aria-readonly');
+ document.getElementById('productTypeHelp').textContent=pack?'Set up the pack size and prices. Sellbook keeps track of the pack and individual units.':'Set up a product that you sell one unit at a time.';
+ document.getElementById('pcostLabel').textContent=pack?'Purchase cost for one pack (₦)':'Cost price per individual unit (₦)';
+ document.getElementById('pstockLabel').textContent=pack?'Opening stock (number of packs)':'Opening stock (individual units)';
+ document.getElementById('ppriceLabel').textContent='Selling price per individual unit (₦)';
+ document.getElementById('pcost').placeholder=pack?'e.g. 10,000 for one carton':'e.g. 1,000 for one item';
+ document.getElementById('pstock').placeholder=pack?'e.g. 5 cartons':'e.g. 24';
+ document.getElementById('productStockHelp').textContent=pack?'Enter the number of full packs you currently have. Sellbook converts this to individual units for stock tracking.':'Enter the number of individual units you currently have.';
+ if(!options.reset&&!productModeDrafts[nextType])updateSuggestedPrice();
 }
 document.getElementById('productTypeUnit').addEventListener('click',()=>setProductSellingType('unit'));
 document.getElementById('productTypePack').addEventListener('click',()=>setProductSellingType('pack'));
-document.getElementById('productForm').addEventListener('reset',()=>setProductSellingType('unit'));
+document.getElementById('productForm').addEventListener('keydown',event=>{
+ if(event.target.matches('[role="tab"]')&&['ArrowLeft','ArrowRight'].includes(event.key)){
+  event.preventDefault();const next=event.target.id==='productTypeUnit'?'productTypePack':'productTypeUnit';
+  document.getElementById(next).focus();setProductSellingType(next==='productTypePack'?'pack':'unit');
+ }
+});
+setProductSellingType('unit');
+document.getElementById('productForm').addEventListener('reset',()=>{productModeDrafts={unit:null,pack:null};productModeMarkup={unit:defaultMarkup,pack:defaultMarkup};selectedMarkup=defaultMarkup;setProductSellingType('unit',{reset:true});productCategoryPickerOpen(false);const search=document.getElementById('productCategorySearch');if(search)search.value='';});
 document.getElementById('productForm').addEventListener('reset',()=>setTimeout(()=>syncCategoryPicker('product',''),0));
-document.getElementById('productForm').addEventListener('reset',()=>{selectedMarkup=defaultMarkup;document.querySelectorAll('[data-markup]').forEach(x=>{const yes=Number(x.dataset.markup)===defaultMarkup;x.classList.toggle('selected',yes);x.setAttribute('aria-pressed',String(yes));});document.getElementById('priceSuggestion').textContent='Enter a cost price to calculate a suggested price.';});
+document.getElementById('productForm').addEventListener('reset',()=>{selectedMarkup=defaultMarkup;document.querySelectorAll('[data-markup]').forEach(x=>{const yes=Number(x.dataset.markup)===defaultMarkup;x.classList.toggle('selected',yes);x.setAttribute('aria-pressed',String(yes));});document.getElementById('priceSuggestion').textContent='Enter a cost price to calculate a suggested price.';document.getElementById('pcostPerUnit').textContent='Enter pack cost and unit count to calculate this.';});
 document.getElementById('productForm').addEventListener('submit',async e=>{
  e.preventDefault();
  const name=document.getElementById('pname').value.trim(),enteredCost=Number(document.getElementById('pcost').value),price=Number(document.getElementById('pprice').value),enteredStock=Number(document.getElementById('pstock').value);
