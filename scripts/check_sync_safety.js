@@ -303,3 +303,23 @@ requireText(backSource,'history.state?.mySalesBookSubview===subview','nested det
 requireText(backSource,'history.back();','nested detail back consumes the detail entry');
 requireText(backSource,'mySalesBookSubview:undefined','directly restored detail views clear their nested state on fallback');
 console.log('PASS: Reservation and Subscriber detail back arrows keep browser history in sync.');
+
+ 
+// Add Sale controls are locked as one transaction while the save is in flight.
+const submitHandlerStart=app.indexOf("document.getElementById('saleForm').addEventListener('submit',async event=>");
+const submitHandlerEnd=app.indexOf("\ndocument.getElementById('expenseForm')",submitHandlerStart);
+assert.ok(submitHandlerStart>=0&&submitHandlerEnd>submitHandlerStart,'Could not isolate Add Sale submit handler.');
+const submitHandler=app.slice(submitHandlerStart,submitHandlerEnd);
+requireText(submitHandler,'formControls=[...event.currentTarget.querySelectorAll(\'input,select,textarea,button\')]', 'all Add Sale fields and basket controls are locked during save');
+requireText(submitHandler,'formDisabledState=formControls.map(control=>control.disabled)','pre-existing disabled states are retained');
+requireText(submitHandler,'formControls.forEach((control,index)=>{control.disabled=formDisabledState[index];})','all Add Sale controls are restored after success or failure');
+assert.ok(submitHandler.indexOf('formControls.forEach(control=>{control.disabled=true;})')<submitHandler.indexOf('try{'),
+  'Add Sale controls must be locked before any asynchronous write starts.');
+console.log('PASS: Add Sale basket cannot be edited while its transaction is saving.');
+
+// Sales History returns to Sales, and Add Sale labels its arrow for the real origin.
+const salesHistoryMarkup=indexHtml.slice(indexHtml.indexOf('<section id="sales-history"'),indexHtml.indexOf('<section id="sale-details"'));
+requireText(salesHistoryMarkup,'data-app-back="sales"','Sales History fallback returns to the Sales overview');
+requireText(salesHistoryMarkup,'aria-label="Back to Sales"','Sales History back arrow is clearly labelled');
+requireText(app,"const label=destination==='sales'?'Back to Sales':'Back to Home'","Add Sale back arrow names its actual destination");
+console.log('PASS: Sales and Add Sale back arrows have clear contextual destinations.');
