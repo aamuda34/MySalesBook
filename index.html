@@ -663,7 +663,7 @@
   </button>
   <h2 class="page-title" id="buybookSetupPageTitle">Set up your Buybook shop</h2>
  </div>
- <p class="settings-page-intro" id="buybookSetupPageIntro">Add your shop details and photo. Sellbook checks the photo automatically.</p>
+ <p class="settings-page-intro" id="buybookSetupPageIntro">Add your shop details, choose a photo and capture your location.</p>
 
  <div class="card settings-detail-card buybook-setup-card">
   <div class="buybook-connection-bar" id="buybookSetupConnectionBar">
@@ -675,7 +675,7 @@
   <form id="buybookConnectionForm" novalidate>
    <section class="settings-form-group buybook-form-section" aria-labelledby="buybookShopDetailsHeading">
     <div class="settings-form-heading">
-     <h3 id="buybookShopDetailsHeading">Shop details</h3>
+     <h3 id="buybookShopDetailsHeading">Shop information</h3>
      <p>Use the details buyers will recognise when they visit your shop.</p>
     </div>
 
@@ -684,7 +684,7 @@
 
     <label for="buybookPhone">WhatsApp number</label>
     <input id="buybookPhone" type="tel" inputmode="tel" pattern="[+0-9(). -]{7,25}" required maxlength="25" placeholder="e.g. 0803 123 4567" autocomplete="tel" aria-describedby="buybookPhoneHelp">
-    <p class="settings-help-text" id="buybookPhoneHelp">Enter the WhatsApp number customers should use to contact your shop.</p>
+    <p class="settings-help-text" id="buybookPhoneHelp">Enter a Nigerian mobile number. Sellbook checks its format automatically; it cannot confirm WhatsApp registration without sending a verification code.</p>
     <p id="buybookWhatsAppCheckStatus" class="settings-inline-status muted" role="status" aria-live="polite">Enter a Nigerian mobile number.</p>
 
     <label for="buybookAddress">Shop address</label>
@@ -707,7 +707,7 @@
 
    <section class="settings-form-group buybook-shop-front-section" aria-labelledby="buybookShopFrontHeading">
     <div class="settings-form-heading">
-     <h3 id="buybookShopFrontHeading">Shop photo <span class="settings-required-label">Required</span></h3>
+     <h3 id="buybookShopFrontHeading">Shop-front photo <span class="settings-required-label">Required</span></h3>
      <p>Take a photo of the front or entrance of your shop. Sellbook checks it automatically.</p>
     </div>
     <div class="buybook-shop-front-upload">
@@ -729,7 +729,7 @@
 
    <section class="settings-form-group buybook-location-section" aria-labelledby="buybookLocationHeading">
     <div class="settings-form-heading">
-     <h3 id="buybookLocationHeading">Exact shop location</h3>
+     <h3 id="buybookLocationHeading">Shop location</h3>
      <p>Capture the location while you are at your shop so buyers can find it.</p>
     </div>
     <div class="buybook-location-card">
@@ -744,7 +744,7 @@
     </div>
     <button type="button" id="captureBuybookLocationButton" class="secondary-button buybook-capture-location">
      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2v3m0 14v3M2 12h3m14 0h3"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
-     <span>Capture shop location</span>
+     <span>Use my current location</span>
     </button>
     <p class="settings-help-text">Allow location access and wait for an accurate GPS pin.</p>
     <input type="hidden" id="buybookLatitude">
@@ -752,7 +752,7 @@
    </section>
 
    <div class="buybook-submit-area">
-    <button type="submit" id="buybookConnectButton" class="primary">Connect and list my products</button>
+    <button type="submit" id="buybookConnectButton" class="primary">Connect to Buybook</button>
     <p id="buybookConnectionMessage" class="settings-inline-status muted" role="status" aria-live="polite"></p>
    </div>
   </form>
