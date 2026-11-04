@@ -1061,6 +1061,44 @@
 .stock-history-tab.active span{background:rgba(255,255,255,.2);color:#fff}
 .stock-history-panel[hidden]{display:none!important}
 .stock-history-panel{min-height:150px}
+
+/* Operational history pages: compact, readable and consistent on small phones. */
+body.expenses-history-page-open>.seller-welcome-header,body.expense-details-page-open>.seller-welcome-header{display:none!important}
+body.expenses-history-page-open #appWorkspace>nav,body.expense-details-page-open #appWorkspace>nav,body.expenses-history-page-open #quickSaleFab,body.expense-details-page-open #quickSaleFab{display:none!important}
+body.expenses-history-page-open #mainContent,body.expense-details-page-open #mainContent{padding-top:0!important;padding-bottom:24px!important;min-height:100svh}
+body.expenses-history-page-open #appWorkspace,body.expense-details-page-open #appWorkspace{padding-top:0!important;padding-bottom:0!important}
+body.expenses-history-page-open #expenses-history,body.expense-details-page-open #expense-details{max-width:760px;margin:0 auto;padding:14px 14px 28px!important}
+body.expenses-history-page-open .products-page-header,body.expense-details-page-open .products-page-header{position:sticky;top:0;z-index:5;background:var(--bg,#f3f6f3);padding:10px 0}
+.expense-history-controls{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:12px 0}
+.expense-history-controls>div{min-width:0}
+.expense-history-controls label{display:block;margin-bottom:6px;font-size:12px;font-weight:650;color:var(--muted)}
+.expense-history-controls input,.expense-history-controls select{width:100%;min-width:0}
+.expense-history-custom-range{grid-column:1/-1;display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.expense-history-custom-range[hidden]{display:none!important}
+.expense-history-controls>button{grid-column:1/-1;justify-self:start;min-height:38px}
+.expense-history-summary{margin:12px 0}
+.expense-history-row{gap:10px}
+.expense-detail-card{padding:16px}
+.sale-basket-list{display:grid;gap:8px}
+.sale-basket-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px;border:1px solid var(--border);border-radius:12px;background:var(--surface,#fff)}
+.sale-basket-row>span{display:grid;gap:4px;min-width:0}
+.sale-basket-row small{color:var(--muted);font-size:12px}
+.sale-basket-row button{flex:0 0 auto;min-height:36px;padding:6px 10px;border:1px solid var(--border);border-radius:9px;background:transparent;color:var(--danger,#b91c1c);font-weight:650}
+.sale-add-item-button{width:100%;min-height:44px;margin-top:8px}
+.sale-total-summary{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:14px;padding:14px;border-radius:12px;background:var(--soft-green,#e7f3eb);color:var(--text,#173c2b)}
+.sale-total-summary strong{font-size:clamp(18px,5vw,24px);font-variant-numeric:tabular-nums}
+.sale-detail-subline{font-size:12px;color:var(--muted)}
+.reservation-filter-tabs{display:flex;gap:7px;overflow-x:auto;padding:4px 0 10px;scrollbar-width:none}
+.reservation-filter-tabs::-webkit-scrollbar{display:none}
+.reservation-filter-tabs button{flex:0 0 auto;min-height:38px;padding:7px 13px;border:1px solid var(--border);border-radius:999px;background:var(--surface,#fff);color:var(--muted);font:inherit;font-size:13px;font-weight:650}
+.reservation-filter-tabs button.active{background:var(--green);border-color:var(--green);color:#fff}
+.reservation-search{margin:8px 0 14px}
+.reservation-search label{display:block;margin-bottom:6px;font-size:12px;font-weight:650;color:var(--muted)}
+.reservation-search input{width:100%}
+.stock-history-tabs{grid-template-columns:repeat(3,minmax(0,1fr))}
+.stock-history-tab{min-width:0;font-size:12px;padding-inline:6px;gap:5px}
+.stock-history-tab span{min-width:19px;height:19px;font-size:10px}
+@media(max-width:390px){.expense-history-controls{grid-template-columns:1fr}.expense-history-custom-range{grid-column:auto}.stock-history-tabs{grid-template-columns:repeat(2,minmax(0,1fr))}.sale-total-summary{align-items:flex-start;flex-direction:column}}
 </style>
 <script src="./stock-history-tabs.js"></script>
 
