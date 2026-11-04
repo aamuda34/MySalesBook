@@ -4444,3 +4444,14 @@ body.dark #settings-account .settings-danger-group .danger{
   #settings-preferences .markup-options button{min-height:41px;font-size:12px}
   #settings-buybook .buybook-connection-bar{align-items:flex-start}
 }
+
+#settings-buybook .settings-activity-heading{
+  display:flex;align-items:flex-start;justify-content:space-between;gap:12px;
+}
+#settings-buybook .settings-activity-heading>.settings-form-heading{flex:1;min-width:0}
+#settings-buybook .settings-refresh-button{
+  display:grid;place-items:center;flex:0 0 40px;width:40px;height:40px;
+  margin:0;padding:0;border:1px solid var(--border);border-radius:11px;
+  background:var(--soft);color:var(--green);font-size:24px;line-height:1;
+}
+#settings-buybook .settings-refresh-button:focus-visible{outline:2px solid var(--green);outline-offset:3px}
