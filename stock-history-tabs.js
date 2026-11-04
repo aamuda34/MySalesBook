@@ -1,31 +1,20 @@
-
 (function(){
  let selected='added';
+ const keys=['added','sales','adjustments','restocks','changes'];
  function renderTabs(){
   const tabs=document.getElementById('stockHistoryTabs');if(!tabs)return;
-  const additions=Array.isArray(db.productAdditions)?db.productAdditions:[];
-  const adjustments=Array.isArray(db.stockAdjustments)?db.stockAdjustments:[];
-  const restocks=Array.isArray(db.restocks)?db.restocks:[];
-  tabs.querySelectorAll('[data-stock-history-tab]').forEach(button=>{
-   const active=button.dataset.stockHistoryTab===selected;
-   button.classList.toggle('active',active);button.setAttribute('aria-selected',active?'true':'false');
-   const count=button.querySelector('[data-history-count]');
-   if(count)count.textContent=String(button.dataset.stockHistoryTab==='added'?additions.length:button.dataset.stockHistoryTab==='adjustments'?adjustments.length:restocks.length);
-  });
-  const pp=document.getElementById('productCreationHistoryPanel'),ap=document.getElementById('stockAdjustmentPanel'),rp=document.getElementById('restockHistoryPanel');
-  if(pp)pp.hidden=selected!=='added';if(ap)ap.hidden=selected!=='adjustments';if(rp)rp.hidden=selected!=='restocks';
+  const counts={added:(db.productAdditions||[]).length,sales:(db.sales||[]).length,adjustments:(db.stockAdjustments||[]).length,restocks:(db.restocks||[]).length,changes:(db.productActivity||[]).length};
+  tabs.querySelectorAll('[data-stock-history-tab]').forEach(button=>{const key=button.dataset.stockHistoryTab,active=key===selected;button.classList.toggle('active',active);button.setAttribute('aria-selected',String(active));const count=button.querySelector('[data-history-count]');if(count)count.textContent=String(counts[key]||0);});
+  const panels={added:'productCreationHistoryPanel',sales:'productSalesHistoryPanel',adjustments:'stockAdjustmentPanel',restocks:'restockHistoryPanel',changes:'productActivityHistoryPanel'};
+  Object.entries(panels).forEach(([key,id])=>{const panel=document.getElementById(id);if(panel)panel.hidden=key!==selected;});
  }
  const originalRender=renderStockAdjustments;
  renderStockAdjustments=function(){originalRender();renderTabs();};
  document.getElementById('stockHistoryTabs')?.addEventListener('click',event=>{
   const button=event.target.closest('[data-stock-history-tab]');if(!button)return;
-  const key=button.dataset.stockHistoryTab;
-  if(!['added','adjustments','restocks'].includes(key))return;
-  selected=key;
-  // Repaint the selected list at the moment its tab is opened. Do not rely on
-  // the adjustments renderer having run earlier or on hidden-panel contents.
-  if(selected==='added')renderProductCreationHistory();else if(selected==='restocks')renderRestockHistory();else renderStockAdjustments();
+  const key=button.dataset.stockHistoryTab;if(!keys.includes(key))return;selected=key;
+  if(key==='added')renderProductCreationHistory();else if(key==='sales')renderProductSalesHistory();else if(key==='adjustments')renderStockAdjustments();else if(key==='restocks')renderRestockHistory();else if(key==='changes')renderProductActivityHistory();
   renderTabs();
  });
- setTimeout(()=>{renderProductCreationHistory();renderStockAdjustments();renderTabs();},0);
+ setTimeout(()=>{renderProductCreationHistory();renderProductSalesHistory();renderStockAdjustments();renderRestockHistory();renderProductActivityHistory();renderTabs();},0);
 })();
