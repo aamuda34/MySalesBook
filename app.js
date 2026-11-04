@@ -1647,9 +1647,9 @@ function renderProductCategoryOptions(){
  const options=[...new Set([...matches,...customSelected])];
  let markup=options.map(category=>'<label class="product-category-option"><input type="checkbox" data-product-category value="'+esc(category)+'" '+(selected.some(item=>item.toLocaleLowerCase()===category.toLocaleLowerCase())?'checked ':'')+(!selected.some(item=>item.toLocaleLowerCase()===category.toLocaleLowerCase())&&selected.length>=3?'disabled':'')+'><span>'+esc(category)+'</span></label>').join('');
  const exact=allCategories.some(category=>category.toLocaleLowerCase()===query)||selected.some(category=>category.toLocaleLowerCase()===query);
- if(query&&!exact&&options.length===0){
+ if(query&&!exact){
   const canAdd=selected.length<3;
-  markup+='<button type="button" class="product-category-add-option" data-add-product-category="'+esc(cleanProductCategory(search.value))+'" '+(canAdd?'':'disabled')+'>＋ Add “'+esc(cleanProductCategory(search.value))+'” as a category</button>';
+  markup+='<button type="button" class="product-category-add-option" data-add-product-category="'+esc(cleanProductCategory(search.value))+'" '+(canAdd?'':'disabled')+' >＋ Use “'+esc(cleanProductCategory(search.value))+'” as a custom category</button>';
  }
  target.innerHTML=markup||'<p class="product-category-no-results">No matching category. You can add “'+esc(cleanProductCategory(search.value))+'” as a category.</p>';
 }
