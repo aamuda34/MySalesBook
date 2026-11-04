@@ -2916,6 +2916,7 @@ document.getElementById('userNotificationsList')?.addEventListener('click',async
   await markUserNotificationRead(item.id);
  }catch(error){
   showToast('Could not update notification read status: '+(error.message||'Please try again.'),'error');
+  row.disabled=false;
  }
  if(item.reservation_id){
   showPage('reservations');
@@ -5074,7 +5075,6 @@ function clearAccountScopedUiState(){
  document.body.classList.remove('messenger-conversation-open','admin-conversation-open');
  document.getElementById('messengerSubscriberPicker')?.classList.add('hidden');
  const resetPanels=[
-  ['recentConversationList','Sign in to view conversations.'],
   ['userNotificationsList','Sign in to view notifications.'],
   ['userSupportMessages','Sign in to view support messages.'],
   ['userFeedbackList','Sign in to view feedback.'],
@@ -5268,12 +5268,9 @@ async function updateUnreadBadges(){
    supabaseClient.rpc('get_my_unread_notification_count'),supportMessageQuery,marketplaceMessageQuery
   ]);
   if(!accountRequestIsCurrent(requestedUserId,requestEpoch))return;
-  const supportCount=supportUnread.error?0:Number(supportUnread.count)||0;
-  const marketplaceCount=marketUnread.error?0:Number(marketUnread.count)||0;
-  setUnreadBadge('notificationBadge',notificationUnread.error?0:Number(notificationUnread.data)||0);
-  setUnreadBadge('supportBadge',supportCount);
-  setUnreadBadge('meSupportBadge',supportCount);
-  setUnreadBadge('messageBadge',marketplaceCount);
+  if(!notificationUnread.error)setUnreadBadge('notificationBadge',Number(notificationUnread.data)||0);
+  if(!supportUnread.error){const supportCount=Number(supportUnread.count)||0;setUnreadBadge('supportBadge',supportCount);setUnreadBadge('meSupportBadge',supportCount);}
+  if(!marketUnread.error)setUnreadBadge('messageBadge',Number(marketUnread.count)||0);
  }catch(_){/* Keep the interface quiet if the device is offline. */}
 }
 let userNotificationsCache=[];
@@ -5366,9 +5363,8 @@ async function loadUserNotifications(options={}){
   if(ids.length){
    const receiptResult=await supabaseClient.from('notification_reads').select('notification_id,read_at').eq('user_id',requestedUserId).in('notification_id',ids);
    if(!current())return false;
-   if(receiptResult.error){
-    if(!options.quiet)showToast('Notifications loaded, but read status could not be refreshed.','error');
-   }else readIds=new Set((receiptResult.data||[]).map(r=>String(r.notification_id)));
+   if(receiptResult.error)throw receiptResult.error;
+   readIds=new Set((receiptResult.data||[]).map(r=>String(r.notification_id)));
   }
   const prepared=page.map(n=>({...n,isRead:readIds.has(String(n.id))}));
   userNotificationsCache=append?userNotificationsCache.concat(prepared):prepared;
@@ -5491,9 +5487,8 @@ async function loadMessengerConversations(options={}){
   ]);
   if(!current())return;
   if(marketRes.error)throw marketRes.error;
-  if(subsRes.error)throw subsRes.error;
-  const subs=subsRes.data||[],msgs=marketRes.data||[];
-  marketplaceSubscribersCache=subs;
+  const subs=subsRes.error?(marketplaceSubscribersCache||[]):(subsRes.data||[]),msgs=marketRes.data||[];
+  if(!subsRes.error)marketplaceSubscribersCache=subs;
   const ids=[...new Set([...subs.map(x=>x.buyer_id),...msgs.map(x=>x.buyer_id)].filter(Boolean))];
   const conversations=[];
   for(const id of ids){
