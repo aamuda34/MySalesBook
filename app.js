@@ -1273,10 +1273,6 @@ let buybookShopFrontImageFile=null;
 let buybookShopFrontPreviewUrl=null;
 let buybookSavedShopFrontUrl=null;
 let buybookSavedShopFrontPath=null;
-let buybookShopFrontConfirmed=false;
-let buybookWhatsappCheckPassed=false;
-let buybookWhatsappCheckedPhone=null;
-let buybookWhatsappCheckedAt=null;
 
 function normalizeNigerianWhatsAppNumber(value){
  const raw=String(value||'').trim();
@@ -1399,7 +1395,6 @@ function setBuybookShopFrontPreview(url,options={}){
  const image=document.getElementById('buybookShopFrontPreview');
  const placeholder=document.getElementById('buybookShopFrontPlaceholder');
  const remove=document.getElementById('buybookShopFrontRemoveButton');
- const confirm=document.getElementById('buybookShopFrontConfirm');
  if(image){
   image.classList.toggle('hidden',!url);
   if(url)image.src=url;
@@ -1407,30 +1402,17 @@ function setBuybookShopFrontPreview(url,options={}){
  }
  placeholder?.classList.toggle('hidden',!!url);
  remove?.classList.toggle('hidden',!url);
- const confirmed=!!(url&&options.confirmed);
- buybookShopFrontConfirmed=confirmed;
- if(confirm){
-  confirm.disabled=!url;
-  confirm.checked=confirmed;
- }
  setBuybookShopFrontStatus(url
-  ?(options.saved?'Saved shop-front photo loaded. Confirm that it is still a photo of the outside/front of your shop.':'Photo selected. Review it and confirm that it shows the outside/front of your own shop.')
-  :'A clear photo of your actual shop front is required before connecting.',url?'info':'error');
+  ?(options.saved?'Saved photo loaded. Sellbook will check it automatically before connecting.':'Photo selected. Sellbook will check it automatically before connecting.')
+  :'Add a clear photo of the outside front of your shop.',url?'info':'info');
 }
-function setBuybookWhatsAppCheckFromSaved(phone,checkedAt){
- const normal=normalizeNigerianWhatsAppNumber(phone);
- const checkbox=document.getElementById('buybookWhatsAppCheckConfirm');
- const hasCheck=!!(normal&&checkedAt);
- buybookWhatsappCheckPassed=hasCheck;
- buybookWhatsappCheckedPhone=hasCheck?normal:null;
- buybookWhatsappCheckedAt=hasCheck?checkedAt:null;
- if(checkbox){
-  checkbox.disabled=!hasCheck;
-  checkbox.checked=hasCheck;
+function setBuybookWhatsAppNumberStatus(phone){
+ const normalized=normalizeNigerianWhatsAppNumber(phone);
+ if(normalized){
+  setBuybookWhatsAppStatus('Number format looks valid. Buyers can use this number to contact your shop.','success');
+ }else{
+  setBuybookWhatsAppStatus('Enter a Nigerian mobile number, for example 0803 123 4567.','info');
  }
- setBuybookWhatsAppStatus(hasCheck
-  ?'Previously confirmed by you on '+new Date(checkedAt).toLocaleDateString()+'. Re-check the number if it has changed.'
-  :'Not checked yet. Open WhatsApp and confirm that this number is registered and belongs to your shop.',hasCheck?'success':'info');
 }
 async function prepareBuybookShopFrontImage(file){
  if(!file)throw new Error('Choose a photo of the front of your shop.');
@@ -1472,58 +1454,21 @@ async function prepareBuybookShopFrontImage(file){
   URL.revokeObjectURL(objectUrl);
  }
 }
-document.getElementById('buybookWhatsAppCheckButton')?.addEventListener('click',()=>{
- const input=document.getElementById('buybookPhone');
- const checkbox=document.getElementById('buybookWhatsAppCheckConfirm');
- const normalized=normalizeNigerianWhatsAppNumber(input?.value);
- if(!normalized){
-  setBuybookWhatsAppStatus('Enter a valid Nigerian mobile number first. Example: 0803 123 4567.','error');
-  input?.setAttribute('aria-invalid','true');
-  input?.focus();
-  return;
- }
- input?.removeAttribute('aria-invalid');
- const digits=normalized.replace(/\D/g,'');
- const message='Hello. I am checking that this is the correct WhatsApp number for my shop on Buybook. Please reply to confirm.';
- const url='https://wa.me/'+digits+'?text='+encodeURIComponent(message);
- const link=document.createElement('a');
- link.href=url;link.target='_blank';link.rel='noopener noreferrer';
- document.body.appendChild(link);link.click();link.remove();
- buybookWhatsappCheckPassed=false;
- buybookWhatsappCheckedPhone=normalized;
- buybookWhatsappCheckedAt=null;
- if(checkbox){checkbox.disabled=false;checkbox.checked=false;}
- setBuybookWhatsAppStatus('WhatsApp has opened. Check that the chat opens for this number. If WhatsApp says the number is not registered, do not confirm it.','info');
-});
-document.getElementById('buybookWhatsAppCheckConfirm')?.addEventListener('change',event=>{
- const normalized=normalizeNigerianWhatsAppNumber(document.getElementById('buybookPhone')?.value);
- if(event.currentTarget.checked&&normalized&&normalized===buybookWhatsappCheckedPhone){
-  buybookWhatsappCheckPassed=true;
-  buybookWhatsappCheckedAt=new Date().toISOString();
-  setBuybookWhatsAppStatus('You confirmed that this number opens the correct WhatsApp chat.','success');
- }else{
-  buybookWhatsappCheckPassed=false;
-  buybookWhatsappCheckedAt=null;
-  setBuybookWhatsAppStatus('WhatsApp number confirmation is not complete. Open WhatsApp and check the number again.','error');
- }
-});
 document.getElementById('buybookPhone')?.addEventListener('input',event=>{
  const normalized=normalizeNigerianWhatsAppNumber(event.target.value);
- if(normalized!==buybookWhatsappCheckedPhone){
-  buybookWhatsappCheckPassed=false;
-  buybookWhatsappCheckedPhone=null;
-  buybookWhatsappCheckedAt=null;
-  const checkbox=document.getElementById('buybookWhatsAppCheckConfirm');
-  if(checkbox){checkbox.checked=false;checkbox.disabled=true;}
-  setBuybookWhatsAppStatus('The number changed. Open WhatsApp and check this new number before saving.','info');
+ if(normalized){
+  event.target.removeAttribute('aria-invalid');
+  setBuybookWhatsAppStatus('Number format looks valid.','success');
+ }else if(event.target.value.trim()){
+  setBuybookWhatsAppStatus('Enter a Nigerian mobile number, for example 0803 123 4567.','info');
  }
- event.target.removeAttribute('aria-invalid');
 });
 document.getElementById('buybookPhone')?.addEventListener('blur',event=>{
  const normalized=normalizeNigerianWhatsAppNumber(event.target.value);
  if(normalized){
   event.target.value=normalized;
   event.target.removeAttribute('aria-invalid');
+  setBuybookWhatsAppStatus('Number format looks valid.','success');
  }else if(event.target.value.trim()){
   event.target.setAttribute('aria-invalid','true');
   setBuybookWhatsAppStatus('Enter a valid Nigerian mobile number. Example: 0803 123 4567.','error');
@@ -1532,14 +1477,12 @@ document.getElementById('buybookPhone')?.addEventListener('blur',event=>{
 document.getElementById('buybookShopFrontFile')?.addEventListener('change',event=>{
  const file=event.currentTarget.files?.[0]||null;
  buybookShopFrontImageFile=file;
- buybookShopFrontConfirmed=false;
  if(!file){
-  setBuybookShopFrontPreview(buybookSavedShopFrontUrl,{saved:!!buybookSavedShopFrontUrl,confirmed:!!buybookShopRecordCache?.shop_front_confirmed_at});
+  setBuybookShopFrontPreview(buybookSavedShopFrontUrl,{saved:!!buybookSavedShopFrontUrl});
   return;
  }
  const previewUrl=URL.createObjectURL(file);
- setBuybookShopFrontPreview(previewUrl,{saved:false,confirmed:false});
- setBuybookShopFrontStatus('Photo selected. Make sure it shows the real outside/front of your own shop, then tick the confirmation box.','info');
+ setBuybookShopFrontPreview(previewUrl,{saved:false});
 });
 document.getElementById('buybookShopFrontChooseButton')?.addEventListener('click',()=>{
  document.getElementById('buybookShopFrontFile')?.click();
@@ -1550,21 +1493,8 @@ document.getElementById('buybookShopFrontRemoveButton')?.addEventListener('click
  buybookSavedShopFrontPath=null;
  const input=document.getElementById('buybookShopFrontFile');
  if(input)input.value='';
- setBuybookShopFrontPreview(null,{confirmed:false});
+ setBuybookShopFrontPreview(null);
 });
-document.getElementById('buybookShopFrontConfirm')?.addEventListener('change',event=>{
- const hasPhoto=!!(buybookShopFrontImageFile||(buybookSavedShopFrontUrl&&buybookSavedShopFrontPath));
- buybookShopFrontConfirmed=!!(event.currentTarget.checked&&hasPhoto);
- if(!hasPhoto){
-  event.currentTarget.checked=false;
-  setBuybookShopFrontStatus('Choose a shop-front photo before confirming it.','error');
- }else if(buybookShopFrontConfirmed){
-  setBuybookShopFrontStatus('You confirmed that this is a real photo of the outside/front of your own shop.','success');
- }else{
-  setBuybookShopFrontStatus('Shop-front confirmation is required before saving.','error');
- }
-});
-
 
 async function loadBuybookConnection(options={}){
  const overviewStatus=document.getElementById('buybookConnectionStatus');
@@ -1626,7 +1556,7 @@ async function loadBuybookConnection(options={}){
    writeField('buybookShopName',data.name);
    writeField('buybookDescription',data.description);
    writeField('buybookPhone',data.phone);
-   setBuybookWhatsAppCheckFromSaved(data.phone,data.whatsapp_checked_at);
+   setBuybookWhatsAppNumberStatus(data.phone);
    buybookSavedShopFrontUrl=data.shop_front_image_url||null;
    buybookSavedShopFrontPath=data.shop_front_image_path||null;
    buybookShopFrontImageFile=null;
@@ -1653,7 +1583,7 @@ async function loadBuybookConnection(options={}){
   }else{
    writeField('buybookShopName',db.profile?.businessName||cloudUser.user_metadata?.business_name||cloudUser.user_metadata?.full_name||'');
    ['buybookDescription','buybookPhone','buybookAddress','buybookCity','buybookState','buybookLatitude','buybookLongitude'].forEach(id=>writeField(id,''));
-   setBuybookWhatsAppCheckFromSaved('',null);
+   setBuybookWhatsAppNumberStatus('');
    buybookSavedShopFrontUrl=null;buybookSavedShopFrontPath=null;buybookShopFrontImageFile=null;
    setBuybookShopFrontPreview(null,{confirmed:false});
    buybookShopLocation=null;
@@ -1664,7 +1594,7 @@ async function loadBuybookConnection(options={}){
 
   const isConnected=buybookConnectionState===true;
   const requirementsNotice=document.getElementById('buybookOverviewRequirementsNotice');
-  const hasRequiredProfile=!!(data&&normalizeNigerianWhatsAppNumber(data.phone)&&data.whatsapp_checked_at&&data.shop_front_image_url&&data.shop_front_image_path&&data.shop_front_confirmed_at);
+  const hasRequiredProfile=!!(data&&normalizeNigerianWhatsAppNumber(data.phone)&&data.shop_front_image_url&&data.shop_front_image_path&&data.shop_front_confirmed_at);
   requirementsNotice?.classList.toggle('hidden',!(isConnected&&!hasRequiredProfile));
   notConnected?.classList.toggle('hidden',isConnected);
   connectedDetails?.classList.toggle('hidden',!isConnected);
@@ -1862,20 +1792,15 @@ document.getElementById('buybookConnectionForm')?.addEventListener('submit',asyn
   document.getElementById('buybookPhone').focus();
   return;
  }
- if(!buybookWhatsappCheckPassed||buybookWhatsappCheckedPhone!==whatsapp||!buybookWhatsappCheckedAt){
-  notifyStatus(message,'Check this exact number on WhatsApp and confirm that it opens an active chat for your shop before saving.','error');
-  document.getElementById('buybookWhatsAppCheckButton')?.focus();
-  return;
- }
  const hasShopFront=!!(buybookShopFrontImageFile||(buybookSavedShopFrontUrl&&buybookSavedShopFrontPath));
- if(!hasShopFront||!buybookShopFrontConfirmed){
-  notifyStatus(message,'Upload a clear photo of the actual front of your shop and confirm that it is your shop. Product photos, logos and indoor shelf photos are not accepted.','error');
+ if(!hasShopFront){
+  notifyStatus(message,'Add a clear photo of the front of your shop. Sellbook will check it automatically.','error');
   document.getElementById('buybookShopFrontChooseButton')?.focus();
   return;
  }
  const location=getBuybookLocationForSave();
  if(!location){
-  notifyStatus(message,'Capture your exact shop location before connecting. Buyers need this pin to find your shop.','error');
+  notifyStatus(message,'Capture your shop location before connecting.','error');
   document.getElementById('captureBuybookLocationButton')?.focus();
   return;
  }
@@ -1894,36 +1819,44 @@ document.getElementById('buybookConnectionForm')?.addEventListener('submit',asyn
   user=await requireCloudUser();
   let shopFrontUrl=buybookSavedShopFrontUrl||buybookShopRecordCache?.shop_front_image_url||null;
   let shopFrontPath=buybookSavedShopFrontPath||buybookShopRecordCache?.shop_front_image_path||null;
-  let shopFrontConfirmedAt=buybookShopRecordCache?.shop_front_confirmed_at||null;
+  let shopFrontVerifiedAt=null;
   if(buybookShopFrontImageFile){
    const optimizedPhoto=await prepareBuybookShopFrontImage(buybookShopFrontImageFile);
    uploadedShopFrontPath=user.id+'/'+Date.now()+'-shop-front.jpg';
-   notifyStatus(message,'Uploading your shop-front photo…','info');
+   notifyStatus(message,'Uploading your shop photo…','info');
    const {error:uploadError}=await supabaseClient.storage.from('marketplace-shop-fronts').upload(uploadedShopFrontPath,optimizedPhoto,{
     contentType:'image/jpeg',cacheControl:'3600',upsert:false
    });
-   if(uploadError)throw new Error('Could not upload your shop-front photo. Please check your connection and try again. '+(uploadError.message||''));
+   if(uploadError)throw new Error('Could not upload your shop photo. Please check your connection and try again. '+(uploadError.message||''));
    const publicUrlResult=supabaseClient.storage.from('marketplace-shop-fronts').getPublicUrl(uploadedShopFrontPath);
    shopFrontUrl=publicUrlResult?.data?.publicUrl||null;
    shopFrontPath=uploadedShopFrontPath;
-   shopFrontConfirmedAt=new Date().toISOString();
-   if(!shopFrontUrl)throw new Error('The shop-front photo uploaded but Sellbook could not create its display link. Please try again.');
-  }else if(!shopFrontConfirmedAt){
-   shopFrontConfirmedAt=new Date().toISOString();
+   if(!shopFrontUrl)throw new Error('The photo uploaded but Sellbook could not create its display link. Please try again.');
   }
-  if(!shopFrontUrl||!shopFrontPath||!buybookShopFrontConfirmed){
-   throw new Error('A shop-front photo and your confirmation are required before connecting.');
+  if(!shopFrontUrl||!shopFrontPath){
+   throw new Error('Choose a photo of the front of your shop.');
   }
-  const whatsappCheckedAt=buybookWhatsappCheckedAt||buybookShopRecordCache?.whatsapp_checked_at||new Date().toISOString();
+
+  notifyStatus(message,'Checking that the photo shows the front of a shop…','info');
+  const {data:photoCheck,error:photoCheckError}=await supabaseClient.functions.invoke('verify-buybook-shop-front',{
+   body:{storage_path:shopFrontPath}
+  });
+  if(photoCheckError)throw new Error('Sellbook could not check this photo. Please try again. '+(photoCheckError.message||''));
+  if(photoCheck?.status!=='approved'||!photoCheck?.verified_at){
+   throw new Error(photoCheck?.message||'This photo does not clearly show a shop front. Take a clear photo of your shop entrance and try again.');
+  }
+  shopFrontVerifiedAt=photoCheck.verified_at;
+  setBuybookShopFrontStatus('Shop-front photo checked successfully.','success');
+
   const shop={
    owner_id:user.id,
    name:shopName,
    description:document.getElementById('buybookDescription').value.trim(),
    phone:whatsapp,
-   whatsapp_checked_at:whatsappCheckedAt,
+   whatsapp_checked_at:null,
    shop_front_image_url:shopFrontUrl,
    shop_front_image_path:shopFrontPath,
-   shop_front_confirmed_at:shopFrontConfirmedAt,
+   shop_front_confirmed_at:shopFrontVerifiedAt,
    address:document.getElementById('buybookAddress').value.trim(),
    city:document.getElementById('buybookCity').value.trim(),
    state:document.getElementById('buybookState').value.trim(),
@@ -1933,6 +1866,7 @@ document.getElementById('buybookConnectionForm')?.addEventListener('submit',asyn
    is_connected:true,
    is_active:true
   };
+  notifyStatus(message,'Finishing your Buybook connection…','info');
   const {error}=await supabaseClient.from('marketplace_shops').upsert(shop,{onConflict:'owner_id'});
   if(error)throw error;
   shopSaved=true;
@@ -1960,7 +1894,7 @@ document.getElementById('buybookConnectionForm')?.addEventListener('submit',asyn
  }catch(error){
   if(uploadedShopFrontPath&&!shopSaved){
    const {error:cleanupError}=await supabaseClient.storage.from('marketplace-shop-fronts').remove([uploadedShopFrontPath]);
-   if(cleanupError)console.warn('Unattached shop-front photo could not be removed:',cleanupError);
+   if(cleanupError)console.warn('Unattached shop photo could not be removed:',cleanupError);
   }
   if(shopSaved)await loadBuybookConnection({quiet:true});
   notifyStatus(message,error.message||'Could not save your shop details. Please check your connection and try again.','error');
