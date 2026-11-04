@@ -1828,6 +1828,9 @@ body.dark #appWorkspace .page .card{
 #quick-guide .quick-guide-help button{padding:8px 0;border:0;background:transparent;color:var(--green);font:inherit;font-weight:750}
 @media(max-width:380px){#quick-guide .quick-guide-item{grid-template-columns:27px minmax(0,1fr) auto;gap:7px;padding:11px 9px}#quick-guide .quick-guide-number{width:25px;height:25px}#quick-guide .quick-guide-action{min-width:42px;padding:7px 8px}}
 
+/* The connected Buybook overview keeps its status row aligned with the standalone page frame. */
+#settings-buybook .buybook-connection-bar{min-width:0;max-width:100%;margin:0 0 2px}
+
 /* Professional sign-in and account-recovery experience. The scope is limited
    to the unauthenticated account card; seller workspace styling is untouched. */
 body:has(#accountCard:not(.hidden))>.seller-welcome-header,
