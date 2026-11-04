@@ -609,7 +609,7 @@
    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10.25 3.5h3.5l.55 2.06a6.88 6.88 0 0 1 1.38.8l2.02-.76 1.75 3.03-1.47 1.58a6.7 6.7 0 0 1 0 1.58l1.47 1.58-1.75 3.03-2.02-.76a6.88 6.88 0 0 1-1.38.8l-.55 2.06h-3.5l-.55-2.06a6.88 6.88 0 0 1-1.38-.8l-2.02.76-1.75-3.03 1.47-1.58a6.7 6.7 0 0 1 0-1.58L4.55 8.63 6.3 5.6l2.02.76a6.88 6.88 0 0 1 1.38-.8z"/><circle cx="12" cy="12" r="2.2"/></svg>
   </button>
  </div>
- <p class="settings-page-intro">Manage how buyers find and contact your shop on Buybook.</p>
+ <p class="settings-page-intro">Manage your Buybook shop in one place.</p>
 
  <div class="card settings-detail-card buybook-overview-card">
   <div class="buybook-connection-bar" id="buybookOverviewConnectionBar">
@@ -617,7 +617,7 @@
    <strong id="buybookConnectionStatus" role="status" aria-live="polite">Checking Buybook connection…</strong>
   </div>
   <div id="buybookOverviewRequirementsNotice" class="buybook-overview-requirements hidden" role="status">
-   <div><strong>Finish your shop profile</strong><p>Add a shop-front photo and complete the WhatsApp number check so buyers can recognise and contact your shop.</p></div>
+   <div><strong>Finish your shop profile</strong><p>Add your shop details, a clear shop photo and your contact number.</p></div>
    <button type="button" class="secondary-button" data-open-page="settings-buybook-setup">Complete setup</button>
   </div>
   <div id="buybookNotConnectedState" class="buybook-not-connected hidden">
@@ -663,7 +663,7 @@
   </button>
   <h2 class="page-title" id="buybookSetupPageTitle">Set up your Buybook shop</h2>
  </div>
- <p class="settings-page-intro" id="buybookSetupPageIntro">Add your shop details and capture its exact location so buyers can find you.</p>
+ <p class="settings-page-intro" id="buybookSetupPageIntro">Add your details once. Sellbook checks your shop photo automatically.</p>
 
  <div class="card settings-detail-card buybook-setup-card">
   <div class="buybook-connection-bar" id="buybookSetupConnectionBar">
@@ -684,16 +684,8 @@
 
     <label for="buybookPhone">WhatsApp number</label>
     <input id="buybookPhone" type="tel" inputmode="tel" pattern="[+0-9(). -]{7,25}" required maxlength="25" placeholder="e.g. 0803 123 4567" autocomplete="tel" aria-describedby="buybookPhoneHelp">
-    <p class="settings-help-text" id="buybookPhoneHelp">Use your Nigerian WhatsApp number. Sellbook saves it in +234 format and rejects invalid number formats.</p>
-    <div class="buybook-whatsapp-check">
-     <button type="button" id="buybookWhatsAppCheckButton" class="secondary-button">Check number on WhatsApp</button>
-     <p id="buybookWhatsAppCheckStatus" class="settings-inline-status" role="status" aria-live="polite">Not checked yet. Open WhatsApp and confirm that this number is registered.</p>
-     <label class="buybook-confirm-row" for="buybookWhatsAppCheckConfirm">
-      <input type="checkbox" id="buybookWhatsAppCheckConfirm" disabled>
-      <span>I opened WhatsApp and confirmed that an active chat opens for this exact number and it is the WhatsApp contact for my shop.</span>
-     </label>
-     <p class="settings-help-text">WhatsApp does not provide Sellbook with an automatic number-check service. Do not confirm the number if WhatsApp says it is not registered or opens the wrong chat.</p>
-    </div>
+    <p class="settings-help-text" id="buybookPhoneHelp">Enter the number buyers should use to contact your shop on WhatsApp. Sellbook checks the Nigerian number format.</p>
+    <p id="buybookWhatsAppCheckStatus" class="settings-inline-status muted" role="status" aria-live="polite">Enter a Nigerian mobile number.</p>
 
     <label for="buybookAddress">Shop address</label>
     <input id="buybookAddress" type="text" required minlength="5" maxlength="250" placeholder="Street, market, shop number or nearby landmark" autocomplete="street-address">
@@ -715,79 +707,30 @@
 
    <section class="settings-form-group buybook-shop-front-section" aria-labelledby="buybookShopFrontHeading">
     <div class="settings-form-heading">
-     <h3 id="buybookShopFrontHeading">Shop-front photo <span class="settings-required-label">Required</span></h3>
-     <p>Upload a real photo of the outside/front of your own shop. Buyers will use it to recognise the correct place.</p>
+     <h3 id="buybookShopFrontHeading">Shop photo <span class="settings-required-label">Required</span></h3>
+     <p>Take a clear photo of the outside front or entrance of your shop.</p>
     </div>
-    <div class="buybook-shop-front-instructions">
-     <strong>What your photo must show</strong>
-     <ul>
-      <li>The full visible front of your shop or market stall.</li>
-      <li>The entrance, counter, signboard or other features that help buyers recognise it.</li>
-      <li>A clear, well-lit photo taken at the shop, preferably in daylight.</li>
-     </ul>
-     <p>Stand far enough back to include the whole front. Keep the phone steady and make sure the shop is the main subject.</p>
-    </div>
-    <div class="buybook-shop-front-samples" aria-label="Examples of acceptable and unacceptable shop-front photos">
-     <figure class="buybook-shop-front-sample is-acceptable">
-      <svg viewBox="0 0 240 138" role="img" aria-label="Illustration of a shop exterior with sign, windows and entrance">
-       <rect x="17" y="51" width="206" height="74" rx="4" fill="#edf5ee" stroke="#286b45" stroke-width="3"/>
-       <path d="M10 51 29 20h182l19 31Z" fill="#dcebe0" stroke="#286b45" stroke-width="3"/>
-       <path d="M24 47h192" stroke="#286b45" stroke-width="3"/>
-       <rect x="73" y="27" width="94" height="21" rx="3" fill="#286b45"/>
-       <text x="120" y="41" font-size="10" text-anchor="middle" fill="#fff" font-weight="700">MY SHOP</text>
-       <rect x="31" y="64" width="48" height="41" rx="2" fill="#c5e0ed" stroke="#286b45" stroke-width="2"/>
-       <path d="M55 64v41M31 84h48" stroke="#286b45" stroke-width="1.5"/>
-       <rect x="95" y="65" width="49" height="60" rx="2" fill="#d2b48c" stroke="#286b45" stroke-width="2"/>
-       <circle cx="134" cy="96" r="2.5" fill="#286b45"/>
-       <rect x="160" y="64" width="47" height="41" rx="2" fill="#c5e0ed" stroke="#286b45" stroke-width="2"/>
-       <path d="M183.5 64v41M160 84h47" stroke="#286b45" stroke-width="1.5"/>
-       <path d="M10 126h220" stroke="#286b45" stroke-width="3"/>
-      </svg>
-      <figcaption><strong>Acceptable</strong><span>Actual shop front, entrance and identifying features visible.</span></figcaption>
-     </figure>
-     <figure class="buybook-shop-front-sample is-unacceptable">
-      <svg viewBox="0 0 240 138" role="img" aria-label="Illustration of products on shelves rather than a shop exterior">
-       <rect x="24" y="15" width="192" height="108" rx="6" fill="#f5eeee" stroke="#a34a4a" stroke-width="3"/>
-       <path d="M36 48h168M36 83h168" stroke="#a34a4a" stroke-width="4"/>
-       <rect x="46" y="27" width="21" height="19" rx="3" fill="#efc17a" stroke="#a34a4a"/>
-       <rect x="78" y="24" width="19" height="22" rx="3" fill="#b8cde3" stroke="#a34a4a"/>
-       <rect x="110" y="28" width="25" height="18" rx="3" fill="#dcb0b0" stroke="#a34a4a"/>
-       <rect x="148" y="24" width="22" height="22" rx="3" fill="#c5d7bf" stroke="#a34a4a"/>
-       <rect x="46" y="57" width="25" height="24" rx="3" fill="#efc17a" stroke="#a34a4a"/>
-       <rect x="84" y="56" width="22" height="25" rx="3" fill="#b8cde3" stroke="#a34a4a"/>
-       <rect x="121" y="58" width="25" height="23" rx="3" fill="#dcb0b0" stroke="#a34a4a"/>
-       <rect x="158" y="56" width="22" height="25" rx="3" fill="#c5d7bf" stroke="#a34a4a"/>
-       <path d="M31 17 209 121M209 17 31 121" stroke="#ba3e3e" stroke-width="5" opacity=".82"/>
-      </svg>
-      <figcaption><strong>Not acceptable</strong><span>Product close-ups, indoor shelves, logos, selfies or screenshots.</span></figcaption>
-     </figure>
-    </div>
-    <p class="buybook-shop-front-sample-note">These are simple illustrations to guide you. Upload your own recent photo of your actual shop—not one of these samples or a picture from the internet. This photo will be shown publicly to Buybook buyers, so avoid including people, private documents or anything you do not want shown.</p>
     <div class="buybook-shop-front-upload">
      <div class="buybook-shop-front-preview-box">
-      <img id="buybookShopFrontPreview" class="hidden" alt="Preview of the shop-front photo selected for Buybook">
+      <img id="buybookShopFrontPreview" class="hidden" alt="Preview of your shop photo" loading="lazy">
       <div id="buybookShopFrontPlaceholder" class="buybook-shop-front-placeholder">
-       <span aria-hidden="true">▧</span><strong>No shop-front photo selected</strong><small>Your photo preview will appear here.</small>
+       <span aria-hidden="true">▧</span><strong>No photo selected</strong><small>Your shop photo will appear here.</small>
       </div>
      </div>
      <div class="buybook-shop-front-upload-actions">
-      <button type="button" id="buybookShopFrontChooseButton" class="secondary-button">Take or choose shop-front photo</button>
+      <button type="button" id="buybookShopFrontChooseButton" class="secondary-button">Take or choose photo</button>
       <button type="button" id="buybookShopFrontRemoveButton" class="buybook-shop-front-remove hidden">Remove photo</button>
      </div>
      <input class="file-hidden" id="buybookShopFrontFile" type="file" accept="image/jpeg,image/png,image/webp" capture="environment">
-     <p id="buybookShopFrontStatus" class="settings-inline-status" role="status" aria-live="polite">A clear photo of your actual shop front is required before connecting.</p>
-     <label class="buybook-confirm-row" for="buybookShopFrontConfirm">
-      <input type="checkbox" id="buybookShopFrontConfirm" disabled required>
-      <span>I confirm this is a real photo of the outside/front of my own shop or stall—not a product photo, logo, screenshot or another shop.</span>
-     </label>
-     <p class="settings-help-text">Use a JPG, PNG or WebP image. Maximum file size: 5 MB. Sellbook checks the image file and resolution, but your confirmation must also be truthful.</p>
+     <p id="buybookShopFrontStatus" class="settings-inline-status" role="status" aria-live="polite">Sellbook automatically checks that your photo shows a real shop front before connecting.</p>
+     <p class="settings-help-text">Use a recent, clear photo of your own shop. JPG, PNG or WebP · Maximum 5 MB.</p>
     </div>
    </section>
 
    <section class="settings-form-group buybook-location-section" aria-labelledby="buybookLocationHeading">
     <div class="settings-form-heading">
      <h3 id="buybookLocationHeading">Exact shop location</h3>
-     <p>Be at your shop before capturing its location. Buyers will use this pin to find the correct place.</p>
+     <p>Capture the location while you are at your shop so buyers can find it.</p>
     </div>
     <div class="buybook-location-card">
      <div class="buybook-location-icon" aria-hidden="true">
@@ -803,7 +746,7 @@
      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2v3m0 14v3M2 12h3m14 0h3"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
      <span>Capture shop location</span>
     </button>
-    <p class="settings-help-text">Allow Sellbook to use your phone's location. For a reliable pin, turn on precise location and wait until the accuracy is good before saving.</p>
+    <p class="settings-help-text">Allow location access and wait for an accurate GPS pin.</p>
     <input type="hidden" id="buybookLatitude">
     <input type="hidden" id="buybookLongitude">
    </section>
@@ -816,7 +759,7 @@
 
   <div class="buybook-connection-note">
    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 4.5 6v5.2c0 4.5 3.1 8.2 7.5 9.8 4.4-1.6 7.5-5.3 7.5-9.8V6L12 3Z"/><path d="m9 12 2 2 4-4"/></svg>
-   <p>Only your shop details, WhatsApp contact, shop location and the product information needed for Buybook are shared. Your sales, expenses and private business reports are not listed.</p>
+   <p>Buybook receives your shop details and product information only. Your sales, expenses and private reports stay in Sellbook.</p>
   </div>
  </div>
 </section>
