@@ -4925,3 +4925,75 @@ body.product-page-open #appWorkspace,body.low-stock-page-open #appWorkspace,body
 /* Progressive product-history navigation */
 .stock-history-load-more{width:100%;margin:4px 0 14px;padding:11px 14px;border:1px solid var(--border);border-radius:10px;background:var(--card);color:var(--text);font:inherit;font-size:13px;font-weight:650;text-align:center;cursor:pointer}
 .stock-history-load-more:focus-visible{outline:2px solid currentColor;outline-offset:2px}
+
+
+/* Support, buyer messaging, notifications and Me-panel refinements. */
+.support-header-button{position:relative}
+#me .me-support-button{position:relative}
+.support-unread-badge{top:-4px;right:-4px;z-index:2}
+#me .me-support-button .support-unread-badge{border-color:var(--surface);top:-4px;right:-4px}
+#support .support-page-heading .page-title{margin-bottom:3px}
+#support .support-page-heading .page-intro{margin:0;color:var(--muted);line-height:1.4}
+#support #supportConversationView{display:flex;flex-direction:column}
+#support #supportConversationView.hidden{display:none!important}
+#support #supportChatStatus{font-size:12px;line-height:1.35}
+#messenger .messenger-filter-row{display:flex;gap:8px;flex-wrap:wrap}
+#messenger .messenger-filter{min-width:68px}
+#me .me-business-stats>button{
+ min-width:0;width:100%;padding:7px 5px;border:0;border-radius:0;
+ background:transparent;color:inherit;font:inherit;text-align:center;cursor:pointer;
+}
+#me .me-business-stats>button+button{border-left:1px solid #d4e7da}
+#me .me-business-stats>button:focus-visible{
+ outline:2px solid var(--green);outline-offset:-2px;border-radius:8px;
+}
+#me .me-business-stats>button:active{background:#e2f0e6}
+#me .me-buybook-section .me-row-copy small{display:block!important}
+#me .me-buybook-section .me-row-copy{gap:3px}
+#me .me-buybook-section .me-row-copy small{font-size:11.5px;line-height:1.35;color:var(--muted)}
+#me .me-buybook-section .me-menu-row{min-height:62px!important}
+#me .me-buybook-section .me-row-icon svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+#notifications .notifications-mark-all-row{
+ display:flex;align-items:center;justify-content:space-between;gap:12px;
+ padding:4px 2px 12px;
+}
+#notifications .notifications-mark-all-row .muted{font-size:11px;line-height:1.35}
+#notifications #markAllNotificationsRead{
+ flex:0 0 auto;padding:9px 12px;border:1px solid var(--border);
+ border-radius:11px;background:var(--surface);color:var(--green);
+ font-size:12px;font-weight:700;
+}
+#notifications #markAllNotificationsRead:disabled{opacity:.55;cursor:wait}
+#notifications .notification-date-group{display:grid;gap:4px;margin:0 0 16px}
+#notifications .notification-date-group h3{
+ margin:8px 2px 4px;color:var(--muted);font-size:12px;font-weight:750;
+}
+#notifications .user-notification-row{
+ display:grid;grid-template-columns:9px minmax(0,1fr) 14px;align-items:start;gap:10px;
+ width:100%;padding:13px 4px;border:0;border-bottom:1px solid var(--border);
+ border-radius:0;background:transparent;color:var(--ink);text-align:left;
+}
+#notifications .user-notification-row:focus-visible{outline:2px solid var(--green);outline-offset:-2px;border-radius:8px}
+#notifications .notification-read-indicator{
+ width:7px;height:7px;margin-top:7px;border-radius:50%;background:transparent;
+}
+#notifications .user-notification-row.is-unread .notification-read-indicator{background:var(--green)}
+#notifications .user-notification-row.is-unread .user-notification-heading strong{font-weight:800}
+#notifications .user-notification-copy{display:grid;gap:6px;min-width:0}
+#notifications .user-notification-heading{display:flex;align-items:center;justify-content:space-between;gap:10px}
+#notifications .user-notification-heading strong{min-width:0;font-size:14px;line-height:1.35;overflow-wrap:anywhere}
+#notifications .user-notification-heading small{
+ flex:0 0 auto;color:var(--muted);font-size:10px;font-weight:650;
+}
+#notifications .user-notification-body{color:var(--muted);font-size:13px;line-height:1.45;white-space:normal;overflow-wrap:anywhere}
+#notifications .user-notification-copy time{color:var(--muted);font-size:11px}
+#notifications .notification-action{align-self:center;color:var(--muted);font-size:24px;line-height:1}
+#notifications .notification-load-more{
+ width:100%;margin:12px 0 2px;padding:11px;border:1px solid var(--border);
+ border-radius:11px;background:var(--surface);color:var(--green);font-weight:700;
+}
+@media(max-width:360px){
+ #notifications .notifications-mark-all-row{align-items:flex-start}
+ #notifications .notifications-mark-all-row .muted{max-width:58%}
+ #notifications .user-notification-heading{align-items:flex-start;flex-direction:column;gap:3px}
+}
