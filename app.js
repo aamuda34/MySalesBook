@@ -2912,11 +2912,14 @@ document.getElementById('userNotificationsList')?.addEventListener('click',async
  const row=event.target.closest('[data-notification-id]');if(!row||row.disabled)return;
  const item=userNotificationsCache.find(n=>String(n.id)===String(row.dataset.notificationId));if(!item)return;
  row.disabled=true;
+ const uid=cloudUser?.id,epoch=accountSessionEpoch;
  try{
-  await markUserNotificationRead(item.id);
+  const marked=await markUserNotificationRead(item.id);
+  if(!marked||!accountRequestIsCurrent(uid,epoch))return;
  }catch(error){
   showToast('Could not update notification read status: '+(error.message||'Please try again.'),'error');
   row.disabled=false;
+  return;
  }
  if(item.reservation_id){
   showPage('reservations');
@@ -5481,10 +5484,9 @@ async function loadMessengerConversations(options={}){
  const current=()=>accountRequestIsCurrent(uid,requestEpoch);
  if(!options.quiet)list.innerHTML='<div class="empty">Loading chats…</div>';
  try{
-  const [marketRes,subsRes]=await Promise.all([
-   supabaseClient.from('marketplace_messages').select('id,owner_id,buyer_id,sender_id,body,created_at,read_at').eq('owner_id',uid).order('created_at',{ascending:false}).order('id',{ascending:false}).limit(500),
-   supabaseClient.rpc('get_my_marketplace_subscribers')
-  ]);
+  const marketQuery=()=>supabaseClient.from('marketplace_messages').select('id,owner_id,buyer_id,sender_id,body,created_at,read_at').eq('owner_id',uid).order('created_at',{ascending:false}).order('id',{ascending:false});
+  const marketRequest=options.quiet?marketQuery().limit(500):fetchAllCloudRows(()=>marketQuery());
+  const [marketRes,subsRes]=await Promise.all([marketRequest,supabaseClient.rpc('get_my_marketplace_subscribers')]);
   if(!current())return;
   if(marketRes.error)throw marketRes.error;
   const subs=subsRes.error?(marketplaceSubscribersCache||[]):(subsRes.data||[]),msgs=marketRes.data||[];
