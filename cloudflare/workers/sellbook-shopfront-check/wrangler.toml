@@ -1,0 +1,6 @@
+name = "sellbook-shopfront-check"
+main = "index.js"
+compatibility_date = "2026-11-04"
+
+[ai]
+binding = "AI"
