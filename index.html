@@ -342,7 +342,7 @@
 </div>
 <section class="sales-history-summary" aria-live="polite" aria-label="Sales summary for selected period">
  <div class="sales-history-summary-main"><div><span class="sales-history-summary-label" id="salesHistoryPeriodLabel">Today</span><small>Total sales</small></div><strong id="salesHistoryTotal">₦0</strong></div>
- <div class="sales-history-summary-stats"><div><strong id="salesHistoryTransactionCount">0</strong><span>Transactions</span></div><div><strong id="salesHistoryItemsCount">0</strong><span>Items sold</span></div><div><strong id="salesHistoryGrossProfit">₦0</strong><span>Gross profit</span></div></div>
+ <div class="sales-history-summary-stats"><div><strong id="salesHistoryTransactionCount">0</strong><span>Transactions</span></div><div><strong id="salesHistoryItemsCount">0</strong><span>Units sold</span></div><div><strong id="salesHistoryGrossProfit">₦0</strong><span>Gross profit</span></div></div>
 </section>
 <div id="salesHistoryList" class="sales-history-list"><div class="empty">No sales recorded yet.</div></div>
 </section>
@@ -356,7 +356,7 @@
 <div class="products-page-header expenses-page-header"><button type="button" class="products-back-button" aria-label="Back to Home" title="Back to Home" onclick="showPage('home')"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6 6-6-6M9 12h11"/></svg></button><h1>Expenses</h1><button type="button" class="page-history-button" data-open-page="expenses-history" aria-label="Open expense history" title="Expense history"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 2.64-6.36L3 8"/><path d="M3 3v5h5M12 7v5l3 2"/></svg></button></div>
 <p class="page-intro">Record business costs and keep your net profit accurate.</p>
 <div class="card expense-period-card"><label class="expense-period-select-label" for="expensePeriodSelect">Total expenses for</label><select id="expensePeriodSelect" class="expense-period-select" aria-label="Select expense total period"><option value="today" selected>Today</option><option value="yesterday">Yesterday</option><option value="week">This week</option><option value="month">This month</option><option value="year">This year</option><option value="all">All time</option></select><div class="expense-period-total"><small id="expensePeriodLabel">Total expenses today</small><strong id="todayExpenses">₦0</strong></div></div>
-<div class="card"><div class="section-heading"><h2>Expenses by category</h2></div><div id="expenseCategorySummary" class="expense-category-summary"><div class="empty">Expense categories will appear here.</div></div></div>
+<div class="card"><div class="section-heading"><h2>Expenses by category</h2><span id="expenseCategoryPeriodLabel" class="muted">For today</span></div><div id="expenseCategorySummary" class="expense-category-summary"><div class="empty">Expense categories will appear here.</div></div></div>
 <div class="card"><div class="section-heading"><h2>Recent expenses</h2><button type="button" data-open-page="expenses-history">History</button></div><div id="expenseRecentList" class="expense-recent-list"><div class="empty">No expenses recorded yet.</div></div></div>
 <button type="button" class="primary expense-add-button" data-open-page="record-expense">＋ Record expense</button>
 </section>
