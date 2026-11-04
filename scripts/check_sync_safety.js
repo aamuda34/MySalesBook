@@ -5,6 +5,7 @@ const fs = require('node:fs');
 const vm = require('node:vm');
 
 const app = fs.readFileSync('app.js', 'utf8');
+const indexHtml = fs.readFileSync('index.html', 'utf8');
 const sw = fs.readFileSync('sw.js', 'utf8');
 
 function requireText(text, marker, label) {
