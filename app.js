@@ -2679,7 +2679,7 @@ function renderProductActivityHistory(){
  }).join(''):'<div class="empty">No product changes have been recorded yet.</div>';
 }
 
-document.getElementById('stockHistoryTabs')?.addEventListener('click',event=>{const button=event.target.closest('[data-stock-history-tab]');if(!button)return;document.querySelectorAll('[data-stock-history-tab]').forEach(tab=>{const active=tab===button;tab.classList.toggle('active',active);tab.setAttribute('aria-selected',String(active));});document.querySelectorAll('.stock-history-panel').forEach(panel=>panel.hidden=panel.id!==button.getAttribute('aria-controls'));});
+
 async function refreshStockHistoryFromCloud(){
  const renderAll=()=>{renderProductCreationHistory();renderProductSalesHistory();renderStockAdjustments();renderRestockHistory();renderProductActivityHistory();refreshStockHistoryBadges();};
  if(!cloudUser||!navigator.onLine||storageMode==='local'){renderAll();return;}
