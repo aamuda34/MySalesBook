@@ -256,8 +256,9 @@ print("Large all-time report date-range check passed.")
 
 # Messenger background refreshes are bounded and do not replace loaded older messages.
 messenger_poll_checks = {
-    "buyer conversation summaries use complete paginated history": "fetchAllCloudRows(()=>supabaseClient.from('marketplace_messages')" in app_js,
-    "quiet buyer refresh is limited to the latest 100 messages": ".order('id',{ascending:false}).limit(100)" in app_js and "options.quiet" in app_js,
+    "initial inbox summaries use complete paginated buyer history": "const marketRequest=options.quiet?marketQuery().limit(500):fetchAllCloudRows(()=>marketQuery());" in app_js,
+    "quiet inbox summary refresh is bounded": "const marketRequest=options.quiet?marketQuery().limit(500)" in app_js,
+    "quiet buyer conversation refresh is limited to the latest 100 messages": "options.quiet" in app_js and ".order('id',{ascending:false}).limit(100)" in app_js,
     "buyer messages use stable ordering": ".order('created_at',{ascending:true}).order('id',{ascending:true})" in app_js,
     "message DOM nodes carry stable IDs for deduplication": "data-message-id=\"'+escAdmin(m.id)+'\"" in app_js,
     "quiet refresh appends only unseen messages": "target.insertAdjacentHTML('beforeend'" in app_js and "existing.has(String(m.id))" in app_js,
