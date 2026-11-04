@@ -15,7 +15,7 @@ const layer = css.slice(start, authLayerStart > start ? authLayerStart : undefin
 const pageIds = [...html.matchAll(/<section\b[^>]*\bid="([^"]+)"[^>]*class="[^"]*\bpage\b[^"]*"/g)]
   .map(match => match[1]);
 const expectedPages = [
-  'home','subscribers','reservations','products','product-details','sales',
+  'home','quick-guide','subscribers','reservations','products','product-details','sales',
   'sales-history','sale-details','expenses','me','notifications','more',
   'messenger','support','feedback','admin','reports','low-stock','stock',
   'stock-history','stock-history-detail','settings','about-sellbook',
@@ -29,6 +29,7 @@ assert.equal(new Set(pageIds).size, pageIds.length, 'Every app page must have a 
 
 const expectedSelectors = [
   '#home .home-sales-board',
+  '#quick-guide .quick-guide-list',
   '#products .product-list-filters',
   '#product-details .product-details-photo',
   '#sales .today-sales-summary',
@@ -120,4 +121,4 @@ const finalClearance = css.slice(css.lastIndexOf('/* Ensure the final account ac
 assert.ok(finalClearance.includes('padding-bottom:calc(96px + env(safe-area-inset-bottom, 0px))'), 'Every page must reserve enough room above fixed bottom navigation.');
 assert.ok(finalClearance.includes('#me #googleSignOut{'), 'Me page sign-out control must remain reachable.');
 assert.ok(finalClearance.includes('padding-bottom:calc(104px + env(safe-area-inset-bottom, 0px))'), 'Me page must reserve extra space for its final account action.');
-console.log('PASS: all 30 app screens are present, screen-specific layouts are covered, responsive breakpoints are present, Sellbook themes are preserved and layout CSS is balanced.');
+console.log('PASS: all ' + pageIds.length + ' app screens are present, screen-specific layouts are covered, responsive breakpoints are present, Sellbook themes are preserved and layout CSS is balanced.');
