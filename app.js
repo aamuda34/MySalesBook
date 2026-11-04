@@ -2491,7 +2491,14 @@ function currentPage(){return [...document.querySelectorAll('.page')].find(x=>!x
 async function renderDailySalesSummary(){const target=document.getElementById('dailySalesSummary');if(!target)return;const rows=new Map(),today=new Date();today.setHours(0,0,0,0);for(let i=0;i<7;i++){const d=new Date(today);d.setDate(today.getDate()-i);const key=dateKey(d);rows.set(key,{label:i===0?'Today':i===1?'Yesterday':d.toLocaleDateString(undefined,{weekday:'short',day:'numeric',month:'short'}),total:0,count:0});}for(const sale of db.sales||[]){const key=validDateKey(operationalDate(sale)),row=key?rows.get(key):null;if(row){row.total+=Number(sale.total)||0;row.count++;}}target.innerHTML=[...rows.values()].map(r=>'<div class="daily-sales-row"><span>'+escAdmin(r.label)+' · '+r.count+' sale'+(r.count===1?'':'s')+'</span><strong>'+escAdmin(new Intl.NumberFormat('en-NG',{style:'currency',currency:'NGN',maximumFractionDigits:2}).format(r.total))+'</strong></div>').join('');}
 function refreshHomeWeeklySales(){const el=document.getElementById('weeklySalesHome');if(!el)return;const bounds=getLocalPeriodBounds('week');const total=(db.sales||[]).filter(s=>withinPeriod(s,bounds)).reduce((sum,s)=>sum+(Number(s.total)||0),0);el.textContent=money(total);}
 let marketplaceReservationsCache=[];let marketplaceSelectedReservationId=null;let selectedReservationFilter='pending';
-function reservationStatusBucket(reservation,nowTime=Date.now()){const raw=String(reservation?.status||'pending').toLowerCase();if(raw==='expired'||(raw==='pending'&&reservation?.expires_at&&new Date(reservation.expires_at).getTime()<nowTime))return 'expired';if(['approved','accepted','ready','collected'].includes(raw))return 'approved';if(['rejected','declined','cancelled'].includes(raw))return 'rejected';return raw;}
+function reservationStatusBucket(reservation,nowTime=Date.now()){
+ const raw=String(reservation?.status||'pending').toLowerCase();
+ const expiry=reservation?.expires_at?Date.parse(reservation.expires_at):NaN;
+ if(raw==='expired'||(raw==='pending'&&Number.isFinite(expiry)&&expiry<=nowTime))return 'expired';
+ if(['approved','accepted','ready','collected'].includes(raw))return 'approved';
+ if(['rejected','declined','cancelled'].includes(raw))return 'rejected';
+ return raw;
+}
 function renderReservationsFiltered(){
  const target=document.getElementById('reservationsPageList');if(!target)return;
  const query=(document.getElementById('reservationSearch')?.value||'').trim().toLocaleLowerCase(),nowTime=Date.now();
@@ -2571,16 +2578,20 @@ async function updateReservationDecision(id,decision,button){
  const requestedUserId=cloudUser.id,requestEpoch=accountSessionEpoch;
  const current=()=>accountRequestIsCurrent(requestedUserId,requestEpoch);
  const reservation=marketplaceReservationsCache.find(item=>String(item.id)===String(id));
- if(!reservation||String(reservation.status||'pending').toLowerCase()!=='pending')return;
+ if(!reservation||reservationStatusBucket(reservation)!=='pending'){
+  showToast('This reservation has expired or has already been updated. Refresh the page to see its latest status.','error');
+  return;
+ }
  const label=decision==='approved'?'Approve this reservation?':'Reject this reservation?';
  if(!confirm(label+' The buyer will be able to see the updated status in Buybook.'))return;
  if(!current())return;
  const original=button?.textContent;if(button){button.disabled=true;button.textContent='Saving…';}
  try{
-  const {data,error}=await supabaseClient.from('marketplace_reservations').update({status:decision,updated_at:new Date().toISOString()}).eq('id',id).eq('owner_id',requestedUserId).eq('status','pending').select('id,status').maybeSingle();
+  const decisionTime=new Date().toISOString();
+  const {data,error}=await supabaseClient.from('marketplace_reservations').update({status:decision,updated_at:decisionTime}).eq('id',id).eq('owner_id',requestedUserId).eq('status','pending').or('expires_at.is.null,expires_at.gt.'+decisionTime).select('id,status').maybeSingle();
   if(!current())return;
   if(error)throw error;
-  if(!data)throw new Error('This reservation has already been updated. Refresh the page to see its latest status.');
+  if(!data)throw new Error('This reservation is no longer pending or its time limit has passed. Refresh the page to see its latest status.');
   reservation.status=decision;
   void refreshHomeReservationCount(true);
   let notificationFailed=false;
@@ -2607,8 +2618,9 @@ function showReservationDetails(id,options={}){
  document.getElementById('reservationsListView')?.classList.add('hidden');document.getElementById('reservationDetailsView')?.classList.remove('hidden');
  const isExpired=String(r.status||'pending').toLowerCase()==='expired'||(String(r.status||'pending').toLowerCase()==='pending'&&r.expires_at&&new Date(r.expires_at).getTime()<=Date.now());
  const status=isExpired?'Expired':String(r.status||'pending').replace(/[_-]+/g,' ').replace(/\b\w/g,ch=>ch.toUpperCase());
- const products=r.items.map(x=>'<div style="display:flex;justify-content:space-between;gap:12px;padding:10px 0;border-bottom:1px solid var(--border)"><span>'+escAdmin(x.product_name)+' × '+Number(x.quantity||0)+'</span><strong>'+escAdmin(money(Number(x.unit_price||0)*Number(x.quantity||0)))+'</strong></div>').join('');
- const total=r.items.reduce((sum,x)=>sum+Number(x.unit_price||0)*Number(x.quantity||0),0);
+ const items=Array.isArray(r.items)?r.items:[];
+ const products=items.map(x=>'<div style="display:flex;justify-content:space-between;gap:12px;padding:10px 0;border-bottom:1px solid var(--border)"><span>'+escAdmin(x.product_name)+' × '+Number(x.quantity||0)+'</span><strong>'+escAdmin(money(Number(x.unit_price||0)*Number(x.quantity||0)))+'</strong></div>').join('');
+ const total=items.reduce((sum,x)=>sum+Number(x.unit_price||0)*Number(x.quantity||0),0);
  const pendingReservation=String(r.status||'pending').toLowerCase()==='pending'&&!isExpired;
  document.getElementById('reservationDetailsContent').innerHTML='<div style="display:flex;align-items:center;gap:12px;padding:14px 0"><span class="chat-support-avatar" aria-hidden="true">👤</span><div><h3 style="margin:0 0 5px">'+escAdmin(marketplaceBuyerName(r.buyer_id))+'</h3><p class="muted" style="margin:0">Customer on Buybook</p></div></div><div style="padding:12px 0;border-top:1px solid var(--border)"><small class="muted">Reserved on</small><p style="margin:5px 0;font-weight:700">'+escAdmin(new Date(r.created_at).toLocaleString([], {dateStyle:'full',timeStyle:'short'}))+'</p><small class="muted">Status</small><p style="margin:5px 0 12px;font-weight:700">'+escAdmin(status)+'</p>'+(pendingReservation?'<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:12px 0 20px"><button type="button" class="primary" data-reservation-decision="approved" style="width:100%">Approve reservation</button><button type="button" class="secondary" data-reservation-decision="rejected" style="width:100%">Reject reservation</button></div>':(['approved','rejected'].includes(String(r.status||'').toLowerCase())?'<button type="button" class="secondary" data-retry-reservation-notification style="width:100%;margin:8px 0 20px">Resend buyer notification</button>':''))+'<h3>Products</h3>'+(products||'<p class="muted">Product details unavailable.</p>')+'<div style="display:flex;justify-content:space-between;padding:14px 0;font-weight:700"><span>Total</span><span>'+escAdmin(money(total))+'</span></div>'+(r.buyer_note?'<div style="border-top:1px solid var(--border);padding-top:12px"><small class="muted">Customer note</small><p>'+escAdmin(r.buyer_note)+'</p></div>':'')+(r.expires_at?'<p class="muted">Expires '+escAdmin(new Date(r.expires_at).toLocaleString())+'</p>':'')+'</div>';
  document.getElementById('reservationDetailsContent').querySelectorAll('[data-reservation-decision]').forEach(button=>button.addEventListener('click',()=>updateReservationDecision(r.id,button.dataset.reservationDecision,button)));
@@ -2656,7 +2668,7 @@ async function refreshHomeReservationCount(force=false){
   request=(async()=>{
    const [totalResult,newResult]=await Promise.all([
     supabaseClient.from('marketplace_reservations').select('id',{count:'exact',head:true}).eq('owner_id',requestedUserId),
-    supabaseClient.from('marketplace_reservations').select('id',{count:'exact',head:true}).eq('owner_id',requestedUserId).eq('status','pending')
+    supabaseClient.from('marketplace_reservations').select('id',{count:'exact',head:true}).eq('owner_id',requestedUserId).eq('status','pending').or('expires_at.is.null,expires_at.gt.'+new Date().toISOString())
    ]);
    if(totalResult.error)throw totalResult.error;
    if(newResult.error)throw newResult.error;
@@ -2697,10 +2709,10 @@ function paintPage(name,scroll){if(!VALID_PAGES.has(name))name='home';if(name===
       if(previous&&previous!==current&&['settings','home','me'].includes(previous))return previous;
       return 'settings';
     }
-    // Prefer the page the user actually came from, consistently across the app.
-    // Explicit button targets and inline handlers are fallbacks only: they may be
-    // static defaults that ignore the user's real navigation path.
+    // Add Sale may open from Home or Sales. Use that actual origin, not a
+    // static Home target, so both the arrow and Android Back behave naturally.
     const previous=history.state&&history.state.mySalesBookPage===current?history.state.mySalesBookPreviousPage:null;
+    if(current==='record-sale')return resolveSaleReturnPage(previous,saleReturnPage);
     if(previous&&previous!==current&&VALID_PAGES.has(previous))return previous;
     if(button.dataset.appBack&&VALID_PAGES.has(button.dataset.appBack))return button.dataset.appBack;
     if(button.dataset.openPage&&VALID_PAGES.has(button.dataset.openPage))return button.dataset.openPage;
@@ -2718,8 +2730,15 @@ function paintPage(name,scroll){if(!VALID_PAGES.has(name))name='home';if(name===
     if(button.id==='subscriberDetailsBack'||button.id==='reservationDetailsBack'){
       event.preventDefault();event.stopImmediatePropagation();
       const isSubscriber=button.id==='subscriberDetailsBack';
+      const page=isSubscriber?'subscribers':'reservations';
+      const subview=isSubscriber?'subscriber-details':'reservation-details';
+      if(history.state?.mySalesBookPage===page&&history.state?.mySalesBookSubview===subview){
+        history.back();
+        return;
+      }
       document.getElementById(isSubscriber?'subscriberDetailsView':'reservationDetailsView')?.classList.add('hidden');
       document.getElementById(isSubscriber?'subscribersListView':'reservationsListView')?.classList.remove('hidden');
+      if(history.state?.mySalesBookPage===page)history.replaceState({...history.state,mySalesBookSubview:undefined},'',location.href);
       return;
     }
     event.preventDefault();event.stopImmediatePropagation();
@@ -2823,7 +2842,13 @@ async function refreshStockHistoryFromCloud(){
  }catch(error){console.warn('Product history refresh failed:',error);cloudMessage('Product history could not be refreshed. Showing the saved history on this phone.');renderAll();}
 }
 
-let messengerReturnPage='home';function showPage(name,options={}){if(!VALID_PAGES.has(name))return;const previous=currentPage();if(name==='settings-buybook'&&previous!=='settings-buybook-setup'&&['settings','home','me'].includes(previous))buybookOverviewReturnPage=previous;if(name==='messenger'&&previous!=='messenger')messengerReturnPage=previous;document.body.classList.toggle('user-support-open',name==='support'&&!sellbookIsAdmin);document.body.classList.toggle('messenger-open',name==='messenger');if(name!=='messenger')document.body.classList.remove('messenger-conversation-open');if(name==='messenger'&&cloudUser)loadMessengerConversations();if(name==='stock-history'){renderProductCreationHistory();renderProductSalesHistory();renderStockAdjustments();renderRestockHistory();renderProductActivityHistory();refreshStockHistoryBadges();void refreshStockHistoryFromCloud();}if(!options.fromHistory&&previous!==name){const previousForHistory=options.replaceHistory?(history.state&&history.state.mySalesBookPreviousPage):previous;const state={mySalesBookPage:name,mySalesBookPreviousPage:previousForHistory,mySalesBookReturnPage:name==='messenger'?messengerReturnPage:undefined};if(options.replaceHistory)history.replaceState(state,'','#'+name);else history.pushState(state,'','#'+name);}paintPage(name,options.scroll!==false);}
+let messengerReturnPage='home';
+let saleReturnPage='home';
+function resolveSaleReturnPage(previousPage,fallback='home'){
+ if(['home','sales'].includes(previousPage))return previousPage;
+ return ['home','sales'].includes(fallback)?fallback:'home';
+}
+function showPage(name,options={}){if(!VALID_PAGES.has(name))return;const previous=currentPage();if(name==='record-sale'&&previous!=='record-sale')saleReturnPage=resolveSaleReturnPage(previous,saleReturnPage);if(name==='settings-buybook'&&previous!=='settings-buybook-setup'&&['settings','home','me'].includes(previous))buybookOverviewReturnPage=previous;if(name==='messenger'&&previous!=='messenger')messengerReturnPage=previous;document.body.classList.toggle('user-support-open',name==='support'&&!sellbookIsAdmin);document.body.classList.toggle('messenger-open',name==='messenger');if(name!=='messenger')document.body.classList.remove('messenger-conversation-open');if(name==='messenger'&&cloudUser)loadMessengerConversations();if(name==='stock-history'){renderProductCreationHistory();renderProductSalesHistory();renderStockAdjustments();renderRestockHistory();renderProductActivityHistory();refreshStockHistoryBadges();void refreshStockHistoryFromCloud();}if(!options.fromHistory&&previous!==name){const previousForHistory=options.replaceHistory?(history.state&&history.state.mySalesBookPreviousPage):previous;const state={mySalesBookPage:name,mySalesBookPreviousPage:previousForHistory,mySalesBookReturnPage:name==='messenger'?messengerReturnPage:undefined};if(options.replaceHistory)history.replaceState(state,'','#'+name);else history.pushState(state,'','#'+name);}paintPage(name,options.scroll!==false);}
 function restorePageFromLocation(){const hash=location.hash.slice(1),saved=sessionStorage.getItem('my-sales-book-current-page'),name=VALID_PAGES.has(hash)?hash:(VALID_PAGES.has(saved)?saved:'home');document.body.classList.toggle('user-support-open',name==='support'&&!sellbookIsAdmin);document.body.classList.toggle('messenger-open',name==='messenger');paintPage(name,false);}
 // Keep Android/browser Back inside the app. Page changes have their own
 // history entries; the duplicate root entry prevents the app from closing
@@ -3752,8 +3777,8 @@ function updateSaleTotal(){const p=db.products.find(x=>x.id===document.getElemen
 function refreshSaleUnitOptions(){const p=db.products.find(x=>x.id===document.getElementById('saleProduct').value),sel=document.getElementById('saleUnit');if(!sel)return;const previous=sel.value;sel.innerHTML='<option value="base">Individual '+esc(p?.baseUnit||'unit')+'</option>';if(p?.packUnit&&Number(p.unitsPerPack)>1&&Number(p.packPrice)>0)sel.insertAdjacentHTML('beforeend','<option value="pack">Full '+esc(p.packUnit)+'</option>');if(previous==='pack'&&p?.packUnit)sel.value='pack';const pack=sel.value==='pack';document.getElementById('salePriceLabel').textContent=pack?'Selling price per full pack (₦)':'Selling price per individual unit (₦)';document.getElementById('salePrice').value=p?(pack?Number(p.packPrice):Number(p.price)).toFixed(2):'';document.getElementById('saleStock').textContent=p?'Available: '+p.stock+' '+(p.baseUnit||'units')+(p.packUnit?' · '+Math.floor(p.stock/Math.max(1,p.unitsPerPack))+' '+p.packUnit+' possible':''):'Choose a product to see available stock.';updateSaleTotal();}
 document.getElementById('saleProduct').addEventListener('change',refreshSaleUnitOptions);document.getElementById('saleUnit').addEventListener('change',refreshSaleUnitOptions);document.getElementById('saleQty').addEventListener('input',updateSaleTotal);document.getElementById('salePrice').addEventListener('input',updateSaleTotal);
 let saleBasket=[];
-function renderSaleBasket(){const target=document.getElementById('saleBasketList'),count=document.getElementById('saleBasketCount'),total=document.getElementById('saleTotalAmount');if(!target)return;if(!saleBasket.length){target.innerHTML='<div class="empty">Add a product to begin this sale.</div>';if(count)count.textContent='No items added yet.';if(total)total.textContent=money(0);return;}if(count)count.textContent=saleBasket.length+' product '+(saleBasket.length===1?'line':'lines');if(total)total.textContent=money(saleBasket.reduce((n,x)=>n+x.total,0));target.innerHTML=saleBasket.map((x,i)=>'<div class="sale-basket-row"><span><strong>'+esc(x.name)+' × '+x.qty+' '+esc(x.saleUnit)+'</strong><small>'+money(x.price)+' each · '+money(x.total)+'</small></span><button type="button" data-remove-sale-line="'+i+'" aria-label="Remove '+esc(x.name)+'">Remove</button></div>').join('');}
-document.getElementById('addSaleBasketItem')?.addEventListener('click',()=>{const p=db.products.find(x=>x.id===document.getElementById('saleProduct').value),qty=Number(document.getElementById('saleQty').value),price=Number(document.getElementById('salePrice').value),pack=document.getElementById('saleUnit').value==='pack',units=pack?Number(p?.unitsPerPack||1):1;if(!p)return showToast('Choose a product.');if(!Number.isSafeInteger(qty)||qty<1||!Number.isFinite(price)||price<=0)return showToast('Enter a valid quantity and selling price.');const baseQty=qty*units;if(!Number.isSafeInteger(baseQty)||baseQty>2000000000)return showToast('Sale quantity exceeds the safe stock limit.');const existing=saleBasket.filter(x=>x.productId===p.id).reduce((n,x)=>n+x.baseQty,0);if(existing+baseQty>p.stock)return showToast('The quantity exceeds available stock for '+p.name+'.');const unit=pack?p.packUnit:(p.baseUnit||'unit');if(saleBasket.some(x=>x.productId===p.id&&x.saleUnit===unit))return showToast('This product is already in the sale. Remove it or change its quantity.');const amounts=calculateSaleAmounts(qty,price,p.cost,units);saleBasket.push({productId:p.id,name:p.name,qty,price,cost:amounts.cost,profit:amounts.profit,total:amounts.total,baseQty,saleUnit:unit,unitsPerSale:units,productUpdatedAt:p.updatedAt});renderSaleBasket();document.getElementById('saleQty').value='1';});
+function renderSaleBasket(){const target=document.getElementById('saleBasketList'),count=document.getElementById('saleBasketCount'),total=document.getElementById('saleTotalAmount');if(!target)return;if(!saleBasket.length){target.innerHTML='<div class="empty">Add a product to begin this sale.</div>';if(count)count.textContent='No items added yet.';if(total)total.textContent=money(0);return;}if(count)count.textContent=saleBasket.length+' product '+(saleBasket.length===1?'line':'lines');if(total)total.textContent=money(saleBasket.reduce((n,x)=>n+x.total,0));target.innerHTML=saleBasket.map((x,i)=>'<div class="sale-basket-row"><span><strong>'+esc(x.name)+' × '+x.qty+' '+esc(x.saleUnit)+'</strong><small>'+money(x.price)+' per '+esc(x.saleUnit)+' · '+money(x.total)+'</small></span><button type="button" data-remove-sale-line="'+i+'" aria-label="Remove '+esc(x.name)+'">Remove</button></div>').join('');}
+document.getElementById('addSaleBasketItem')?.addEventListener('click',()=>{const p=db.products.find(x=>x.id===document.getElementById('saleProduct').value),qty=Number(document.getElementById('saleQty').value),price=Number(document.getElementById('salePrice').value),pack=document.getElementById('saleUnit').value==='pack',units=pack?Number(p?.unitsPerPack||1):1;if(!p)return showToast('Choose a product.');if(!Number.isSafeInteger(qty)||qty<1||!Number.isFinite(price)||price<=0)return showToast('Enter a valid quantity and selling price.');const baseQty=qty*units;if(!Number.isSafeInteger(baseQty)||baseQty>2000000000)return showToast('Sale quantity exceeds the safe stock limit.');const existing=saleBasket.filter(x=>x.productId===p.id).reduce((n,x)=>n+x.baseQty,0);if(existing+baseQty>p.stock)return showToast('The quantity exceeds available stock for '+p.name+'.');const unit=pack?p.packUnit:(p.baseUnit||'unit');if(saleBasket.some(x=>x.productId===p.id&&x.saleUnit===unit))return showToast('This product is already in the sale. Remove its line and add it again to change the quantity.');const amounts=calculateSaleAmounts(qty,price,p.cost,units);saleBasket.push({productId:p.id,name:p.name,qty,price,cost:amounts.cost,profit:amounts.profit,total:amounts.total,baseQty,saleUnit:unit,unitsPerSale:units,productUpdatedAt:p.updatedAt});renderSaleBasket();document.getElementById('saleQty').value='1';});
 document.getElementById('saleBasketList')?.addEventListener('click',event=>{const b=event.target.closest('[data-remove-sale-line]');if(!b)return;saleBasket.splice(Number(b.dataset.removeSaleLine),1);renderSaleBasket();});
 let saleSubmitting=false;
 document.getElementById('saleForm').addEventListener('submit',async event=>{event.preventDefault();if(saleSubmitting)return;if(!saleBasket.length)return showToast('Add at least one product to this sale.');const note=document.getElementById('saleNote').value.trim();if(note.length>150)return showToast('Sale note must be 150 characters or fewer.');const byProduct=new Map();for(const line of saleBasket){const p=db.products.find(x=>x.id===line.productId);if(!p)return showToast('A selected product is no longer available. Refresh and try again.');byProduct.set(p.id,p);}for(const [id,p] of byProduct){const used=saleBasket.filter(x=>x.productId===id).reduce((n,x)=>n+x.baseQty,0);if(used>p.stock)return showToast('Insufficient stock for '+p.name+'.');}const total=saleBasket.reduce((n,x)=>n+x.total,0);if(!confirm('Record '+saleBasket.length+' product line'+(saleBasket.length===1?'':'s')+' for '+money(total)+'?'))return;saleSubmitting=true;const button=event.submitter||event.currentTarget.querySelector('[type="submit"]');if(button)button.disabled=true;const transactionId=crypto.randomUUID(),stamp=now(),sales=saleBasket.map(x=>({...x,id:crypto.randomUUID(),transactionId,note,date:stamp}));try{for(const [id,p] of byProduct)p.stock-=sales.filter(x=>x.productId===id).reduce((n,x)=>n+x.baseQty,0);db.sales.push(...sales);if(cloudUser){await saveCloudChangeLocally('sale_batch',{transactionId,sales:sales.map(x=>({...x,productUpdatedAt:byProduct.get(x.productId).updatedAt}))});}else if(!save()){for(const [id,p] of byProduct)p.stock+=sales.filter(x=>x.productId===id).reduce((n,x)=>n+x.baseQty,0);db.sales=db.sales.filter(x=>x.transactionId!==transactionId);render();return;}saleBasket=[];renderSaleBasket();event.currentTarget.reset();document.getElementById('saleQty').value='1';refreshSaleUnitOptions();render();showToast('Sale recorded and stock updated.');}catch(error){for(const [id,p] of byProduct)p.stock+=sales.filter(x=>x.productId===id).reduce((n,x)=>n+x.baseQty,0);db.sales=db.sales.filter(x=>x.transactionId!==transactionId);render();showToast(error.message||'The sale could not be saved.');}finally{saleSubmitting=false;if(button)button.disabled=false;}});
