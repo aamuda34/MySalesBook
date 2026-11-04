@@ -1851,7 +1851,7 @@ document.getElementById('buybookConnectionForm')?.addEventListener('submit',asyn
   form.dataset.submitting='';
   if(button){
    button.disabled=false;
-   button.textContent=buybookConnectionState?'Save shop details':(buybookShopSetupExists?'Reconnect and list my products':'Connect and list my products');
+   button.textContent=buybookConnectionState?'Save shop details':(buybookShopSetupExists?'Reconnect to Buybook':'Connect to Buybook');
   }
  }
 });
