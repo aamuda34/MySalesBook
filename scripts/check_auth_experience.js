@@ -60,7 +60,8 @@ assert.ok(app.includes('function passwordPolicyError(password)'), 'New passwords
 assert.ok(app.includes("setAuthScreen('new-password')"), 'Recovery callback must open its standalone password form.');
 assert.ok(app.includes('if (recoveryMode) {\n        document.getElementById(\'appWorkspace\').classList.add(\'hidden\');'), 'Password recovery must run before normal PIN-gated data loading.');
 assert.ok(app.includes('if (recoveryMode) {\n        hideSecurityPinGate();'), 'Password recovery callback must also win over a PIN status request already in flight.');
-assert.ok(app.includes("recoveryMode = false;\n    setAuthScreen('choices');"), 'Completed password recovery must not leave a hidden form as the active auth screen.');
+assert.ok(app.includes("recoveryMode=false;\n    document.getElementById('recoveryPasswordForm').reset();") && app.includes("await handleCloudAuthChange();"), 'Completed password recovery must clear recovery mode and re-enter the authenticated workspace flow.');
+assert.ok(app.includes("else if(user)document.getElementById('recoveryPasswordForm').classList.add('hidden');"), 'A normal authenticated session must hide the completed recovery form.');
 assert.ok(app.includes('ensureSellbookPinAccess()'), 'Email sign-in must retain the server-verified PIN gate.');
 assert.ok(!app.includes('Sign in again with Google to reset your PIN.'), 'PIN recovery must offer a sign-in method-neutral instruction.');
 assert.ok(!app.includes('Sign in with Google before saving cloud records.'), 'Cloud access errors must not exclude email-authenticated users.');
