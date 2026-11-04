@@ -49,7 +49,7 @@ const today=()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth
 const now=()=>new Date().toISOString();
 function productCreationSnapshot(p){return {id:String(p.id),productId:String(p.id),productName:String(p.name||'Product'),category:String(p.category||'Uncategorized'),cost:Number(p.cost)||0,price:Number(p.price)||0,initialStock:Number(p.stock)||0,baseUnit:p.baseUnit||'unit',packUnit:p.packUnit||'',unitsPerPack:Number(p.unitsPerPack)||1,packPrice:p.packPrice==null?null:Number(p.packPrice),imagePath:p.imagePath||'',addedAt:p.createdAt||now()};}
 let db={products:[],sales:[],expenses:[],stockAdjustments:[],restocks:[],profile:{businessName:'',businessLogo:''}};
-function normalizeDb(v){return {products:Array.isArray(v?.products)?v.products:[],sales:Array.isArray(v?.sales)?v.sales:[],expenses:Array.isArray(v?.expenses)?v.expenses:[],stockAdjustments:Array.isArray(v?.stockAdjustments)?v.stockAdjustments:[],restocks:Array.isArray(v?.restocks)?v.restocks:[],productAdditions:Array.isArray(v?.productAdditions)?v.productAdditions:[],profile:v?.profile&&typeof v.profile==='object'?v.profile:{businessName:'',businessLogo:''}};}
+function normalizeDb(v){return {products:Array.isArray(v?.products)?v.products:[],sales:Array.isArray(v?.sales)?v.sales:[],expenses:Array.isArray(v?.expenses)?v.expenses:[],stockAdjustments:Array.isArray(v?.stockAdjustments)?v.stockAdjustments:[],restocks:Array.isArray(v?.restocks)?v.restocks:[],productAdditions:Array.isArray(v?.productAdditions)?v.productAdditions:[],productActivity:Array.isArray(v?.productActivity)?v.productActivity:[],profile:v?.profile&&typeof v.profile==='object'?v.profile:{businessName:'',businessLogo:''}};}
 let lowStockThreshold=Number(localStorage.getItem('my-sales-book-low-stock-v1')||5);if(!Number.isSafeInteger(lowStockThreshold)||lowStockThreshold<0)lowStockThreshold=5;
 
 const THEME_PREFERENCE_KEY='my-sales-book-theme-v1';
@@ -1943,7 +1943,7 @@ async function cloudLoadAll() {
   const cachedRestockDetails=new Map((db.restocks||[]).map(item=>[String(item.id),item]));
   const [pr,sr,er,ar,rr,profileResult]=await Promise.all([
     fetchAllCloudRows(()=>supabaseClient.from('products').select('id,name,category,cost_price,selling_price,stock,base_unit,purchase_unit,units_per_purchase,pack_unit,units_per_pack,pack_selling_price,image_path,created_at,updated_at').eq('user_id',user.id).order('created_at').order('id')),
-    fetchAllCloudRows(()=>supabaseClient.from('sales').select('id,product_id,product_name,quantity,unit_price,unit_cost,total,gross_profit,note,sold_at,base_quantity,sale_unit,units_per_sale').eq('user_id',user.id).order('sold_at').order('id')),
+    fetchAllCloudRows(()=>supabaseClient.from('sales').select('id,product_id,product_name,quantity,unit_price,unit_cost,total,gross_profit,note,sold_at,base_quantity,sale_unit,units_per_sale,transaction_id').eq('user_id',user.id).order('sold_at').order('id')),
     fetchAllCloudRows(()=>supabaseClient.from('expenses').select('id,description,amount,spent_at,category,note,voided_at,void_reason').eq('user_id',user.id).order('spent_at').order('id')),
     fetchAllCloudRows(()=>supabaseClient.from('stock_adjustments').select('id,product_id,product_name,previous_stock,new_stock,quantity_change,reason,adjusted_at').eq('user_id',user.id).order('adjusted_at',{ascending:false}).order('id',{ascending:false})),
     fetchAllCloudRows(()=>supabaseClient.from('stock_purchases').select('id,product_id,product_name,purchase_quantity,purchase_unit,units_per_purchase,base_quantity,cost_per_purchase_unit,total_cost,average_cost_before,average_cost_after,previous_stock,new_stock,restocked_at').eq('user_id',user.id).order('restocked_at',{ascending:false}).order('id',{ascending:false})),
@@ -1966,7 +1966,7 @@ async function cloudLoadAll() {
     image:'',offlineImage:'',imagePath:row.image_path||'',
     createdAt:row.created_at,updatedAt:row.updated_at
   }));
-  const sales=(sr.data||[]).map(row=>({id:row.id,productId:row.product_id,name:row.product_name,qty:Number(row.quantity),price:Number(row.unit_price),cost:Number(row.unit_cost),total:Number(row.total),profit:Number(row.gross_profit),note:row.note||'',date:row.sold_at,baseQty:Number(row.base_quantity||row.quantity),saleUnit:row.sale_unit||'unit',unitsPerSale:Number(row.units_per_sale||1)}));
+  const sales=(sr.data||[]).map(row=>({id:row.id,productId:row.product_id,name:row.product_name,qty:Number(row.quantity),price:Number(row.unit_price),cost:Number(row.unit_cost),total:Number(row.total),profit:Number(row.gross_profit),note:row.note||'',date:row.sold_at,baseQty:Number(row.base_quantity||row.quantity),saleUnit:row.sale_unit||'unit',unitsPerSale:Number(row.units_per_sale||1),transactionId:row.transaction_id||null}));
   const expenses=(er.data||[]).map(row=>({id:row.id,name:row.description,amount:Number(row.amount),date:row.spent_at,category:row.category||'Other',note:row.note||'',voidedAt:row.voided_at||null,voidReason:row.void_reason||''}));
   const stockAdjustments=(ar.data||[]).map(row=>({id:row.id,productId:row.product_id,productName:row.product_name,previousStock:Number(row.previous_stock),newStock:Number(row.new_stock),quantityChange:Number(row.quantity_change),reason:row.reason||'',date:row.adjusted_at}));
   const restocks=(rr.data||[]).map(row=>{
@@ -2673,7 +2673,7 @@ async function refreshStockHistoryFromCloud(){
  if(!cloudUser||!navigator.onLine||storageMode==='local'){renderAll();return;}
  const uid=cloudUser.id;
  try{
-  const [result,historyResult]=await Promise.all([
+  const [result,historyResult,activityResult]=await Promise.all([
    supabaseClient.from('stock_purchases').select('id,product_id,product_name,purchase_quantity,purchase_unit,units_per_purchase,base_quantity,cost_per_purchase_unit,total_cost,average_cost_before,average_cost_after,previous_stock,new_stock,restocked_at').eq('user_id',uid).order('restocked_at',{ascending:false}).limit(500),
    fetchAllCloudRows(()=>supabaseClient.from('product_creation_history').select('id,product_id,product_name,category,cost_price,selling_price,initial_stock,image_path,base_unit,purchase_unit,units_per_purchase,pack_unit,units_per_pack,pack_selling_price,added_at').eq('user_id',uid).order('added_at',{ascending:false}).order('id',{ascending:false})),
    fetchAllCloudRows(()=>supabaseClient.from('product_activity').select('id,product_id,product_name,activity_type,old_values,new_values,created_at').eq('user_id',uid).order('created_at',{ascending:false}))
