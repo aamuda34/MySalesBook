@@ -2683,7 +2683,7 @@ async function refreshHomeReservationCount(force=false){
  catch(_){if(current()&&!cached){el.textContent='—';setUnreadBadge('homeReservationBadge',0);}}
  finally{if(homeReservationCountRequest?.key===requestKey)homeReservationCountRequest=null;}
 }
-function paintPage(name,scroll){if(!VALID_PAGES.has(name))name='home';if(name==='business-details')updateBusinessDetailsPage();document.body.classList.toggle('notifications-page-open',name==='notifications');document.body.classList.toggle('subscribers-page-open',name==='subscribers');document.body.classList.toggle('reservations-page-open',name==='reservations');document.body.classList.toggle('settings-main-page-open',name==='settings');document.body.classList.toggle('settings-detail-page-open',['settings-business','settings-sync','settings-preferences','settings-account','settings-buybook','settings-buybook-setup'].includes(name));document.body.classList.toggle('business-profile-page-open',name==='business-details');document.body.classList.toggle('legal-page-open',name==='settings-legal');document.body.classList.toggle('about-sellbook-page-open',name==='about-sellbook');document.body.classList.toggle('reports-page-open',name==='reports');document.body.classList.toggle('stock-page-open',name==='stock');document.body.classList.toggle('stock-history-page-open',name==='stock-history');document.body.classList.toggle('stock-history-detail-page-open',name==='stock-history-detail');document.body.classList.toggle('product-page-open',name==='products');document.body.classList.toggle('low-stock-page-open',name==='low-stock');document.body.classList.toggle('product-details-page-open',name==='product-details');document.body.classList.toggle('sales-page-open',name==='sales');document.body.classList.toggle('sales-history-page-open',name==='sales-history');document.body.classList.toggle('profit-history-page-open',name==='profit-history');document.body.classList.toggle('quick-guide-page-open',name==='quick-guide');document.body.classList.toggle('sale-details-page-open',name==='sale-details');document.body.classList.toggle('expenses-page-open',name==='expenses');document.body.classList.toggle('expenses-history-page-open',name==='expenses-history');document.body.classList.toggle('expense-details-page-open',name==='expense-details');document.body.classList.toggle('record-entry-page-open',['record-sale','record-product','record-expense'].includes(name));const saleBackButton=document.querySelector('#record-sale [data-app-back]');if(saleBackButton){const destination=resolveSaleReturnPage(saleReturnPage,'home');const label=destination==='sales'?'Back to Sales':'Back to Home';saleBackButton.setAttribute('aria-label',label);saleBackButton.title=label;}document.querySelectorAll('.page').forEach(x=>x.classList.toggle('hidden',x.id!==name));document.querySelectorAll('nav button').forEach(x=>x.classList.toggle('active',x.dataset.page===name||(x.dataset.page==='messages'&&name==='support')||(x.dataset.page==='me'&&['me','more','reports','stock','low-stock','settings','business-details','settings-business','settings-sync','settings-preferences','settings-account','settings-legal','settings-buybook','settings-buybook-setup'].includes(name))));sessionStorage.setItem('my-sales-book-current-page',name);if(name==='home')renderHomePanelSummary();else render();renderDailySalesSummary();refreshHomeWeeklySales();const homeProductCount=document.getElementById('productCountHome'),homeProductSellingValue=document.getElementById('productSellingValueHome');if(homeProductCount)homeProductCount.textContent=String((db.products||[]).length);if(homeProductSellingValue){const total=(db.products||[]).reduce((sum,p)=>sum+Math.max(0,Number(p.stock)||0)*Math.max(0,Number(p.price??p.selling_price)||0),0);homeProductSellingValue.textContent=money(total);}if(name==='home'){refreshHomeReservationCount(true);if(cloudUser)void updateUnreadBadges();}const fab=document.getElementById('quickSaleFab');const fabPages={home:{label:'Record a sale',title:'Record a sale'},sales:{label:'Record a sale',title:'Record a sale'},products:{label:'Add a product',title:'Add a product'},expenses:{label:'Add an expense',title:'Add an expense'}};const fabAction=fabPages[name];if(fab){fab.style.display='none';fab.hidden=true;fab.setAttribute('aria-hidden','true');if(fabAction&&name!=='home'&&!sellbookIsAdmin){fab.hidden=false;fab.style.display='flex';fab.setAttribute('aria-hidden','false');fab.setAttribute('aria-label',fabAction.label);fab.title=fabAction.title;fab.dataset.action=name;}}if(name==='support'&&cloudUser){loadUserSupport();}if(name==='feedback'&&cloudUser){loadUserSupport();}if(name==='notifications'&&cloudUser){localStorage.setItem('sellbook-notifications-seen-'+cloudUser.id,new Date().toISOString());updateUnreadBadges();}if((name==='settings-buybook'||name==='settings-buybook-setup')&&cloudUser){loadBuybookConnection();}if(name==='reservations')loadReservationsPage();if(name==='me')updateMePanel();if(scroll)window.scrollTo({top:0,behavior:'auto'});}
+function paintPage(name,scroll){if(!VALID_PAGES.has(name))name='home';if(name==='business-details')updateBusinessDetailsPage();document.body.classList.toggle('notifications-page-open',name==='notifications');document.body.classList.toggle('subscribers-page-open',name==='subscribers');document.body.classList.toggle('reservations-page-open',name==='reservations');document.body.classList.toggle('settings-main-page-open',name==='settings');document.body.classList.toggle('settings-detail-page-open',['settings-business','settings-sync','settings-preferences','settings-account','settings-buybook','settings-buybook-setup'].includes(name));document.body.classList.toggle('business-profile-page-open',name==='business-details');document.body.classList.toggle('legal-page-open',name==='settings-legal');document.body.classList.toggle('about-sellbook-page-open',name==='about-sellbook');document.body.classList.toggle('reports-page-open',name==='reports');document.body.classList.toggle('stock-page-open',name==='stock');document.body.classList.toggle('stock-history-page-open',name==='stock-history');document.body.classList.toggle('stock-history-detail-page-open',name==='stock-history-detail');document.body.classList.toggle('product-page-open',name==='products');document.body.classList.toggle('low-stock-page-open',name==='low-stock');document.body.classList.toggle('product-details-page-open',name==='product-details');document.body.classList.toggle('sales-page-open',name==='sales');document.body.classList.toggle('sales-history-page-open',name==='sales-history');document.body.classList.toggle('profit-history-page-open',name==='profit-history');document.body.classList.toggle('quick-guide-page-open',name==='quick-guide');document.body.classList.toggle('sale-details-page-open',name==='sale-details');document.body.classList.toggle('expenses-page-open',name==='expenses');document.body.classList.toggle('expenses-history-page-open',name==='expenses-history');document.body.classList.toggle('expense-details-page-open',name==='expense-details');document.body.classList.toggle('record-entry-page-open',['record-sale','record-product','record-expense'].includes(name));const saleBackButton=document.querySelector('#record-sale [data-app-back]');if(saleBackButton){const destination=resolveSaleReturnPage(saleReturnPage,'home');const label=destination==='sales'?'Back to Sales':'Back to Home';saleBackButton.setAttribute('aria-label',label);saleBackButton.title=label;}document.querySelectorAll('.page').forEach(x=>x.classList.toggle('hidden',x.id!==name));document.querySelectorAll('nav button').forEach(x=>x.classList.toggle('active',x.dataset.page===name||(x.dataset.page==='messages'&&name==='support')||(x.dataset.page==='me'&&['me','more','reports','stock','low-stock','settings','business-details','settings-business','settings-sync','settings-preferences','settings-account','settings-legal','settings-buybook','settings-buybook-setup'].includes(name))));sessionStorage.setItem('my-sales-book-current-page',name);if(name==='home')renderHomePanelSummary();else render();renderDailySalesSummary();refreshHomeWeeklySales();const homeProductCount=document.getElementById('productCountHome'),homeProductSellingValue=document.getElementById('productSellingValueHome');if(homeProductCount)homeProductCount.textContent=String((db.products||[]).length);if(homeProductSellingValue){const total=(db.products||[]).reduce((sum,p)=>sum+Math.max(0,Number(p.stock)||0)*Math.max(0,Number(p.price??p.selling_price)||0),0);homeProductSellingValue.textContent=money(total);}if(name==='home'){refreshHomeReservationCount(true);if(cloudUser)void updateUnreadBadges();}const fab=document.getElementById('quickSaleFab');const fabPages={home:{label:'Record a sale',title:'Record a sale'},sales:{label:'Record a sale',title:'Record a sale'},products:{label:'Add a product',title:'Add a product'},expenses:{label:'Add an expense',title:'Add an expense'}};const fabAction=fabPages[name];if(fab){fab.style.display='none';fab.hidden=true;fab.setAttribute('aria-hidden','true');if(fabAction&&name!=='home'&&!sellbookIsAdmin){fab.hidden=false;fab.style.display='flex';fab.setAttribute('aria-hidden','false');fab.setAttribute('aria-label',fabAction.label);fab.title=fabAction.title;fab.dataset.action=name;}}if(name==='support'&&cloudUser){loadUserSupport();}if(name==='feedback'&&cloudUser){loadUserSupport();}if(name==='notifications'&&cloudUser){void updateUnreadBadges();}if((name==='settings-buybook'||name==='settings-buybook-setup')&&cloudUser){loadBuybookConnection();}if(name==='reservations')loadReservationsPage();if(name==='me')updateMePanel();if(scroll)window.scrollTo({top:0,behavior:'auto'});}
 // Keep all page back arrows consistent. Use the actual previous app page when it
 // matches the intended parent; otherwise replace the current history entry with
 // the safe parent so Back cannot reopen the page the user just left.
@@ -2902,10 +2902,10 @@ function restorePageFromLocation(){const hash=location.hash.slice(1),saved=sessi
 })();
 document.querySelectorAll('nav button').forEach(b=>b.addEventListener('click',()=>{showPage(b.dataset.page);if(b.dataset.page==='messenger')loadMessengerConversations();}));
 document.getElementById('messengerPageBack')?.addEventListener('click',()=>{const target=VALID_PAGES.has(messengerReturnPage)&&messengerReturnPage!=='messenger'?messengerReturnPage:'home';if(location.hash==='#messenger'&&history.state?.mySalesBookPage==='messenger'){history.back();setTimeout(()=>{if(currentPage()==='messenger')showPage(target,{replaceHistory:true});},180);}else showPage(target);});
-document.querySelectorAll('[data-open-page]').forEach(b=>b.addEventListener('click',()=>{if(b.dataset.openPage==='admin'&&!sellbookIsAdmin)return cloudMessage('Administrator access is required.');showPage(b.dataset.openPage);if(b.dataset.openPage==='admin')loadAdminDashboard();if(b.dataset.openPage==='support'){messageListOpen=true;document.getElementById('conversationListView')?.classList.remove('hidden');document.getElementById('supportConversationView')?.classList.add('hidden');loadConversationList();}if(b.dataset.openPage==='notifications')loadUserNotifications();if(b.dataset.openPage==='subscribers')loadSubscribersPage();}));
+document.querySelectorAll('[data-open-page]').forEach(b=>b.addEventListener('click',()=>{if(b.dataset.openPage==='admin'&&!sellbookIsAdmin)return cloudMessage('Administrator access is required.');showPage(b.dataset.openPage);if(b.dataset.openPage==='admin')loadAdminDashboard();if(b.dataset.openPage==='support'&&!sellbookIsAdmin)loadUserSupport();if(b.dataset.openPage==='notifications')loadUserNotifications();if(b.dataset.openPage==='subscribers')loadSubscribersPage();}));
 document.querySelectorAll('[data-open-sales-period]').forEach(button=>button.addEventListener('click',()=>openSalesHistoryPeriod(button.dataset.openSalesPeriod||'today')));
 document.querySelectorAll('[data-notification-category]').forEach(b=>b.addEventListener('click',()=>{userNotificationCategory=b.dataset.notificationCategory||'all';document.querySelectorAll('[data-notification-category]').forEach(x=>{const active=x===b;x.classList.toggle('active',active);x.setAttribute('aria-pressed',active?'true':'false');});renderUserNotifications();}));
-document.querySelectorAll('[data-open-support-direct]').forEach(b=>b.addEventListener('click',async()=>{showPage('support');messageListOpen=false;document.getElementById('conversationListView')?.classList.add('hidden');document.getElementById('supportConversationView')?.classList.remove('hidden');const selector=document.getElementById('messageConversationSelect');if(selector)selector.value='support';await loadUserSupport();}));
+document.querySelectorAll('[data-open-support-direct]').forEach(b=>b.addEventListener('click',async()=>{showPage('support');await loadUserSupport();}));
 function openEntryForm(type){
  const routes={sale:{page:'record-sale',field:'saleProduct'},product:{page:'record-product',field:'pname'},expense:{page:'record-expense',field:'ename'}};
  const route=routes[type];if(!route||!document.getElementById(route.page))return;
@@ -5190,7 +5190,7 @@ async function loadAdminNotifications(){
  const {data,error}=await supabaseClient.from('app_notifications').select('id,title,body,kind,recipient_id,created_at').order('created_at',{ascending:false}).limit(20);
  if(!adminRequestIsCurrent(requestedUserId,requestEpoch))return;
  if(error){showToast('Could not load notifications: '+error.message,'error');target.textContent='Notifications are temporarily unavailable.';return;}
- localStorage.setItem('sellbook-notifications-seen-'+requestedUserId,new Date().toISOString());
+ 
  target.innerHTML=(data||[]).length?data.map(n=>'<div class="item"><strong>'+escAdmin(n.title)+'</strong><div class="muted">'+escAdmin(n.kind)+' · '+(n.recipient_id?'Specific user':'All users')+' · '+escAdmin(new Date(n.created_at).toLocaleString())+'</div><p>'+escAdmin(n.body)+'</p></div>').join(''):'<div class="empty">No notifications published yet.</div>';
 }
 function updateBusinessDetailsPage(){
@@ -5228,45 +5228,140 @@ function updateBusinessDetailsPage(){
  const status=document.getElementById('businessDetailsStatus');
  if(status)status.textContent=cloudUser?'Registered account':'Device profile';
 }
-function updateMePanel(){const profile=getProfile();const name=String(profile.businessName||'').trim()||'Sellbook';const b=document.getElementById('meBusinessName');if(b)b.textContent=name;}
+function updateMePanel(){const profile=getProfile();const name=String(profile.businessName||'').trim()||'Sellbook';const b=document.getElementById('meBusinessName');if(b)b.textContent=name;const status=document.getElementById('meBuybookStatus');if(status&&buybookConnectionState!==null)status.textContent=buybookConnectionState?'Connected to Buybook':'Not connected to Buybook';}
 function setUnreadBadge(id,count){const el=document.getElementById(id);if(!el)return;const n=Math.max(0,Number(count)||0);el.textContent=n>99?'99+':String(n);el.classList.toggle('hidden',n===0);}
 async function updateUnreadBadges(){
- if(!cloudUser||!supabaseClient){setUnreadBadge('notificationBadge',0);setUnreadBadge('messageBadge',0);return;}
+ if(!cloudUser||!supabaseClient){
+  setUnreadBadge('notificationBadge',0);setUnreadBadge('messageBadge',0);
+  setUnreadBadge('supportBadge',0);setUnreadBadge('meSupportBadge',0);return;
+ }
  const requestedUserId=cloudUser.id,requestEpoch=accountSessionEpoch;
  try{
-  const ns=localStorage.getItem('sellbook-notifications-seen-'+requestedUserId)||'1970-01-01T00:00:00.000Z';
-  const notificationQuery=supabaseClient.from('app_notifications').select('id',{count:'exact',head:true}).or('recipient_id.is.null,recipient_id.eq.'+requestedUserId).gt('created_at',ns);
   const supportMessageQuery=sellbookIsAdmin
    ?supabaseClient.from('support_messages').select('id',{count:'exact',head:true}).neq('sender_id',requestedUserId).or('recipient_id.is.null,recipient_id.eq.'+requestedUserId).is('read_at',null)
    :supabaseClient.from('support_messages').select('id',{count:'exact',head:true}).eq('recipient_id',requestedUserId).is('read_at',null);
   const marketplaceMessageQuery=supabaseClient.from('marketplace_messages').select('id',{count:'exact',head:true}).eq('owner_id',requestedUserId).neq('sender_id',requestedUserId).is('read_at',null);
-  const [nr,supportUnread,marketUnread]=await Promise.all([notificationQuery,supportMessageQuery,marketplaceMessageQuery]);
+  const [notificationUnread,supportUnread,marketUnread]=await Promise.all([
+   supabaseClient.rpc('get_my_unread_notification_count'),supportMessageQuery,marketplaceMessageQuery
+  ]);
   if(!accountRequestIsCurrent(requestedUserId,requestEpoch))return;
   const supportCount=supportUnread.error?0:Number(supportUnread.count)||0;
   const marketplaceCount=marketUnread.error?0:Number(marketUnread.count)||0;
-  setUnreadBadge('notificationBadge',nr.error?0:Number(nr.count)||0);
-  setUnreadBadge('messageBadge',supportCount+marketplaceCount);
+  setUnreadBadge('notificationBadge',notificationUnread.error?0:Number(notificationUnread.data)||0);
+  setUnreadBadge('supportBadge',supportCount);
+  setUnreadBadge('meSupportBadge',supportCount);
+  setUnreadBadge('messageBadge',marketplaceCount);
  }catch(_){/* Keep the interface quiet if the device is offline. */}
 }
-let userNotificationsCache=[];let userNotificationCategory='all';
-function renderUserNotifications(){const target=document.getElementById('userNotificationsList');if(!target)return;const rows=userNotificationCategory==='all'?userNotificationsCache:userNotificationsCache.filter(n=>String(n.kind||'').toLowerCase()===userNotificationCategory);target.innerHTML=rows.length?rows.map(n=>'<div class="item"><strong>'+escAdmin(n.title)+'</strong><div class="muted">'+escAdmin(({reservation:'Reservation',update:'Update',announcement:'Announcement',support:'Support',maintenance:'Maintenance'})[String(n.kind||'').toLowerCase()]||n.kind||'Notification')+' · '+escAdmin(new Date(n.created_at).toLocaleString())+'</div><p>'+escAdmin(n.body)+'</p></div>').join(''):'<div class="empty">'+(userNotificationCategory==='all'?'No notifications yet.':'No '+escAdmin(userNotificationCategory==='reservation'?'reservation':userNotificationCategory)+' notifications yet.')+'</div>';}
+let userNotificationsCache=[];
+let userNotificationCategory='all';
+let userNotificationsOffset=0;
+let userNotificationsHasMore=false;
+let userNotificationsLoading=false;
+const USER_NOTIFICATIONS_PAGE_SIZE=50;
+
+function notificationGroupLabel(value){
+ const date=new Date(value);
+ if(Number.isNaN(date.getTime()))return 'Earlier';
+ const today=new Date(),yesterday=new Date();yesterday.setDate(today.getDate()-1);
+ if(date.toDateString()===today.toDateString())return 'Today';
+ if(date.toDateString()===yesterday.toDateString())return 'Yesterday';
+ return date.toLocaleDateString([], {day:'numeric',month:'long',year:'numeric'});
+}
+
+function renderUserNotifications(){
+ const target=document.getElementById('userNotificationsList');if(!target)return;
+ const rows=userNotificationCategory==='all'?userNotificationsCache:userNotificationsCache.filter(n=>String(n.kind||'').toLowerCase()===userNotificationCategory);
+ const groups=new Map();
+ rows.forEach(n=>{const label=notificationGroupLabel(n.created_at);if(!groups.has(label))groups.set(label,[]);groups.get(label).push(n);});
+ const groupHtml=[...groups.entries()].map(([label,items])=>'<section class="notification-date-group"><h3>'+escAdmin(label)+'</h3>'+items.map(n=>{
+  const kind=String(n.kind||'').toLowerCase();
+  const kindLabel=({reservation:'Reservation',update:'Update',announcement:'Announcement',support:'Support',maintenance:'Maintenance'})[kind]||n.kind||'Notification';
+  return '<button type="button" class="user-notification-row'+(n.isRead?' is-read':' is-unread')+'" data-notification-id="'+escAdmin(n.id)+'" aria-label="'+escAdmin(n.title)+(n.reservation_id?'. Open reservation':'')+'"><span class="notification-read-indicator" aria-hidden="true"></span><span class="user-notification-copy"><span class="user-notification-heading"><strong>'+escAdmin(n.title)+'</strong><small>'+escAdmin(kindLabel)+'</small></span><span class="user-notification-body">'+escAdmin(n.body)+'</span><time>'+escAdmin(new Date(n.created_at).toLocaleString([], {dateStyle:'medium',timeStyle:'short'}))+'</time></span>'+(n.reservation_id?'<span class="notification-action" aria-hidden="true">›</span>':'')+'</button>';
+ }).join('')+'</section>').join('');
+ const empty='<div class="empty">'+(userNotificationCategory==='all'?'No notifications yet.':'No '+escAdmin(userNotificationCategory==='reservation'?'reservation':userNotificationCategory)+' notifications yet.')+'</div>';
+ target.innerHTML=(groupHtml||empty)+(userNotificationsHasMore?'<button type="button" id="loadMoreUserNotifications" class="secondary notification-load-more">Load older notifications</button>':'');
+ document.getElementById('loadMoreUserNotifications')?.addEventListener('click',()=>loadUserNotifications({append:true}));
+}
+
+async function markUserNotificationRead(notificationId){
+ if(!cloudUser||!supabaseClient||!notificationId)return false;
+ const uid=cloudUser.id,epoch=accountSessionEpoch,current=()=>accountRequestIsCurrent(uid,epoch);
+ const notification=userNotificationsCache.find(n=>String(n.id)===String(notificationId));
+ if(notification?.isRead)return true;
+ const {error}=await supabaseClient.from('notification_reads').insert({notification_id:notificationId,user_id:uid});
+ if(!current())return false;
+ if(error&&error.code!=='23505')throw error;
+ if(notification)notification.isRead=true;
+ renderUserNotifications();
+ await updateUnreadBadges();
+ return true;
+}
+
+async function markAllUserNotificationsRead(){
+ if(!cloudUser||!supabaseClient)return;
+ const button=document.getElementById('markAllNotificationsRead');
+ const uid=cloudUser.id,epoch=accountSessionEpoch,current=()=>accountRequestIsCurrent(uid,epoch);
+ if(button)button.disabled=true;
+ try{
+  const {data,error}=await supabaseClient.rpc('mark_my_notifications_read');
+  if(!current())return;
+  if(error)throw error;
+  userNotificationsCache.forEach(n=>{n.isRead=true;});
+  renderUserNotifications();
+  await updateUnreadBadges();
+  if(current())showToast(Number(data)>0?'Notifications marked as read.':'All notifications are already read.','success');
+ }catch(error){
+  if(current())showToast('Could not mark notifications as read: '+(error.message||'Please try again.'),'error');
+ }finally{
+  if(current()&&button)button.disabled=false;
+ }
+}
+
 async function loadUserNotifications(options={}){
  const target=document.getElementById('userNotificationsList');if(!target)return false;
- if(!cloudUser||!supabaseClient){userNotificationsCache=[];target.textContent='Sign in to view app announcements.';return false;}
+ if(!cloudUser||!supabaseClient){userNotificationsCache=[];userNotificationsOffset=0;userNotificationsHasMore=false;target.textContent='Sign in to view notifications.';return false;}
+ if(userNotificationsLoading)return false;
  const requestedUserId=cloudUser.id,requestEpoch=accountSessionEpoch;
- target.textContent='Loading notifications…';
+ const current=()=>accountRequestIsCurrent(requestedUserId,requestEpoch);
+ const append=!!options.append;
+ if(append&&!userNotificationsHasMore)return false;
+ if(!append){userNotificationsOffset=0;userNotificationsHasMore=false;userNotificationsCache=[];target.innerHTML='<div class="empty">Loading notifications…</div>';}
+ userNotificationsLoading=true;
  try{
-  const {data,error}=await supabaseClient.from('app_notifications').select('id,title,body,kind,created_at').or('recipient_id.is.null,recipient_id.eq.'+requestedUserId).order('created_at',{ascending:false}).limit(100);
-  if(!accountRequestIsCurrent(requestedUserId,requestEpoch))return false;
+  const start=userNotificationsOffset;
+  const {data,error}=await supabaseClient.from('app_notifications')
+   .select('id,title,body,kind,created_at,expires_at,reservation_id')
+   .or('recipient_id.is.null,recipient_id.eq.'+requestedUserId)
+   .or('expires_at.is.null,expires_at.gt.'+new Date().toISOString())
+   .order('created_at',{ascending:false}).order('id',{ascending:false})
+   .range(start,start+USER_NOTIFICATIONS_PAGE_SIZE-1);
+  if(!current())return false;
   if(error)throw error;
-  userNotificationsCache=data||[];
+  const page=data||[];
+  const ids=page.map(n=>n.id);
+  let readIds=new Set();
+  if(ids.length){
+   const receiptResult=await supabaseClient.from('notification_reads').select('notification_id,read_at').eq('user_id',requestedUserId).in('notification_id',ids);
+   if(!current())return false;
+   if(receiptResult.error){
+    if(!options.quiet)showToast('Notifications loaded, but read status could not be refreshed.','error');
+   }else readIds=new Set((receiptResult.data||[]).map(r=>String(r.notification_id)));
+  }
+  const prepared=page.map(n=>({...n,isRead:readIds.has(String(n.id))}));
+  userNotificationsCache=append?userNotificationsCache.concat(prepared):prepared;
+  userNotificationsOffset=start+page.length;
+  userNotificationsHasMore=page.length===USER_NOTIFICATIONS_PAGE_SIZE;
   renderUserNotifications();
+  await updateUnreadBadges();
   return true;
  }catch(error){
-  if(!accountRequestIsCurrent(requestedUserId,requestEpoch))return false;
+  if(!current())return false;
   if(!options.quiet)showToast('Could not load notifications: '+(error.message||'Please try again.'),'error');
-  target.textContent='Notifications are temporarily unavailable.';
+  if(!append)target.textContent='Notifications are temporarily unavailable.';
   return false;
+ }finally{
+  if(current())userNotificationsLoading=false;
  }
 }
 
@@ -5504,9 +5599,7 @@ document.getElementById('messengerComposer')?.addEventListener('submit',async e=
  const input=document.getElementById('messengerBody'),status=document.getElementById('messengerStatus'),button=e.currentTarget.querySelector('button[type="submit"]'),body=input.value.trim();if(!body)return;
  button.disabled=true;notifyStatus(status,'Sending…','info');
  try{
-  let result;
-  if(conversationId==='support')result=await supabaseClient.from('support_messages').insert({sender_id:requestedUserId,recipient_id:null,body});
-  else result=await supabaseClient.from('marketplace_messages').insert({owner_id:requestedUserId,buyer_id:conversationId,sender_id:requestedUserId,body});
+  const result=await supabaseClient.from('marketplace_messages').insert({owner_id:requestedUserId,buyer_id:conversationId,sender_id:requestedUserId,body});
   if(!current())return;
   if(result.error)throw result.error;
   input.value='';input.style.height='auto';notifyStatus(status,'Message sent.','success');
@@ -5520,7 +5613,6 @@ if(messengerRefreshTimer)clearInterval(messengerRefreshTimer);
 messengerRefreshTimer=setInterval(()=>{if(document.visibilityState==='visible'&&currentPage()==='messenger'&&cloudUser)loadMessengerConversations({quiet:true,refreshSelected:true});},12000);
 
 
-document.getElementById('messageConversationSelect')?.addEventListener('change',()=>{marketplaceSelectedBuyerId=document.getElementById('messageConversationSelect').value==='support'?null:document.getElementById('messageConversationSelect').value;loadUserSupport();});
 document.getElementById('openFeedbackPage').addEventListener('click',()=>showPage('feedback'));
 document.querySelectorAll('[data-open-page="support"]').forEach(b=>b.addEventListener('click',async()=>{if(sellbookIsAdmin){showPage('admin');showAdminPanel('support');await loadAdminUsers();}else{showPage('support');loadUserSupport();}}));
 const chatInput=document.getElementById('supportMessageBody');chatInput.addEventListener('input',()=>{chatInput.style.height='auto';chatInput.style.height=Math.min(chatInput.scrollHeight,140)+'px';});
@@ -5656,8 +5748,7 @@ function bindPageRefresh(id,action,options={}){
 }
 bindPageRefresh('refreshUserNotifications',()=>loadUserNotifications());
 bindPageRefresh('refreshMessenger',()=>loadMessengerConversations({refreshSelected:true}));
-bindPageRefresh('refreshSupportChat',()=>messageListOpen?loadConversationList():loadUserSupport());
-bindPageRefresh('refreshConversationList',()=>loadConversationList());
+bindPageRefresh('refreshSupportChat',()=>loadUserSupport());
 bindPageRefresh('refreshFeedback',()=>loadUserSupport());
 bindPageRefresh('refreshAdminOverview',()=>loadAdminDashboard(),{admin:true});
 bindPageRefresh('refreshAdminTraffic',()=>loadAdminTraffic(),{admin:true});
