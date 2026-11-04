@@ -409,7 +409,25 @@ function restoreCloudCache(userId) {
   return false;
 }
 let lastSyncAlertKey='';
+function updateHomeSyncNotice(){
+ const notice=document.getElementById('homeSyncNotice');if(!notice)return;
+ const text=document.getElementById('homeSyncNoticeText'),action=document.getElementById('homeSyncNoticeAction');
+ const waiting=(pendingSync||[]).filter(item=>item.status!=='synced').length;
+ const conflicts=(pendingSync||[]).filter(item=>item.status==='conflict').length;
+ const recoveryRequired=!!cloudUser&&queueReadErrors.has(cloudUser.id);
+ let state='',message='',showAction=false;
+ if(!cloudUser){notice.hidden=true;return;}
+ if(recoveryRequired){state='attention';message='Sync needs attention to protect your saved changes.';showAction=true;}
+ else if(conflicts>0){state='attention';message=conflicts+' change'+(conflicts===1?'':'s')+' need'+(conflicts===1?'s':'')+' your attention.';showAction=true;}
+ else if(!navigator.onLine){state='offline';message=waiting?waiting+' change'+(waiting===1?'':'s')+' saved on this phone · waiting for internet.':'Offline · showing saved records.';showAction=waiting>0;}
+ else if(syncingQueue&&waiting>0){state='syncing';message='Syncing your changes…';}
+ else if(waiting>0){state='pending';message=waiting+' change'+(waiting===1?'':'s')+' waiting to sync.';showAction=true;}
+ else{notice.hidden=true;return;}
+ notice.hidden=false;notice.dataset.state=state;if(text)text.textContent=message;
+ if(action){action.hidden=!showAction;action.textContent=recoveryRequired||conflicts?'Review':'View sync';}
+}
 function updateSyncStatus() {
+  updateHomeSyncNotice();
   const el = document.getElementById('syncStatus');
   const button = document.getElementById('syncNowBtn');
   if (!el || !button) return;
@@ -2523,16 +2541,32 @@ function showSubscriberDetails(id,options={}){
 }
 document.getElementById('subscriberDetailsBack')?.addEventListener('click',()=>{if(history.state?.mySalesBookPage==='subscribers'&&history.state?.mySalesBookSubview==='subscriber-details'){history.back();return;}document.getElementById('subscriberDetailsView')?.classList.add('hidden');document.getElementById('subscribersListView')?.classList.remove('hidden');});
 document.getElementById('subscriberMessageButton')?.addEventListener('click',async()=>{const id=marketplaceSelectedBuyerId;if(!id)return;showPage('messenger');await loadMessengerConversations();await openMessengerConversation(id);});
+const HOME_SUBSCRIBER_COUNT_TTL_MS=60*1000;
+let homeSubscriberCountCache=null,homeSubscriberCountRequest=null;
 async function refreshHomeSubscriberCount(){
  const el=document.getElementById('subscriberCountHome');if(!el)return;
  if(!cloudUser||!supabaseClient){el.textContent='—';return;}
- const requestedUserId=cloudUser.id,requestEpoch=accountSessionEpoch;
- try{
-  const {data,error}=await supabaseClient.rpc('get_my_marketplace_subscribers');
-  if(!accountRequestIsCurrent(requestedUserId,requestEpoch))return;
-  if(error)throw error;
-  el.textContent=String((data||[]).length);
- }catch(_){if(accountRequestIsCurrent(requestedUserId,requestEpoch))el.textContent='—';}
+ const requestedUserId=cloudUser.id,requestEpoch=accountSessionEpoch,current=()=>accountRequestIsCurrent(requestedUserId,requestEpoch);
+ const cached=homeSubscriberCountCache?.userId===requestedUserId?homeSubscriberCountCache:null;
+ if(cached)el.textContent=String(cached.count);
+ if(cached&&Date.now()-cached.fetchedAt<HOME_SUBSCRIBER_COUNT_TTL_MS)return;
+ if(!navigator.onLine){if(!cached)el.textContent='—';return;}
+ const requestKey=requestedUserId+':'+requestEpoch;
+ let request=homeSubscriberCountRequest?.key===requestKey?homeSubscriberCountRequest.promise:null;
+ if(!request){
+  request=(async()=>{
+   const {data,error}=await supabaseClient.rpc('get_my_marketplace_subscribers');
+   if(error)throw error;
+   if(!current())throw new Error('The signed-in account changed while subscriber information was loading.');
+   const count=Array.isArray(data)?data.length:0;
+   homeSubscriberCountCache={userId:requestedUserId,count,fetchedAt:Date.now()};
+   return count;
+  })();
+  homeSubscriberCountRequest={key:requestKey,promise:request};
+ }
+ try{const count=await request;if(current())el.textContent=String(count);}
+ catch(_){if(current()&&!cached)el.textContent='—';}
+ finally{if(homeSubscriberCountRequest?.key===requestKey)homeSubscriberCountRequest=null;}
 }
 function paintPage(name,scroll){if(!VALID_PAGES.has(name))name='home';if(name==='business-details')updateBusinessDetailsPage();document.body.classList.toggle('notifications-page-open',name==='notifications');document.body.classList.toggle('subscribers-page-open',name==='subscribers');document.body.classList.toggle('reservations-page-open',name==='reservations');document.body.classList.toggle('settings-main-page-open',name==='settings');document.body.classList.toggle('settings-detail-page-open',['settings-business','settings-sync','settings-preferences','settings-account','settings-buybook','settings-buybook-setup'].includes(name));document.body.classList.toggle('business-profile-page-open',name==='business-details');document.body.classList.toggle('legal-page-open',name==='settings-legal');document.body.classList.toggle('about-sellbook-page-open',name==='about-sellbook');document.body.classList.toggle('reports-page-open',name==='reports');document.body.classList.toggle('stock-page-open',name==='stock');document.body.classList.toggle('stock-history-page-open',name==='stock-history');document.body.classList.toggle('stock-history-detail-page-open',name==='stock-history-detail');document.body.classList.toggle('product-page-open',name==='products');document.body.classList.toggle('low-stock-page-open',name==='low-stock');document.body.classList.toggle('product-details-page-open',name==='product-details');document.body.classList.toggle('sales-page-open',name==='sales');document.body.classList.toggle('sales-history-page-open',name==='sales-history');document.body.classList.toggle('sale-details-page-open',name==='sale-details');document.body.classList.toggle('expenses-page-open',name==='expenses');document.body.classList.toggle('record-entry-page-open',['record-sale','record-product','record-expense'].includes(name));document.querySelectorAll('.page').forEach(x=>x.classList.toggle('hidden',x.id!==name));document.querySelectorAll('nav button').forEach(x=>x.classList.toggle('active',x.dataset.page===name||(x.dataset.page==='messages'&&name==='support')||(x.dataset.page==='me'&&['me','more','reports','stock','low-stock','settings','business-details','settings-business','settings-sync','settings-preferences','settings-account','settings-legal','settings-buybook','settings-buybook-setup'].includes(name))));sessionStorage.setItem('my-sales-book-current-page',name);render();renderDailySalesSummary();refreshHomeWeeklySales();const homeProductCount=document.getElementById('productCountHome'),homeProductSellingValue=document.getElementById('productSellingValueHome');if(homeProductCount)homeProductCount.textContent=String((db.products||[]).length);if(homeProductSellingValue){const total=(db.products||[]).reduce((sum,p)=>sum+Math.max(0,Number(p.stock)||0)*Math.max(0,Number(p.price??p.selling_price)||0),0);homeProductSellingValue.textContent=money(total);}if(name==='home')refreshHomeSubscriberCount();const fab=document.getElementById('quickSaleFab');const fabPages={home:{label:'Record a sale',title:'Record a sale'},sales:{label:'Record a sale',title:'Record a sale'},products:{label:'Add a product',title:'Add a product'},expenses:{label:'Add an expense',title:'Add an expense'}};const fabAction=fabPages[name];if(fab){fab.style.display='none';fab.hidden=true;fab.setAttribute('aria-hidden','true');if(fabAction&&name!=='home'&&!sellbookIsAdmin){fab.hidden=false;fab.style.display='flex';fab.setAttribute('aria-hidden','false');fab.setAttribute('aria-label',fabAction.label);fab.title=fabAction.title;fab.dataset.action=name;}}if(name==='support'&&cloudUser){loadUserSupport();}if(name==='feedback'&&cloudUser){loadUserSupport();}if(name==='notifications'&&cloudUser){localStorage.setItem('sellbook-notifications-seen-'+cloudUser.id,new Date().toISOString());updateUnreadBadges();}if((name==='settings-buybook'||name==='settings-buybook-setup')&&cloudUser){loadBuybookConnection();}if(name==='reservations')loadReservationsPage();if(name==='me')updateMePanel();if(scroll)window.scrollTo({top:0,behavior:'auto'});}
 // Keep all page back arrows consistent. Use the actual previous app page when it
@@ -2720,21 +2754,16 @@ function gettingStartedDismissKey(){return 'sellbook-getting-started-dismissed-v
 function renderGettingStarted(){
  const card=document.getElementById('gettingStartedCard');if(!card)return;
  let dismissed=false;try{dismissed=localStorage.getItem(gettingStartedDismissKey())==='1';}catch(error){}
- card.classList.toggle('hidden',dismissed);
- if(dismissed)return;
- const steps=[
-  {key:'products',done:(db.products||[]).length>0},
-  {key:'sales',done:(db.sales||[]).length>0},
-  {key:'expenses',done:(db.expenses||[]).length>0},
-  {key:'buybook',done:buybookConnectionState===true}
- ];
+ const steps=[{key:'products',done:(db.products||[]).length>0},{key:'sales',done:(db.sales||[]).length>0}];
+ const essentialsComplete=steps.every(step=>step.done),visible=!dismissed&&!essentialsComplete;
+ card.classList.toggle('hidden',!visible);card.setAttribute('aria-hidden',String(!visible));
+ if(!visible)return;
  for(const step of steps){
-  const button=card.querySelector('[data-open-page="'+step.key+'"]')||card.querySelector('[data-open-page="settings-buybook"]');
-  const marker=card.querySelector('[data-step-status="'+step.key+'"]');
+  const button=card.querySelector('[data-open-page="'+step.key+'"]'),marker=card.querySelector('[data-step-status="'+step.key+'"]');
   const state=document.getElementById('gettingStarted'+step.key.charAt(0).toUpperCase()+step.key.slice(1)+'State');
-  if(button)button.classList.toggle('is-complete',step.done);
+  if(button)button.hidden=step.done;
   if(marker)marker.textContent=step.done?'✓':String(steps.findIndex(x=>x.key===step.key)+1);
-  if(state)state.textContent=step.done?'Completed ✓':(step.key==='buybook'?'Connect ›':'Start ›');
+  if(state)state.textContent=step.done?'Completed ✓':'Start ›';
  }
 }
 document.getElementById('dismissGettingStarted')?.addEventListener('click',()=>{
@@ -2753,18 +2782,22 @@ function render(){
   const allSales=db.sales.reduce((s,x)=>s+x.total,0);
   const allGross=db.sales.reduce((s,x)=>s+x.profit,0);
   const allExpenses=db.expenses.reduce((s,x)=>s+x.amount,0);
-  const salesAmount=document.getElementById('todaySales');salesAmount.dataset.actualAmount=money(salesToday);document.querySelectorAll('#todayNet').forEach(amount=>{amount.dataset.actualAmount=money(grossToday-expensesToday);});setSalesAmountVisibility();
+  const salesAmount=document.getElementById('todaySales');if(salesAmount)salesAmount.dataset.actualAmount=money(salesToday);document.querySelectorAll('#todayNet').forEach(amount=>{amount.dataset.actualAmount=money(grossToday-expensesToday);});
+  const homeProductCount=document.getElementById('homeProductCount');if(homeProductCount)homeProductCount.textContent=String(db.products.length);
+  setSalesAmountVisibility();
   updateExpensePeriodTotal();
   updateSalesPeriodSummary();
   const totalNet=money(allGross-allExpenses),totalProducts=db.products.length,totalStock=db.products.reduce((s,p)=>s+p.stock,0);
   const meNet=document.getElementById('meAllNet'),meProducts=document.getElementById('meProductCount'),meStock=document.getElementById('meStockCount');
   if(meNet)meNet.textContent=totalNet;if(meProducts)meProducts.textContent=String(totalProducts);if(meStock)meStock.textContent=String(totalStock);
-  document.getElementById('dashboardGreeting').textContent='';const sellerGreeting=document.getElementById('businessTitle');const meta=cloudUser?.user_metadata||{};const displayName=String(meta.first_name||meta.given_name||meta.full_name||meta.name||cloudUser?.email?.split('@')[0]||'there').trim();const firstName=displayName.split(/\s+/)[0];const hour=new Date().getHours();const greeting=hour<12?'Good morning':hour<17?'Good afternoon':'Good evening';if(sellerGreeting)sellerGreeting.textContent=greeting+' '+firstName.toUpperCase();const meFirstName=document.getElementById('meUserFirstName');if(meFirstName)meFirstName.textContent=firstName.toUpperCase();
+  const dashboardGreeting=document.getElementById('dashboardGreeting');if(dashboardGreeting)dashboardGreeting.textContent='';const sellerGreeting=document.getElementById('businessTitle');const meta=cloudUser?.user_metadata||{};const displayName=String(meta.first_name||meta.given_name||meta.full_name||meta.name||cloudUser?.email?.split('@')[0]||'there').trim();const firstName=displayName.split(/\s+/)[0];const hour=new Date().getHours();const greeting=hour<12?'Good morning':hour<17?'Good afternoon':'Good evening';if(sellerGreeting)sellerGreeting.textContent=greeting+' '+firstName.toUpperCase();const meFirstName=document.getElementById('meUserFirstName');if(meFirstName)meFirstName.textContent=firstName.toUpperCase();
   const low=db.products.filter(p=>Number(p.stock)<=lowStockThreshold).sort((a,b)=>a.stock-b.stock);
   document.getElementById('lowStockPreview').innerHTML=low.length?low.slice(0,5).map(p=>'<div class="item"><div class="row"><strong>'+esc(p.name)+'</strong><span class="low-stock-badge">'+p.stock+' left</span></div></div>').join(''):'<div class="empty">No products at or below '+lowStockThreshold+' units.</div>';
+  const homeLowStockAlert=document.getElementById('homeLowStockAlert');
+  if(homeLowStockAlert){homeLowStockAlert.hidden=low.length===0;const title=document.getElementById('homeLowStockTitle'),description=document.getElementById('homeLowStockDescription');if(title)title.textContent=low.length+' product'+(low.length===1?' needs':'s need')+' restocking';if(description)description.textContent='Stock is at or below your '+lowStockThreshold+'-unit alert level.';}
   document.getElementById('lowStockList').innerHTML=low.length?low.map(p=>'<div class="item"><div class="row"><div><strong>'+esc(p.name)+'</strong><div class="muted">Current stock: '+p.stock+'</div></div><button type="button" data-adjust-from-list="'+p.id+'">Adjust</button></div></div>').join(''):'<div class="empty">No low-stock products.</div>';
   const adj=document.getElementById('adjustProduct'),prevAdj=adj.value;adj.innerHTML='<option value="">Choose a product</option>'+db.products.map(p=>'<option value="'+p.id+'">'+esc(p.name)+' ('+p.stock+' in stock)</option>').join('');if(db.products.some(p=>p.id===prevAdj))adj.value=prevAdj;
-  updateAdjustmentPreview();renderStockAdjustments();renderReports();document.getElementById('homeSyncPill').textContent=pendingSync.length?pendingSync.length+' pending sync':'● Up to date';
+  updateAdjustmentPreview();renderStockAdjustments();renderReports();const homeSyncPill=document.getElementById('homeSyncPill');if(homeSyncPill)homeSyncPill.textContent=pendingSync.length?pendingSync.length+' pending sync':'● Up to date';updateHomeSyncNotice();
   db.products.forEach(p=>{p.category=normalizeCategory(p.category);});
   const searchTerm=(document.getElementById('productSearch').value||'').trim().toLocaleLowerCase();
   const categoryFilter=document.getElementById('categoryFilter');
@@ -2801,7 +2834,17 @@ function render(){
   const filtered=[...db.sales].filter(x=>(!query||(String(x.name||'')+' '+String(x.note||'')).toLocaleLowerCase().includes(query))&&(!from||dateKey(x.date)>=from)&&(!to||dateKey(x.date)<=to)).sort((a,b)=>safeDate(b.date)-safeDate(a.date));
   document.getElementById('salesResultCount').textContent=filtered.length+' shown';
   document.getElementById('salesList').innerHTML=filtered.length?filtered.map(saleHTML).join(''):db.sales.length?'<div class="empty">No sales match these filters.</div>':'<div class="empty">No sales recorded yet.</div>';
-  const recentSalesPreview=document.getElementById('recentSalesPreviewText');if(recentSalesPreview){const latest=[...db.sales].sort((a,b)=>safeDate(b.date)-safeDate(a.date))[0];recentSalesPreview.textContent=latest?`${latest.name} × ${latest.qty} · ${money(latest.total)}`:'No sales recorded yet.';}
+  const recentSalesPreview=document.getElementById('recentSalesPreviewText');
+  if(recentSalesPreview){
+   const latest=[...(db.sales||[])].sort((a,b)=>safeDate(b.date||b.sold_at||b.created_at)-safeDate(a.date||a.sold_at||a.created_at))[0];
+   if(latest){
+    const saleName=String(latest.name||latest.product_name||'Sale'),quantity=Number(latest.qty??latest.quantity);
+    const quantityLabel=Number.isFinite(quantity)&&quantity>0?' × '+quantity:'';
+    const saleDateValue=latest.date||latest.sold_at||latest.created_at,saleDate=saleDateValue?new Date(saleDateValue):null;
+    const timeLabel=saleDate&&Number.isFinite(saleDate.getTime())?' · '+saleDate.toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'}):'';
+    recentSalesPreview.textContent=saleName+quantityLabel+' · '+money(Number(latest.total)||0)+timeLabel;
+   }else recentSalesPreview.textContent='No sales recorded yet.';
+  }
   const historyProduct=(document.getElementById('historySalesProduct')?.value||'').trim().toLocaleLowerCase(),historyFrom=document.getElementById('historySalesFrom')?.value||'',historyTo=document.getElementById('historySalesTo')?.value||'';const historyRows=[...(db.sales||[])].filter(x=>(!historyProduct||String(x.name||x.product_name||'').toLocaleLowerCase().includes(historyProduct))&&(!historyFrom||dateKey(x.date||x.sold_at||x.created_at)>=historyFrom)&&(!historyTo||dateKey(x.date||x.sold_at||x.created_at)<=historyTo)).sort((a,b)=>safeDate(b.date||b.sold_at||b.created_at)-safeDate(a.date||a.sold_at||a.created_at));const historyTarget=document.getElementById('salesHistoryList');if(historyTarget)historyTarget.innerHTML=historyRows.length?historyRows.map(x=>'<button type="button" class="item sales-history-row" data-sale-detail="'+esc(String(x.id||''))+'" aria-label="View sale details for '+esc(String(x.name||x.product_name||'Sale'))+'"><span class="sales-history-row-main"><span class="row"><strong>'+esc(String(x.name||x.product_name||'Sale'))+' × '+(Number(x.qty)||0)+'</strong><strong>'+money(Number(x.total)||0)+'</strong></span><span class="muted">'+safeDate(x.date||x.sold_at||x.created_at).toLocaleString()+' · Gross profit '+money(Number(x.profit)||0)+(x.note?' · '+esc(x.note):'')+'</span></span><span class="sales-history-row-chevron" aria-hidden="true">›</span></button>').join(''):'<div class="empty">No sales found for these dates.</div>';if(currentPage()==='sale-details')renderSaleDetails();
   const expenseFrom=document.getElementById('historyExpensesFrom')?.value||'',expenseTo=document.getElementById('historyExpensesTo')?.value||'';const filteredExpenses=[...(db.expenses||[])].filter(x=>(!expenseFrom||dateKey(x.date)>=expenseFrom)&&(!expenseTo||dateKey(x.date)<=expenseTo)).sort((a,b)=>safeDate(b.date)-safeDate(a.date));document.getElementById('expenseList').innerHTML=filteredExpenses.length?filteredExpenses.map(x=>`<div class="item"><div class="row"><strong>${esc(x.name)}</strong><strong>${money(x.amount)}</strong></div><div class="muted">${safeDate(x.date).toLocaleString()}</div></div>`).join(''):db.expenses.length?'<div class="empty">No expenses match these dates.</div>':'<div class="empty">No expenses recorded yet.</div>';
 }
