@@ -596,6 +596,7 @@ function applyPendingToDb() {
       }
     } else if (item.type === 'expense') {
       if (!db.expenses.some(x => x.id === p.expense.id)) db.expenses.push(p.expense);
+    } else if(item.type==='expense_void'){const expense=db.expenses.find(x=>String(x.id)===String(p.expenseId));if(expense){expense.voidedAt=p.voidedAt;expense.voidReason=p.voidReason||'';}
     } else if (item.type === 'sale_import') {
       if (!db.sales.some(x => x.id === p.sale.id)) db.sales.push(p.sale);
     } else if(item.type==='stock_restock'){
@@ -1945,7 +1946,7 @@ async function cloudLoadAll() {
   const [pr,sr,er,ar,rr,profileResult]=await Promise.all([
     fetchAllCloudRows(()=>supabaseClient.from('products').select('id,name,category,cost_price,selling_price,stock,base_unit,purchase_unit,units_per_purchase,pack_unit,units_per_pack,pack_selling_price,image_path,created_at,updated_at').eq('user_id',user.id).order('created_at').order('id')),
     fetchAllCloudRows(()=>supabaseClient.from('sales').select('id,product_id,product_name,quantity,unit_price,unit_cost,total,gross_profit,note,sold_at,base_quantity,sale_unit,units_per_sale').eq('user_id',user.id).order('sold_at').order('id')),
-    fetchAllCloudRows(()=>supabaseClient.from('expenses').select('id,description,amount,spent_at').eq('user_id',user.id).order('spent_at').order('id')),
+    fetchAllCloudRows(()=>supabaseClient.from('expenses').select('id,description,amount,spent_at,category,note,voided_at,void_reason').eq('user_id',user.id).order('spent_at').order('id')),
     fetchAllCloudRows(()=>supabaseClient.from('stock_adjustments').select('id,product_id,product_name,previous_stock,new_stock,quantity_change,reason,adjusted_at').eq('user_id',user.id).order('adjusted_at',{ascending:false}).order('id',{ascending:false})),
     fetchAllCloudRows(()=>supabaseClient.from('stock_purchases').select('id,product_id,product_name,purchase_quantity,purchase_unit,units_per_purchase,base_quantity,cost_per_purchase_unit,total_cost,average_cost_before,average_cost_after,previous_stock,new_stock,restocked_at').eq('user_id',user.id).order('restocked_at',{ascending:false}).order('id',{ascending:false})),
     supabaseClient.from('user_profiles').select('business_name,business_logo').eq('user_id',user.id).maybeSingle()
@@ -1968,7 +1969,7 @@ async function cloudLoadAll() {
     createdAt:row.created_at,updatedAt:row.updated_at
   }));
   const sales=(sr.data||[]).map(row=>({id:row.id,productId:row.product_id,name:row.product_name,qty:Number(row.quantity),price:Number(row.unit_price),cost:Number(row.unit_cost),total:Number(row.total),profit:Number(row.gross_profit),note:row.note||'',date:row.sold_at,baseQty:Number(row.base_quantity||row.quantity),saleUnit:row.sale_unit||'unit',unitsPerSale:Number(row.units_per_sale||1)}));
-  const expenses=(er.data||[]).map(row=>({id:row.id,name:row.description,amount:Number(row.amount),date:row.spent_at}));
+  const expenses=(er.data||[]).map(row=>({id:row.id,name:row.description,amount:Number(row.amount),date:row.spent_at,category:row.category||'Other',note:row.note||'',voidedAt:row.voided_at||null,voidReason:row.void_reason||''}));
   const stockAdjustments=(ar.data||[]).map(row=>({id:row.id,productId:row.product_id,productName:row.product_name,previousStock:Number(row.previous_stock),newStock:Number(row.new_stock),quantityChange:Number(row.quantity_change),reason:row.reason||'',date:row.adjusted_at}));
   const restocks=(rr.data||[]).map(row=>{
     const cached=cachedRestockDetails.get(String(row.id));
@@ -2859,6 +2860,8 @@ function render(){
   const low=renderHomePanelSummary();
   updateExpensePeriodTotal();
   updateSalesPeriodSummary();
+  renderExpenseOverview();
+  renderExpenseHistory();
   const lowStockPreview=document.getElementById('lowStockPreview');
   if(lowStockPreview)lowStockPreview.innerHTML=low.length?low.slice(0,5).map(p=>'<div class="item"><div class="row"><strong>'+esc(p.name)+'</strong><span class="low-stock-badge">'+p.stock+' left</span></div></div>').join(''):'<div class="empty">No products at or below '+lowStockThreshold+' units.</div>';
   const lowStockList=document.getElementById('lowStockList');
@@ -3619,24 +3622,28 @@ document.getElementById('saleForm').addEventListener('submit',async e=>{
  } finally {saleSubmitting=false;if(submitButton)submitButton.disabled=false;}
 });
 
+document.getElementById('expenseDate')&&(document.getElementById('expenseDate').value=today());
 document.getElementById('expenseForm').addEventListener('submit',async e=>{
  e.preventDefault();
- const name=document.getElementById('ename').value.trim(),amount=Number(document.getElementById('eamount').value);
- if(!name||!Number.isFinite(amount)||amount<=0)return showToast('Enter a description and valid amount.');
- const rounded=roundMoney(amount);
- if(cloudUser){
-   const expense={id:crypto.randomUUID(),name,amount:rounded,date:now()};
-   db.expenses.push(expense);
-   try { await saveCloudChangeLocally('expense',{expense}); }
-   catch(err){ db.expenses=db.expenses.filter(x=>x.id!==expense.id); render(); return showToast(err.message || String(err)); }
- }else{
-   db.expenses.push({id:crypto.randomUUID(),name,amount:rounded,date:now()});
-   if(!save())return;
-   render();
- }
- e.target.reset();showToast('Expense saved.');
+ const name=document.getElementById('ename').value.trim(),amount=Number(document.getElementById('eamount').value),category=document.getElementById('expenseCategory')?.value||'Other',note=document.getElementById('expenseNote')?.value.trim()||'',dateValue=document.getElementById('expenseDate')?.value||today();
+ if(!name||name.length>100||!Number.isFinite(amount)||amount<=0||amount>MAX_MONEY||!validDateKey(dateValue)||dateValue>today())return showToast('Enter a description, valid amount and a date that is not in the future.');
+ const expense={id:crypto.randomUUID(),name,amount:roundMoney(amount),category,note,date:new Date(dateValue+'T12:00:00').toISOString(),voidedAt:null,voidReason:null};
+ db.expenses.push(expense);
+ if(cloudUser){try{await saveCloudChangeLocally('expense',{expense});}catch(err){db.expenses=db.expenses.filter(x=>x.id!==expense.id);render();return showToast(err.message||String(err));}}
+ else if(!save()){db.expenses=db.expenses.filter(x=>x.id!==expense.id);return;}
+ e.target.reset();if(document.getElementById('expenseDate'))document.getElementById('expenseDate').value=today();render();showToast('Expense saved.');
 });
 
+
+let selectedExpenseDetailId='';
+function getExpenseHistoryRows(){const period=document.getElementById('expenseHistoryPeriod')?.value||'today',from=document.getElementById('expenseHistoryFrom')?.value||'',to=document.getElementById('expenseHistoryTo')?.value||'',bounds=getLocalPeriodBounds(period,from,to),query=(document.getElementById('expenseHistorySearch')?.value||'').trim().toLocaleLowerCase(),category=document.getElementById('expenseHistoryCategory')?.value||'';return [...(db.expenses||[])].filter(x=>withinPeriod(x,bounds)&&(!category||String(x.category||'Other')===category)&&(!query||String(x.name||'').toLocaleLowerCase().includes(query)||String(x.note||'').toLocaleLowerCase().includes(query))).sort((a,b)=>safeDate(operationalDate(b))-safeDate(operationalDate(a)));}
+function renderExpenseHistory(){const target=document.getElementById('expenseHistoryList');if(!target)return;const period=document.getElementById('expenseHistoryPeriod')?.value||'today',from=document.getElementById('expenseHistoryFrom')?.value||'',to=document.getElementById('expenseHistoryTo')?.value||'',bounds=getLocalPeriodBounds(period,from,to),rows=getExpenseHistoryRows(),active=rows.filter(x=>!isExpenseVoided(x)),voided=rows.filter(isExpenseVoided),total=active.reduce((n,x)=>n+(Number(x.amount)||0),0),set=(id,value)=>{const el=document.getElementById(id);if(el)el.textContent=String(value);};const labels={today:'Today',yesterday:'Yesterday',week:'This week',month:'This month',year:'This year',all:'All time',custom:bounds.from===bounds.to?bounds.from:bounds.from+' – '+bounds.to};set('expenseHistoryPeriodLabel',labels[period]||'Today');set('expenseHistoryTotal',money(total));set('expenseHistoryCount',rows.length);set('expenseHistoryVoided',voided.length);set('expenseHistoryActiveCount',active.length);const custom=document.getElementById('expenseHistoryCustomRange');if(custom)custom.hidden=period!=='custom';const max=dateKey(new Date());['expenseHistoryFrom','expenseHistoryTo'].forEach(id=>{const el=document.getElementById(id);if(el)el.max=max;});target.innerHTML=rows.length?rows.map(x=>'<button type="button" class="item sales-history-row expense-history-row" data-expense-detail="'+esc(String(x.id))+'" style="width:100%;text-align:left"><span class="sales-history-row-main"><span class="row"><strong>'+esc(x.name||'Expense')+'</strong><strong>'+money(Number(x.amount)||0)+'</strong></span><span class="muted">'+esc(x.category||'Other')+' · '+safeDate(operationalDate(x)).toLocaleString()+(isExpenseVoided(x)?' · VOIDED':'')+(x.note?' · '+esc(x.note):'')+'</span></span><span aria-hidden="true">›</span></button>').join(''):'<div class="empty">No expenses match this period and filters.</div>';}
+function renderExpenseOverview(){const active=(db.expenses||[]).filter(x=>!isExpenseVoided(x)),todayRows=active.filter(x=>withinPeriod(x,getLocalPeriodBounds('today'))),recent=document.getElementById('expenseRecentList');if(recent)recent.innerHTML=todayRows.slice().sort((a,b)=>safeDate(operationalDate(b))-safeDate(operationalDate(a))).slice(0,5).map(x=>'<button type="button" class="item expense-overview-row" data-expense-detail="'+esc(String(x.id))+'"><span><strong>'+esc(x.name||'Expense')+'</strong><small>'+esc(x.category||'Other')+' · '+safeDate(operationalDate(x)).toLocaleTimeString([], {hour:'numeric',minute:'2-digit'})+'</small></span><strong>'+money(Number(x.amount)||0)+'</strong></button>').join('')||'<div class="empty">No expenses recorded today.</div>';const categories=new Map();for(const x of active){const key=String(x.category||'Other');categories.set(key,(categories.get(key)||0)+(Number(x.amount)||0));}const summary=document.getElementById('expenseCategorySummary');if(summary)summary.innerHTML=[...categories].sort((a,b)=>b[1]-a[1]).slice(0,5).map(([name,value])=>'<div class="expense-category-row"><span>'+esc(name)+'</span><strong>'+money(value)+'</strong></div>').join('')||'<div class="empty">Expense categories will appear here.</div>';}
+function renderExpenseDetails(){const target=document.getElementById('expenseDetailsContent'),expense=(db.expenses||[]).find(x=>String(x.id)===String(selectedExpenseDetailId));if(!target)return;if(!expense){target.innerHTML='<div class="empty">This expense could not be found.</div>';return;}const voided=isExpenseVoided(expense),fields=[['Description',expense.name||'Expense'],['Category',expense.category||'Other'],['Amount',money(Number(expense.amount)||0)],['Date paid',safeDate(operationalDate(expense)).toLocaleString()],['Note',expense.note||'None'],['Status',voided?'Voided':'Included in profit'],...(voided?[['Void reason',expense.voidReason||expense.void_reason||'Not provided']]:[])];target.innerHTML='<div class="card expense-detail-card">'+fields.map(([k,v])=>'<div class="sale-detail-line"><span>'+esc(k)+'</span><strong>'+esc(String(v))+'</strong></div>').join('')+'</div>'+(voided?'<p class="muted">This record is retained for audit purposes and is excluded from profit calculations.</p>':'<button type="button" class="secondary" id="voidExpenseButton">Void this expense</button><p class="muted">Voiding keeps the original record in history and removes it from profit calculations. It does not delete the record.</p>');document.getElementById('voidExpenseButton')?.addEventListener('click',async()=>{const reason=prompt('Why are you voiding this expense? (Optional, up to 200 characters)','');if(reason===null)return;if(reason.length>200)return showToast('The reason must be 200 characters or fewer.');if(!confirm('Void this expense? It will remain in history but will no longer affect profit.'))return;const old={...expense};expense.voidedAt=now();expense.voidReason=reason.trim();render();if(cloudUser){try{await saveCloudChangeLocally('expense_void',{expenseId:expense.id,voidedAt:expense.voidedAt,voidReason:expense.voidReason});}catch(err){Object.assign(expense,old);render();showToast('Could not void this expense: '+(err.message||String(err)));return;}}else if(!save()){Object.assign(expense,old);render();return;}render();renderExpenseDetails();showToast('Expense voided and retained in history.');});}
+document.getElementById('expenseHistoryPeriod')?.addEventListener('change',()=>renderExpenseHistory());
+['expenseHistorySearch','expenseHistoryCategory','expenseHistoryFrom','expenseHistoryTo'].forEach(id=>document.getElementById(id)?.addEventListener('input',()=>{if(id==='expenseHistoryFrom'||id==='expenseHistoryTo'){const period=document.getElementById('expenseHistoryPeriod');if(period)period.value='custom';}renderExpenseHistory();}));
+document.getElementById('resetExpenseHistoryFilters')?.addEventListener('click',()=>{const period=document.getElementById('expenseHistoryPeriod');if(period)period.value='today';['expenseHistorySearch','expenseHistoryCategory','expenseHistoryFrom','expenseHistoryTo'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});renderExpenseHistory();});
+document.addEventListener('click',event=>{const button=event.target.closest('[data-expense-detail]');if(!button)return;selectedExpenseDetailId=button.dataset.expenseDetail;renderExpenseDetails();showPage('expense-details');});
 const BACKUP_STATUS_KEY='my-sales-book-last-backup-v1';
 function updateBackupStatus(){
  const el=document.getElementById('backupStatus');if(!el)return;
