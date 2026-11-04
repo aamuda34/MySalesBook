@@ -4725,3 +4725,21 @@ body.dark #settings-buybook .buybook-overview-footer{border-color:var(--border);
  #settings-buybook .buybook-overview-description p,
  #settings-buybook .buybook-overview-location>div>strong{font-size:12px}
 }
+
+#settings-buybook .buybook-connection-bar{
+ display:flex;align-items:center;gap:9px;min-height:48px;margin:0 0 2px;
+ padding:9px 11px;border:1px solid var(--border);border-radius:12px;background:var(--page);
+}
+#settings-buybook .buybook-connection-bar strong{
+ flex:1 1 auto;min-width:0;color:var(--ink);font-size:13px;line-height:1.4;
+}
+#settings-buybook .buybook-status-dot{
+ width:9px;height:9px;flex:0 0 9px;border-radius:50%;background:#a7a7a7;
+}
+#settings-buybook .buybook-connection-bar.connected .buybook-status-dot{background:#168447}
+#settings-buybook .buybook-connection-bar.not-connected .buybook-status-dot{background:#c18a32}
+#settings-buybook .buybook-connection-bar.is-loading .buybook-status-dot{
+ background:#c18a32;box-shadow:0 0 0 4px rgba(193,138,50,.12);
+}
+#settings-buybook .buybook-settings-icon:active{background:var(--soft)}
+body.dark #settings-buybook .buybook-connection-bar{background:var(--page);border-color:var(--border)}
