@@ -4860,3 +4860,64 @@ nav .nav-unread-badge{top:2px;right:calc(50% - 31px);min-width:19px;height:19px;
  #home button.home-board-metric .home-sales-subs-value{font-size:14px}
  .header-connect-caption{font-size:8.5px;max-width:70px}
 }
+
+/* Operational history pages: restrained, consistent and phone-first. */
+.expense-category-summary{display:grid;gap:0}
+.expense-category-row{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid #e4ebe5}
+.expense-category-row:last-child{border-bottom:0}
+.expense-overview-row{display:flex;justify-content:space-between;align-items:center;gap:12px;width:100%;text-align:left;background:transparent;border-bottom:1px solid #e4ebe5;border-radius:0;padding:12px 2px}
+.expense-overview-row>span{display:grid;gap:4px}
+.expense-overview-row small{font-size:12px;color:#68756c;font-weight:400}
+.expense-add-button{width:100%;margin:12px 0 24px;min-height:48px}
+.expense-history-controls{display:grid;gap:12px;padding:14px;background:#fff;border:1px solid #e4ebe5;border-radius:14px;margin:12px 0}
+.expense-history-controls>div{display:grid;gap:6px;min-width:0}
+.expense-history-controls label{font-size:12px;font-weight:700;color:#526057}
+.expense-history-controls input,.expense-history-controls select{width:100%;min-height:42px;border:1px solid #dce5de;border-radius:9px;padding:9px 11px;background:#fff;color:#17231c}
+.expense-history-custom-range{grid-template-columns:1fr 1fr;gap:10px}
+.expense-history-custom-range[hidden]{display:none}
+.expense-history-controls>button{justify-self:start;background:#edf4ee;color:#14532d;padding:9px 13px}
+.expense-history-summary{margin:12px 0}
+.expense-history-row{display:flex;align-items:center;gap:12px}
+.expense-detail-card{padding:14px;background:#fff;border:1px solid #e4ebe5;border-radius:14px;margin:12px 0}
+.expense-detail-card .sale-detail-line{padding:12px 0;border-bottom:1px solid #edf1ed}
+.expense-detail-card .sale-detail-line:last-child{border-bottom:0}
+.reservation-filter-tabs{display:flex;gap:7px;overflow-x:auto;padding:4px 0 10px;scrollbar-width:thin}
+.reservation-filter-tabs button{flex:0 0 auto;background:#edf3ee;color:#425148;border:1px solid #e1e9e2;padding:9px 13px;border-radius:22px;font-size:13px}
+.reservation-filter-tabs button.active{background:#14532d;color:#fff;border-color:#14532d}
+.reservation-search{display:grid;gap:6px;margin:8px 0 12px}
+.reservation-search label{font-size:12px;font-weight:700;color:#526057}
+.reservation-search input{width:100%;min-height:44px;padding:10px 12px;border:1px solid #dce5de;border-radius:10px}
+.stock-history-detail-content{display:grid;gap:9px;margin-top:12px}
+.stock-history-detail-content .stock-history-detail-field{display:flex;justify-content:space-between;gap:14px;padding:13px;background:#fff;border:1px solid #e4ebe5;border-radius:10px}
+.stock-history-detail-content .stock-history-detail-field span{color:#68756c;font-size:13px}
+.stock-history-detail-content .stock-history-detail-field strong{text-align:right;overflow-wrap:anywhere}
+.sale-basket-list{display:grid;gap:8px}
+.sale-basket-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px;background:#f5f8f5;border:1px solid #e3ebe4;border-radius:10px}
+.sale-basket-row>span{display:grid;gap:4px;min-width:0}
+.sale-basket-row small{font-size:12px;color:#68756c;font-weight:400}
+.sale-basket-row button{flex:0 0 auto;background:#fff;color:#14532d;border:1px solid #dbe7dd;padding:8px 10px}
+.sale-add-item-button{width:100%;margin-top:4px;background:#edf4ee;color:#14532d}
+.sale-receipt-actions{display:flex;justify-content:flex-end;margin:12px 0 28px}
+.edit-product-pack-toggle{margin:8px 0 10px;padding:11px;background:#f3f7f3;border-radius:9px}
+.edit-product-pack-toggle label{display:flex;align-items:center;gap:9px;font-weight:600}
+.edit-product-pack-fields{display:grid;gap:8px;padding:12px;margin:8px 0 14px;border:1px solid #e1e9e2;border-radius:10px}
+.edit-product-pack-fields.hidden{display:none}
+.product-activity-diff{display:grid;gap:6px;margin-top:8px}
+.product-activity-diff>div{display:flex;justify-content:space-between;gap:10px;font-size:12px}
+.product-activity-diff small{color:#68756c;text-align:right}
+@media(min-width:560px){.expense-history-controls{grid-template-columns:repeat(2,minmax(0,1fr))}.expense-history-custom-range{grid-column:1/-1}}
+
+/* Expense history and details are focused standalone pages, like Sales History. */
+body.expenses-history-page-open>.seller-welcome-header,body.expense-details-page-open>.seller-welcome-header{display:none!important}
+body.expenses-history-page-open #appWorkspace>nav,body.expense-details-page-open #appWorkspace>nav,body.expenses-history-page-open #quickSaleFab,body.expense-details-page-open #quickSaleFab{display:none!important}
+body.expenses-history-page-open #appWorkspace>main,body.expense-details-page-open #appWorkspace>main{padding-top:0!important;padding-bottom:24px!important}
+body.expenses-history-page-open #expenses-history,body.expense-details-page-open #expense-details{max-width:760px;margin:0 auto;padding-top:14px!important;padding-bottom:24px!important}
+body.record-entry-page-open #record-expense{padding-top:14px!important;padding-bottom:24px!important}
+
+/* The app workspace sits inside #mainContent; target the real outer container. */
+body.expenses-history-page-open #mainContent,body.expense-details-page-open #mainContent,body.stock-history-detail-page-open #mainContent,body.reservations-page-open #mainContent,body.record-entry-page-open #mainContent{padding-top:0!important;padding-bottom:24px!important;min-height:100svh}
+body.expenses-history-page-open #appWorkspace,body.expense-details-page-open #appWorkspace,body.stock-history-detail-page-open #appWorkspace,body.reservations-page-open #appWorkspace,body.record-entry-page-open #appWorkspace{padding-top:0!important;padding-bottom:0!important}
+
+/* Shared standalone-page container reset for the nested workspace layout. */
+body.product-page-open #mainContent,body.low-stock-page-open #mainContent,body.product-details-page-open #mainContent,body.sales-page-open #mainContent,body.sales-history-page-open #mainContent,body.sale-details-page-open #mainContent,body.expenses-page-open #mainContent,body.stock-page-open #mainContent,body.stock-history-page-open #mainContent,body.subscribers-page-open #mainContent,body.profit-history-page-open #mainContent,body.quick-guide-page-open #mainContent{padding-top:0!important;padding-bottom:24px!important;min-height:100svh}
+body.product-page-open #appWorkspace,body.low-stock-page-open #appWorkspace,body.product-details-page-open #appWorkspace,body.sales-page-open #appWorkspace,body.sales-history-page-open #appWorkspace,body.sale-details-page-open #appWorkspace,body.expenses-page-open #appWorkspace,body.stock-page-open #appWorkspace,body.stock-history-page-open #appWorkspace,body.subscribers-page-open #appWorkspace,body.profit-history-page-open #appWorkspace,body.quick-guide-page-open #appWorkspace{padding-top:0!important;padding-bottom:0!important}

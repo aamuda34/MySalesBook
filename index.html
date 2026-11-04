@@ -179,8 +179,23 @@
 
 <section id="reservations" class="page hidden">
 <div class="products-page-header"><button type="button" class="products-back-button" aria-label="Back to Home" title="Back to Home" onclick="showPage('home')"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6M9 12h11"/></svg></button><h1>Reservations</h1></div>
-<div id="reservationsListView" style="margin-top:14px"><div class="card" id="reservationsPageList"><div class="empty">Loading reservations…</div></div></div>
-<div id="reservationDetailsView" class="hidden" style="margin-top:14px"><div class="card"><div class="section-heading"><button type="button" id="reservationDetailsBack" class="products-back-button" aria-label="Back to reservations">‹</button><h2 style="flex:1">Reservation details</h2></div><div id="reservationDetailsContent"></div><button type="button" id="reservationMessageButton" class="primary" style="width:100%;margin-top:16px" aria-label="Message buyer">✉ Message buyer</button></div></div>
+<div id="reservationsListView" class="reservations-list-view">
+ <div class="reservation-filter-tabs" role="group" aria-label="Filter reservations">
+  <button type="button" class="active" data-reservation-filter="pending" aria-pressed="true">Pending</button>
+  <button type="button" data-reservation-filter="approved" aria-pressed="false">Approved</button>
+  <button type="button" data-reservation-filter="rejected" aria-pressed="false">Rejected</button>
+  <button type="button" data-reservation-filter="expired" aria-pressed="false">Expired</button>
+  <button type="button" data-reservation-filter="all" aria-pressed="false">All</button>
+ </div>
+ <div class="reservation-search"><label for="reservationSearch">Search reservations</label><input id="reservationSearch" type="search" placeholder="Customer or product name..." autocomplete="off"></div>
+ <div id="reservationsPageList" class="card"><div class="empty">Loading reservations…</div></div>
+</div>
+<div id="reservationDetailsView" class="hidden" style="margin-top:14px">
+ <div class="card"><div class="section-heading"><button type="button" id="reservationDetailsBack" class="products-back-button" aria-label="Back to reservations">‹</button><h2 style="flex:1">Reservation details</h2></div>
+ <div id="reservationDetailsContent"></div>
+ <button type="button" id="reservationMessageButton" class="primary reservation-message-button" aria-label="Message buyer">✉ Message buyer</button>
+ </div>
+</div>
 </section>
 
 <section id="products" class="page hidden">
@@ -288,35 +303,39 @@
 </section>
 
 <section id="record-sale" class="page hidden record-entry-page">
-<div class="products-page-header sales-page-header"><button type="button" class="products-back-button" data-app-back="home" aria-label="Go back" title="Go back"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6M9 12h11"/></svg></button><h1>Record a sale</h1></div>
-<p class="page-intro">Enter the items sold and the amount received. Sellbook will update your stock.</p>
+<div class="products-page-header sales-page-header"><button type="button" class="products-back-button" data-app-back="home" aria-label="Go back" title="Go back"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 12-6-6-6-6M9 12h11"/></svg></button><h1>Record a sale</h1></div>
+<p class="page-intro">Record one item or add several products to the same sale. Sellbook will update stock together.</p>
 <div class="card entry-form-card" id="saleFormCard">
 <form id="saleForm" class="organized-entry-form">
 <section class="entry-form-group" aria-labelledby="saleProductHeading">
-<div class="entry-form-group-heading"><h2 id="saleProductHeading">What did you sell?</h2><p>Choose the product, selling unit and quantity.</p></div>
-<div class="entry-form-field"><label for="saleProduct">Product</label><select id="saleProduct" required></select></div>
+<div class="entry-form-group-heading"><h2 id="saleProductHeading">Add a product</h2><p>Choose the product, selling unit and quantity.</p></div>
+<div class="entry-form-field"><label for="saleProduct">Product</label><select id="saleProduct"></select></div>
 <div class="entry-form-field"><label for="saleUnit">Selling unit</label><select id="saleUnit"><option value="base">Individual unit</option></select></div>
-<div class="entry-form-field"><label for="saleQty">Quantity sold</label><input id="saleQty" type="number" min="1" step="1" value="1" inputmode="numeric" required></div>
+<div class="entry-form-field"><label for="saleQty">Quantity sold</label><input id="saleQty" type="number" min="1" step="1" value="1" inputmode="numeric"></div>
 <div class="entry-stock-hint" id="saleStock" role="status" aria-live="polite">Choose a product to see available stock.</div>
 </section>
 <section class="entry-form-group" aria-labelledby="salePriceHeading">
-<div class="entry-form-group-heading"><h2 id="salePriceHeading">Sale price</h2><p>Check the price before recording the sale.</p></div>
-<div class="entry-form-field"><label for="salePrice" id="salePriceLabel">Selling price per individual unit (₦)</label><input id="salePrice" type="number" min="0.01" step="0.01" inputmode="decimal" required><p class="entry-field-help">The product's saved price is filled in automatically. You can change it for this sale only.</p></div>
+<div class="entry-form-group-heading"><h2 id="salePriceHeading">Sale price</h2><p>The saved price is filled in automatically. You can change it for this sale only.</p></div>
+<div class="entry-form-field"><label for="salePrice" id="salePriceLabel">Selling price per individual unit (₦)</label><input id="salePrice" type="number" min="0.01" step="0.01" inputmode="decimal"></div>
+<button type="button" id="addSaleBasketItem" class="secondary sale-add-item-button">＋ Add item to sale</button>
+</section>
+<section class="entry-form-group" aria-labelledby="saleBasketHeading">
+<div class="entry-form-group-heading"><h2 id="saleBasketHeading">Sale items</h2><p id="saleBasketCount">No items added yet.</p></div>
+<div id="saleBasketList" class="sale-basket-list"><div class="empty">Add a product to begin this sale.</div></div>
+<div class="sale-total-summary" aria-label="Sale total"><span>Total amount to receive</span><strong id="saleTotalAmount" aria-live="polite">₦0.00</strong></div>
 </section>
 <section class="entry-form-group entry-form-group-last" aria-labelledby="saleNoteHeading">
-<div class="entry-form-group-heading"><h2 id="saleNoteHeading">Sale note <span class="entry-optional">(optional)</span></h2><p>Add a short reference to help you recognise this sale later.</p></div>
-<div class="entry-form-field"><label for="saleNote">Note</label><input id="saleNote" maxlength="150" placeholder="e.g. Order reference"></div>
+<div class="entry-form-group-heading"><h2 id="saleNoteHeading">Sale note <span class="entry-optional">(optional)</span></h2></div>
+<div class="entry-form-field"><label for="saleNote">Note</label><input id="saleNote" maxlength="150" placeholder="e.g. Customer or order reference"></div>
 </section>
-<div class="sale-total-summary" aria-label="Sale total"><span>Total amount to receive</span><strong id="saleTotalAmount" aria-live="polite">₦0.00</strong></div>
-<div class="entry-form-actions"><button type="submit" class="primary">Record paid sale</button><p class="entry-submit-note">Sales are recorded as paid. Stock is deducted automatically.</p></div>
+<div class="entry-form-actions"><button type="submit" class="primary">Record paid sale</button><p class="entry-submit-note">All items in this sale are saved together. Stock is deducted only when the whole sale succeeds.</p></div>
 </form>
 </div>
 </section>
-
 <section id="sales-history" class="page hidden">
 <div class="products-page-header"><button type="button" class="products-back-button" aria-label="Back to Home" title="Back to Home" onclick="showPage('home')"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6M9 12h11"/></svg></button><h1>Sales history</h1></div>
 <div class="sales-history-filters">
- <div class="sales-history-period"><label for="historySalesPeriod">Show sales for</label><select id="historySalesPeriod" class="expense-period-select" aria-label="Choose sales history period"><option value="today" selected>Today</option><option value="yesterday">Yesterday</option><option value="week">This week</option><option value="month">This month</option><option value="all">All time</option><option value="custom">Custom date range</option></select></div>
+ <div class="sales-history-period"><label for="historySalesPeriod">Show sales for</label><select id="historySalesPeriod" class="expense-period-select" aria-label="Choose sales history period"><option value="today" selected>Today</option><option value="yesterday">Yesterday</option><option value="week">This week</option><option value="month">This month</option><option value="year">This year</option><option value="all">All time</option><option value="custom">Custom date range</option></select></div>
  <div class="sales-history-search"><label for="historySalesProduct">Search products</label><input id="historySalesProduct" type="search" placeholder="Enter product name..." autocomplete="off"></div>
  <div class="sales-history-custom-range" id="historySalesCustomRange" hidden><div><label for="historySalesFrom">From date</label><input id="historySalesFrom" type="date"></div><div><label for="historySalesTo">To date</label><input id="historySalesTo" type="date"></div></div>
  <button type="button" id="clearHistorySalesDates">Reset filters</button>
@@ -330,29 +349,58 @@
 <section id="sale-details" class="page hidden">
 <div class="products-page-header"><button type="button" class="products-back-button" aria-label="Back to Sales history" title="Back to Sales history" onclick="showPage('sales-history')"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6M9 12h11"/></svg></button><h1>Sale details</h1></div>
 <div id="saleDetailsContent" class="sale-details-content"><div class="empty">Choose a sale from Sales history to view its details.</div></div>
+<div class="sale-receipt-actions"><button type="button" class="secondary" id="shareSaleReceipt">Share receipt</button></div>
 </section>
 
-<section id="expenses" class="page hidden"><div class="products-page-header expenses-page-header"><button type="button" class="products-back-button" aria-label="Back to Home" title="Back to Home" onclick="showPage('home')"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6M9 12h11"/></svg></button><h1>Expenses</h1></div><p class="page-intro">Record business costs such as transport, rent or supplies to keep your net profit accurate.</p>
-<div class="card expense-period-card"><label class="expense-period-select-label" for="expensePeriodSelect">Total expenses for</label><select id="expensePeriodSelect" class="expense-period-select" aria-label="Select expense total period"><option value="today" selected>Today</option><option value="week">This week</option><option value="month">This month</option><option value="year">This year</option><option value="all">All time</option></select><div class="expense-period-total"><small id="expensePeriodLabel">Total expenses today</small><strong id="todayExpenses">₦0</strong></div></div>
-<div class="card"><h2>Expense history</h2><div class="sales-history-filters expense-history-filters"><div><label for="historyExpensesFrom">From date</label><input id="historyExpensesFrom" type="date"></div><div><label for="historyExpensesTo">To date</label><input id="historyExpensesTo" type="date"></div><button type="button" id="clearHistoryExpensesDates">Clear filters</button></div><div id="expenseList" class="empty">No expenses recorded yet.</div></div></section>
+<section id="expenses" class="page hidden">
+<div class="products-page-header expenses-page-header"><button type="button" class="products-back-button" aria-label="Back to Home" title="Back to Home" onclick="showPage('home')"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6 6-6-6M9 12h11"/></svg></button><h1>Expenses</h1><button type="button" class="page-history-button" data-open-page="expenses-history" aria-label="Open expense history" title="Expense history"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 2.64-6.36L3 8"/><path d="M3 3v5h5M12 7v5l3 2"/></svg></button></div>
+<p class="page-intro">Record business costs and keep your net profit accurate.</p>
+<div class="card expense-period-card"><label class="expense-period-select-label" for="expensePeriodSelect">Total expenses for</label><select id="expensePeriodSelect" class="expense-period-select" aria-label="Select expense total period"><option value="today" selected>Today</option><option value="yesterday">Yesterday</option><option value="week">This week</option><option value="month">This month</option><option value="year">This year</option><option value="all">All time</option></select><div class="expense-period-total"><small id="expensePeriodLabel">Total expenses today</small><strong id="todayExpenses">₦0</strong></div></div>
+<div class="card"><div class="section-heading"><h2>Expenses by category</h2></div><div id="expenseCategorySummary" class="expense-category-summary"><div class="empty">Expense categories will appear here.</div></div></div>
+<div class="card"><div class="section-heading"><h2>Recent expenses</h2><button type="button" data-open-page="expenses-history">History</button></div><div id="expenseRecentList" class="expense-recent-list"><div class="empty">No expenses recorded yet.</div></div></div>
+<button type="button" class="primary expense-add-button" data-open-page="record-expense">＋ Record expense</button>
+</section>
+
 <section id="record-expense" class="page hidden record-entry-page">
-<div class="products-page-header expenses-page-header"><button type="button" class="products-back-button" data-app-back="expenses" aria-label="Back to Expenses" title="Back to Expenses"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6 6-6-6M9 12h11"/></svg></button><h1>Record an expense</h1></div>
-<p class="page-intro">Keep track of money spent on running your business.</p>
+<div class="products-page-header expenses-page-header"><button type="button" class="products-back-button" data-app-back="expenses" aria-label="Back to Expenses" title="Back to Expenses"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6 6-6-6M9 12h11"/></svg></button><h1 id="expenseFormTitle">Record an expense</h1></div>
+<p class="page-intro">Record the amount your business spent.</p>
 <div class="card entry-form-card" id="expenseFormCard">
 <form id="expenseForm" class="organized-entry-form">
 <section class="entry-form-group" aria-labelledby="expenseDescriptionHeading">
-<div class="entry-form-group-heading"><h2 id="expenseDescriptionHeading">Expense details</h2><p>What did you spend money on?</p></div>
+<div class="entry-form-group-heading"><h2 id="expenseDescriptionHeading">Expense details</h2></div>
 <div class="entry-form-field"><label for="ename">Expense description</label><input id="ename" required maxlength="100" placeholder="e.g. Transport, shop rent or supplies" autocomplete="off"></div>
+<div class="entry-form-field"><label for="expenseCategory">Category</label><select id="expenseCategory"><option value="Other">Other</option><option>Transport</option><option>Rent</option><option>Electricity</option><option>Supplies</option><option>Repairs</option><option>Staff</option><option>Internet and phone</option><option>Packaging</option><option>Marketing</option><option>Other business costs</option></select><p class="entry-field-help">Choose a category to make expense reports easier. You can keep Other.</p></div>
+<div class="entry-form-field"><label for="expenseDate">Date paid</label><input id="expenseDate" type="date" required></div>
+<div class="entry-form-field"><label for="expenseNote">Note <span class="entry-optional">(optional)</span></label><textarea id="expenseNote" maxlength="500" rows="3" placeholder="Add a short note or reference"></textarea></div>
 </section>
 <section class="entry-form-group entry-form-group-last" aria-labelledby="expenseAmountHeading">
-<div class="entry-form-group-heading"><h2 id="expenseAmountHeading">Amount paid</h2><p>Enter the total amount you spent.</p></div>
+<div class="entry-form-group-heading"><h2 id="expenseAmountHeading">Amount paid</h2></div>
 <div class="entry-form-field"><label for="eamount">Amount (₦)</label><input id="eamount" type="number" min="0.01" step="0.01" required inputmode="decimal" placeholder="e.g. 5,000"></div>
 </section>
-<div class="entry-form-actions"><button type="submit" class="primary">Save expense</button><p class="entry-submit-note">The date is recorded automatically and this expense is included in net profit.</p></div>
+<div class="entry-form-actions"><button type="submit" class="primary" id="saveExpenseButton">Save expense</button><p class="entry-submit-note">Voided expenses remain in history but are excluded from profit calculations.</p></div>
 </form>
 </div>
 </section>
 
+<section id="expenses-history" class="page hidden">
+<div class="products-page-header"><button type="button" class="products-back-button" data-app-back="expenses" aria-label="Back to Expenses" title="Back to Expenses"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 12 6-6-6-6M21 12H3"/></svg></button><h1>Expense history</h1></div>
+<div class="sales-history-filters expense-history-controls">
+ <div><label for="expenseHistoryPeriod">Show expenses for</label><select id="expenseHistoryPeriod" class="expense-period-select"><option value="today">Today</option><option value="yesterday">Yesterday</option><option value="week">This week</option><option value="month">This month</option><option value="year">This year</option><option value="all">All time</option><option value="custom">Custom date range</option></select></div>
+ <div><label for="expenseHistorySearch">Search expenses</label><input id="expenseHistorySearch" type="search" placeholder="Description or note..." autocomplete="off"></div>
+ <div><label for="expenseHistoryCategory">Category</label><select id="expenseHistoryCategory"><option value="">All categories</option><option>Transport</option><option>Rent</option><option>Electricity</option><option>Supplies</option><option>Repairs</option><option>Staff</option><option>Internet and phone</option><option>Packaging</option><option>Marketing</option><option>Other</option><option>Other business costs</option></select></div>
+ <div id="expenseHistoryCustomRange" class="expense-history-custom-range" hidden><div><label for="expenseHistoryFrom">From date</label><input id="expenseHistoryFrom" type="date"></div><div><label for="expenseHistoryTo">To date</label><input id="expenseHistoryTo" type="date"></div></div>
+ <button type="button" id="resetExpenseHistoryFilters">Reset filters</button>
+</div>
+<section class="sales-history-summary expense-history-summary" aria-live="polite">
+ <div class="sales-history-summary-main"><div><span id="expenseHistoryPeriodLabel" class="sales-history-summary-label">Today</span><small>Total expenses</small></div><strong id="expenseHistoryTotal">₦0</strong></div>
+ <div class="sales-history-summary-stats"><div><strong id="expenseHistoryCount">0</strong><span>Expense records</span></div><div><strong id="expenseHistoryVoided">0</strong><span>Voided records</span></div><div><strong id="expenseHistoryActiveCount">0</strong><span>Included in profit</span></div></div>
+</section>
+<div id="expenseHistoryList" class="sales-history-list"><div class="empty">No expenses recorded yet.</div></div>
+</section>
+<section id="expense-details" class="page hidden">
+<div class="products-page-header"><button type="button" class="products-back-button" data-app-back="expenses-history" aria-label="Back to Expense history" title="Back to Expense history"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 12 6-6-6-6M21 12H3"/></svg></button><h1>Expense details</h1></div>
+<div id="expenseDetailsContent" class="sale-details-content"><div class="empty">Choose an expense from history to view its details.</div></div>
+</section>
 <section id="me" class="page hidden me-page">
 <div class="me-topbar">
  <strong id="meUserFirstName" class="me-user-first-name"></strong>
@@ -579,7 +627,26 @@
 <section id="low-stock" class="page hidden"><div class="products-page-header"><button type="button" class="products-back-button" aria-label="Back to Products" title="Back to Products" onclick="showPage('products')"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6M9 12h11"/></svg></button><h1>Restock products</h1></div><div class="card"><p class="muted">Products at or below your low-stock threshold. Use Adjust to update stock.</p><div id="lowStockList" class="muted">No low-stock products.</div></div></section>
 <section id="stock" class="page hidden"><div class="stock-page-heading"><button type="button" class="stock-back-button" data-app-back="me" aria-label="Go back">‹</button><h2 class="page-title">Stock management</h2><button type="button" class="stock-history-open-button" data-open-page="stock-history" aria-label="Open stock history" title="History"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 2.6-6.4L3 8"/><path d="M3 3v5h5M12 7v5l3 2"/></svg></button></div>
 <div class="card"><h2>Restock products</h2><form id="restockForm"><label for="restockProduct">Product</label><select id="restockProduct" required></select><label for="restockPurchaseQty">Quantity purchased</label><input id="restockPurchaseQty" type="number" min="1" step="1" value="1" required inputmode="numeric"><label for="restockPurchaseUnit">Purchase unit</label><input id="restockPurchaseUnit" maxlength="30" value="unit" required placeholder="e.g. bottle, pack, carton"><label for="restockUnitsPerPurchase">Smallest units in each purchase unit</label><input id="restockUnitsPerPurchase" type="number" min="1" step="1" value="1" required inputmode="numeric"><label for="restockCostPerPurchase">Cost per purchase unit (₦)</label><input id="restockCostPerPurchase" type="number" min="0" step="0.01" required inputmode="decimal"><div id="restockPreview" class="muted">Choose a product and enter purchase details.</div><button class="primary">Record restock</button></form></div><div class="card"><h2>Adjust stock</h2><form id="stockAdjustmentForm"><label for="adjustProduct">Product</label><select id="adjustProduct" required></select><div class="stats" style="margin-top:10px"><div class="stat"><small>Current stock</small><strong id="adjustCurrentStock">—</strong></div><div class="stat"><small>Change</small><strong id="adjustStockChange">—</strong></div></div><label for="adjustNewStock">New stock quantity</label><input id="adjustNewStock" type="number" min="0" step="1" required inputmode="numeric"><label for="adjustReason">Reason (optional)</label><input id="adjustReason" maxlength="120" placeholder="e.g. New stock received"><button class="primary">Save stock adjustment</button></form></div>
-</section><section id="stock-history" class="page hidden"><div class="stock-history-page-heading"><button type="button" class="stock-history-back-button" aria-label="Go back">‹</button><h2 class="page-title">Product History</h2></div><div id="stockHistoryTabs" class="stock-history-tabs" role="tablist" aria-label="Choose product history type"><button type="button" class="stock-history-tab active" role="tab" aria-selected="true" aria-controls="productCreationHistoryPanel" data-stock-history-tab="added">Added Products <span data-history-count>0</span></button><button type="button" class="stock-history-tab" role="tab" aria-selected="false" aria-controls="stockAdjustmentPanel" data-stock-history-tab="adjustments">Adjustments <span data-history-count>0</span></button><button type="button" class="stock-history-tab" role="tab" aria-selected="false" aria-controls="restockHistoryPanel" data-stock-history-tab="restocks">Restocks <span data-history-count>0</span></button></div><section id="productCreationHistoryPanel" class="stock-history-panel" role="tabpanel"><div id="productCreationHistoryList" class="empty">No products added in this history yet.</div></section><section id="stockAdjustmentPanel" class="stock-history-panel" role="tabpanel" hidden><div id="stockAdjustmentList" class="empty">No stock adjustments recorded yet.</div></section><section id="restockHistoryPanel" class="stock-history-panel" role="tabpanel" hidden><div id="restockHistoryList" class="empty">No restocks recorded yet.</div></section></section><section id="stock-history-detail" class="page hidden"><div class="stock-history-detail-heading"><button type="button" class="stock-history-detail-back-button" data-app-back="stock-history" aria-label="Go back">‹</button><h2 class="page-title">History details</h2></div><div class="card" id="stockHistoryDetailContent"></div></section>
+</section><section id="stock-history" class="page hidden">
+<div class="stock-history-page-heading"><button type="button" class="stock-history-back-button" aria-label="Go back">‹</button><h2 class="page-title">Product History</h2></div>
+<div id="stockHistoryTabs" class="stock-history-tabs" role="tablist" aria-label="Choose product history type">
+<button type="button" class="stock-history-tab active" role="tab" aria-selected="true" aria-controls="productCreationHistoryPanel" data-stock-history-tab="added">Added <span data-history-count>0</span></button>
+<button type="button" class="stock-history-tab" role="tab" aria-selected="false" aria-controls="productSalesHistoryPanel" data-stock-history-tab="sales">Sales <span data-history-count>0</span></button>
+<button type="button" class="stock-history-tab" role="tab" aria-selected="false" aria-controls="stockAdjustmentPanel" data-stock-history-tab="adjustments">Adjustments <span data-history-count>0</span></button>
+<button type="button" class="stock-history-tab" role="tab" aria-selected="false" aria-controls="restockHistoryPanel" data-stock-history-tab="restocks">Restocks <span data-history-count>0</span></button>
+<button type="button" class="stock-history-tab" role="tab" aria-selected="false" aria-controls="productActivityHistoryPanel" data-stock-history-tab="changes">Changes <span data-history-count>0</span></button>
+</div>
+<section id="productCreationHistoryPanel" class="stock-history-panel" role="tabpanel"><div id="productCreationHistoryList" class="empty">No products added in this history yet.</div></section>
+<section id="productSalesHistoryPanel" class="stock-history-panel" role="tabpanel" hidden><div id="productSalesHistoryList" class="empty">No product sales recorded yet.</div></section>
+<section id="stockAdjustmentPanel" class="stock-history-panel" role="tabpanel" hidden><div id="stockAdjustmentList" class="empty">No stock adjustments recorded yet.</div></section>
+<section id="restockHistoryPanel" class="stock-history-panel" role="tabpanel" hidden><div id="restockHistoryList" class="empty">No restocks recorded yet.</div></section>
+<section id="productActivityHistoryPanel" class="stock-history-panel" role="tabpanel" hidden><div id="productActivityHistoryList" class="empty">No product changes recorded yet.</div></section>
+</section>
+<section id="stock-history-detail" class="page hidden">
+ <div class="products-page-header"><button type="button" class="products-back-button" data-app-back="stock-history" aria-label="Back to Product History" title="Back to Product History">‹</button><h1>History details</h1></div>
+ <div id="stockHistoryDetailContent" class="stock-history-detail-content"><div class="empty">Choose a history record to see its details.</div></div>
+</section>
+
 <section id="settings" class="page hidden">
  <div class="settings-main-page-heading">
   <button type="button" class="settings-main-back-button" data-app-back="me" aria-label="Go back to Me">‹</button>
@@ -950,12 +1017,20 @@
       <p id="editProductCategoryCount" class="muted" aria-live="polite">Choose up to 3 categories</p>
       <div id="editCategorySuggestionChips" class="category-suggestions" aria-label="Existing category suggestions"></div>
     </div>
-    <label for="editProductCost">Cost price per unit (₦)</label>
+    <label for="editProductBaseUnit">Individual unit name</label>
+    <input id="editProductBaseUnit" maxlength="30" value="unit" placeholder="e.g. bottle, piece, bag">
+    <div class="edit-product-pack-toggle"><label><input type="checkbox" id="editProductHasPack"> Also sell this product in packs</label></div>
+    <div id="editProductPackFields" class="edit-product-pack-fields hidden">
+      <label for="editProductPackUnit">Pack name</label><input id="editProductPackUnit" maxlength="30" placeholder="e.g. carton, dozen, pack">
+      <label for="editProductUnitsPerPack">Individual units in one pack</label><input id="editProductUnitsPerPack" type="number" min="1" step="1" inputmode="numeric" value="1">
+      <label for="editProductPackPrice">Selling price for one full pack (₦)</label><input id="editProductPackPrice" type="number" min="0.01" step="0.01" inputmode="decimal">
+    </div>
+    <label for="editProductCost">Cost price per individual unit (₦)</label>
     <input id="editProductCost" type="number" min="0" step="0.01" required inputmode="decimal">
     <div class="price-calculator"><strong>Suggested markup</strong><div class="markup-options category-suggestions" role="group" aria-label="Choose markup percentage for edited product"><button type="button" data-edit-markup="10" aria-pressed="false">10%</button><button type="button" data-edit-markup="20" aria-pressed="false">20%</button><button type="button" data-edit-markup="30" aria-pressed="true">30%</button><button type="button" data-edit-markup="40" aria-pressed="false">40%</button><button type="button" data-edit-markup="50" aria-pressed="false">50%</button></div><p id="editPriceSuggestion" class="price-suggestion">Choose a markup to calculate a suggested selling price.</p></div>
-    <label for="editProductPrice">Selling price per unit (₦)</label>
+    <label for="editProductPrice">Selling price per individual unit (₦)</label>
     <input id="editProductPrice" type="number" min="0.01" step="0.01" required inputmode="decimal">
-    <label for="editProductStock">Current units in stock</label>
+    <label for="editProductStock">Current stock (individual units)</label>
     <input id="editProductStock" type="number" min="0" step="1" required inputmode="numeric">
     <label>Product photo</label>
     <img id="editProductPhotoPreview" class="edit-photo-preview hidden" alt="Current product photo">
@@ -990,6 +1065,47 @@
 .stock-history-tab.active span{background:rgba(255,255,255,.2);color:#fff}
 .stock-history-panel[hidden]{display:none!important}
 .stock-history-panel{min-height:150px}
+
+/* Operational history pages: compact, readable and consistent on small phones. */
+body.expenses-history-page-open>.seller-welcome-header,body.expense-details-page-open>.seller-welcome-header{display:none!important}
+body.expenses-history-page-open #appWorkspace>nav,body.expense-details-page-open #appWorkspace>nav,body.expenses-history-page-open #quickSaleFab,body.expense-details-page-open #quickSaleFab{display:none!important}
+body.expenses-history-page-open #mainContent,body.expense-details-page-open #mainContent{padding-top:0!important;padding-bottom:24px!important;min-height:100svh}
+body.expenses-history-page-open #appWorkspace,body.expense-details-page-open #appWorkspace{padding-top:0!important;padding-bottom:0!important}
+body.expenses-history-page-open #expenses-history,body.expense-details-page-open #expense-details{max-width:760px;margin:0 auto;padding:14px 14px 28px!important}
+body.expenses-history-page-open .products-page-header,body.expense-details-page-open .products-page-header{position:sticky;top:0;z-index:5;background:var(--bg,#f3f6f3);padding:10px 0}
+.expense-history-controls{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:12px 0}
+.expense-history-controls>div{min-width:0}
+.expense-history-controls label{display:block;margin-bottom:6px;font-size:12px;font-weight:650;color:var(--muted)}
+.expense-history-controls input,.expense-history-controls select{width:100%;min-width:0}
+.expense-history-custom-range{grid-column:1/-1;display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.expense-history-custom-range[hidden]{display:none!important}
+.expense-history-controls>button{grid-column:1/-1;justify-self:start;min-height:38px}
+.expense-history-summary{margin:12px 0}
+.expense-history-row{gap:10px}
+.expense-detail-card{padding:16px}
+.sale-basket-list{display:grid;gap:8px}
+.sale-basket-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px;border:1px solid var(--border);border-radius:12px;background:var(--surface,#fff)}
+.sale-basket-row>span{display:grid;gap:4px;min-width:0}
+.sale-basket-row small{color:var(--muted);font-size:12px}
+.sale-basket-row button{flex:0 0 auto;min-height:36px;padding:6px 10px;border:1px solid var(--border);border-radius:9px;background:transparent;color:var(--danger,#b91c1c);font-weight:650}
+.sale-add-item-button{width:100%;min-height:44px;margin-top:8px}
+.sale-total-summary{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:14px;padding:14px;border-radius:12px;background:var(--soft-green,#e7f3eb);color:var(--text,#173c2b)}
+.sale-total-summary strong{font-size:clamp(18px,5vw,24px);font-variant-numeric:tabular-nums}
+.sale-detail-subline{font-size:12px;color:var(--muted)}
+.reservation-filter-tabs{display:flex;gap:7px;overflow-x:auto;padding:4px 0 10px;scrollbar-width:none}
+.reservation-filter-tabs::-webkit-scrollbar{display:none}
+.reservation-filter-tabs button{flex:0 0 auto;min-height:38px;padding:7px 13px;border:1px solid var(--border);border-radius:999px;background:var(--surface,#fff);color:var(--muted);font:inherit;font-size:13px;font-weight:650}
+.reservation-filter-tabs button.active{background:var(--green);border-color:var(--green);color:#fff}
+.reservation-search{margin:8px 0 14px}
+.reservation-search label{display:block;margin-bottom:6px;font-size:12px;font-weight:650;color:var(--muted)}
+.reservation-search input{width:100%}
+.stock-history-tabs{grid-template-columns:repeat(3,minmax(0,1fr))}
+.stock-history-tab{min-width:0;font-size:12px;padding-inline:6px;gap:5px}
+.stock-history-tab span{min-width:19px;height:19px;font-size:10px}
+@media(max-width:390px){.expense-history-controls{grid-template-columns:1fr}.expense-history-custom-range{grid-column:auto}.stock-history-tabs{grid-template-columns:repeat(2,minmax(0,1fr))}.sale-total-summary{align-items:flex-start;flex-direction:column}}
+
+.product-change-line{display:flex;justify-content:space-between;gap:12px;padding:7px 0;border-top:1px solid var(--border);font-size:12px}.product-change-line span{font-weight:650;color:var(--muted)}.product-change-line small{max-width:65%;text-align:right;overflow-wrap:anywhere;color:var(--text)}
+.sale-receipt-actions{max-width:760px;margin:0 auto;padding:0 14px 20px}.sale-receipt-actions button{width:100%;min-height:44px}
 </style>
 <script src="./stock-history-tabs.js"></script>
 
