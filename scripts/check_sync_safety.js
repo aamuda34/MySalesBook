@@ -374,7 +374,7 @@ requireText(app,'showReservationDetails(item.reservation_id)','reservation notif
 assert.ok(!app.includes('sellbook-notifications-seen-'),'opening Notifications cannot clear the badge using a device-local timestamp.');
 const unreadLogic=app.slice(app.indexOf('async function updateUnreadBadges(){'),app.indexOf('let userNotificationsCache=[]'));
 requireText(unreadLogic,"setUnreadBadge('supportBadge',supportCount)",'Sellbook Support has its own unread badge');
-requireText(unreadLogic,"setUnreadBadge('messageBadge',marketplaceCount)",'Messages badge counts only Buybook buyer conversations');
+requireText(unreadLogic,"setUnreadBadge('messageBadge',Number(marketUnread.count)||0)",'Messages badge counts only Buybook buyer conversations');
 const notificationMigration=fs.readFileSync('supabase/migrations/20261104233924_account_scoped_notification_reads.sql','utf8');
 requireText(notificationMigration,'enable row level security','notification receipts enforce row-level security');
 requireText(notificationMigration,'with check ((select auth.uid()) = user_id)','users can create only their own read receipts');
