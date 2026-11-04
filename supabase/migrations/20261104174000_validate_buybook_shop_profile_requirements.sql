@@ -1,0 +1,1 @@
+alter table public.marketplace_shops validate constraint marketplace_shops_active_profile_requirements;
