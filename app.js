@@ -594,6 +594,8 @@ function applyPendingToDb() {
         if (product) product.stock = Math.max(0, product.stock - (p.sale.baseQty||p.sale.qty));
         db.sales.push(p.sale);
       }
+    } else if(item.type==='sale_batch'){
+      for(const sale of (p.sales||[])){if(!db.sales.some(x=>String(x.id)===String(sale.id))){const product=db.products.find(x=>String(x.id)===String(sale.productId));if(product)product.stock=Math.max(0,Number(product.stock||0)-Number(sale.baseQty||sale.qty||0));db.sales.push(sale);}}
     } else if (item.type === 'expense') {
       if (!db.expenses.some(x => x.id === p.expense.id)) db.expenses.push(p.expense);
     } else if(item.type==='expense_void'){const expense=db.expenses.find(x=>String(x.id)===String(p.expenseId));if(expense){expense.voidedAt=p.voidedAt;expense.voidReason=p.voidReason||'';}
@@ -719,6 +721,10 @@ async function syncPendingChanges() {
           if (error) throw error;
           const newVersion=await currentProductVersion(p.sale.productId,syncUserId);
           propagateQueuedProductVersion(queue,queueIndex,p.sale.productId,newVersion);
+        } else if(item.type==='sale_batch'){
+          const sales=Array.isArray(p.sales)?p.sales:[];if(!sales.length)throw Error('This sale has no product lines.');
+          const {error}=await supabaseClient.rpc('record_sales_batch',{p_transaction_id:p.transactionId,p_sales:sales.map(s=>({id:s.id,product_id:s.productId,quantity:s.qty,unit_price:s.price,units_per_sale:s.unitsPerSale||1,sale_unit:s.saleUnit||'unit',note:s.note||null,sold_at:s.date,expected_updated_at:s.productUpdatedAt}))});if(error)throw error;
+          for(const productId of [...new Set(sales.map(s=>s.productId))]){const version=await currentProductVersion(productId,syncUserId);for(let i=queueIndex+1;i<queue.length;i++){const later=queue[i],payload=later.payload||{};if(later.type==='sale_batch'){for(const line of payload.sales||[])if(line.productId===productId)line.productUpdatedAt=version;}else if(later.type==='sale'&&payload.sale?.productId===productId)payload.productUpdatedAt=version;}}
         } else if (item.type === 'sale_import') {
           const user = await requireCloudUser(syncUserId);
           const sale = p.sale;
