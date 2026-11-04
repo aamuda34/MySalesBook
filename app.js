@@ -2917,7 +2917,15 @@ function render(){
   renderSalesHistory();if(currentPage()==='sale-details')renderSaleDetails();
   const expenseFrom=document.getElementById('historyExpensesFrom')?.value||'',expenseTo=document.getElementById('historyExpensesTo')?.value||'';const filteredExpenses=[...(db.expenses||[])].filter(x=>(!expenseFrom||dateKey(x.date)>=expenseFrom)&&(!expenseTo||dateKey(x.date)<=expenseTo)).sort((a,b)=>safeDate(b.date)-safeDate(a.date));document.getElementById('expenseList').innerHTML=filteredExpenses.length?filteredExpenses.map(x=>`<div class="item"><div class="row"><strong>${esc(x.name)}</strong><strong>${money(x.amount)}</strong></div><div class="muted">${safeDate(x.date).toLocaleString()}</div></div>`).join(''):db.expenses.length?'<div class="empty">No expenses match these dates.</div>':'<div class="empty">No expenses recorded yet.</div>';
 }
-let selectedSaleDetailId='';function renderSaleDetails(){
+let selectedSaleDetailId='';document.getElementById('shareSaleReceipt')?.addEventListener('click',async()=>{
+ const first=(db.sales||[]).find(x=>String(x.id||'')===String(selectedSaleDetailId)||String(x.transactionId||x.transaction_id||'')===String(selectedSaleDetailId));
+ if(!first)return showToast('This sale could not be found.');
+ const key=String(first.transactionId||first.transaction_id||first.id),lines=(db.sales||[]).filter(x=>String(x.transactionId||x.transaction_id||x.id)===key);
+ const total=lines.reduce((n,x)=>n+(Number(x.total)||0),0),profit=lines.reduce((n,x)=>n+(Number(x.profit??x.gross_profit)||0),0);
+ const textReceipt='SELLBOOK · SALES RECEIPT\n'+safeDate(operationalDate(first)).toLocaleString()+'\n\n'+lines.map(x=>(x.name||x.product_name||'Product')+' × '+Number(x.qty??x.quantity??0)+' — '+money(Number(x.total)||0)).join('\n')+'\n\nTOTAL: '+money(total)+'\nGross profit: '+money(profit);
+ try{if(navigator.share)await navigator.share({title:'Sellbook sales receipt',text:textReceipt});else if(navigator.clipboard?.writeText){await navigator.clipboard.writeText(textReceipt);showToast('Receipt copied.');}else showToast('Sharing is not available on this device.');}catch(error){if(error?.name!=='AbortError')showToast('Could not share this receipt.');}
+});
+function renderSaleDetails(){
  const target=document.getElementById('saleDetailsContent');if(!target)return;
  const first=(db.sales||[]).find(x=>String(x.id||'')===String(selectedSaleDetailId)||String(x.transactionId||x.transaction_id||'')===String(selectedSaleDetailId));
  if(!first){target.innerHTML='<div class="empty">This sale could not be found. Return to Sales history and choose a sale.</div>';return;}
