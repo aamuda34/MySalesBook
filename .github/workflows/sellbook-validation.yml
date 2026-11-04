@@ -180,8 +180,9 @@ jobs:
           grep -Fq 'if(!accountRequestIsCurrent(user.id,loadEpoch))return false;' app.js
           grep -Fq 'let accountSessionEpoch = 0;' app.js
           grep -Fq 'function accountRequestIsCurrent(userId, epoch)' app.js
-          grep -Fq 'let marketplaceActivityRequestId=0;' app.js
-          grep -Fq 'requestId===marketplaceActivityRequestId&&accountRequestIsCurrent(requestedUserId,requestEpoch)' app.js
+          grep -Fq 'let homeReservationCountCache=null,homeReservationCountRequest=null;' app.js
+          grep -Fq "select('id',{count:'exact',head:true}).eq('owner_id',requestedUserId)" app.js
+          grep -Fq "if(!current())throw new Error('The signed-in account changed while reservation information was loading.');" app.js
           grep -Fq 'let messengerConversationRequestId=0;' app.js
           grep -Fq 'requestId===messengerConversationRequestId' app.js
           grep -Fq "document.getElementById('messengerTranscript')" app.js
@@ -193,8 +194,9 @@ jobs:
           grep -Fq "const current=()=>accountRequestIsCurrent(requestedUserId,requestEpoch)&&String(document.getElementById('messageConversationSelect')?.value||'support')===String(chosenConversation);" app.js
           grep -Fq 'let accountSessionEpoch = 0;' app.js
           grep -Fq 'function accountRequestIsCurrent(userId, epoch)' app.js
-          grep -Fq 'let marketplaceActivityRequestId=0;' app.js
-          grep -Fq 'requestId===marketplaceActivityRequestId&&accountRequestIsCurrent(requestedUserId,requestEpoch)' app.js
+          grep -Fq 'let homeReservationCountCache=null,homeReservationCountRequest=null;' app.js
+          grep -Fq "select('id',{count:'exact',head:true}).eq('owner_id',requestedUserId)" app.js
+          grep -Fq "if(!current())throw new Error('The signed-in account changed while reservation information was loading.');" app.js
           grep -Fq 'let messengerConversationRequestId=0;' app.js
           grep -Fq 'requestId===messengerConversationRequestId' app.js
           grep -Fq "document.getElementById('messengerTranscript')" app.js
