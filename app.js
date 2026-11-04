@@ -2907,7 +2907,6 @@ function render(){
   const sel=document.getElementById('saleProduct'), previous=sel.value;
   sel.innerHTML='<option value="">Choose a product</option>'+db.products.map(p=>`<option value="${p.id}">${esc(p.name)} (${p.stock} in stock)</option>`).join('');
   if(db.products.some(p=>p.id===previous))sel.value=previous;refreshSaleUnitOptions();
-  updateSalePrice();
 
   const saleHTML=x=>`<div class="item"><div class="row"><strong>${esc(x.name)} × ${x.qty}</strong><strong>${money(x.total)}</strong></div><div class="muted">${safeDate(x.date).toLocaleString()} · Gross profit ${money(x.profit)}${x.note?' · '+esc(x.note):''}</div></div>`;
   const query=(document.getElementById('salesSearch').value||'').trim().toLocaleLowerCase(),from=document.getElementById('salesFrom').value,to=document.getElementById('salesTo').value;
@@ -3125,7 +3124,6 @@ function updateSalePrice(){
  document.getElementById('salePrice').value=p?p.price:'';
  document.getElementById('saleStock').textContent=p?'Available stock: '+p.stock+' units':'';
 }
-document.getElementById('saleProduct').addEventListener('change',updateSalePrice);
 
 let pendingProductImage='';
 let imageTargetId=null;
