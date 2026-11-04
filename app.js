@@ -2811,7 +2811,7 @@ function renderHomePanelSummary(){
  renderBrand();updateHomeProductSummary();renderGettingStarted();
  const day=today();
  const salesTodayRows=(db.sales||[]).filter(sale=>dateKey(sale.date||sale.sold_at||sale.created_at)===day);
- const expensesToday=(db.expenses||[]).reduce((sum,expense)=>dateKey(expense.date||expense.spent_at)===day?sum+(Number(expense.amount)||0):sum,0);
+ const expensesToday=(db.expenses||[]).filter(expense=>!isExpenseVoided(expense)).reduce((sum,expense)=>dateKey(expense.date||expense.spent_at)===day?sum+(Number(expense.amount)||0):sum,0);
  const salesToday=salesTodayRows.reduce((sum,sale)=>sum+(Number(sale.total)||0),0);
  const grossToday=salesTodayRows.reduce((sum,sale)=>sum+(Number(sale.profit)||0),0);
  const salesAmount=document.getElementById('todaySales');
@@ -2822,7 +2822,7 @@ function renderHomePanelSummary(){
  setSalesAmountVisibility();
 
  const allGross=(db.sales||[]).reduce((sum,sale)=>sum+(Number(sale.profit)||0),0);
- const allExpenses=(db.expenses||[]).reduce((sum,expense)=>sum+(Number(expense.amount)||0),0);
+ const allExpenses=(db.expenses||[]).filter(expense=>!isExpenseVoided(expense)).reduce((sum,expense)=>sum+(Number(expense.amount)||0),0);
  const meNet=document.getElementById('meAllNet'),meProducts=document.getElementById('meProductCount'),meStock=document.getElementById('meStockCount');
  if(meNet)meNet.textContent=money(allGross-allExpenses);
  if(meProducts)meProducts.textContent=String((db.products||[]).length);
@@ -2968,6 +2968,7 @@ function renderProfitHistory(){
   ensureDay(key).gross+=Number(sale.profit)||0;
  }
  for(const expense of (db.expenses||[])){
+  if(isExpenseVoided(expense))continue;
   const key=validDateKey(expense.date||expense.spent_at);
   if(!key||key>todayKey||(startKey&&key<startKey))continue;
   ensureDay(key).expenses+=Number(expense.amount)||0;
@@ -2993,7 +2994,7 @@ function renderProfitHistory(){
   return '<article class="profit-history-day"><div class="profit-history-day-heading"><strong>'+esc(label)+'</strong><strong class="profit-history-day-net '+netClass+'">'+money(dayNet)+'</strong></div><div class="profit-history-day-breakdown"><span>Gross profit<strong>'+money(row.gross)+'</strong></span><span>Expenses<strong>'+money(row.expenses)+'</strong></span></div></article>';
  }).join('');
 }
-function renderReports(){const {start,rows}=reportRows(),allTime=document.getElementById('reportRange')?.value==='all',key=dateKey(start),todayKey=dateKey(new Date()),inRange=x=>{const recordKey=validDateKey(x.date);return !!recordKey&&recordKey<=todayKey&&(allTime||recordKey>=key);},sales=db.sales.filter(inRange),expenses=db.expenses.filter(inRange);const total=sales.reduce((n,x)=>n+x.total,0),gross=sales.reduce((n,x)=>n+x.profit,0),costs=expenses.reduce((n,x)=>n+x.amount,0);document.getElementById('reportSales').textContent=money(total);document.getElementById('reportGross').textContent=money(gross);document.getElementById('reportExpenses').textContent=money(costs);document.getElementById('reportNet').textContent=money(gross-costs);renderBarChart('salesTrendChart',reportRowsFor7(),x=>x.label,x=>x.sales);renderBarChart('reportSalesChart',rows,x=>x.label,x=>x.sales);const sums=new Map();sales.forEach(x=>sums.set(x.name,(sums.get(x.name)||0)+x.qty));const top=[...sums.entries()].map(([name,qty])=>({name,qty})).sort((a,b)=>b.qty-a.qty).slice(0,5),max=top[0]?.qty||1;document.getElementById('topProductsChart').innerHTML=top.length?top.map(x=>'<div class="progress-row"><strong>'+esc(x.name)+'</strong><div class="progress-track"><div class="progress-fill" style="width:'+(x.qty/max*100)+'%"></div></div><span class="muted">'+x.qty+' sold</span></div>').join(''):'<div class="empty">No product sales in this period.</div>';}
+function renderReports(){const {start,rows}=reportRows(),allTime=document.getElementById('reportRange')?.value==='all',key=dateKey(start),todayKey=dateKey(new Date()),inRange=x=>{const recordKey=validDateKey(x.date);return !!recordKey&&recordKey<=todayKey&&(allTime||recordKey>=key);},sales=db.sales.filter(inRange),expenses=db.expenses.filter(x=>!isExpenseVoided(x)&&inRange(x));const total=sales.reduce((n,x)=>n+x.total,0),gross=sales.reduce((n,x)=>n+x.profit,0),costs=expenses.reduce((n,x)=>n+x.amount,0);document.getElementById('reportSales').textContent=money(total);document.getElementById('reportGross').textContent=money(gross);document.getElementById('reportExpenses').textContent=money(costs);document.getElementById('reportNet').textContent=money(gross-costs);renderBarChart('salesTrendChart',reportRowsFor7(),x=>x.label,x=>x.sales);renderBarChart('reportSalesChart',rows,x=>x.label,x=>x.sales);const sums=new Map();sales.forEach(x=>sums.set(x.name,(sums.get(x.name)||0)+x.qty));const top=[...sums.entries()].map(([name,qty])=>({name,qty})).sort((a,b)=>b.qty-a.qty).slice(0,5),max=top[0]?.qty||1;document.getElementById('topProductsChart').innerHTML=top.length?top.map(x=>'<div class="progress-row"><strong>'+esc(x.name)+'</strong><div class="progress-track"><div class="progress-fill" style="width:'+(x.qty/max*100)+'%"></div></div><span class="muted">'+x.qty+' sold</span></div>').join(''):'<div class="empty">No product sales in this period.</div>';}
 document.getElementById('reportRange').addEventListener('change',renderReports);document.getElementById('profitHistoryRange')?.addEventListener('change',renderProfitHistory);
 function renderRestockHistory(){
  const target=document.getElementById('restockHistoryList');
