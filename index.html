@@ -279,6 +279,7 @@
 <div class="entry-form-group-heading"><h2 id="saleNoteHeading">Sale note <span class="entry-optional">(optional)</span></h2><p>Add a short reference to help you recognise this sale later.</p></div>
 <div class="entry-form-field"><label for="saleNote">Note</label><input id="saleNote" maxlength="150" placeholder="e.g. Order reference"></div>
 </section>
+<div class="sale-total-summary" aria-label="Sale total"><span>Total amount to receive</span><strong id="saleTotalAmount" aria-live="polite">₦0.00</strong></div>
 <div class="entry-form-actions"><button type="submit" class="primary">Record paid sale</button><p class="entry-submit-note">Sales are recorded as paid. Stock is deducted automatically.</p></div>
 </form>
 </div>
@@ -479,8 +480,19 @@
     <input type="hidden" id="editProductId">
     <label for="editProductName">Product name</label>
     <input id="editProductName" required maxlength="100" autocomplete="off">
-    <label>Product categories <span class="muted">(choose up to 3)</span></label>
-    <input type="hidden" id="editProductCategory"><div id="editProductCategoryOptions" class="product-category-options"><label class="category-choice"><input type="checkbox" data-edit-product-category value="Food & Groceries"><span>Food & Groceries</span></label><label class="category-choice"><input type="checkbox" data-edit-product-category value="Drinks & Beverages"><span>Drinks & Beverages</span></label><label class="category-choice"><input type="checkbox" data-edit-product-category value="Fruits & Vegetables"><span>Fruits & Vegetables</span></label><label class="category-choice"><input type="checkbox" data-edit-product-category value="Health & Beauty"><span>Health & Beauty</span></label><label class="category-choice"><input type="checkbox" data-edit-product-category value="Household Items"><span>Household Items</span></label><label class="category-choice"><input type="checkbox" data-edit-product-category value="Clothing & Fashion"><span>Clothing & Fashion</span></label><label class="category-choice"><input type="checkbox" data-edit-product-category value="Electronics & Accessories"><span>Electronics & Accessories</span></label><label class="category-choice"><input type="checkbox" data-edit-product-category value="Building Materials"><span>Building Materials</span></label><label class="category-choice"><input type="checkbox" data-edit-product-category value="Stationery & School Supplies"><span>Stationery & School Supplies</span></label><label class="category-choice"><input type="checkbox" data-edit-product-category value="Other"><span>Other</span></label></div><p id="editProductCategoryCount" class="muted" aria-live="polite">0 of 3 selected</p><div id="editCategorySuggestionChips" class="category-suggestions" aria-label="Existing category suggestions"></div>
+    <label for="editProductCategorySearch">Product category <span class="muted">(choose up to 3)</span></label>
+    <div class="product-category-picker edit-product-category-picker" id="editProductCategoryPicker">
+      <div class="product-category-search-row">
+        <input id="editProductCategorySearch" class="product-category-search" type="search" role="combobox" aria-autocomplete="list" aria-controls="editProductCategoryOptions" aria-expanded="false" placeholder="Search or browse categories" autocomplete="off" autocapitalize="words">
+        <button type="button" id="editProductCategoryToggle" class="category-browse-button" aria-label="Browse all categories" aria-expanded="false" aria-controls="editProductCategoryDropdown">Browse</button>
+      </div>
+      <div id="editProductCategoryDropdown" class="product-category-dropdown hidden">
+        <div id="editProductCategoryOptions" class="product-category-options" role="group" aria-label="Available product categories"><span class="muted">Type to search or browse all categories.</span></div>
+      </div>
+      <input type="hidden" id="editProductCategory">
+      <p id="editProductCategoryCount" class="muted" aria-live="polite">Choose up to 3 categories</p>
+      <div id="editCategorySuggestionChips" class="category-suggestions" aria-label="Existing category suggestions"></div>
+    </div>
     <label for="editProductCost">Cost price per unit (₦)</label>
     <input id="editProductCost" type="number" min="0" step="0.01" required inputmode="decimal">
     <div class="price-calculator"><strong>Suggested markup</strong><div class="markup-options category-suggestions" role="group" aria-label="Choose markup percentage for edited product"><button type="button" data-edit-markup="10" aria-pressed="false">10%</button><button type="button" data-edit-markup="20" aria-pressed="false">20%</button><button type="button" data-edit-markup="30" aria-pressed="true">30%</button><button type="button" data-edit-markup="40" aria-pressed="false">40%</button><button type="button" data-edit-markup="50" aria-pressed="false">50%</button></div><p id="editPriceSuggestion" class="price-suggestion">Choose a markup to calculate a suggested selling price.</p></div>
