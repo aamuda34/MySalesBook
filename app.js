@@ -2674,7 +2674,7 @@ function paintPage(name,scroll){if(!VALID_PAGES.has(name))name='home';if(name===
 })();
 function refreshStockHistoryBadges(){
  const tabs=document.getElementById('stockHistoryTabs');if(!tabs)return;
- const counts={added:(db.productAdditions||[]).length,adjustments:(db.stockAdjustments||[]).length,restocks:(db.restocks||[]).length};
+ const counts={added:(db.productAdditions||[]).length,sales:(db.sales||[]).length,adjustments:(db.stockAdjustments||[]).length,restocks:(db.restocks||[]).length,changes:(db.productActivity||[]).length};
  tabs.querySelectorAll('[data-stock-history-tab]').forEach(button=>{const count=button.querySelector('[data-history-count]');if(count)count.textContent=String(counts[button.dataset.stockHistoryTab]||0);});
 }
 async function refreshStockHistoryFromCloud(){
