@@ -196,6 +196,13 @@ document.querySelector('[data-toast-close]')?.addEventListener('click',dismissTo
 let localSnapshot = null;
 let authTransition = false;
 let authTransitionPending = false;
+let pendingLoginSuccessUserId=null;
+function showPendingLoginSuccess(userId){
+ if(!userId||pendingLoginSuccessUserId!==userId)return false;
+ pendingLoginSuccessUserId=null;
+ showToast('Login successful','success');
+ return true;
+}
 let pendingSync = [];
 let syncingQueue = false;
 let recoveryMode = window.location.hash.includes('type=recovery');
@@ -1038,6 +1045,7 @@ async function handleCloudAuthChange() {
         if(loaded===false){coreWorkspaceLoaded=true;finishStartup();return;}
         coreWorkspaceLoaded = true;
         finishStartup();
+        showPendingLoginSuccess(user.id);
         if (pendingSync.some(item => item.status !== 'conflict')) {
           syncPendingChanges().catch(error => {
             cloudMessage('Some changes are still waiting to sync. Your local copies are preserved: ' + (error.message || String(error)));
@@ -1050,6 +1058,7 @@ async function handleCloudAuthChange() {
         coreWorkspaceLoaded = true;
         finishStartup();
         cloudMessage('Showing your last saved copy while Sellbook reconnects. Changes will be kept on this device until they can sync.');
+        showPendingLoginSuccess(user.id);
       }
     } else {
       // The local PIN-recovery sign-out path skips restoreLocalRecords so it
@@ -1103,6 +1112,7 @@ async function handleCloudAuthChange() {
         coreWorkspaceLoaded = true;
         finishStartup();
         cloudMessage('Could not reach the cloud. Showing the last saved copy; queued changes remain on this device.');
+        if(pinCheckCompleted)showPendingLoginSuccess(activeUser.id);
         refreshAccountStatus().catch(error => console.warn('Account status refresh failed:', error));
       } else {
         workspaceReady = false;
@@ -1625,87 +1635,112 @@ const PRODUCT_CATEGORIES=[
 function categoryValues(value){return String(value||'').split('|').map(x=>x.trim()).filter(Boolean);}
 function cleanProductCategory(value){return String(value||'').replace(/[|<>]/g,' ').replace(/\s+/g,' ').trim().slice(0,48);}
 function getSelectedCategories(prefix){
- if(prefix==='product')return categoryValues(document.getElementById('pcategory')?.value||'').slice(0,3);
- return [...document.querySelectorAll('[data-edit-product-category]:checked')].map(x=>x.value).slice(0,3);
+ const id=prefix==='editProduct'?'editProductCategory':'pcategory';
+ return categoryValues(document.getElementById(id)?.value||'').slice(0,3);
+}
+function updateCategoryCount(prefix,values){
+ const id=prefix==='editProduct'?'editProductCategoryCount':'productCategoryCount';
+ const target=document.getElementById(id);
+ if(!target)return;
+ target.textContent=values.length
+  ? values.length+' of 3 selected'
+  : 'Choose up to 3 categories';
+ target.title=values.length?values.join(' · '):'Choose up to three product categories';
 }
 function productCategoryPickerOpen(open=true){
  const dropdown=document.getElementById('productCategoryDropdown'),search=document.getElementById('productCategorySearch'),toggle=document.getElementById('productCategoryToggle');
  if(!dropdown||!search||!toggle)return;
- dropdown.classList.toggle('hidden',!open);search.setAttribute('aria-expanded',String(open));toggle.setAttribute('aria-expanded',String(open));toggle.textContent=open?'Close':'Browse';
+ dropdown.classList.toggle('hidden',!open);
+ search.setAttribute('aria-expanded',String(open));
+ toggle.setAttribute('aria-expanded',String(open));
+ toggle.textContent=open?'Close':'Browse';
+}
+function editProductCategoryPickerOpen(open=true){
+ const dropdown=document.getElementById('editProductCategoryDropdown'),search=document.getElementById('editProductCategorySearch'),toggle=document.getElementById('editProductCategoryToggle');
+ if(!dropdown||!search||!toggle)return;
+ dropdown.classList.toggle('hidden',!open);
+ search.setAttribute('aria-expanded',String(open));
+ toggle.setAttribute('aria-expanded',String(open));
+ toggle.textContent=open?'Close':'Browse';
 }
 function getProductCategoryChoices(){
  const used=(db.products||[]).flatMap(product=>categoryValues(product.category));
  return [...new Set([...PRODUCT_CATEGORIES,...used.map(cleanProductCategory).filter(Boolean)])];
 }
-function renderProductCategoryOptions(){
- const target=document.getElementById('productCategoryOptions'),search=document.getElementById('productCategorySearch');
+function renderCategoryOptions(prefix){
+ const edit=prefix==='editProduct';
+ const target=document.getElementById(edit?'editProductCategoryOptions':'productCategoryOptions');
+ const search=document.getElementById(edit?'editProductCategorySearch':'productCategorySearch');
  if(!target||!search)return;
- const query=search.value.trim().toLocaleLowerCase(),selected=getSelectedCategories('product');
+ const query=search.value.trim().toLocaleLowerCase(),selected=getSelectedCategories(prefix);
  const allCategories=getProductCategoryChoices();
  const matches=allCategories.filter(category=>!query||category.toLocaleLowerCase().includes(query));
  const customSelected=selected.filter(category=>!allCategories.some(item=>item.toLocaleLowerCase()===category.toLocaleLowerCase())&&(!query||category.toLocaleLowerCase().includes(query)));
  const options=[...new Set([...matches,...customSelected])];
- let markup=options.map(category=>'<label class="product-category-option"><input type="checkbox" data-product-category value="'+esc(category)+'" '+(selected.some(item=>item.toLocaleLowerCase()===category.toLocaleLowerCase())?'checked ':'')+(!selected.some(item=>item.toLocaleLowerCase()===category.toLocaleLowerCase())&&selected.length>=3?'disabled':'')+'><span>'+esc(category)+'</span></label>').join('');
+ const inputAttribute=edit?'data-edit-product-category':'data-product-category';
+ let markup=options.map(category=>{
+  const checked=selected.some(item=>item.toLocaleLowerCase()===category.toLocaleLowerCase());
+  return '<label class="product-category-option"><input type="checkbox" '+inputAttribute+' value="'+esc(category)+'" '+(checked?'checked ':'')+(!checked&&selected.length>=3?'disabled':'')+'><span>'+esc(category)+'</span></label>';
+ }).join('');
  const exact=allCategories.some(category=>category.toLocaleLowerCase()===query)||selected.some(category=>category.toLocaleLowerCase()===query);
  if(query&&!exact){
-  const canAdd=selected.length<3;
-  markup+='<button type="button" class="product-category-add-option" data-add-product-category="'+esc(cleanProductCategory(search.value))+'" '+(canAdd?'':'disabled')+' >＋ Use “'+esc(cleanProductCategory(search.value))+'” as a custom category</button>';
+  const custom=cleanProductCategory(search.value),canAdd=!!custom&&selected.length<3;
+  const dataAttribute=edit?'data-add-edit-product-category':'data-add-product-category';
+  if(custom)markup+='<button type="button" class="product-category-add-option" '+dataAttribute+'="'+esc(custom)+'" '+(canAdd?'':'disabled')+'>＋ Use “'+esc(custom)+'” as a custom category</button>';
  }
- target.innerHTML=markup||'<p class="product-category-no-results">No matching category. You can add “'+esc(cleanProductCategory(search.value))+'” as a category.</p>';
+ target.innerHTML=markup||'<p class="product-category-no-results">No matching category. Try another search or add a custom category.</p>';
 }
-function renderProductCategorySelected(){
- const target=document.getElementById('productCategorySelected');if(!target)return;
- const values=getSelectedCategories('product');
- target.innerHTML=values.map(category=>'<button type="button" class="product-category-chip" data-remove-product-category="'+esc(category)+'" aria-label="Remove '+esc(category)+' category"><span>'+esc(category)+'</span><span aria-hidden="true">×</span></button>').join('');
- target.classList.toggle('has-selections',values.length>0);
-}
+function renderProductCategoryOptions(){renderCategoryOptions('product');}
+function renderEditProductCategoryOptions(){renderCategoryOptions('editProduct');}
+function renderProductCategorySelected(){updateCategoryCount('product',getSelectedCategories('product'));}
+function renderEditProductCategorySelected(){updateCategoryCount('editProduct',getSelectedCategories('editProduct'));}
 function syncCategoryPicker(prefix,value){
- const edit=prefix==='editProduct';
- if(!edit){
-  const values=[...new Set(categoryValues(value).map(cleanProductCategory).filter(Boolean))].slice(0,3);
-  const hidden=document.getElementById('pcategory'),count=document.getElementById('productCategoryCount');
-  if(hidden)hidden.value=values.join(' | ');
-  if(count)count.textContent=values.length+' of 3 selected';
-  renderProductCategoryOptions();renderProductCategorySelected();return;
+ const edit=prefix==='editProduct',id=edit?'editProductCategory':'pcategory';
+ const values=[...new Set(categoryValues(value).map(cleanProductCategory).filter(Boolean))].slice(0,3);
+ const hidden=document.getElementById(id);
+ if(hidden)hidden.value=values.join(' | ');
+ if(edit){
+  renderEditProductCategoryOptions();
+  renderEditProductCategorySelected();
+ }else{
+  renderProductCategoryOptions();
+  renderProductCategorySelected();
  }
- const selector='[data-edit-product-category]',count=document.getElementById('editProductCategoryCount'),hidden=document.getElementById('editProductCategory');
- let values=[...new Set(categoryValues(value).map(cleanProductCategory).filter(Boolean))].slice(0,3);
- const optionList=document.getElementById('editProductCategoryOptions');
- optionList?.querySelectorAll('[data-edit-custom-category]').forEach(label=>label.remove());
- values.forEach(category=>{
-  const exists=[...document.querySelectorAll(selector)].some(input=>input.value.toLocaleLowerCase()===category.toLocaleLowerCase());
-  if(!exists&&optionList){
-   const label=document.createElement('label');label.className='category-choice';label.dataset.editCustomCategory='';
-   const input=document.createElement('input');input.type='checkbox';input.dataset.editProductCategory='';input.value=category;
-   const text=document.createElement('span');text.textContent=category;
-   label.append(input,text);optionList.appendChild(label);
-  }
- });
- optionList?.querySelectorAll(selector).forEach(x=>{x.checked=values.some(value=>value.toLocaleLowerCase()===x.value.toLocaleLowerCase());x.disabled=false;});
- if(hidden)hidden.value=values.join(' | ');if(count)count.textContent=values.length+' of 3 selected';updateCategoryPickerLimits('editProduct');
 }
 function updateCategoryPickerLimits(prefix){
- if(prefix==='product'){renderProductCategoryOptions();renderProductCategorySelected();return;}
- const selector='[data-edit-product-category]',selected=[...document.querySelectorAll(selector+':checked')].length;
- document.querySelectorAll(selector).forEach(x=>{x.disabled=!x.checked&&selected>=3;});
- const hidden=document.getElementById('editProductCategory');if(hidden)hidden.value=getSelectedCategories('editProduct').join(' | ');
- const count=document.getElementById('editProductCategoryCount');if(count)count.textContent=selected+' of 3 selected';
+ if(prefix==='editProduct'){
+  renderEditProductCategoryOptions();
+  renderEditProductCategorySelected();
+ }else{
+  renderProductCategoryOptions();
+  renderProductCategorySelected();
+ }
 }
 function addProductCategory(value){
  const category=cleanProductCategory(value);if(!category)return;
  const selected=getSelectedCategories('product');
- if(selected.includes(category)){productCategoryPickerOpen(false);return;}
+ if(selected.some(item=>item.toLocaleLowerCase()===category.toLocaleLowerCase())){productCategoryPickerOpen(false);return;}
  if(selected.length>=3){showToast('You can choose up to three product categories.');return;}
  syncCategoryPicker('product',[...selected,category].join(' | '));
  const search=document.getElementById('productCategorySearch');if(search)search.value='';
- renderProductCategoryOptions();productCategoryPickerOpen(false);
+ renderProductCategoryOptions();
+ productCategoryPickerOpen(false);
 }
-const productCategoryOptions=document.getElementById('productCategoryOptions');
-productCategoryOptions?.addEventListener('change',event=>{
+function addEditProductCategory(value){
+ const category=cleanProductCategory(value);if(!category)return;
+ const selected=getSelectedCategories('editProduct');
+ if(selected.some(item=>item.toLocaleLowerCase()===category.toLocaleLowerCase())){editProductCategoryPickerOpen(false);return;}
+ if(selected.length>=3){showToast('You can choose up to three product categories.');return;}
+ syncCategoryPicker('editProduct',[...selected,category].join(' | '));
+ const search=document.getElementById('editProductCategorySearch');if(search)search.value='';
+ renderEditProductCategoryOptions();
+ editProductCategoryPickerOpen(false);
+}
+document.getElementById('productCategoryOptions')?.addEventListener('change',event=>{
  const input=event.target.closest('[data-product-category]');if(!input)return;
  const selected=getSelectedCategories('product');
  const next=input.checked?[...selected,input.value]:selected.filter(value=>value!==input.value);
- syncCategoryPicker('product',next.join(' | '));renderProductCategoryOptions();
+ syncCategoryPicker('product',next.join(' | '));
 });
 document.getElementById('productCategorySearch')?.addEventListener('focus',()=>{renderProductCategoryOptions();productCategoryPickerOpen(true);});
 document.getElementById('productCategorySearch')?.addEventListener('input',()=>{renderProductCategoryOptions();productCategoryPickerOpen(true);});
@@ -1717,18 +1752,34 @@ document.getElementById('productCategoryToggle')?.addEventListener('click',()=>{
 document.getElementById('productCategoryOptions')?.addEventListener('click',event=>{
  const add=event.target.closest('[data-add-product-category]');if(add)addProductCategory(add.dataset.addProductCategory);
 });
-document.getElementById('productCategorySelected')?.addEventListener('click',event=>{
- const remove=event.target.closest('[data-remove-product-category]');if(!remove)return;
- syncCategoryPicker('product',getSelectedCategories('product').filter(value=>value!==remove.dataset.removeProductCategory).join(' | '));
+document.getElementById('editProductCategoryOptions')?.addEventListener('change',event=>{
+ const input=event.target.closest('[data-edit-product-category]');if(!input)return;
+ const selected=getSelectedCategories('editProduct');
+ const next=input.checked?[...selected,input.value]:selected.filter(value=>value!==input.value);
+ syncCategoryPicker('editProduct',next.join(' | '));
+});
+document.getElementById('editProductCategorySearch')?.addEventListener('focus',()=>{renderEditProductCategoryOptions();editProductCategoryPickerOpen(true);});
+document.getElementById('editProductCategorySearch')?.addEventListener('input',()=>{renderEditProductCategoryOptions();editProductCategoryPickerOpen(true);});
+document.getElementById('editProductCategoryToggle')?.addEventListener('click',()=>{
+ const open=document.getElementById('editProductCategoryDropdown')?.classList.contains('hidden');
+ if(open)renderEditProductCategoryOptions();
+ editProductCategoryPickerOpen(open);
+});
+document.getElementById('editProductCategoryOptions')?.addEventListener('click',event=>{
+ const add=event.target.closest('[data-add-edit-product-category]');if(add)addEditProductCategory(add.dataset.addEditProductCategory);
 });
 document.addEventListener('click',event=>{
- const picker=document.getElementById('productCategoryPicker');
- if(picker&&!picker.contains(event.target))productCategoryPickerOpen(false);
+ const addPicker=document.getElementById('productCategoryPicker');
+ if(addPicker&&!addPicker.contains(event.target))productCategoryPickerOpen(false);
+ const editPicker=document.getElementById('editProductCategoryPicker');
+ if(editPicker&&!editPicker.contains(event.target))editProductCategoryPickerOpen(false);
 });
 document.getElementById('productCategorySearch')?.addEventListener('keydown',event=>{
  if(event.key==='Escape'){productCategoryPickerOpen(false);event.currentTarget.blur();}
 });
-document.getElementById('editProductCategoryOptions')?.addEventListener('change',event=>{if(event.target.matches('[data-edit-product-category]'))updateCategoryPickerLimits('editProduct');});
+document.getElementById('editProductCategorySearch')?.addEventListener('keydown',event=>{
+ if(event.key==='Escape'){editProductCategoryPickerOpen(false);event.currentTarget.blur();}
+});
 
 function showLegalSection(section){const privacy=section!=='terms';const privacyPanel=document.getElementById('legalPrivacyContent'),termsPanel=document.getElementById('legalTermsContent'),privacyTab=document.getElementById('legalPrivacyTab'),termsTab=document.getElementById('legalTermsTab');if(!privacyPanel||!termsPanel||!privacyTab||!termsTab)return;privacyPanel.classList.toggle('hidden',!privacy);termsPanel.classList.toggle('hidden',privacy);privacyTab.classList.toggle('active',privacy);termsTab.classList.toggle('active',!privacy);privacyTab.setAttribute('aria-selected',String(privacy));termsTab.setAttribute('aria-selected',String(!privacy));}
 const VALID_PAGES=new Set(['home','about-sellbook','stock-history','stock-history-detail','sales-history','sale-details','subscribers','reservations','products','record-product','product-details','low-stock','sales','record-sale','more','expenses','record-expense','reports','stock','settings','business-details','settings-business','settings-sync','settings-preferences','settings-account','settings-legal','settings-buybook','support','messenger','feedback','admin','me','notifications']);
@@ -2030,7 +2081,7 @@ document.getElementById('quickSaleFab').addEventListener('click',()=>{
 function closeProductLightbox(){document.getElementById('productImageLightbox').classList.add('hidden');document.body.style.overflow='';}
 function openProductLightbox(src,caption){const box=document.getElementById('productImageLightbox');document.getElementById('largeProductImage').src=src;document.getElementById('largeProductImage').alt=caption+' photo';document.getElementById('largeProductImageCaption').textContent=caption;box.classList.remove('hidden');document.body.style.overflow='hidden';document.getElementById('closeProductImage').focus();}
 document.getElementById('categorySuggestionChips').addEventListener('click',event=>{const button=event.target.closest('[data-category-suggestion]');if(button)addProductCategory(button.dataset.categorySuggestion);});
-document.getElementById('editCategorySuggestionChips').addEventListener('click',event=>{const button=event.target.closest('[data-category-suggestion]');if(button)document.getElementById('editProductCategory').value=button.dataset.categorySuggestion;});
+document.getElementById('editCategorySuggestionChips').addEventListener('click',event=>{const button=event.target.closest('[data-category-suggestion]');if(button)addEditProductCategory(button.dataset.categorySuggestion);});
 document.getElementById('productList').addEventListener('click',event=>{const img=event.target.closest('img.product-photo');if(!img||!img.src)return;event.preventDefault();openProductLightbox(img.src,img.alt.replace(/ photo$/,''));});
 document.getElementById('closeProductImage').addEventListener('click',closeProductLightbox);
 document.getElementById('productImageLightbox').addEventListener('click',event=>{if(event.target.id==='productImageLightbox')closeProductLightbox();});
@@ -2536,6 +2587,8 @@ document.getElementById('editProductForm').addEventListener('reset',()=>{
 });
 function openProductEditor(product) {
   syncDefaultMarkupUI();
+  const categorySearch=document.getElementById('editProductCategorySearch');if(categorySearch)categorySearch.value='';
+  editProductCategoryPickerOpen(false);
   document.getElementById('editProductId').value=product.id;
   document.getElementById('editProductName').value=product.name;
   syncCategoryPicker('editProduct',product.category);
@@ -2731,6 +2784,17 @@ document.getElementById('productList').addEventListener('click',async e=>{
  }
 });
 
+function updateSaleTotal(){
+ const output=document.getElementById('saleTotalAmount');
+ if(!output)return;
+ const p=db.products.find(x=>x.id===document.getElementById('saleProduct').value);
+ const qty=Number(document.getElementById('saleQty').value),price=Number(document.getElementById('salePrice').value);
+ if(!p||!Number.isSafeInteger(qty)||qty<1||!Number.isFinite(price)||price<=0){output.textContent=money(0);return;}
+ try{
+  const unitsPerSale=document.getElementById('saleUnit').value==='pack'?Number(p.unitsPerPack||1):1;
+  output.textContent=money(calculateSaleAmounts(qty,price,p.cost,unitsPerSale).total);
+ }catch(_){output.textContent=money(0);}
+}
 function refreshSaleUnitOptions(){
  const p=db.products.find(x=>x.id===document.getElementById('saleProduct').value),sel=document.getElementById('saleUnit');
  if(!sel)return;
@@ -2739,9 +2803,14 @@ function refreshSaleUnitOptions(){
  if(previous==='pack'&&p?.packUnit)sel.value='pack';
  const isPack=sel.value==='pack';document.getElementById('salePriceLabel').textContent=isPack?'Selling price per full pack (₦)':'Selling price per individual unit (₦)';document.getElementById('salePrice').value=p?(isPack?Number(p.packPrice):Number(p.price)).toFixed(2):'';
  document.getElementById('saleStock').textContent=p?'Available: '+p.stock+' '+(p.baseUnit||'units')+(p.packUnit?' · '+Math.floor(p.stock/Math.max(1,p.unitsPerPack))+' '+p.packUnit+' possible':''):'';
+ updateSaleTotal();
 }
 document.getElementById('saleProduct').addEventListener('change',refreshSaleUnitOptions);
 document.getElementById('saleUnit').addEventListener('change',refreshSaleUnitOptions);
+document.getElementById('saleQty').addEventListener('input',updateSaleTotal);
+document.getElementById('salePrice').addEventListener('input',updateSaleTotal);
+document.getElementById('saleForm').addEventListener('reset',()=>setTimeout(updateSaleTotal,0));
+updateSaleTotal();
 let saleSubmitting=false;
 document.getElementById('saleForm').addEventListener('submit',async e=>{
  e.preventDefault();
@@ -3537,6 +3606,7 @@ document.getElementById('emailAuthForm').addEventListener('submit',async event=>
       const {data,error}=await supabaseClient.auth.signInWithPassword({email,password});
       if(error)throw error;
       if(!data.session?.user)throw new Error('The account service did not return a valid sign-in session. Please try again.');
+      pendingLoginSuccessUserId=data.session.user.id;
       if(!data.session.user.email_confirmed_at){
         const {error:signOutError}=await supabaseClient.auth.signOut({scope:'local'});
         if(signOutError)console.warn('Sellbook could not close an unverified sign-in session:',signOutError);
@@ -4219,14 +4289,23 @@ async function updateUnreadBadges(){
 let userNotificationsCache=[];let userNotificationCategory='all';
 function renderUserNotifications(){const target=document.getElementById('userNotificationsList');if(!target)return;const rows=userNotificationCategory==='all'?userNotificationsCache:userNotificationsCache.filter(n=>String(n.kind||'').toLowerCase()===userNotificationCategory);target.innerHTML=rows.length?rows.map(n=>'<div class="item"><strong>'+escAdmin(n.title)+'</strong><div class="muted">'+escAdmin(({reservation:'Reservation',update:'Update',announcement:'Announcement',support:'Support',maintenance:'Maintenance'})[String(n.kind||'').toLowerCase()]||n.kind||'Notification')+' · '+escAdmin(new Date(n.created_at).toLocaleString())+'</div><p>'+escAdmin(n.body)+'</p></div>').join(''):'<div class="empty">'+(userNotificationCategory==='all'?'No notifications yet.':'No '+escAdmin(userNotificationCategory==='reservation'?'reservation':userNotificationCategory)+' notifications yet.')+'</div>';}
 async function loadUserNotifications(){
- const target=document.getElementById('userNotificationsList');if(!target)return;
- if(!cloudUser||!supabaseClient){userNotificationsCache=[];target.textContent='Sign in to view app announcements.';return;}
+ const target=document.getElementById('userNotificationsList');if(!target)return false;
+ if(!cloudUser||!supabaseClient){userNotificationsCache=[];target.textContent='Sign in to view app announcements.';return false;}
  const requestedUserId=cloudUser.id,requestEpoch=accountSessionEpoch;
  target.textContent='Loading notifications…';
- const {data,error}=await supabaseClient.from('app_notifications').select('id,title,body,kind,created_at').or('recipient_id.is.null,recipient_id.eq.'+requestedUserId).order('created_at',{ascending:false}).limit(100);
- if(!accountRequestIsCurrent(requestedUserId,requestEpoch))return;
- if(error){showToast('Could not load notifications: '+error.message,'error');target.textContent='Notifications are temporarily unavailable.';return;}
- userNotificationsCache=data||[];renderUserNotifications();
+ try{
+  const {data,error}=await supabaseClient.from('app_notifications').select('id,title,body,kind,created_at').or('recipient_id.is.null,recipient_id.eq.'+requestedUserId).order('created_at',{ascending:false}).limit(100);
+  if(!accountRequestIsCurrent(requestedUserId,requestEpoch))return false;
+  if(error)throw error;
+  userNotificationsCache=data||[];
+  renderUserNotifications();
+  return true;
+ }catch(error){
+  if(!accountRequestIsCurrent(requestedUserId,requestEpoch))return false;
+  showToast('Could not load notifications: '+(error.message||'Please try again.'),'error');
+  target.textContent='Notifications are temporarily unavailable.';
+  return false;
+ }
 }
 
 let messageListOpen=true;
@@ -4575,7 +4654,19 @@ document.getElementById('adminNotificationForm').addEventListener('submit',async
   if(button)button.disabled=false;
  }
 });
-document.getElementById('refreshUserNotifications').addEventListener('click',loadUserNotifications);
+document.getElementById('refreshUserNotifications').addEventListener('click',async event=>{
+ const button=event.currentTarget;
+ if(button.disabled)return;
+ button.disabled=true;
+ button.setAttribute('aria-busy','true');
+ try{
+  const refreshed=await loadUserNotifications();
+  if(refreshed)showToast('Refreshed','success');
+ }finally{
+  button.disabled=false;
+  button.removeAttribute('aria-busy');
+ }
+});
 document.getElementById('refreshFeedback').addEventListener('click',loadUserSupport);
 document.getElementById('refreshAdminUsers').addEventListener('click',loadAdminUsers);
 document.getElementById('refreshAdminFeedback').addEventListener('click',loadAdminFeedback);
@@ -4616,6 +4707,8 @@ if (supabaseClient) {
       }
       if(event==='TOKEN_REFRESHED')return;
     }
+    if(event==='SIGNED_IN'&&session?.user?.id)pendingLoginSuccessUserId=session.user.id;
+    if(event==='SIGNED_OUT')pendingLoginSuccessUserId=null;
     if (event === 'PASSWORD_RECOVERY') {
       recoveryMode = true;
       document.getElementById('appWorkspace').classList.add('hidden');
