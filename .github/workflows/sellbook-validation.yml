@@ -186,12 +186,14 @@ jobs:
           grep -Fq 'let messengerConversationRequestId=0;' app.js
           grep -Fq 'requestId===messengerConversationRequestId' app.js
           grep -Fq "document.getElementById('messengerTranscript')" app.js
-          grep -Fq "['recentConversationList','Sign in to view conversations.']" app.js
+          grep -Fq "['userSupportMessages','Sign in to view support messages.']" app.js
           grep -Fq "['reservationsPageList','Sign in to view reservations.']" app.js
           grep -Fq "['subscribersPageList','Sign in to view subscribers.']" app.js
           grep -Fq "const requestedUserId=cloudUser.id,requestEpoch=accountSessionEpoch,current=()=>accountRequestIsCurrent(requestedUserId,requestEpoch);" app.js
           grep -Fq "eq('owner_id',requestedUserId)" app.js
-          grep -Fq "const current=()=>accountRequestIsCurrent(requestedUserId,requestEpoch)&&String(document.getElementById('messageConversationSelect')?.value||'support')===String(chosenConversation);" app.js
+          grep -Fq "async function loadUserSupport(options={})" app.js
+          grep -Fq "async function openMessengerConversation(id,options={})" app.js
+          grep -Fq ".update({read_at:stamp})" app.js
           grep -Fq 'let accountSessionEpoch = 0;' app.js
           grep -Fq 'function accountRequestIsCurrent(userId, epoch)' app.js
           grep -Fq 'let homeReservationCountCache=null,homeReservationCountRequest=null;' app.js
@@ -200,7 +202,7 @@ jobs:
           grep -Fq 'let messengerConversationRequestId=0;' app.js
           grep -Fq 'requestId===messengerConversationRequestId' app.js
           grep -Fq "document.getElementById('messengerTranscript')" app.js
-          grep -Fq "['recentConversationList','Sign in to view conversations.']" app.js
+          grep -Fq "['userSupportMessages','Sign in to view support messages.']" app.js
           grep -Fq "['reservationsPageList','Sign in to view reservations.']" app.js
           grep -Fq "['subscribersPageList','Sign in to view subscribers.']" app.js
           grep -Fq 'messengerSelectedConversation=null;' app.js

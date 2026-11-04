@@ -1603,6 +1603,7 @@ async function loadBuybookConnection(options={}){
   if(headerButton){const accessible=loading?'Checking Buybook connection':connected?'Connected to Buybook':'Connect to Buybook';headerButton.setAttribute('aria-label',accessible);headerButton.title=accessible;}
   const label=connected?'Connected to Buybook':'Not connected to Buybook';
   [overviewStatus,setupStatus].forEach(el=>{if(el)el.textContent=loading?'Checking Buybook connection…':label;});
+  const meStatus=document.getElementById('meBuybookStatus');if(meStatus)meStatus.textContent=loading?'Checking Buybook connection…':label;
   [overviewBar,setupBar].forEach(bar=>{
    if(!bar)return;
    bar.classList.toggle('connected',!!connected&&!loading);
@@ -2683,7 +2684,7 @@ async function refreshHomeReservationCount(force=false){
  catch(_){if(current()&&!cached){el.textContent='—';setUnreadBadge('homeReservationBadge',0);}}
  finally{if(homeReservationCountRequest?.key===requestKey)homeReservationCountRequest=null;}
 }
-function paintPage(name,scroll){if(!VALID_PAGES.has(name))name='home';if(name==='business-details')updateBusinessDetailsPage();document.body.classList.toggle('notifications-page-open',name==='notifications');document.body.classList.toggle('subscribers-page-open',name==='subscribers');document.body.classList.toggle('reservations-page-open',name==='reservations');document.body.classList.toggle('settings-main-page-open',name==='settings');document.body.classList.toggle('settings-detail-page-open',['settings-business','settings-sync','settings-preferences','settings-account','settings-buybook','settings-buybook-setup'].includes(name));document.body.classList.toggle('business-profile-page-open',name==='business-details');document.body.classList.toggle('legal-page-open',name==='settings-legal');document.body.classList.toggle('about-sellbook-page-open',name==='about-sellbook');document.body.classList.toggle('reports-page-open',name==='reports');document.body.classList.toggle('stock-page-open',name==='stock');document.body.classList.toggle('stock-history-page-open',name==='stock-history');document.body.classList.toggle('stock-history-detail-page-open',name==='stock-history-detail');document.body.classList.toggle('product-page-open',name==='products');document.body.classList.toggle('low-stock-page-open',name==='low-stock');document.body.classList.toggle('product-details-page-open',name==='product-details');document.body.classList.toggle('sales-page-open',name==='sales');document.body.classList.toggle('sales-history-page-open',name==='sales-history');document.body.classList.toggle('profit-history-page-open',name==='profit-history');document.body.classList.toggle('quick-guide-page-open',name==='quick-guide');document.body.classList.toggle('sale-details-page-open',name==='sale-details');document.body.classList.toggle('expenses-page-open',name==='expenses');document.body.classList.toggle('expenses-history-page-open',name==='expenses-history');document.body.classList.toggle('expense-details-page-open',name==='expense-details');document.body.classList.toggle('record-entry-page-open',['record-sale','record-product','record-expense'].includes(name));const saleBackButton=document.querySelector('#record-sale [data-app-back]');if(saleBackButton){const destination=resolveSaleReturnPage(saleReturnPage,'home');const label=destination==='sales'?'Back to Sales':'Back to Home';saleBackButton.setAttribute('aria-label',label);saleBackButton.title=label;}document.querySelectorAll('.page').forEach(x=>x.classList.toggle('hidden',x.id!==name));document.querySelectorAll('nav button').forEach(x=>x.classList.toggle('active',x.dataset.page===name||(x.dataset.page==='messages'&&name==='support')||(x.dataset.page==='me'&&['me','more','reports','stock','low-stock','settings','business-details','settings-business','settings-sync','settings-preferences','settings-account','settings-legal','settings-buybook','settings-buybook-setup'].includes(name))));sessionStorage.setItem('my-sales-book-current-page',name);if(name==='home')renderHomePanelSummary();else render();renderDailySalesSummary();refreshHomeWeeklySales();const homeProductCount=document.getElementById('productCountHome'),homeProductSellingValue=document.getElementById('productSellingValueHome');if(homeProductCount)homeProductCount.textContent=String((db.products||[]).length);if(homeProductSellingValue){const total=(db.products||[]).reduce((sum,p)=>sum+Math.max(0,Number(p.stock)||0)*Math.max(0,Number(p.price??p.selling_price)||0),0);homeProductSellingValue.textContent=money(total);}if(name==='home'){refreshHomeReservationCount(true);if(cloudUser)void updateUnreadBadges();}const fab=document.getElementById('quickSaleFab');const fabPages={home:{label:'Record a sale',title:'Record a sale'},sales:{label:'Record a sale',title:'Record a sale'},products:{label:'Add a product',title:'Add a product'},expenses:{label:'Add an expense',title:'Add an expense'}};const fabAction=fabPages[name];if(fab){fab.style.display='none';fab.hidden=true;fab.setAttribute('aria-hidden','true');if(fabAction&&name!=='home'&&!sellbookIsAdmin){fab.hidden=false;fab.style.display='flex';fab.setAttribute('aria-hidden','false');fab.setAttribute('aria-label',fabAction.label);fab.title=fabAction.title;fab.dataset.action=name;}}if(name==='support'&&cloudUser){loadUserSupport();}if(name==='feedback'&&cloudUser){loadUserSupport();}if(name==='notifications'&&cloudUser){localStorage.setItem('sellbook-notifications-seen-'+cloudUser.id,new Date().toISOString());updateUnreadBadges();}if((name==='settings-buybook'||name==='settings-buybook-setup')&&cloudUser){loadBuybookConnection();}if(name==='reservations')loadReservationsPage();if(name==='me')updateMePanel();if(scroll)window.scrollTo({top:0,behavior:'auto'});}
+function paintPage(name,scroll){if(!VALID_PAGES.has(name))name='home';if(name==='business-details')updateBusinessDetailsPage();document.body.classList.toggle('notifications-page-open',name==='notifications');document.body.classList.toggle('subscribers-page-open',name==='subscribers');document.body.classList.toggle('reservations-page-open',name==='reservations');document.body.classList.toggle('settings-main-page-open',name==='settings');document.body.classList.toggle('settings-detail-page-open',['settings-business','settings-sync','settings-preferences','settings-account','settings-buybook','settings-buybook-setup'].includes(name));document.body.classList.toggle('business-profile-page-open',name==='business-details');document.body.classList.toggle('legal-page-open',name==='settings-legal');document.body.classList.toggle('about-sellbook-page-open',name==='about-sellbook');document.body.classList.toggle('reports-page-open',name==='reports');document.body.classList.toggle('stock-page-open',name==='stock');document.body.classList.toggle('stock-history-page-open',name==='stock-history');document.body.classList.toggle('stock-history-detail-page-open',name==='stock-history-detail');document.body.classList.toggle('product-page-open',name==='products');document.body.classList.toggle('low-stock-page-open',name==='low-stock');document.body.classList.toggle('product-details-page-open',name==='product-details');document.body.classList.toggle('sales-page-open',name==='sales');document.body.classList.toggle('sales-history-page-open',name==='sales-history');document.body.classList.toggle('profit-history-page-open',name==='profit-history');document.body.classList.toggle('quick-guide-page-open',name==='quick-guide');document.body.classList.toggle('sale-details-page-open',name==='sale-details');document.body.classList.toggle('expenses-page-open',name==='expenses');document.body.classList.toggle('expenses-history-page-open',name==='expenses-history');document.body.classList.toggle('expense-details-page-open',name==='expense-details');document.body.classList.toggle('record-entry-page-open',['record-sale','record-product','record-expense'].includes(name));const saleBackButton=document.querySelector('#record-sale [data-app-back]');if(saleBackButton){const destination=resolveSaleReturnPage(saleReturnPage,'home');const label=destination==='sales'?'Back to Sales':'Back to Home';saleBackButton.setAttribute('aria-label',label);saleBackButton.title=label;}document.querySelectorAll('.page').forEach(x=>x.classList.toggle('hidden',x.id!==name));document.querySelectorAll('nav button').forEach(x=>x.classList.toggle('active',x.dataset.page===name||(x.dataset.page==='messages'&&name==='messenger')||(x.dataset.page==='me'&&['me','more','reports','stock','low-stock','settings','business-details','settings-business','settings-sync','settings-preferences','settings-account','settings-legal','settings-buybook','settings-buybook-setup'].includes(name))));sessionStorage.setItem('my-sales-book-current-page',name);if(name==='home')renderHomePanelSummary();else render();renderDailySalesSummary();refreshHomeWeeklySales();const homeProductCount=document.getElementById('productCountHome'),homeProductSellingValue=document.getElementById('productSellingValueHome');if(homeProductCount)homeProductCount.textContent=String((db.products||[]).length);if(homeProductSellingValue){const total=(db.products||[]).reduce((sum,p)=>sum+Math.max(0,Number(p.stock)||0)*Math.max(0,Number(p.price??p.selling_price)||0),0);homeProductSellingValue.textContent=money(total);}if(name==='home'){refreshHomeReservationCount(true);if(cloudUser)void updateUnreadBadges();}const fab=document.getElementById('quickSaleFab');const fabPages={home:{label:'Record a sale',title:'Record a sale'},sales:{label:'Record a sale',title:'Record a sale'},products:{label:'Add a product',title:'Add a product'},expenses:{label:'Add an expense',title:'Add an expense'}};const fabAction=fabPages[name];if(fab){fab.style.display='none';fab.hidden=true;fab.setAttribute('aria-hidden','true');if(fabAction&&name!=='home'&&!sellbookIsAdmin){fab.hidden=false;fab.style.display='flex';fab.setAttribute('aria-hidden','false');fab.setAttribute('aria-label',fabAction.label);fab.title=fabAction.title;fab.dataset.action=name;}}if(name==='support'&&cloudUser){loadUserSupport();}if(name==='feedback'&&cloudUser){loadUserSupport();}if(name==='notifications'&&cloudUser){void updateUnreadBadges();}if((name==='settings-buybook'||name==='settings-buybook-setup')&&cloudUser){loadBuybookConnection();}if(name==='reservations')loadReservationsPage();if(name==='me'){updateMePanel();if(cloudUser)void loadBuybookConnection({quiet:true});}if(scroll)window.scrollTo({top:0,behavior:'auto'});}
 // Keep all page back arrows consistent. Use the actual previous app page when it
 // matches the intended parent; otherwise replace the current history entry with
 // the safe parent so Back cannot reopen the page the user just left.
@@ -2902,10 +2903,32 @@ function restorePageFromLocation(){const hash=location.hash.slice(1),saved=sessi
 })();
 document.querySelectorAll('nav button').forEach(b=>b.addEventListener('click',()=>{showPage(b.dataset.page);if(b.dataset.page==='messenger')loadMessengerConversations();}));
 document.getElementById('messengerPageBack')?.addEventListener('click',()=>{const target=VALID_PAGES.has(messengerReturnPage)&&messengerReturnPage!=='messenger'?messengerReturnPage:'home';if(location.hash==='#messenger'&&history.state?.mySalesBookPage==='messenger'){history.back();setTimeout(()=>{if(currentPage()==='messenger')showPage(target,{replaceHistory:true});},180);}else showPage(target);});
-document.querySelectorAll('[data-open-page]').forEach(b=>b.addEventListener('click',()=>{if(b.dataset.openPage==='admin'&&!sellbookIsAdmin)return cloudMessage('Administrator access is required.');showPage(b.dataset.openPage);if(b.dataset.openPage==='admin')loadAdminDashboard();if(b.dataset.openPage==='support'){messageListOpen=true;document.getElementById('conversationListView')?.classList.remove('hidden');document.getElementById('supportConversationView')?.classList.add('hidden');loadConversationList();}if(b.dataset.openPage==='notifications')loadUserNotifications();if(b.dataset.openPage==='subscribers')loadSubscribersPage();}));
+document.querySelectorAll('[data-open-page]').forEach(b=>b.addEventListener('click',()=>{if(b.dataset.openPage==='admin'&&!sellbookIsAdmin)return cloudMessage('Administrator access is required.');if(b.dataset.openPage==='support'&&sellbookIsAdmin){showPage('admin');showAdminPanel('support');void loadAdminUsers();return;}showPage(b.dataset.openPage);if(b.dataset.openPage==='admin')loadAdminDashboard();if(b.dataset.openPage==='notifications')loadUserNotifications();if(b.dataset.openPage==='subscribers')loadSubscribersPage();}));
 document.querySelectorAll('[data-open-sales-period]').forEach(button=>button.addEventListener('click',()=>openSalesHistoryPeriod(button.dataset.openSalesPeriod||'today')));
 document.querySelectorAll('[data-notification-category]').forEach(b=>b.addEventListener('click',()=>{userNotificationCategory=b.dataset.notificationCategory||'all';document.querySelectorAll('[data-notification-category]').forEach(x=>{const active=x===b;x.classList.toggle('active',active);x.setAttribute('aria-pressed',active?'true':'false');});renderUserNotifications();}));
-document.querySelectorAll('[data-open-support-direct]').forEach(b=>b.addEventListener('click',async()=>{showPage('support');messageListOpen=false;document.getElementById('conversationListView')?.classList.add('hidden');document.getElementById('supportConversationView')?.classList.remove('hidden');const selector=document.getElementById('messageConversationSelect');if(selector)selector.value='support';await loadUserSupport();}));
+document.getElementById('markAllNotificationsRead')?.addEventListener('click',markAllUserNotificationsRead);
+document.getElementById('userNotificationsList')?.addEventListener('click',async event=>{
+ if(event.target.closest('[data-load-more-notifications]')){void loadUserNotifications({append:true});return;}
+ const row=event.target.closest('[data-notification-id]');if(!row||row.disabled)return;
+ const item=userNotificationsCache.find(n=>String(n.id)===String(row.dataset.notificationId));if(!item)return;
+ row.disabled=true;
+ const uid=cloudUser?.id,epoch=accountSessionEpoch;
+ try{
+  const marked=await markUserNotificationRead(item.id);
+  if(!marked||!accountRequestIsCurrent(uid,epoch))return;
+ }catch(error){
+  showToast('Could not update notification read status: '+(error.message||'Please try again.'),'error');
+  row.disabled=false;
+  return;
+ }
+ if(item.reservation_id){
+  showPage('reservations');
+  await loadReservationsPage();
+  if(marketplaceReservationsCache.some(r=>String(r.id)===String(item.reservation_id)))showReservationDetails(item.reservation_id);
+  else showToast('The reservation linked to this notification is no longer available.','error');
+ }
+});
+document.querySelectorAll('[data-open-support-direct]').forEach(b=>b.addEventListener('click',()=>{if(sellbookIsAdmin){showPage('admin');showAdminPanel('support');void loadAdminUsers();}else showPage('support');}));
 function openEntryForm(type){
  const routes={sale:{page:'record-sale',field:'saleProduct'},product:{page:'record-product',field:'pname'},expense:{page:'record-expense',field:'ename'}};
  const route=routes[type];if(!route||!document.getElementById(route.page))return;
@@ -5033,7 +5056,11 @@ function clearAccountScopedUiState(){
  homeReservationCountCache=null;homeReservationCountRequest=null;
  setUnreadBadge('notificationBadge',0);
  setUnreadBadge('messageBadge',0);
+ setUnreadBadge('supportBadge',0);
+ setUnreadBadge('meSupportBadge',0);
  setUnreadBadge('homeReservationBadge',0);
+ userNotificationsCache=[];userNotificationsOffset=0;userNotificationsHasMore=false;userNotificationsLoading=false;
+ messengerConversationCache=[];messengerSelectedConversation=null;
  const buybookHeaderLabel=document.getElementById('buybookHeaderConnectLabel');
  const buybookHeaderButton=document.getElementById('buybookHeaderConnectButton');
  if(buybookHeaderLabel)buybookHeaderLabel.textContent='Connect to Buybook';
@@ -5051,7 +5078,6 @@ function clearAccountScopedUiState(){
  document.body.classList.remove('messenger-conversation-open','admin-conversation-open');
  document.getElementById('messengerSubscriberPicker')?.classList.add('hidden');
  const resetPanels=[
-  ['recentConversationList','Sign in to view conversations.'],
   ['userNotificationsList','Sign in to view notifications.'],
   ['userSupportMessages','Sign in to view support messages.'],
   ['userFeedbackList','Sign in to view feedback.'],
@@ -5190,7 +5216,7 @@ async function loadAdminNotifications(){
  const {data,error}=await supabaseClient.from('app_notifications').select('id,title,body,kind,recipient_id,created_at').order('created_at',{ascending:false}).limit(20);
  if(!adminRequestIsCurrent(requestedUserId,requestEpoch))return;
  if(error){showToast('Could not load notifications: '+error.message,'error');target.textContent='Notifications are temporarily unavailable.';return;}
- localStorage.setItem('sellbook-notifications-seen-'+requestedUserId,new Date().toISOString());
+ 
  target.innerHTML=(data||[]).length?data.map(n=>'<div class="item"><strong>'+escAdmin(n.title)+'</strong><div class="muted">'+escAdmin(n.kind)+' · '+(n.recipient_id?'Specific user':'All users')+' · '+escAdmin(new Date(n.created_at).toLocaleString())+'</div><p>'+escAdmin(n.body)+'</p></div>').join(''):'<div class="empty">No notifications published yet.</div>';
 }
 function updateBusinessDetailsPage(){
@@ -5228,118 +5254,190 @@ function updateBusinessDetailsPage(){
  const status=document.getElementById('businessDetailsStatus');
  if(status)status.textContent=cloudUser?'Registered account':'Device profile';
 }
-function updateMePanel(){const profile=getProfile();const name=String(profile.businessName||'').trim()||'Sellbook';const b=document.getElementById('meBusinessName');if(b)b.textContent=name;}
+function updateMePanel(){const profile=getProfile();const name=String(profile.businessName||'').trim()||'Sellbook';const b=document.getElementById('meBusinessName');if(b)b.textContent=name;const status=document.getElementById('meBuybookStatus');if(status&&buybookConnectionState!==null)status.textContent=buybookConnectionState?'Connected to Buybook':'Not connected to Buybook';}
 function setUnreadBadge(id,count){const el=document.getElementById(id);if(!el)return;const n=Math.max(0,Number(count)||0);el.textContent=n>99?'99+':String(n);el.classList.toggle('hidden',n===0);}
 async function updateUnreadBadges(){
- if(!cloudUser||!supabaseClient){setUnreadBadge('notificationBadge',0);setUnreadBadge('messageBadge',0);return;}
+ if(!cloudUser||!supabaseClient){
+  setUnreadBadge('notificationBadge',0);setUnreadBadge('messageBadge',0);
+  setUnreadBadge('supportBadge',0);setUnreadBadge('meSupportBadge',0);return;
+ }
  const requestedUserId=cloudUser.id,requestEpoch=accountSessionEpoch;
  try{
-  const ns=localStorage.getItem('sellbook-notifications-seen-'+requestedUserId)||'1970-01-01T00:00:00.000Z';
-  const notificationQuery=supabaseClient.from('app_notifications').select('id',{count:'exact',head:true}).or('recipient_id.is.null,recipient_id.eq.'+requestedUserId).gt('created_at',ns);
   const supportMessageQuery=sellbookIsAdmin
    ?supabaseClient.from('support_messages').select('id',{count:'exact',head:true}).neq('sender_id',requestedUserId).or('recipient_id.is.null,recipient_id.eq.'+requestedUserId).is('read_at',null)
    :supabaseClient.from('support_messages').select('id',{count:'exact',head:true}).eq('recipient_id',requestedUserId).is('read_at',null);
   const marketplaceMessageQuery=supabaseClient.from('marketplace_messages').select('id',{count:'exact',head:true}).eq('owner_id',requestedUserId).neq('sender_id',requestedUserId).is('read_at',null);
-  const [nr,supportUnread,marketUnread]=await Promise.all([notificationQuery,supportMessageQuery,marketplaceMessageQuery]);
+  const [notificationUnread,supportUnread,marketUnread]=await Promise.all([
+   supabaseClient.rpc('get_my_unread_notification_count'),supportMessageQuery,marketplaceMessageQuery
+  ]);
   if(!accountRequestIsCurrent(requestedUserId,requestEpoch))return;
-  const supportCount=supportUnread.error?0:Number(supportUnread.count)||0;
-  const marketplaceCount=marketUnread.error?0:Number(marketUnread.count)||0;
-  setUnreadBadge('notificationBadge',nr.error?0:Number(nr.count)||0);
-  setUnreadBadge('messageBadge',supportCount+marketplaceCount);
+  if(!notificationUnread.error)setUnreadBadge('notificationBadge',Number(notificationUnread.data)||0);
+  if(!supportUnread.error){const supportCount=Number(supportUnread.count)||0;setUnreadBadge('supportBadge',supportCount);setUnreadBadge('meSupportBadge',supportCount);}
+  if(!marketUnread.error)setUnreadBadge('messageBadge',Number(marketUnread.count)||0);
  }catch(_){/* Keep the interface quiet if the device is offline. */}
 }
-let userNotificationsCache=[];let userNotificationCategory='all';
-function renderUserNotifications(){const target=document.getElementById('userNotificationsList');if(!target)return;const rows=userNotificationCategory==='all'?userNotificationsCache:userNotificationsCache.filter(n=>String(n.kind||'').toLowerCase()===userNotificationCategory);target.innerHTML=rows.length?rows.map(n=>'<div class="item"><strong>'+escAdmin(n.title)+'</strong><div class="muted">'+escAdmin(({reservation:'Reservation',update:'Update',announcement:'Announcement',support:'Support',maintenance:'Maintenance'})[String(n.kind||'').toLowerCase()]||n.kind||'Notification')+' · '+escAdmin(new Date(n.created_at).toLocaleString())+'</div><p>'+escAdmin(n.body)+'</p></div>').join(''):'<div class="empty">'+(userNotificationCategory==='all'?'No notifications yet.':'No '+escAdmin(userNotificationCategory==='reservation'?'reservation':userNotificationCategory)+' notifications yet.')+'</div>';}
-async function loadUserNotifications(options={}){
- const target=document.getElementById('userNotificationsList');if(!target)return false;
- if(!cloudUser||!supabaseClient){userNotificationsCache=[];target.textContent='Sign in to view app announcements.';return false;}
- const requestedUserId=cloudUser.id,requestEpoch=accountSessionEpoch;
- target.textContent='Loading notifications…';
- try{
-  const {data,error}=await supabaseClient.from('app_notifications').select('id,title,body,kind,created_at').or('recipient_id.is.null,recipient_id.eq.'+requestedUserId).order('created_at',{ascending:false}).limit(100);
-  if(!accountRequestIsCurrent(requestedUserId,requestEpoch))return false;
-  if(error)throw error;
-  userNotificationsCache=data||[];
-  renderUserNotifications();
-  return true;
- }catch(error){
-  if(!accountRequestIsCurrent(requestedUserId,requestEpoch))return false;
-  if(!options.quiet)showToast('Could not load notifications: '+(error.message||'Please try again.'),'error');
-  target.textContent='Notifications are temporarily unavailable.';
-  return false;
- }
+let userNotificationsCache=[];
+let userNotificationCategory='all';
+let userNotificationsOffset=0;
+let userNotificationsHasMore=false;
+let userNotificationsLoading=false;
+const USER_NOTIFICATIONS_PAGE_SIZE=50;
+
+function notificationGroupLabel(value){
+ const date=new Date(value);
+ if(Number.isNaN(date.getTime()))return 'Earlier';
+ const today=new Date(),yesterday=new Date();yesterday.setDate(today.getDate()-1);
+ if(date.toDateString()===today.toDateString())return 'Today';
+ if(date.toDateString()===yesterday.toDateString())return 'Yesterday';
+ return date.toLocaleDateString([], {day:'numeric',month:'long',year:'numeric'});
 }
 
-let messageListOpen=true;
-function backFromMessageConversation(){messageListOpen=true;document.getElementById('conversationListView')?.classList.remove('hidden');document.getElementById('supportConversationView')?.classList.add('hidden');loadConversationList();}
-async function openMessageConversation(id){marketplaceSelectedBuyerId=id==='support'?null:id;const selector=document.getElementById('messageConversationSelect');if(selector)selector.value=id;messageListOpen=false;document.getElementById('conversationListView')?.classList.add('hidden');document.getElementById('supportConversationView')?.classList.remove('hidden');await loadUserSupport();}
-async function loadConversationList(){
- const target=document.getElementById('recentConversationList');if(!target)return;
- if(!cloudUser||!supabaseClient){target.innerHTML='<div class="empty">Sign in to view conversations.</div>';return;}
- const requestedUserId=cloudUser.id,requestEpoch=accountSessionEpoch;
- const current=()=>accountRequestIsCurrent(requestedUserId,requestEpoch);
- target.innerHTML='<div class="empty">Loading conversations…</div>';
- const [subsRes,supportRes,marketRes]=await Promise.all([
-  supabaseClient.rpc('get_my_marketplace_subscribers'),
-  fetchAllCloudRows(()=>supabaseClient.from('support_messages').select('id,sender_id,recipient_id,body,created_at,read_at').or('sender_id.eq.'+requestedUserId+',recipient_id.eq.'+requestedUserId).order('created_at',{ascending:false}).order('id',{ascending:false})),
-  fetchAllCloudRows(()=>supabaseClient.from('marketplace_messages').select('id,buyer_id,sender_id,body,created_at,read_at').eq('owner_id',requestedUserId).order('created_at',{ascending:false}).order('id',{ascending:false}))
- ]);
- if(!current())return;
- if(subsRes.error||supportRes.error||marketRes.error){showToast('Could not refresh conversations. Check your internet connection and try again.','error');target.innerHTML='<div class="empty">Conversations are temporarily unavailable. Check your connection and try again.</div>';return false;}
- marketplaceSubscribersCache=subsRes.data||[];
- const conversations=[];
- const latestSupport=(supportRes.data||[])[0];
- if(latestSupport)conversations.push({id:'support',name:'Sellbook Support',body:latestSupport.body,time:latestSupport.created_at,unread:(supportRes.data||[]).filter(m=>m.sender_id!==requestedUserId&&m.recipient_id===requestedUserId&&!m.read_at).length});
- const byBuyer=new Map();
- (marketRes.data||[]).forEach(m=>{const old=byBuyer.get(m.buyer_id);if(!old||new Date(m.created_at)>new Date(old.created_at))byBuyer.set(m.buyer_id,m);});
- marketplaceSubscribersCache.forEach(sub=>{const m=byBuyer.get(sub.buyer_id);if(m)conversations.push({id:sub.buyer_id,name:sub.display_name||marketplaceBuyerName(sub.buyer_id),body:m.body,time:m.created_at,unread:(marketRes.data||[]).filter(x=>x.buyer_id===sub.buyer_id&&x.sender_id===sub.buyer_id&&!x.read_at).length});});
- conversations.sort((a,b)=>new Date(b.time)-new Date(a.time));
- target.innerHTML=conversations.length?conversations.map(c=>'<button type="button" class="conversation-list-button" data-conversation-id="'+escAdmin(c.id)+'"><span class="chat-support-avatar" aria-hidden="true">'+(c.id==='support'?'SB':'👤')+'</span><span class="conversation-preview"><strong>'+escAdmin(c.name)+'</strong><small>'+escAdmin(c.body||'No message text')+'</small></span><span><span class="conversation-time">'+escAdmin(new Date(c.time).toLocaleDateString())+'</span>'+(c.unread?'<span class="status-pill">'+c.unread+'</span>':'')+'</span></button>').join(''):'<div class="empty">No conversations yet. Your recent messages will appear here.</div>';
- target.querySelectorAll('[data-conversation-id]').forEach(b=>b.addEventListener('click',()=>openMessageConversation(b.dataset.conversationId)));
- if(!current())return;
+function renderUserNotifications(){
+ const target=document.getElementById('userNotificationsList');if(!target)return;
+ const rows=userNotificationCategory==='all'?userNotificationsCache:userNotificationsCache.filter(n=>String(n.kind||'').toLowerCase()===userNotificationCategory);
+ const groups=new Map();
+ rows.forEach(n=>{const label=notificationGroupLabel(n.created_at);if(!groups.has(label))groups.set(label,[]);groups.get(label).push(n);});
+ const groupHtml=[...groups.entries()].map(([label,items])=>'<section class="notification-date-group"><h3>'+escAdmin(label)+'</h3>'+items.map(n=>{
+  const kind=String(n.kind||'').toLowerCase();
+  const kindLabel=({reservation:'Reservation',update:'Update',announcement:'Announcement',support:'Support',maintenance:'Maintenance'})[kind]||n.kind||'Notification';
+  return '<button type="button" class="user-notification-row'+(n.isRead?' is-read':' is-unread')+'" data-notification-id="'+escAdmin(n.id)+'" aria-label="'+escAdmin(n.title)+(n.reservation_id?'. Open reservation':'')+'"><span class="notification-read-indicator" aria-hidden="true"></span><span class="user-notification-copy"><span class="user-notification-heading"><strong>'+escAdmin(n.title)+'</strong><small>'+escAdmin(kindLabel)+'</small></span><span class="user-notification-body">'+escAdmin(n.body)+'</span><time>'+escAdmin(new Date(n.created_at).toLocaleString([], {dateStyle:'medium',timeStyle:'short'}))+'</time></span>'+(n.reservation_id?'<span class="notification-action" aria-hidden="true">›</span>':'')+'</button>';
+ }).join('')+'</section>').join('');
+ const empty='<div class="empty">'+(userNotificationCategory==='all'?'No notifications yet.':'No '+escAdmin(userNotificationCategory==='reservation'?'reservation':userNotificationCategory)+' notifications yet.')+'</div>';
+ target.innerHTML=(groupHtml||empty)+(userNotificationsHasMore?'<button type="button" data-load-more-notifications class="secondary notification-load-more">Load older notifications</button>':'');
+}
+
+async function markUserNotificationRead(notificationId){
+ if(!cloudUser||!supabaseClient||!notificationId)return false;
+ const uid=cloudUser.id,epoch=accountSessionEpoch,current=()=>accountRequestIsCurrent(uid,epoch);
+ const notification=userNotificationsCache.find(n=>String(n.id)===String(notificationId));
+ if(notification?.isRead)return true;
+ const {error}=await supabaseClient.from('notification_reads').insert({notification_id:notificationId,user_id:uid});
+ if(!current())return false;
+ if(error&&error.code!=='23505')throw error;
+ if(notification)notification.isRead=true;
+ renderUserNotifications();
  await updateUnreadBadges();
  return true;
 }
 
-async function loadUserSupport(options={}){
+async function markAllUserNotificationsRead(){
  if(!cloudUser||!supabaseClient)return;
+ const button=document.getElementById('markAllNotificationsRead');
+ const uid=cloudUser.id,epoch=accountSessionEpoch,current=()=>accountRequestIsCurrent(uid,epoch);
+ if(button)button.disabled=true;
+ try{
+  const {data,error}=await supabaseClient.rpc('mark_my_notifications_read');
+  if(!current())return;
+  if(error)throw error;
+  userNotificationsCache.forEach(n=>{n.isRead=true;});
+  renderUserNotifications();
+  await updateUnreadBadges();
+  if(current())showToast(Number(data)>0?'Notifications marked as read.':'All notifications are already read.','success');
+ }catch(error){
+  if(current())showToast('Could not mark notifications as read: '+(error.message||'Please try again.'),'error');
+ }finally{
+  if(current()&&button)button.disabled=false;
+ }
+}
+
+async function loadUserNotifications(options={}){
+ const target=document.getElementById('userNotificationsList');if(!target)return false;
+ if(!cloudUser||!supabaseClient){userNotificationsCache=[];userNotificationsOffset=0;userNotificationsHasMore=false;target.textContent='Sign in to view notifications.';return false;}
+ if(userNotificationsLoading)return false;
  const requestedUserId=cloudUser.id,requestEpoch=accountSessionEpoch;
  const current=()=>accountRequestIsCurrent(requestedUserId,requestEpoch);
- const feedback=document.getElementById('userFeedbackList'),messages=document.getElementById('userSupportMessages'),selector=document.getElementById('messageConversationSelect');
- const [fr,mr,sr]=await Promise.all([
-  supabaseClient.from('user_feedback').select('id,category,subject,message,status,admin_reply,created_at').eq('user_id',requestedUserId).order('created_at',{ascending:false}).limit(50),
-  supabaseClient.from('support_messages').select('id,sender_id,recipient_id,body,created_at,delivered_at,read_at').or('sender_id.eq.'+requestedUserId+',recipient_id.eq.'+requestedUserId).order('created_at',{ascending:true}).limit(100),
-  supabaseClient.rpc('get_my_marketplace_subscribers')
- ]);
- if(!current())return;
- if(fr.error&&currentPage()==='feedback'&&!options.quiet)showToast('Could not load your feedback: '+fr.error.message,'error');
- if(feedback)feedback.innerHTML=fr.error?'<div class="empty">Feedback is temporarily unavailable.</div>':(fr.data||[]).length?fr.data.map(f=>'<div class="item"><div class="row"><strong>'+escAdmin(f.subject)+'</strong><span class="status-pill">'+escAdmin(f.status)+'</span></div><div class="muted">'+escAdmin(f.category)+' · '+escAdmin(new Date(f.created_at).toLocaleString())+'</div><p>'+escAdmin(f.message)+'</p>'+(f.admin_reply?'<p><strong>Sellbook reply:</strong> '+escAdmin(f.admin_reply)+'</p>':'')+'</div>').join(''):'<div class="empty">You have not sent feedback yet.</div>';
- if(!sr.error)marketplaceSubscribersCache=sr.data||[];
- if(selector){const old=selector.value||'support';selector.innerHTML='<option value="support">Sellbook Support</option>'+marketplaceSubscribersCache.map(x=>'<option value="'+escAdmin(x.buyer_id)+'">'+escAdmin(x.display_name||marketplaceBuyerName(x.buyer_id))+' · Buybook</option>').join('');selector.value=old==='support'||marketplaceSubscribersCache.some(x=>x.buyer_id===old)?old:'support';}
- const chosen=selector?selector.value:'support';
- const title=document.getElementById('supportConversationTitle'),status=document.getElementById('supportChatStatus');
- if(title)title.textContent=chosen==='support'?'Sellbook Support':marketplaceBuyerName(chosen);
- if(status)status.textContent=chosen==='support'?'Support conversation':'Buybook subscriber conversation';
- if(messages&&chosen==='support'){
-  let rows=mr.data||[];
-  const incoming=currentPage()==='support'?rows.filter(m=>m.sender_id!==requestedUserId&&m.recipient_id===requestedUserId&&!m.read_at).map(m=>m.id):[];
-  if(incoming.length){const stamp=new Date().toISOString();const {error}=await supabaseClient.from('support_messages').update({delivered_at:stamp,read_at:stamp}).in('id',incoming).eq('recipient_id',requestedUserId).select('id');if(!current())return;if(!error){const fresh=await supabaseClient.from('support_messages').select('id,sender_id,recipient_id,body,created_at,delivered_at,read_at').or('sender_id.eq.'+requestedUserId+',recipient_id.eq.'+requestedUserId).order('created_at',{ascending:true}).limit(100);if(!current())return;if(!fresh.error)rows=fresh.data||rows;}}
-  if(mr.error&&currentPage()==='support'&&!options.quiet)showToast('Could not load support messages: '+mr.error.message,'error');
-   messages.innerHTML=mr.error?'<div class="empty">Support messages are temporarily unavailable.</div>':rows.length?rows.map(m=>{const mine=m.sender_id===requestedUserId,receipt=mine?(m.read_at?'Opened':m.delivered_at?'Delivered':'Sent'):'';return '<div class="chat-message '+(mine?'from-user':'from-support')+'"><strong>'+(mine?'You':'Sellbook Support')+'</strong><p>'+escAdmin(m.body)+'</p><time class="chat-time">'+escAdmin(new Date(m.created_at).toLocaleString([], {dateStyle:'medium',timeStyle:'short'}))+(receipt?' · '+receipt:'')+'</time></div>';}).join(''):'<div class="empty">No support messages yet. Send a message below to start chatting.</div>';
- }else if(messages){
-  const {data,error}=await supabaseClient.from('marketplace_messages').select('id,owner_id,buyer_id,sender_id,body,created_at,read_at').eq('owner_id',requestedUserId).eq('buyer_id',chosen).order('created_at',{ascending:true}).limit(200);
-  if(!current())return;
-  let rows=data||[];const incoming=rows.filter(m=>m.sender_id===chosen&&!m.read_at).map(m=>m.id);
-  if(incoming.length){const stamp=new Date().toISOString();const {error:readError}=await supabaseClient.from('marketplace_messages').update({read_at:stamp}).in('id',incoming).eq('owner_id',requestedUserId).eq('buyer_id',chosen);if(!current())return;if(!readError)rows=rows.map(m=>incoming.includes(m.id)?{...m,read_at:stamp}:m);}
-  if(error&&currentPage()==='support'&&!options.quiet)showToast('Could not load Buybook messages: '+error.message,'error');
-   messages.innerHTML=error?'<div class="empty">Buybook messages are temporarily unavailable.</div>':rows.length?rows.map(m=>{const mine=m.sender_id===requestedUserId;return '<div class="chat-message '+(mine?'from-user':'from-support')+'"><strong>'+escAdmin(mine?'You':marketplaceBuyerName(chosen))+'</strong><p>'+escAdmin(m.body)+'</p><time class="chat-time">'+escAdmin(new Date(m.created_at).toLocaleString([], {dateStyle:'medium',timeStyle:'short'}))+(mine&&m.read_at?' · Read':'')+'</time></div>';}).join(''):'<div class="empty">No messages from this subscriber yet. You can start the conversation below.</div>';
+ const append=!!options.append;
+ if(append&&!userNotificationsHasMore)return false;
+ if(!append){userNotificationsOffset=0;userNotificationsHasMore=false;userNotificationsCache=[];target.innerHTML='<div class="empty">Loading notifications…</div>';}
+ userNotificationsLoading=true;
+ try{
+  const start=userNotificationsOffset;
+  const {data,error}=await supabaseClient.from('app_notifications')
+   .select('id,title,body,kind,created_at,expires_at,reservation_id')
+   .or('recipient_id.is.null,recipient_id.eq.'+requestedUserId)
+   .or('expires_at.is.null,expires_at.gt.'+new Date().toISOString())
+   .order('created_at',{ascending:false}).order('id',{ascending:false})
+   .range(start,start+USER_NOTIFICATIONS_PAGE_SIZE-1);
+  if(!current())return false;
+  if(error)throw error;
+  const page=data||[];
+  const ids=page.map(n=>n.id);
+  let readIds=new Set();
+  if(ids.length){
+   const receiptResult=await supabaseClient.from('notification_reads').select('notification_id,read_at').eq('user_id',requestedUserId).in('notification_id',ids);
+   if(!current())return false;
+   if(receiptResult.error)throw receiptResult.error;
+   readIds=new Set((receiptResult.data||[]).map(r=>String(r.notification_id)));
+  }
+  const prepared=page.map(n=>({...n,isRead:readIds.has(String(n.id))}));
+  userNotificationsCache=append?userNotificationsCache.concat(prepared):prepared;
+  userNotificationsOffset=start+page.length;
+  userNotificationsHasMore=page.length===USER_NOTIFICATIONS_PAGE_SIZE;
+  renderUserNotifications();
+  await updateUnreadBadges();
+  return true;
+ }catch(error){
+  if(!current())return false;
+  if(!options.quiet)showToast('Could not load notifications: '+(error.message||'Please try again.'),'error');
+  if(!append)target.textContent='Notifications are temporarily unavailable.';
+  return false;
+ }finally{
+  if(current())userNotificationsLoading=false;
  }
- if(!current())return;
- if(messages)messages.scrollTop=messages.scrollHeight;
- await loadUserNotifications({quiet:!!options.quiet});
- if(!current())return;
- await updateUnreadBadges();
 }
+
+async function loadUserSupport(options={}){
+ if(!cloudUser||!supabaseClient)return false;
+ const requestedUserId=cloudUser.id,requestEpoch=accountSessionEpoch;
+ const current=()=>accountRequestIsCurrent(requestedUserId,requestEpoch);
+ const feedback=document.getElementById('userFeedbackList');
+ const messages=document.getElementById('userSupportMessages');
+ const title=document.getElementById('supportConversationTitle');
+ const status=document.getElementById('supportChatStatus');
+ if(title)title.textContent='Sellbook Support';
+ if(status)status.textContent='Your private conversation with the Sellbook team';
+ if(messages&&!options.quiet)messages.innerHTML='<div class="empty">Loading your support conversation…</div>';
+ try{
+  const [fr,mr]=await Promise.all([
+   supabaseClient.from('user_feedback').select('id,category,subject,message,status,admin_reply,created_at').eq('user_id',requestedUserId).order('created_at',{ascending:false}).limit(50),
+   fetchAllCloudRows(()=>supabaseClient.from('support_messages').select('id,sender_id,recipient_id,body,created_at,delivered_at,read_at').or('sender_id.eq.'+requestedUserId+',recipient_id.eq.'+requestedUserId).order('created_at',{ascending:true}).order('id',{ascending:true}))
+  ]);
+  if(!current())return false;
+  if(feedback)feedback.innerHTML=fr.error?'<div class="empty">Feedback is temporarily unavailable.</div>':(fr.data||[]).length?fr.data.map(f=>'<div class="item"><div class="row"><strong>'+escAdmin(f.subject)+'</strong><span class="status-pill">'+escAdmin(f.status)+'</span></div><div class="muted">'+escAdmin(f.category)+' · '+escAdmin(new Date(f.created_at).toLocaleString())+'</div><p>'+escAdmin(f.message)+'</p>'+(f.admin_reply?'<p><strong>Sellbook reply:</strong> '+escAdmin(f.admin_reply)+'</p>':'')+'</div>').join(''):'<div class="empty">You have not sent feedback yet.</div>';
+  if(fr.error&&currentPage()==='feedback'&&!options.quiet)showToast('Could not load your feedback: '+fr.error.message,'error');
+  if(mr.error)throw mr.error;
+  let rows=mr.data||[];
+  if(currentPage()==='support'){
+   const incoming=rows.filter(m=>m.recipient_id===requestedUserId&&!m.read_at).map(m=>m.id);
+   if(incoming.length){
+    const stamp=new Date().toISOString();
+    const {error:readError}=await supabaseClient.from('support_messages').update({delivered_at:stamp,read_at:stamp}).in('id',incoming).eq('recipient_id',requestedUserId).select('id');
+    if(!current())return false;
+    if(readError){if(!options.quiet)showToast('Support messages loaded, but read status could not be updated.','error');}
+    else{
+     const refreshed=await fetchAllCloudRows(()=>supabaseClient.from('support_messages').select('id,sender_id,recipient_id,body,created_at,delivered_at,read_at').or('sender_id.eq.'+requestedUserId+',recipient_id.eq.'+requestedUserId).order('created_at',{ascending:true}).order('id',{ascending:true}));
+     if(!current())return false;
+     if(!refreshed.error)rows=refreshed.data||rows;
+    }
+   }
+  }
+  if(!current())return false;
+  if(messages)messages.innerHTML=rows.length?rows.map(m=>{
+   const mine=m.sender_id===requestedUserId;
+   const receipt=mine?(m.read_at?'Opened':m.delivered_at?'Delivered':'Sent'):'';
+   return '<div class="chat-message '+(mine?'from-user':'from-support')+'"><strong>'+(mine?'You':'Sellbook Support')+'</strong><p>'+escAdmin(m.body)+'</p><time class="chat-time">'+escAdmin(new Date(m.created_at).toLocaleString([], {dateStyle:'medium',timeStyle:'short'}))+(receipt?' · '+receipt:'')+'</time></div>';
+  }).join(''):'<div class="empty">No support messages yet. Send a message below to start chatting.</div>';
+  if(messages)messages.scrollTop=messages.scrollHeight;
+  await updateUnreadBadges();
+  return true;
+ }catch(error){
+  if(!current())return false;
+  if(messages)messages.innerHTML='<div class="empty">Your support conversation is temporarily unavailable. Check your connection and try again.</div>';
+  if(!options.quiet)showToast('Could not load Sellbook Support: '+(error.message||'Please try again.'),'error');
+  return false;
+ }
+}
+
 document.getElementById('userFeedbackForm').addEventListener('submit',async e=>{
  e.preventDefault();if(!cloudUser||!supabaseClient)return notifyStatus('feedbackFormStatus','Please sign in first.','error');
  const requestedUserId=cloudUser.id,requestEpoch=accountSessionEpoch,current=()=>accountRequestIsCurrent(requestedUserId,requestEpoch);
@@ -5353,14 +5451,12 @@ document.getElementById('userFeedbackForm').addEventListener('submit',async e=>{
 });
 document.getElementById('supportMessageForm').addEventListener('submit',async e=>{
  e.preventDefault();if(!cloudUser||!supabaseClient)return notifyStatus('supportMessageStatus','Please sign in first.','error');
- const requestedUserId=cloudUser.id,requestEpoch=accountSessionEpoch,chosenConversation= document.getElementById('messageConversationSelect')?.value||'support';
- const current=()=>accountRequestIsCurrent(requestedUserId,requestEpoch)&&String(document.getElementById('messageConversationSelect')?.value||'support')===String(chosenConversation);
+ const requestedUserId=cloudUser.id,requestEpoch=accountSessionEpoch;
+ const current=()=>accountRequestIsCurrent(requestedUserId,requestEpoch);
  const form=e.target,body=document.getElementById('supportMessageBody'),status=document.getElementById('supportMessageStatus'),button=form.querySelector('button[type="submit"]'),message=body.value.trim();if(!message)return;
  button.disabled=true;notifyStatus(status,'Sending…','info');
  try{
-  let error;
-  if(chosenConversation==='support')({error}=await supabaseClient.from('support_messages').insert({sender_id:requestedUserId,recipient_id:null,body:message}));
-  else ({error}=await supabaseClient.from('marketplace_messages').insert({owner_id:requestedUserId,buyer_id:chosenConversation,sender_id:requestedUserId,body:message}));
+  const {error}=await supabaseClient.from('support_messages').insert({sender_id:requestedUserId,recipient_id:null,body:message});
   if(!current())return;
   if(error){notifyStatus(status,'Could not send message: '+error.message,'error');return;}
   form.reset();body.style.height='auto';notifyStatus(status,'Message sent.','success');await loadUserSupport();
@@ -5377,8 +5473,8 @@ let messengerListFilter='all';
 function renderMessengerConversationList(){
  const list=document.getElementById('messengerConversationList');if(!list)return;
  const term=(document.getElementById('messengerSearch')?.value||'').trim().toLowerCase();
- const rows=messengerConversationCache.filter(c=>(c.title+' '+(c.body||'')).toLowerCase().includes(term)&&(messengerListFilter==='all'||(messengerListFilter==='unread'&&c.unread>0)||(messengerListFilter==='support'&&c.id==='support')||(messengerListFilter==='buyers'&&c.id!=='support')));
- list.innerHTML=rows.length?rows.map(c=>'<button type="button" class="conversation-list-button" data-messenger-id="'+escAdmin(c.id)+'"><span class="chat-support-avatar" aria-hidden="true">'+(c.id==='support'?'SB':'👤')+'</span><span class="conversation-preview"><strong>'+escAdmin(c.title)+'</strong><small>'+(c.lastMine?'<span class="messenger-list-ticks'+(c.lastRead?' is-read':'')+'" aria-label="'+(c.lastRead?'Read':c.lastDelivered?'Delivered':'Sent')+'">'+(c.lastRead?'✓✓':c.lastDelivered?'✓✓':'✓')+'</span> ':'')+escAdmin(c.body||'No messages yet')+'</small></span><span class="conversation-time">'+escAdmin(messengerTime(c.time))+(c.unread?'<span class="status-pill">'+c.unread+'</span>':'')+'</span></button>').join(''):'<div class="empty">'+(term?'No matching conversations.':'No conversations yet. Buybook subscriber chats and Sellbook Support replies will appear here.')+'</div>';
+ const rows=messengerConversationCache.filter(c=>(c.title+' '+(c.body||'')).toLowerCase().includes(term)&&(messengerListFilter==='all'||(messengerListFilter==='unread'&&c.unread>0)));
+ list.innerHTML=rows.length?rows.map(c=>'<button type="button" class="conversation-list-button" data-messenger-id="'+escAdmin(c.id)+'"><span class="chat-support-avatar" aria-hidden="true">👤</span><span class="conversation-preview"><strong>'+escAdmin(c.title)+'</strong><small>'+(c.lastMine?'<span class="messenger-list-ticks'+(c.lastRead?' is-read':'')+'" aria-label="'+(c.lastRead?'Read':'Sent')+'">'+(c.lastRead?'✓✓':'✓')+'</span> ':'')+escAdmin(c.body||'No messages yet')+'</small></span><span class="conversation-time">'+escAdmin(messengerTime(c.time))+(c.unread?'<span class="status-pill">'+c.unread+'</span>':'')+'</span></button>').join(''):'<div class="empty">'+(term?'No matching conversations.':'No Buybook subscriber conversations yet. Customers who message your shop will appear here.')+'</div>';
  list.querySelectorAll('[data-messenger-id]').forEach(b=>b.addEventListener('click',()=>openMessengerConversation(b.dataset.messengerId)));
 }
 async function loadMessengerConversations(options={}){
@@ -5388,24 +5484,42 @@ async function loadMessengerConversations(options={}){
  const current=()=>accountRequestIsCurrent(uid,requestEpoch);
  if(!options.quiet)list.innerHTML='<div class="empty">Loading chats…</div>';
  try{
-  const [supportRes,marketRes,subsRes]=await Promise.all([
-   supabaseClient.from('support_messages').select('id,sender_id,recipient_id,body,created_at,delivered_at,read_at').or('sender_id.eq.'+uid+',recipient_id.eq.'+uid).order('created_at',{ascending:false}).order('id',{ascending:false}).limit(100),
-   supabaseClient.from('marketplace_messages').select('id,owner_id,buyer_id,sender_id,body,created_at,read_at').eq('owner_id',uid).order('created_at',{ascending:false}).order('id',{ascending:false}).limit(300),
-   supabaseClient.rpc('get_my_marketplace_subscribers')
-  ]);
+  const marketQuery=()=>supabaseClient.from('marketplace_messages').select('id,owner_id,buyer_id,sender_id,body,created_at,read_at').eq('owner_id',uid).order('created_at',{ascending:false}).order('id',{ascending:false});
+  const marketRequest=options.quiet?marketQuery().limit(500):fetchAllCloudRows(()=>marketQuery());
+  const [marketRes,subsRes]=await Promise.all([marketRequest,supabaseClient.rpc('get_my_marketplace_subscribers')]);
   if(!current())return;
+  if(marketRes.error)throw marketRes.error;
+  const subs=subsRes.error?(marketplaceSubscribersCache||[]):(subsRes.data||[]),msgs=marketRes.data||[];
+  if(!subsRes.error)marketplaceSubscribersCache=subs;
+  const ids=[...new Set([...subs.map(x=>x.buyer_id),...msgs.map(x=>x.buyer_id)].filter(Boolean))];
   const conversations=[];
-  if(!supportRes.error&&(supportRes.data||[]).length){const rows=supportRes.data;const m=rows[0];conversations.push({id:'support',title:'Sellbook Support',body:m.body,time:m.created_at,unread:rows.filter(x=>x.sender_id!==uid&&x.recipient_id===uid&&!x.read_at).length,lastMine:m.sender_id===uid,lastDelivered:!!m.delivered_at,lastRead:!!m.read_at});}
-  const subs=subsRes.data||[],msgs=marketRes.data||[],ids=[...new Set([...subs.map(x=>x.buyer_id),...msgs.map(x=>x.buyer_id)])];
-  for(const id of ids){const m=msgs.find(x=>x.buyer_id===id);const sub=subs.find(x=>x.buyer_id===id);if(!m&&!sub)continue;conversations.push({id,title:sub?.display_name||marketplaceBuyerName(id),body:m?.body||'Start a conversation',time:m?.created_at||sub?.created_at||new Date().toISOString(),unread:msgs.filter(x=>x.buyer_id===id&&x.sender_id!==uid&&!x.read_at).length,lastMine:!!m&&m.sender_id===uid,lastDelivered:false,lastRead:!!m&&!!m.read_at});}
-  if(supportRes.error||marketRes.error||subsRes.error)throw new Error('One or more chat lists could not be loaded.');
-  messengerConversationCache=conversations.sort((a,b)=>new Date(b.time)-new Date(a.time));
+  for(const id of ids){
+   const thread=msgs.filter(x=>String(x.buyer_id)===String(id));
+   const m=thread[0]||null;
+   const sub=subs.find(x=>String(x.buyer_id)===String(id));
+   conversations.push({
+    id,title:sub?.display_name||marketplaceBuyerName(id),
+    body:m?.body||'Start a conversation',
+    time:m?.created_at||sub?.created_at||new Date().toISOString(),
+    unread:thread.filter(x=>x.sender_id!==uid&&!x.read_at).length,
+    lastMine:!!m&&m.sender_id===uid,
+    lastRead:!!m&&!!m.read_at
+   });
+  }
+  messengerConversationCache=conversations.sort((x,y)=>new Date(y.time)-new Date(x.time));
   renderMessengerConversationList();
-  if(options.refreshSelected&&messengerSelectedConversation&&document.body.classList.contains('messenger-conversation-open'))await openMessengerConversation(messengerSelectedConversation,{quiet:true});
- }catch(err){if(current()&&!options.quiet){showToast('Could not load conversations: '+(err.message||'Please try again.'),'error');list.innerHTML='<div class="empty">Conversations are temporarily unavailable. Refresh to try again.</div>';}}
+  if(options.refreshSelected&&messengerSelectedConversation&&document.body.classList.contains('messenger-conversation-open')){
+   await openMessengerConversation(messengerSelectedConversation,{quiet:true});
+  }
+ }catch(err){
+  if(current()&&!options.quiet){
+   showToast('Could not load Buybook conversations: '+(err.message||'Please try again.'),'error');
+   list.innerHTML='<div class="empty">Buybook conversations are temporarily unavailable. Refresh to try again.</div>';
+  }
+ }
 }
 async function openMessengerConversation(id,options={}){
- if(!cloudUser||!supabaseClient)return false;
+ if(!cloudUser||!supabaseClient||String(id)==='support')return false;
  const uid=cloudUser.id,requestEpoch=accountSessionEpoch,requestId=++messengerConversationRequestId;
  const current=()=>accountRequestIsCurrent(uid,requestEpoch)&&requestId===messengerConversationRequestId&&String(messengerSelectedConversation)===String(id);
  const wasConversationOpen=document.body.classList.contains('messenger-conversation-open');
@@ -5414,26 +5528,56 @@ async function openMessengerConversation(id,options={}){
  }
  messengerSelectedConversation=id;document.body.classList.add('messenger-conversation-open');
  const input=document.getElementById('messengerBody'),send=document.querySelector('#messengerComposer button[type="submit"]');
- input.disabled=false;send.disabled=false;
+ if(input)input.disabled=false;if(send)send.disabled=false;
  const convo=messengerConversationCache.find(c=>String(c.id)===String(id));
- document.getElementById('messengerChatTitle').textContent=id==='support'?'Sellbook Support':(convo?.title||marketplaceBuyerName(id));
- document.getElementById('messengerChatSubtitle').textContent=id==='support'?'Sellbook Support': 'Buybook subscriber';
- const target=document.getElementById('messengerTranscript');if(!options.quiet)target.innerHTML='<div class="empty">Loading messages…</div>';
+ const contactName=convo?.title||marketplaceBuyerName(id);
+ const chatTitle=document.getElementById('messengerChatTitle'),chatSubtitle=document.getElementById('messengerChatSubtitle');
+ if(chatTitle)chatTitle.textContent=contactName;
+ if(chatSubtitle)chatSubtitle.textContent='Buybook subscriber';
+ const target=document.getElementById('messengerTranscript');if(!target)return false;
+ if(!options.quiet)target.innerHTML='<div class="empty">Loading messages…</div>';
  try{
-  let rows=[],error=null;
-  if(id==='support'){const query=()=>supabaseClient.from('support_messages').select('id,sender_id,recipient_id,body,created_at,delivered_at,read_at').or('sender_id.eq.'+uid+',recipient_id.eq.'+uid);const r=options.quiet?await query().order('created_at',{ascending:false}).order('id',{ascending:false}).limit(100):await fetchAllCloudRows(()=>query().order('created_at',{ascending:true}).order('id',{ascending:true}));rows=r.data||[];if(options.quiet)rows.reverse();error=r.error;if(!error){const incoming=rows.filter(m=>m.recipient_id===uid&&!m.delivered_at).map(m=>m.id);if(incoming.length){const stamp=now();const ack=await supabaseClient.from('support_messages').update({delivered_at:stamp}).in('id',incoming).eq('recipient_id',uid).is('delivered_at',null);if(!ack.error)rows=rows.map(m=>incoming.includes(m.id)?{...m,delivered_at:stamp}:m);}}}
-  else{const query=()=>supabaseClient.from('marketplace_messages').select('id,owner_id,buyer_id,sender_id,body,created_at,read_at').eq('owner_id',uid).eq('buyer_id',id);const r=options.quiet?await query().order('created_at',{ascending:false}).order('id',{ascending:false}).limit(100):await fetchAllCloudRows(()=>query().order('created_at',{ascending:true}).order('id',{ascending:true}));rows=r.data||[];if(options.quiet)rows.reverse();error=r.error;}
+  const result=options.quiet
+   ?await supabaseClient.from('marketplace_messages').select('id,owner_id,buyer_id,sender_id,body,created_at,read_at').eq('owner_id',uid).eq('buyer_id',id).order('created_at',{ascending:false}).order('id',{ascending:false}).limit(100)
+   :await fetchAllCloudRows(()=>supabaseClient.from('marketplace_messages').select('id,owner_id,buyer_id,sender_id,body,created_at,read_at').eq('owner_id',uid).eq('buyer_id',id).order('created_at',{ascending:true}).order('id',{ascending:true}));
   if(!current())return false;
-  if(error)throw error;
+  if(result.error)throw result.error;
+  let rows=result.data||[];
+  if(options.quiet)rows.reverse();
+  const incoming=rows.filter(m=>m.sender_id!==uid&&!m.read_at).map(m=>m.id);
+  if(incoming.length){
+   const stamp=now();
+   const {error:readError}=await supabaseClient.from('marketplace_messages').update({read_at:stamp})
+    .in('id',incoming).eq('owner_id',uid).eq('buyer_id',id).neq('sender_id',uid).is('read_at',null).select('id');
+   if(!current())return false;
+   if(readError)console.warn('Sellbook could not update buyer-message read receipts:',readError);
+   else rows=rows.map(m=>incoming.includes(m.id)?{...m,read_at:stamp}:m);
+  }
   const wasNearBottom=target.scrollHeight-target.scrollTop-target.clientHeight<120;
-  const messageHtml=rows.map(m=>'<div data-message-id="'+escAdmin(m.id)+'" class="chat-message '+(m.sender_id===uid?'from-user':'from-support')+'"><strong>'+(m.sender_id===uid?'You':(id==='support'?'Sellbook Support':escAdmin(convo?.title||marketplaceBuyerName(id))))+'</strong><p>'+escAdmin(m.body)+'</p><time class="chat-time">'+escAdmin(messengerTime(m.created_at))+(m.sender_id===uid?' · <span class="messenger-message-ticks'+(m.read_at?' is-read':'')+'">'+(m.read_at?'✓✓ Read':(id==='support'&&m.delivered_at?'✓✓ Delivered':'✓ Sent'))+'</span>':'')+'</time></div>').join('');
-  if(options.quiet){const existingNodes=new Map([...target.querySelectorAll('[data-message-id]')].map(node=>[node.dataset.messageId,node]));const existing=new Set(existingNodes.keys());rows.forEach(m=>{const node=existingNodes.get(String(m.id));const tick=node?.querySelector('.messenger-message-ticks');if(tick&&m.read_at){tick.classList.add('is-read');tick.textContent='✓✓ Read';}else if(tick&&id==='support'&&m.delivered_at){tick.textContent='✓✓ Delivered';}});const additions=rows.filter(m=>!existing.has(String(m.id)));if(additions.length){target.querySelector('.empty')?.remove();target.insertAdjacentHTML('beforeend',additions.map(m=>'<div data-message-id="'+escAdmin(m.id)+'" class="chat-message '+(m.sender_id===uid?'from-user':'from-support')+'"><strong>'+(m.sender_id===uid?'You':(id==='support'?'Sellbook Support':escAdmin(convo?.title||marketplaceBuyerName(id))))+'</strong><p>'+escAdmin(m.body)+'</p><time class="chat-time">'+escAdmin(messengerTime(m.created_at))+(m.sender_id===uid?' · <span class="messenger-message-ticks'+(m.read_at?' is-read':'')+'">'+(m.read_at?'✓✓ Read':(id==='support'&&m.delivered_at?'✓✓ Delivered':'✓ Sent'))+'</span>':'')+'</time></div>').join(''));}}
-  else target.innerHTML=messageHtml||'<div class="empty">Say hello to start the conversation.</div>';
+  const messageHtml=rows.map(m=>'<div data-message-id="'+escAdmin(m.id)+'" class="chat-message '+(m.sender_id===uid?'from-user':'from-support')+'"><strong>'+(m.sender_id===uid?'You':escAdmin(contactName))+'</strong><p>'+escAdmin(m.body)+'</p><time class="chat-time">'+escAdmin(messengerTime(m.created_at))+(m.sender_id===uid?' · <span class="messenger-message-ticks'+(m.read_at?' is-read':'')+'">'+(m.read_at?'✓✓ Read':'✓ Sent')+'</span>':'')+'</time></div>').join('');
+  if(options.quiet){
+   const existingNodes=new Map([...target.querySelectorAll('[data-message-id]')].map(node=>[node.dataset.messageId,node]));
+   const existing=new Set(existingNodes.keys());
+   rows.forEach(m=>{const node=existingNodes.get(String(m.id));const tick=node?.querySelector('.messenger-message-ticks');if(tick&&m.read_at){tick.classList.add('is-read');tick.textContent='✓✓ Read';}});
+   const additions=rows.filter(m=>!existing.has(String(m.id)));
+   if(additions.length){
+    target.querySelector('.empty')?.remove();
+    target.insertAdjacentHTML('beforeend',additions.map(m=>'<div data-message-id="'+escAdmin(m.id)+'" class="chat-message '+(m.sender_id===uid?'from-user':'from-support')+'"><strong>'+(m.sender_id===uid?'You':escAdmin(contactName))+'</strong><p>'+escAdmin(m.body)+'</p><time class="chat-time">'+escAdmin(messengerTime(m.created_at))+(m.sender_id===uid?' · <span class="messenger-message-ticks'+(m.read_at?' is-read':'')+'">'+(m.read_at?'✓✓ Read':'✓ Sent')+'</span>':'')+'</time></div>').join(''));
+   }
+  }else target.innerHTML=messageHtml||'<div class="empty">Say hello to start the conversation.</div>';
   if(wasNearBottom||!options.quiet)target.scrollTop=target.scrollHeight;
   const status=document.getElementById('messengerStatus');if(status)status.textContent='';
+  await updateUnreadBadges();
   return true;
- }catch(err){if(current()&&!options.quiet){showToast('Could not load messages: '+(err.message||'Please try again.'),'error');target.innerHTML='<div class="empty">Messages are temporarily unavailable. Refresh to try again.</div>';}return false;}
+ }catch(err){
+  if(current()&&!options.quiet){
+   showToast('Could not load messages: '+(err.message||'Please try again.'),'error');
+   target.innerHTML='<div class="empty">Messages are temporarily unavailable. Refresh to try again.</div>';
+  }
+  return false;
+ }
 }
+
 async function openMessengerSubscriberPicker(){
  const overlay=document.getElementById('messengerSubscriberPicker'),list=document.getElementById('messengerSubscriberPickerList');
  overlay?.classList.remove('hidden');list.innerHTML='<div class="empty">Loading subscribers…</div>';
@@ -5473,9 +5617,7 @@ document.getElementById('messengerComposer')?.addEventListener('submit',async e=
  const input=document.getElementById('messengerBody'),status=document.getElementById('messengerStatus'),button=e.currentTarget.querySelector('button[type="submit"]'),body=input.value.trim();if(!body)return;
  button.disabled=true;notifyStatus(status,'Sending…','info');
  try{
-  let result;
-  if(conversationId==='support')result=await supabaseClient.from('support_messages').insert({sender_id:requestedUserId,recipient_id:null,body});
-  else result=await supabaseClient.from('marketplace_messages').insert({owner_id:requestedUserId,buyer_id:conversationId,sender_id:requestedUserId,body});
+  const result=await supabaseClient.from('marketplace_messages').insert({owner_id:requestedUserId,buyer_id:conversationId,sender_id:requestedUserId,body});
   if(!current())return;
   if(result.error)throw result.error;
   input.value='';input.style.height='auto';notifyStatus(status,'Message sent.','success');
@@ -5489,9 +5631,7 @@ if(messengerRefreshTimer)clearInterval(messengerRefreshTimer);
 messengerRefreshTimer=setInterval(()=>{if(document.visibilityState==='visible'&&currentPage()==='messenger'&&cloudUser)loadMessengerConversations({quiet:true,refreshSelected:true});},12000);
 
 
-document.getElementById('messageConversationSelect')?.addEventListener('change',()=>{marketplaceSelectedBuyerId=document.getElementById('messageConversationSelect').value==='support'?null:document.getElementById('messageConversationSelect').value;loadUserSupport();});
 document.getElementById('openFeedbackPage').addEventListener('click',()=>showPage('feedback'));
-document.querySelectorAll('[data-open-page="support"]').forEach(b=>b.addEventListener('click',async()=>{if(sellbookIsAdmin){showPage('admin');showAdminPanel('support');await loadAdminUsers();}else{showPage('support');loadUserSupport();}}));
 const chatInput=document.getElementById('supportMessageBody');chatInput.addEventListener('input',()=>{chatInput.style.height='auto';chatInput.style.height=Math.min(chatInput.scrollHeight,140)+'px';});
 function openAdminConversation(uid){
  const select=document.getElementById('adminMessageUser');select.value=uid;
@@ -5625,8 +5765,7 @@ function bindPageRefresh(id,action,options={}){
 }
 bindPageRefresh('refreshUserNotifications',()=>loadUserNotifications());
 bindPageRefresh('refreshMessenger',()=>loadMessengerConversations({refreshSelected:true}));
-bindPageRefresh('refreshSupportChat',()=>messageListOpen?loadConversationList():loadUserSupport());
-bindPageRefresh('refreshConversationList',()=>loadConversationList());
+bindPageRefresh('refreshSupportChat',()=>loadUserSupport());
 bindPageRefresh('refreshFeedback',()=>loadUserSupport());
 bindPageRefresh('refreshAdminOverview',()=>loadAdminDashboard(),{admin:true});
 bindPageRefresh('refreshAdminTraffic',()=>loadAdminTraffic(),{admin:true});
