@@ -68,7 +68,7 @@ assert.ok(!app.includes('Sign in with Google before saving cloud records.'), 'Cl
 assert.ok(app.includes("openPasswordRecoveryButton?.addEventListener('click'"), 'Forgot-password entry point is not wired.');
 assert.ok(app.includes("accountRecoveryRequestForm?.addEventListener('submit'"), 'Recovery request form is not wired.');
 assert.ok(app.includes("supabaseClient.auth.resetPasswordForEmail(email"), 'The existing Supabase recovery endpoint must be used.');
-assert.ok(app.includes("supabaseClient.auth.updateUser({ password })"), 'The secure password-update flow must remain intact.');
+assert.ok(app.includes("supabaseClient.auth.updateUser({password})") || app.includes("supabaseClient.auth.updateUser({ password })"), 'The secure password-update flow must remain intact.');
 assert.ok(app.includes("event === 'PASSWORD_RECOVERY'"), 'Supabase recovery callback handling must remain intact.');
 assert.ok(app.includes("supabaseClient.auth.signInWithOAuth({"), 'Existing Google OAuth must remain intact.');
 assert.ok(app.includes("classList.add('hidden')"), 'Recovery form state must be hidden until explicitly opened.');
