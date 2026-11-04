@@ -5486,7 +5486,7 @@ async function loadMessengerConversations(options={}){
  if(!options.quiet)list.innerHTML='<div class="empty">Loading chats…</div>';
  try{
   const [marketRes,subsRes]=await Promise.all([
-   fetchAllCloudRows(()=>supabaseClient.from('marketplace_messages').select('id,owner_id,buyer_id,sender_id,body,created_at,read_at').eq('owner_id',uid).order('created_at',{ascending:false}).order('id',{ascending:false})),
+   supabaseClient.from('marketplace_messages').select('id,owner_id,buyer_id,sender_id,body,created_at,read_at').eq('owner_id',uid).order('created_at',{ascending:false}).order('id',{ascending:false}).limit(500),
    supabaseClient.rpc('get_my_marketplace_subscribers')
   ]);
   if(!current())return;
@@ -5540,10 +5540,9 @@ async function openMessengerConversation(id,options={}){
  const target=document.getElementById('messengerTranscript');if(!target)return false;
  if(!options.quiet)target.innerHTML='<div class="empty">Loading messages…</div>';
  try{
-  const query=()=>supabaseClient.from('marketplace_messages').select('id,owner_id,buyer_id,sender_id,body,created_at,read_at').eq('owner_id',uid).eq('buyer_id',id);
   const result=options.quiet
-   ?await query().order('created_at',{ascending:false}).order('id',{ascending:false}).limit(100)
-   :await fetchAllCloudRows(()=>query().order('created_at',{ascending:true}).order('id',{ascending:true}));
+   ?await supabaseClient.from('marketplace_messages').select('id,owner_id,buyer_id,sender_id,body,created_at,read_at').eq('owner_id',uid).eq('buyer_id',id).order('created_at',{ascending:false}).order('id',{ascending:false}).limit(100)
+   :await fetchAllCloudRows(()=>supabaseClient.from('marketplace_messages').select('id,owner_id,buyer_id,sender_id,body,created_at,read_at').eq('owner_id',uid).eq('buyer_id',id).order('created_at',{ascending:true}).order('id',{ascending:true}));
   if(!current())return false;
   if(result.error)throw result.error;
   let rows=result.data||[];
