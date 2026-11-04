@@ -4455,3 +4455,149 @@ body.dark #settings-account .settings-danger-group .danger{
   background:var(--soft);color:var(--green);font-size:24px;line-height:1;
 }
 #settings-buybook .settings-refresh-button:focus-visible{outline:2px solid var(--green);outline-offset:3px}
+
+/* Buybook connection: clear shop setup, validated contact details and required GPS pin. */
+#settings-buybook .buybook-setup-card{
+  gap:0;
+  padding:14px;
+}
+#settings-buybook .buybook-connection-bar{
+  display:flex;
+  align-items:center;
+  gap:9px;
+  min-height:48px;
+  margin:0 0 5px;
+  padding:9px 11px;
+  border:1px solid var(--border);
+  border-radius:12px;
+  background:var(--page);
+}
+#settings-buybook .buybook-connection-bar strong{
+  flex:1 1 auto;
+  min-width:0;
+  color:var(--ink);
+  font-size:13px;
+  line-height:1.4;
+}
+#settings-buybook .buybook-status-dot{
+  width:9px;height:9px;flex:0 0 9px;border-radius:50%;
+  background:#a7a7a7;
+}
+#settings-buybook .buybook-connection-bar.connected .buybook-status-dot{background:#168447}
+#settings-buybook .buybook-connection-bar.not-connected .buybook-status-dot{background:#c18a32}
+#settings-buybook .buybook-connection-bar.is-loading .buybook-status-dot{
+  background:#c18a32;box-shadow:0 0 0 4px rgba(193,138,50,.12);
+}
+#settings-buybook #buybookDisconnectButton{
+  flex:0 0 auto;width:auto;min-height:38px;padding:7px 11px;
+  border-radius:10px;font-size:12px;font-weight:700;
+}
+#settings-buybook #buybookConnectionForm{display:grid;gap:0}
+#settings-buybook .buybook-form-section{
+  padding:15px 0;
+}
+#settings-buybook .buybook-form-section:first-child{padding-top:10px}
+#settings-buybook .buybook-form-section>label{
+  margin:3px 0 -3px;
+  color:var(--ink);font-size:13px;font-weight:700;
+}
+#settings-buybook .buybook-form-section>input,
+#settings-buybook .buybook-form-section>textarea,
+#settings-buybook .buybook-form-two-columns input{
+  width:100%;min-width:0;min-height:48px;margin:0;padding:11px 12px;
+  border:1px solid var(--border);border-radius:11px;
+  background:var(--surface);color:var(--ink);font:inherit;font-size:14px;
+}
+#settings-buybook #buybookDescription{min-height:90px;resize:vertical}
+#settings-buybook .buybook-form-section .settings-help-text{
+  margin:-4px 0 3px;font-size:11.5px;line-height:1.45;
+}
+#settings-buybook .buybook-form-two-columns{
+  display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;
+}
+#settings-buybook .buybook-form-two-columns>div{display:grid;gap:8px;min-width:0}
+#settings-buybook .buybook-form-two-columns label{
+  margin:3px 0 -3px;color:var(--ink);font-size:13px;font-weight:700;
+}
+#settings-buybook .buybook-location-section{gap:11px}
+#settings-buybook .buybook-location-card{
+  display:flex;align-items:flex-start;gap:11px;min-width:0;
+  padding:12px;border:1px solid var(--border);border-radius:12px;
+  background:var(--page);
+}
+#settings-buybook .buybook-location-icon{
+  display:grid;place-items:center;width:39px;height:39px;flex:0 0 39px;
+  border-radius:11px;background:var(--soft);color:var(--green);
+}
+#settings-buybook .buybook-location-icon svg{
+  width:22px;height:22px;fill:none;stroke:currentColor;
+  stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;
+}
+#settings-buybook .buybook-location-copy{display:grid;gap:4px;min-width:0;flex:1}
+#settings-buybook .buybook-location-copy>strong{color:var(--ink);font-size:13px;font-weight:750}
+#settings-buybook #buybookLocationStatus{
+  margin:0;color:var(--muted);font-size:12px;line-height:1.45;
+  overflow-wrap:anywhere;
+}
+#settings-buybook #buybookLocationStatus.is-error{color:#a33434}
+#settings-buybook #buybookLocationStatus.is-success{color:#187343}
+#settings-buybook .buybook-location-map-link{
+  color:var(--green);font-size:12px;font-weight:750;text-decoration:none;
+}
+#settings-buybook .buybook-location-map-link:focus-visible{
+  outline:2px solid var(--green);outline-offset:3px;border-radius:3px;
+}
+#settings-buybook .buybook-capture-location{
+  display:flex;align-items:center;justify-content:center;gap:9px;
+  width:100%;min-height:48px;margin:0;padding:10px 14px;
+  border:1px solid #b9d6c1;border-radius:11px;
+  background:var(--soft);color:var(--green);font-size:14px;font-weight:750;
+}
+#settings-buybook .buybook-capture-location svg{
+  width:20px;height:20px;fill:none;stroke:currentColor;
+  stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round;
+}
+#settings-buybook .buybook-capture-location:disabled{opacity:.65;cursor:wait}
+#settings-buybook .buybook-submit-area{
+  display:grid;gap:9px;padding:15px 0 3px;
+}
+#settings-buybook #buybookConnectButton{
+  width:100%;min-height:52px;margin:0;border-radius:12px;
+  font-size:14px;font-weight:750;
+}
+#settings-buybook #buybookConnectionMessage{
+  min-height:0;margin:0;font-size:12px;line-height:1.5;
+  overflow-wrap:anywhere;
+}
+#settings-buybook .buybook-connection-note{
+  display:flex;align-items:flex-start;gap:9px;margin:12px 0 0;
+  padding:11px 12px;border:1px solid var(--border);border-radius:11px;
+  background:var(--page);
+}
+#settings-buybook .buybook-connection-note svg{
+  width:18px;height:18px;flex:0 0 18px;margin-top:1px;
+  fill:none;stroke:var(--green);stroke-width:1.8;
+  stroke-linecap:round;stroke-linejoin:round;
+}
+#settings-buybook .buybook-connection-note p{
+  margin:0;color:var(--muted);font-size:11.5px;line-height:1.5;
+}
+#settings-buybook #buybookPhone:invalid:not(:placeholder-shown){border-color:#c96f6f}
+#settings-buybook :where(input,textarea):focus-visible,
+#settings-buybook .buybook-capture-location:focus-visible,
+#settings-buybook #buybookDisconnectButton:focus-visible{
+  outline:3px solid rgba(20,83,45,.17);outline-offset:2px;border-color:var(--green);
+}
+body.dark #settings-buybook .buybook-location-card,
+body.dark #settings-buybook .buybook-connection-note{background:var(--page);border-color:var(--border)}
+body.dark #settings-buybook .buybook-capture-location{
+  border-color:#456c50;background:#263b2c;color:#c9ebd0;
+}
+body.dark #settings-buybook #buybookLocationStatus.is-error{color:#f0aaaa}
+body.dark #settings-buybook #buybookLocationStatus.is-success{color:#9bd9af}
+@media(max-width:380px){
+  #settings-buybook .buybook-setup-card{padding:11px}
+  #settings-buybook .buybook-form-two-columns{gap:8px}
+  #settings-buybook .buybook-form-two-columns input{padding:10px;font-size:13px}
+  #settings-buybook .buybook-connection-bar{gap:7px;padding:8px}
+}
