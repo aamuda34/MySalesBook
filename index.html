@@ -600,32 +600,87 @@
  </div>
 </section>
 <section id="settings-buybook" class="page hidden">
- <div class="settings-page-heading"><button type="button" class="settings-back-button" data-open-page="settings" aria-label="Back to Settings"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 12H5M12 19l-7-7 7-7"/></svg></button><h2 class="page-title">Connect to Buybook</h2></div>
- <p class="settings-page-intro">This is optional. Connect your shop to let buyers find your products on Buybook.</p>
- <div class="card settings-detail-card">
-  <section class="settings-form-group" aria-labelledby="buybookConnectionHeading">
-   <div class="settings-form-heading"><h3 id="buybookConnectionHeading">Shop connection</h3><p>Review your shop details before connecting. Your Sellbook products are shared with Buybook when the connection is active.</p></div>
-   <div class="buybook-connection-bar"><strong id="buybookConnectionStatus" role="status" aria-live="polite">Checking Buybook connection…</strong><button type="button" id="buybookDisconnectButton" class="danger hidden">Disconnect</button></div>
-   <form id="buybookConnectionForm">
-    <label for="buybookShopName">Shop or business name</label><input id="buybookShopName" required maxlength="100" placeholder="e.g. Amuda Stores" autocomplete="organization">
-    <label for="buybookPhone">Shop phone number <span class="settings-optional-label">Optional</span></label><input id="buybookPhone" type="tel" maxlength="30" placeholder="Phone buyers can use to contact you" autocomplete="tel">
-    <label for="buybookAddress">Shop address</label><input id="buybookAddress" required maxlength="250" placeholder="Street, market or landmark" autocomplete="street-address">
-    <label for="buybookCity">Town or city</label><input id="buybookCity" required maxlength="100" placeholder="e.g. Iwo" autocomplete="address-level2">
-    <label for="buybookState">State</label><input id="buybookState" required maxlength="100" value="Osun" autocomplete="address-level1">
-    <label for="buybookDescription">About your shop <span class="settings-optional-label">Optional</span></label><textarea id="buybookDescription" maxlength="500" rows="3" placeholder="Briefly describe what your shop sells."></textarea>
-    <button class="primary" type="submit" id="buybookConnectButton">Connect and list my products</button>
-    <p id="buybookConnectionMessage" class="settings-inline-status muted" role="status" aria-live="polite"></p>
-   </form>
-  </section>
+ <div class="settings-page-heading">
+  <button type="button" class="settings-back-button" data-open-page="settings" aria-label="Back to Settings">
+   <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+  </button>
+  <h2 class="page-title">Connect to Buybook</h2>
  </div>
- <div class="card settings-detail-card settings-marketplace-activity" id="buybookSellerActivity">
-  <div class="settings-activity-heading">
-   <div class="settings-form-heading"><h3>Subscribers</h3><p>Buyers who have subscribed to your shop.</p></div>
-   <button type="button" id="refreshBuybookActivity" class="settings-refresh-button" aria-label="Refresh Buybook activity" title="Refresh">↻</button>
+ <p class="settings-page-intro">Make your shop discoverable to buyers. Your Sellbook product records stay in Sellbook and are listed on Buybook automatically.</p>
+
+ <div class="card settings-detail-card buybook-setup-card">
+  <div class="buybook-connection-bar">
+   <span class="buybook-status-dot" aria-hidden="true"></span>
+   <strong id="buybookConnectionStatus" role="status" aria-live="polite">Checking Buybook connection…</strong>
+   <button type="button" id="buybookDisconnectButton" class="danger hidden">Disconnect</button>
   </div>
-  <div id="marketplaceSubscriberList" class="empty">Connect your shop to see subscribers.</div>
-  <div class="settings-activity-divider"><h3>Product reservations</h3><p>Requests from buyers who want to reserve your products.</p></div>
-  <div id="marketplaceReservationsList" class="empty">Reservations will appear here when buyers reserve your products.</div>
+
+  <form id="buybookConnectionForm" novalidate>
+   <section class="settings-form-group buybook-form-section" aria-labelledby="buybookShopDetailsHeading">
+    <div class="settings-form-heading">
+     <h3 id="buybookShopDetailsHeading">Shop details</h3>
+     <p>Use the details buyers will recognise when they visit your shop.</p>
+    </div>
+
+    <label for="buybookShopName">Shop or business name</label>
+    <input id="buybookShopName" type="text" required minlength="2" maxlength="100" placeholder="e.g. Amuda Stores" autocomplete="organization">
+
+    <label for="buybookPhone">WhatsApp number</label>
+    <input id="buybookPhone" type="tel" inputmode="tel" required maxlength="25" placeholder="e.g. 0803 123 4567" autocomplete="tel">
+    <p class="settings-help-text">Enter a Nigerian mobile number linked to an active WhatsApp account. It will be saved in international format (+234).</p>
+
+    <label for="buybookAddress">Shop address</label>
+    <input id="buybookAddress" type="text" required minlength="5" maxlength="250" placeholder="Street, market, shop number or nearby landmark" autocomplete="street-address">
+
+    <div class="buybook-form-two-columns">
+     <div>
+      <label for="buybookCity">Town or city</label>
+      <input id="buybookCity" type="text" required maxlength="100" placeholder="e.g. Iwo" autocomplete="address-level2">
+     </div>
+     <div>
+      <label for="buybookState">State</label>
+      <input id="buybookState" type="text" required maxlength="100" placeholder="e.g. Osun" autocomplete="address-level1">
+     </div>
+    </div>
+
+    <label for="buybookDescription">About your shop <span class="settings-optional-label">Optional</span></label>
+    <textarea id="buybookDescription" maxlength="500" rows="3" placeholder="Briefly describe what your shop sells."></textarea>
+   </section>
+
+   <section class="settings-form-group buybook-location-section" aria-labelledby="buybookLocationHeading">
+    <div class="settings-form-heading">
+     <h3 id="buybookLocationHeading">Exact shop location</h3>
+     <p>Be at your shop before capturing its location. Buyers will use this pin to find the correct place.</p>
+    </div>
+    <div class="buybook-location-card">
+     <div class="buybook-location-icon" aria-hidden="true">
+      <svg viewBox="0 0 24 24"><path d="M20 10c0 5-8 11-8 11S4 15 4 10a8 8 0 1 1 16 0Z"/><circle cx="12" cy="10" r="2.5"/></svg>
+     </div>
+     <div class="buybook-location-copy">
+      <strong>Shop GPS pin</strong>
+      <p id="buybookLocationStatus" class="settings-inline-status" role="status" aria-live="polite">Location not captured yet. This step is required to connect your shop.</p>
+      <a id="buybookLocationMapLink" class="buybook-location-map-link hidden" href="#" target="_blank" rel="noopener noreferrer">View saved location on map</a>
+     </div>
+    </div>
+    <button type="button" id="captureBuybookLocationButton" class="secondary-button buybook-capture-location">
+     <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2v3m0 14v3M2 12h3m14 0h3"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
+     <span>Capture shop location</span>
+    </button>
+    <p class="settings-help-text">Allow Sellbook to use your phone's location. For a reliable pin, turn on precise location and wait until the accuracy is good before saving.</p>
+    <input type="hidden" id="buybookLatitude">
+    <input type="hidden" id="buybookLongitude">
+   </section>
+
+   <div class="buybook-submit-area">
+    <button type="submit" id="buybookConnectButton" class="primary">Connect and list my products</button>
+    <p id="buybookConnectionMessage" class="settings-inline-status muted" role="status" aria-live="polite"></p>
+   </div>
+  </form>
+
+  <div class="buybook-connection-note">
+   <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 4.5 6v5.2c0 4.5 3.1 8.2 7.5 9.8 4.4-1.6 7.5-5.3 7.5-9.8V6L12 3Z"/><path d="m9 12 2 2 4-4"/></svg>
+   <p>Only your shop details, WhatsApp contact, shop location and the product information needed for Buybook are shared. Your sales, expenses and private business reports are not listed.</p>
+  </div>
  </div>
 </section>
 <section id="settings-account" class="page hidden">
