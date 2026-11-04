@@ -161,7 +161,7 @@ function setSalesHistoryPeriod(period,shouldRender=true){
  if(custom){
   if(fromInput&&!fromInput.value)fromInput.value=todayKey;
   if(toInput&&!toInput.value)toInput.value=todayKey;
-  if(fromInput&&toInput){toInput.min=fromInput.value||'';fromInput.max=toInput.value||todayKey;}
+  if(toInput)toInput.removeAttribute('min');
  }else{
   if(fromInput)fromInput.value='';
   if(toInput){toInput.value='';toInput.removeAttribute('min');}
@@ -174,7 +174,7 @@ function syncSalesHistoryCustomRange(changedId){
  const todayKey=salesHistoryLocalDateKey();fromInput.max=todayKey;toInput.max=todayKey;
  if(changedId==='historySalesFrom'&&fromInput.value&&toInput.value&&toInput.value<fromInput.value)toInput.value=fromInput.value;
  if(changedId==='historySalesTo'&&fromInput.value&&toInput.value&&fromInput.value>toInput.value)fromInput.value=toInput.value;
- toInput.min=fromInput.value||'';fromInput.max=toInput.value||todayKey;
+ toInput.removeAttribute('min');
  const selector=document.getElementById('historySalesPeriod');if(selector)selector.value='custom';
  const wrapper=document.getElementById('historySalesCustomRange');if(wrapper)wrapper.hidden=false;
  render();
