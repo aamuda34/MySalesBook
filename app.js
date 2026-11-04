@@ -1282,8 +1282,8 @@ function normalizeNigerianWhatsAppNumber(value){
  const raw=String(value||'').trim();
  // Reject letters, extensions and arbitrary characters instead of silently
  // stripping them and accidentally accepting a different number.
- if(!raw||!/^[+0-9\\s().-]+$/.test(raw))return null;
- let digits=raw.replace(/\\D/g,'');
+ if(!raw||!/^[+0-9\s().-]+$/.test(raw))return null;
+ let digits=raw.replace(/\D/g,'');
  if(digits.startsWith('00'))digits=digits.slice(2);
  if(digits.startsWith('234'))digits=digits.slice(3);
  else if(digits.startsWith('0'))digits=digits.slice(1);
@@ -1483,7 +1483,7 @@ document.getElementById('buybookWhatsAppCheckButton')?.addEventListener('click',
   return;
  }
  input?.removeAttribute('aria-invalid');
- const digits=normalized.replace(/\\D/g,'');
+ const digits=normalized.replace(/\D/g,'');
  const message='Hello. I am checking that this is the correct WhatsApp number for my shop on Buybook. Please reply to confirm.';
  const url='https://wa.me/'+digits+'?text='+encodeURIComponent(message);
  const link=document.createElement('a');
