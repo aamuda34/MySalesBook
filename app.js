@@ -84,43 +84,17 @@ if(systemThemeQuery.addEventListener){
 function safeDate(value){const d=new Date(value);return Number.isNaN(d.getTime())?new Date(0):d;}
 function dateKey(value){const d=safeDate(value);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
 function validDateKey(value){if(value==null||value==='')return null;const raw=String(value);if(/^\d{4}-\d{2}-\d{2}$/.test(raw)){const [year,month,day]=raw.split('-').map(Number);const check=new Date(year,month-1,day);return check.getFullYear()===year&&check.getMonth()===month-1&&check.getDate()===day?raw:null;}const d=new Date(value);if(!Number.isFinite(d.getTime()))return null;return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
-let selectedExpensePeriod='today';
-function setExpensePeriod(period){
- if(!['today','week','month','year','all'].includes(period))return;
- selectedExpensePeriod=period;
- const selector=document.getElementById('expensePeriodSelect');if(selector&&selector.value!==period)selector.value=period;
- updateExpensePeriodTotal();
-}
-function updateExpensePeriodTotal(){
- const label=document.getElementById('expensePeriodLabel'),amount=document.getElementById('todayExpenses');
- if(!label||!amount||!Array.isArray(db.expenses))return;
- const nowDate=new Date();nowDate.setHours(0,0,0,0);
- let start=new Date(nowDate),labelText='Total expenses today';
- if(selectedExpensePeriod==='week'){const day=(nowDate.getDay()+6)%7;start.setDate(nowDate.getDate()-day);labelText='Total expenses this week';}
- else if(selectedExpensePeriod==='month'){start=new Date(nowDate.getFullYear(),nowDate.getMonth(),1);labelText='Total expenses this month';}
- else if(selectedExpensePeriod==='year'){start=new Date(nowDate.getFullYear(),0,1);labelText='Total expenses this year';}
- else if(selectedExpensePeriod==='all'){labelText='Total expenses all time';}
- const startKey=selectedExpensePeriod==='all'?'':dateKey(start),endKey=dateKey(nowDate);
- const total=db.expenses.reduce((sum,expense)=>{const key=validDateKey(expense.date);return key&&(selectedExpensePeriod==='all'||(key>=startKey&&key<=endKey))?sum+(Number(expense.amount)||0):sum;},0);
- label.textContent=labelText;amount.textContent=money(total);
-}
-document.getElementById('expensePeriodSelect')?.addEventListener('change',event=>setExpensePeriod(event.target.value));
+function operationalDate(row){return row?.date||row?.sold_at||row?.spent_at||row?.created_at||row?.createdAt||null;}
+function isExpenseVoided(row){return !!(row?.voidedAt||row?.voided_at);}
+function getLocalPeriodBounds(period,from='',to=''){const today=new Date();today.setHours(0,0,0,0);const todayKey=dateKey(today);let start=new Date(today),end=todayKey;if(period==='yesterday'){start.setDate(start.getDate()-1);end=dateKey(start);}else if(period==='week')start.setDate(start.getDate()-((start.getDay()+6)%7));else if(period==='month')start=new Date(today.getFullYear(),today.getMonth(),1);else if(period==='year')start=new Date(today.getFullYear(),0,1);else if(period==='all')return {from:'',to:todayKey};else if(period==='custom')return {from:from||to||todayKey,to:to||from||todayKey};return {from:dateKey(start),to:end};}
+function withinPeriod(row,bounds){const key=validDateKey(operationalDate(row));return !!key&&key<=bounds.to&&(!bounds.from||key>=bounds.from);}
 
+let selectedExpensePeriod='today';
+function setExpensePeriod(period){if(!['today','yesterday','week','month','year','all'].includes(period))return;selectedExpensePeriod=period;const selector=document.getElementById('expensePeriodSelect');if(selector&&selector.value!==period)selector.value=period;updateExpensePeriodTotal();}
+function updateExpensePeriodTotal(){const label=document.getElementById('expensePeriodLabel'),amount=document.getElementById('todayExpenses');if(!label||!amount)return;const bounds=getLocalPeriodBounds(selectedExpensePeriod),titles={today:'Total expenses today',yesterday:'Total expenses yesterday',week:'Total expenses this week',month:'Total expenses this month',year:'Total expenses this year',all:'Total expenses all time'};const rows=(db.expenses||[]).filter(x=>!isExpenseVoided(x)&&withinPeriod(x,bounds));label.textContent=titles[selectedExpensePeriod]||titles.today;amount.textContent=money(rows.reduce((sum,x)=>sum+(Number(x.amount)||0),0));}
+document.getElementById('expensePeriodSelect')?.addEventListener('change',event=>setExpensePeriod(event.target.value));
 let selectedSalesSummaryPeriod='today';
-function updateSalesPeriodSummary(){
- const selector=document.getElementById('salesSummaryPeriod');if(selector&&selector.value!==selectedSalesSummaryPeriod)selector.value=selectedSalesSummaryPeriod;
- const now=new Date();now.setHours(0,0,0,0);let start=new Date(now);
- if(selectedSalesSummaryPeriod==='yesterday'){start.setDate(now.getDate()-1);}
- else if(selectedSalesSummaryPeriod==='week'){start.setDate(now.getDate()-((now.getDay()+6)%7));}
- else if(selectedSalesSummaryPeriod==='month'){start=new Date(now.getFullYear(),now.getMonth(),1);}
- else if(selectedSalesSummaryPeriod==='year'){start=new Date(now.getFullYear(),0,1);}
- const startKey=selectedSalesSummaryPeriod==='all'?'':dateKey(start),endKey=selectedSalesSummaryPeriod==='yesterday'?dateKey(start):dateKey(now);
- const inPeriod=x=>{const key=validDateKey(x.date);return !!key&&key<=endKey&&(selectedSalesSummaryPeriod==='all'||key>=startKey);};
- const sales=(db.sales||[]).filter(inPeriod),expenses=(db.expenses||[]).filter(inPeriod);
- const totalSales=sales.reduce((sum,x)=>sum+(Number(x.total)||0),0),gross=sales.reduce((sum,x)=>sum+(Number(x.profit)||0),0),expenseTotal=expenses.reduce((sum,x)=>sum+(Number(x.amount)||0),0);
- const totalEl=document.getElementById('salesSummaryTotal'),grossEl=document.getElementById('salesSummaryGross'),netEl=document.getElementById('salesSummaryNet');
- if(totalEl)totalEl.textContent=money(totalSales);if(grossEl)grossEl.textContent=money(gross);if(netEl)netEl.textContent=money(gross-expenseTotal);
-}
+function updateSalesPeriodSummary(){const selector=document.getElementById('salesSummaryPeriod');if(selector&&selector.value!==selectedSalesSummaryPeriod)selector.value=selectedSalesSummaryPeriod;const bounds=getLocalPeriodBounds(selectedSalesSummaryPeriod);const sales=(db.sales||[]).filter(x=>withinPeriod(x,bounds)),expenses=(db.expenses||[]).filter(x=>!isExpenseVoided(x)&&withinPeriod(x,bounds));const totalSales=sales.reduce((sum,x)=>sum+(Number(x.total)||0),0),gross=sales.reduce((sum,x)=>sum+(Number(x.profit??x.gross_profit)||0),0),expenseTotal=expenses.reduce((sum,x)=>sum+(Number(x.amount)||0),0);const totalEl=document.getElementById('salesSummaryTotal'),grossEl=document.getElementById('salesSummaryGross'),netEl=document.getElementById('salesSummaryNet');if(totalEl)totalEl.textContent=money(totalSales);if(grossEl)grossEl.textContent=money(gross);if(netEl)netEl.textContent=money(gross-expenseTotal);}
 document.getElementById('salesSummaryPeriod')?.addEventListener('change',event=>{selectedSalesSummaryPeriod=event.target.value;updateSalesPeriodSummary();});
 
 function salesHistoryLocalDateKey(offset=0){
@@ -142,6 +116,7 @@ function getSalesHistoryRange(){
  if(period==='month'){
   const today=new Date();return {from:dateKey(new Date(today.getFullYear(),today.getMonth(),1)),to:todayKey,label:'This month'};
  }
+ if(period==='year'){const today=new Date();return {from:dateKey(new Date(today.getFullYear(),0,1)),to:todayKey,label:'This year'};}
  if(period==='custom'){
   const from=document.getElementById('historySalesFrom')?.value||'',to=document.getElementById('historySalesTo')?.value||'';
   const effectiveFrom=from||to||todayKey,effectiveTo=to||from||todayKey;
@@ -151,7 +126,7 @@ function getSalesHistoryRange(){
  return {from:todayKey,to:todayKey,label:'Today'};
 }
 function setSalesHistoryPeriod(period,shouldRender=true){
- const allowed=['today','yesterday','week','month','all','custom'];
+ const allowed=['today','yesterday','week','month','year','all','custom'];
  const selected=allowed.includes(period)?period:'today';
  const selector=document.getElementById('historySalesPeriod');if(selector)selector.value=selected;
  const fromInput=document.getElementById('historySalesFrom'),toInput=document.getElementById('historySalesTo'),todayKey=salesHistoryLocalDateKey();
@@ -2467,8 +2442,8 @@ document.addEventListener('click',event=>{
 function showLegalSection(section){const privacy=section!=='terms';const privacyPanel=document.getElementById('legalPrivacyContent'),termsPanel=document.getElementById('legalTermsContent'),privacyTab=document.getElementById('legalPrivacyTab'),termsTab=document.getElementById('legalTermsTab');if(!privacyPanel||!termsPanel||!privacyTab||!termsTab)return;privacyPanel.classList.toggle('hidden',!privacy);termsPanel.classList.toggle('hidden',privacy);privacyTab.classList.toggle('active',privacy);termsTab.classList.toggle('active',!privacy);privacyTab.setAttribute('aria-selected',String(privacy));termsTab.setAttribute('aria-selected',String(!privacy));}
 const VALID_PAGES=new Set(['home','quick-guide','about-sellbook','stock-history','stock-history-detail','sales-history','sale-details','subscribers','reservations','products','record-product','product-details','low-stock','sales','record-sale','more','expenses','record-expense','reports','profit-history','stock','settings','business-details','settings-business','settings-sync','settings-preferences','settings-account','settings-legal','settings-buybook','settings-buybook-setup','support','messenger','feedback','admin','me','notifications']);
 function currentPage(){return [...document.querySelectorAll('.page')].find(x=>!x.classList.contains('hidden'))?.id||'home';}
-async function renderDailySalesSummary(){const target=document.getElementById('dailySalesSummary');if(!target)return;const rows=new Map();const now=new Date();for(let i=0;i<7;i++){const d=new Date(now.getFullYear(),now.getMonth(),now.getDate()-i);const key=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');rows.set(key,{label:i===0?'Today':i===1?'Yesterday':d.toLocaleDateString(undefined,{weekday:'short',day:'numeric',month:'short'}),total:0,count:0});}for(const sale of (db.sales||[])){const raw=sale.sold_at||sale.created_at;if(!raw)continue;const d=new Date(raw);if(Number.isNaN(d.getTime()))continue;const key=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');const row=rows.get(key);if(row){row.total+=Number(sale.total)||0;row.count++;}}target.innerHTML=[...rows.values()].map(r=>'<div class="daily-sales-row"><span>'+escAdmin(r.label)+' · '+r.count+' sale'+(r.count===1?'':'s')+'</span><strong>'+escAdmin(new Intl.NumberFormat('en-NG',{style:'currency',currency:'NGN',maximumFractionDigits:2}).format(r.total))+'</strong></div>').join('');}
-function refreshHomeWeeklySales(){const el=document.getElementById('weeklySalesHome');if(!el)return;const now=new Date();const start=new Date(now.getFullYear(),now.getMonth(),now.getDate()-6);let total=0;for(const sale of (db.sales||[])){const raw=sale.sold_at||sale.created_at;if(!raw)continue;const d=new Date(raw);if(!Number.isNaN(d.getTime())&&d>=start&&d<=now)total+=Number(sale.total)||0;}el.textContent=money(total);}
+async function renderDailySalesSummary(){const target=document.getElementById('dailySalesSummary');if(!target)return;const rows=new Map(),today=new Date();today.setHours(0,0,0,0);for(let i=0;i<7;i++){const d=new Date(today);d.setDate(today.getDate()-i);const key=dateKey(d);rows.set(key,{label:i===0?'Today':i===1?'Yesterday':d.toLocaleDateString(undefined,{weekday:'short',day:'numeric',month:'short'}),total:0,count:0});}for(const sale of db.sales||[]){const key=validDateKey(operationalDate(sale)),row=key?rows.get(key):null;if(row){row.total+=Number(sale.total)||0;row.count++;}}target.innerHTML=[...rows.values()].map(r=>'<div class="daily-sales-row"><span>'+escAdmin(r.label)+' · '+r.count+' sale'+(r.count===1?'':'s')+'</span><strong>'+escAdmin(new Intl.NumberFormat('en-NG',{style:'currency',currency:'NGN',maximumFractionDigits:2}).format(r.total))+'</strong></div>').join('');}
+function refreshHomeWeeklySales(){const el=document.getElementById('weeklySalesHome');if(!el)return;const bounds=getLocalPeriodBounds('week');const total=(db.sales||[]).filter(s=>withinPeriod(s,bounds)).reduce((sum,s)=>sum+(Number(s.total)||0),0);el.textContent=money(total);}
 let marketplaceReservationsCache=[];let marketplaceSelectedReservationId=null;
 async function loadReservationsPage(){
  const target=document.getElementById('reservationsPageList');if(!target)return;
