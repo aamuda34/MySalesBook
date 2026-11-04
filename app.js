@@ -1709,7 +1709,11 @@ productCategoryOptions?.addEventListener('change',event=>{
 });
 document.getElementById('productCategorySearch')?.addEventListener('focus',()=>{renderProductCategoryOptions();productCategoryPickerOpen(true);});
 document.getElementById('productCategorySearch')?.addEventListener('input',()=>{renderProductCategoryOptions();productCategoryPickerOpen(true);});
-document.getElementById('productCategoryToggle')?.addEventListener('click',()=>productCategoryPickerOpen(document.getElementById('productCategoryDropdown')?.classList.contains('hidden')));
+document.getElementById('productCategoryToggle')?.addEventListener('click',()=>{
+ const open=document.getElementById('productCategoryDropdown')?.classList.contains('hidden');
+ if(open)renderProductCategoryOptions();
+ productCategoryPickerOpen(open);
+});
 document.getElementById('productCategoryOptions')?.addEventListener('click',event=>{
  const add=event.target.closest('[data-add-product-category]');if(add)addProductCategory(add.dataset.addProductCategory);
 });
