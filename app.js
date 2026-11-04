@@ -1603,6 +1603,7 @@ async function loadBuybookConnection(options={}){
   if(headerButton){const accessible=loading?'Checking Buybook connection':connected?'Connected to Buybook':'Connect to Buybook';headerButton.setAttribute('aria-label',accessible);headerButton.title=accessible;}
   const label=connected?'Connected to Buybook':'Not connected to Buybook';
   [overviewStatus,setupStatus].forEach(el=>{if(el)el.textContent=loading?'Checking Buybook connection…':label;});
+  const meStatus=document.getElementById('meBuybookStatus');if(meStatus)meStatus.textContent=loading?'Checking Buybook connection…':label;
   [overviewBar,setupBar].forEach(bar=>{
    if(!bar)return;
    bar.classList.toggle('connected',!!connected&&!loading);
@@ -2902,10 +2903,10 @@ function restorePageFromLocation(){const hash=location.hash.slice(1),saved=sessi
 })();
 document.querySelectorAll('nav button').forEach(b=>b.addEventListener('click',()=>{showPage(b.dataset.page);if(b.dataset.page==='messenger')loadMessengerConversations();}));
 document.getElementById('messengerPageBack')?.addEventListener('click',()=>{const target=VALID_PAGES.has(messengerReturnPage)&&messengerReturnPage!=='messenger'?messengerReturnPage:'home';if(location.hash==='#messenger'&&history.state?.mySalesBookPage==='messenger'){history.back();setTimeout(()=>{if(currentPage()==='messenger')showPage(target,{replaceHistory:true});},180);}else showPage(target);});
-document.querySelectorAll('[data-open-page]').forEach(b=>b.addEventListener('click',()=>{if(b.dataset.openPage==='admin'&&!sellbookIsAdmin)return cloudMessage('Administrator access is required.');showPage(b.dataset.openPage);if(b.dataset.openPage==='admin')loadAdminDashboard();if(b.dataset.openPage==='support'&&!sellbookIsAdmin)loadUserSupport();if(b.dataset.openPage==='notifications')loadUserNotifications();if(b.dataset.openPage==='subscribers')loadSubscribersPage();}));
+document.querySelectorAll('[data-open-page]').forEach(b=>b.addEventListener('click',()=>{if(b.dataset.openPage==='admin'&&!sellbookIsAdmin)return cloudMessage('Administrator access is required.');if(b.dataset.openPage==='support'&&sellbookIsAdmin){showPage('admin');showAdminPanel('support');void loadAdminUsers();return;}showPage(b.dataset.openPage);if(b.dataset.openPage==='admin')loadAdminDashboard();if(b.dataset.openPage==='notifications')loadUserNotifications();if(b.dataset.openPage==='subscribers')loadSubscribersPage();}));
 document.querySelectorAll('[data-open-sales-period]').forEach(button=>button.addEventListener('click',()=>openSalesHistoryPeriod(button.dataset.openSalesPeriod||'today')));
 document.querySelectorAll('[data-notification-category]').forEach(b=>b.addEventListener('click',()=>{userNotificationCategory=b.dataset.notificationCategory||'all';document.querySelectorAll('[data-notification-category]').forEach(x=>{const active=x===b;x.classList.toggle('active',active);x.setAttribute('aria-pressed',active?'true':'false');});renderUserNotifications();}));
-document.querySelectorAll('[data-open-support-direct]').forEach(b=>b.addEventListener('click',async()=>{showPage('support');await loadUserSupport();}));
+document.querySelectorAll('[data-open-support-direct]').forEach(b=>b.addEventListener('click',()=>showPage('support')));
 function openEntryForm(type){
  const routes={sale:{page:'record-sale',field:'saleProduct'},product:{page:'record-product',field:'pname'},expense:{page:'record-expense',field:'ename'}};
  const route=routes[type];if(!route||!document.getElementById(route.page))return;
@@ -5033,7 +5034,11 @@ function clearAccountScopedUiState(){
  homeReservationCountCache=null;homeReservationCountRequest=null;
  setUnreadBadge('notificationBadge',0);
  setUnreadBadge('messageBadge',0);
+ setUnreadBadge('supportBadge',0);
+ setUnreadBadge('meSupportBadge',0);
  setUnreadBadge('homeReservationBadge',0);
+ userNotificationsCache=[];userNotificationsOffset=0;userNotificationsHasMore=false;userNotificationsLoading=false;
+ messengerConversationCache=[];messengerSelectedConversation=null;
  const buybookHeaderLabel=document.getElementById('buybookHeaderConnectLabel');
  const buybookHeaderButton=document.getElementById('buybookHeaderConnectButton');
  if(buybookHeaderLabel)buybookHeaderLabel.textContent='Connect to Buybook';
@@ -5614,7 +5619,6 @@ messengerRefreshTimer=setInterval(()=>{if(document.visibilityState==='visible'&&
 
 
 document.getElementById('openFeedbackPage').addEventListener('click',()=>showPage('feedback'));
-document.querySelectorAll('[data-open-page="support"]').forEach(b=>b.addEventListener('click',async()=>{if(sellbookIsAdmin){showPage('admin');showAdminPanel('support');await loadAdminUsers();}else{showPage('support');loadUserSupport();}}));
 const chatInput=document.getElementById('supportMessageBody');chatInput.addEventListener('input',()=>{chatInput.style.height='auto';chatInput.style.height=Math.min(chatInput.scrollHeight,140)+'px';});
 function openAdminConversation(uid){
  const select=document.getElementById('adminMessageUser');select.value=uid;
