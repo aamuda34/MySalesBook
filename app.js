@@ -1429,7 +1429,7 @@ async function loadBuybookConnection(options={}){
    writeField('buybookAddress',data.address);
    writeField('buybookCity',data.city);
    writeField('buybookState',data.state);
-   const hasCoordinates=data.latitude!==null&&data.latitude!==undefined&&data.longitude!==null&&data.longitude!==undefined&&Number.isFinite(Number(data.latitude))&&Number.isFinite(Number(data.longitude));
+   const hasCoordinates=data.latitude!==null&&data.latitude!==undefined&&data.longitude!==null&&data.longitude!==undefined&&Number.isFinite(Number(data.latitude))&&Number.isFinite(Number(data.longitude))&&Number(data.latitude)>=-90&&Number(data.latitude)<=90&&Number(data.longitude)>=-180&&Number(data.longitude)<=180;
    if(hasCoordinates){
     const latitude=Number(data.latitude),longitude=Number(data.longitude);
     applyBuybookShopLocation({latitude,longitude,accuracy:null,source:'saved-shop-location'},{saved:true});
@@ -1484,8 +1484,9 @@ async function loadBuybookConnection(options={}){
    const phone=String(data.phone||'').trim();
    const overviewPhone=document.getElementById('buybookOverviewPhone');
    if(overviewPhone){
-    overviewPhone.textContent=phone||'Not provided';
-    const digits=phone.replace(/\D/g,'');
+    const whatsapp=normalizeNigerianWhatsAppNumber(phone);
+    overviewPhone.textContent=whatsapp||phone||'Not provided';
+    const digits=whatsapp?whatsapp.replace(/\D/g,''):'';
     overviewPhone.href=digits?'https://wa.me/'+digits:'#';
     overviewPhone.classList.toggle('is-unavailable',!digits);
    }
