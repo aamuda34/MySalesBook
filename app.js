@@ -3573,69 +3573,17 @@ document.getElementById('productList').addEventListener('click',async e=>{
  }
 });
 
-function updateSaleTotal(){
- const output=document.getElementById('saleTotalAmount');
- if(!output)return;
- const p=db.products.find(x=>x.id===document.getElementById('saleProduct').value);
- const qty=Number(document.getElementById('saleQty').value),price=Number(document.getElementById('salePrice').value);
- if(!p||!Number.isSafeInteger(qty)||qty<1||!Number.isFinite(price)||price<=0){output.textContent=money(0);return;}
- try{
-  const unitsPerSale=document.getElementById('saleUnit').value==='pack'?Number(p.unitsPerPack||1):1;
-  output.textContent=money(calculateSaleAmounts(qty,price,p.cost,unitsPerSale).total);
- }catch(_){output.textContent=money(0);}
-}
-function refreshSaleUnitOptions(){
- const p=db.products.find(x=>x.id===document.getElementById('saleProduct').value),sel=document.getElementById('saleUnit');
- if(!sel)return;
- const previous=sel.value;sel.innerHTML='<option value="base">Individual '+esc(p?.baseUnit||'unit')+'</option>';
- if(p?.packUnit&&Number(p.unitsPerPack)>1&&Number(p.packPrice)>0)sel.insertAdjacentHTML('beforeend','<option value="pack">Full '+esc(p.packUnit)+'</option>');
- if(previous==='pack'&&p?.packUnit)sel.value='pack';
- const isPack=sel.value==='pack';document.getElementById('salePriceLabel').textContent=isPack?'Selling price per full pack (₦)':'Selling price per individual unit (₦)';document.getElementById('salePrice').value=p?(isPack?Number(p.packPrice):Number(p.price)).toFixed(2):'';
- document.getElementById('saleStock').textContent=p?'Available: '+p.stock+' '+(p.baseUnit||'units')+(p.packUnit?' · '+Math.floor(p.stock/Math.max(1,p.unitsPerPack))+' '+p.packUnit+' possible':''):'';
- updateSaleTotal();
-}
-document.getElementById('saleProduct').addEventListener('change',refreshSaleUnitOptions);
-document.getElementById('saleUnit').addEventListener('change',refreshSaleUnitOptions);
-document.getElementById('saleQty').addEventListener('input',updateSaleTotal);
-document.getElementById('salePrice').addEventListener('input',updateSaleTotal);
-document.getElementById('saleForm').addEventListener('reset',()=>setTimeout(updateSaleTotal,0));
-updateSaleTotal();
+function updateSaleTotal(){const p=db.products.find(x=>x.id===document.getElementById('saleProduct')?.value),qty=Number(document.getElementById('saleQty')?.value),price=Number(document.getElementById('salePrice')?.value),out=document.getElementById('saleTotalAmount');if(!out)return;if(!p||!Number.isSafeInteger(qty)||qty<1||!Number.isFinite(price)||price<=0){out.textContent=money(0);return;}try{const units=document.getElementById('saleUnit').value==='pack'?Number(p.unitsPerPack||1):1;out.textContent=money(calculateSaleAmounts(qty,price,p.cost,units).total);}catch(_){out.textContent=money(0);}}
+function refreshSaleUnitOptions(){const p=db.products.find(x=>x.id===document.getElementById('saleProduct').value),sel=document.getElementById('saleUnit');if(!sel)return;const previous=sel.value;sel.innerHTML='<option value="base">Individual '+esc(p?.baseUnit||'unit')+'</option>';if(p?.packUnit&&Number(p.unitsPerPack)>1&&Number(p.packPrice)>0)sel.insertAdjacentHTML('beforeend','<option value="pack">Full '+esc(p.packUnit)+'</option>');if(previous==='pack'&&p?.packUnit)sel.value='pack';const pack=sel.value==='pack';document.getElementById('salePriceLabel').textContent=pack?'Selling price per full pack (₦)':'Selling price per individual unit (₦)';document.getElementById('salePrice').value=p?(pack?Number(p.packPrice):Number(p.price)).toFixed(2):'';document.getElementById('saleStock').textContent=p?'Available: '+p.stock+' '+(p.baseUnit||'units')+(p.packUnit?' · '+Math.floor(p.stock/Math.max(1,p.unitsPerPack))+' '+p.packUnit+' possible':''):'Choose a product to see available stock.';updateSaleTotal();}
+document.getElementById('saleProduct').addEventListener('change',refreshSaleUnitOptions);document.getElementById('saleUnit').addEventListener('change',refreshSaleUnitOptions);document.getElementById('saleQty').addEventListener('input',updateSaleTotal);document.getElementById('salePrice').addEventListener('input',updateSaleTotal);
+let saleBasket=[];
+function renderSaleBasket(){const target=document.getElementById('saleBasketList'),count=document.getElementById('saleBasketCount'),total=document.getElementById('saleTotalAmount');if(!target)return;if(!saleBasket.length){target.innerHTML='<div class="empty">Add a product to begin this sale.</div>';if(count)count.textContent='No items added yet.';if(total)total.textContent=money(0);return;}if(count)count.textContent=saleBasket.length+' product '+(saleBasket.length===1?'line':'lines');if(total)total.textContent=money(saleBasket.reduce((n,x)=>n+x.total,0));target.innerHTML=saleBasket.map((x,i)=>'<div class="sale-basket-row"><span><strong>'+esc(x.name)+' × '+x.qty+' '+esc(x.saleUnit)+'</strong><small>'+money(x.price)+' each · '+money(x.total)+'</small></span><button type="button" data-remove-sale-line="'+i+'" aria-label="Remove '+esc(x.name)+'">Remove</button></div>').join('');}
+document.getElementById('addSaleBasketItem')?.addEventListener('click',()=>{const p=db.products.find(x=>x.id===document.getElementById('saleProduct').value),qty=Number(document.getElementById('saleQty').value),price=Number(document.getElementById('salePrice').value),pack=document.getElementById('saleUnit').value==='pack',units=pack?Number(p?.unitsPerPack||1):1;if(!p)return showToast('Choose a product.');if(!Number.isSafeInteger(qty)||qty<1||!Number.isFinite(price)||price<=0)return showToast('Enter a valid quantity and selling price.');const baseQty=qty*units,existing=saleBasket.filter(x=>x.productId===p.id).reduce((n,x)=>n+x.baseQty,0);if(existing+baseQty>p.stock)return showToast('The quantity exceeds available stock for '+p.name+'.');const unit=pack?p.packUnit:(p.baseUnit||'unit');if(saleBasket.some(x=>x.productId===p.id&&x.saleUnit===unit))return showToast('This product is already in the sale. Remove it or change its quantity.');const amounts=calculateSaleAmounts(qty,price,p.cost,units);saleBasket.push({productId:p.id,name:p.name,qty,price,cost:amounts.cost,profit:amounts.profit,total:amounts.total,baseQty,saleUnit:unit,unitsPerSale:units,productUpdatedAt:p.updatedAt});renderSaleBasket();document.getElementById('saleQty').value='1';});
+document.getElementById('saleBasketList')?.addEventListener('click',event=>{const b=event.target.closest('[data-remove-sale-line]');if(!b)return;saleBasket.splice(Number(b.dataset.removeSaleLine),1);renderSaleBasket();});
 let saleSubmitting=false;
-document.getElementById('saleForm').addEventListener('submit',async e=>{
- e.preventDefault();
- if(saleSubmitting)return;
- saleSubmitting=true;
- const submitButton=e.submitter||e.currentTarget.querySelector('button[type="submit"]');
- if(submitButton)submitButton.disabled=true;
- try {
- const p=db.products.find(x=>x.id===document.getElementById('saleProduct').value);
- const qty=Number(document.getElementById('saleQty').value),price=Number(document.getElementById('salePrice').value),note=document.getElementById('saleNote').value.trim(),saleAsPack=document.getElementById('saleUnit').value==='pack',unitsPerSale=saleAsPack?Number(p?.unitsPerPack||1):1,baseQty=qty*unitsPerSale,saleUnit=saleAsPack?p?.packUnit:(p?.baseUnit||'unit');
- if(!p)return showToast('Choose a product.');
- if(!Number.isSafeInteger(qty)||qty<1||!Number.isSafeInteger(baseQty)||baseQty>2000000000||baseQty>p.stock)return showToast('Quantity must be a whole number and cannot exceed available stock.');
- if(!Number.isFinite(price)||price<=0||price>MAX_MONEY)return showToast('Enter a valid selling price.');
- if(note.length>150)return showToast('Sale note must be 150 characters or fewer.');
- const amounts=calculateSaleAmounts(qty,price,p.cost,unitsPerSale),total=amounts.total;
- if(!confirm('Record this paid sale for '+money(total)+'?'))return;
- if(cloudUser){
-   const saleCost=amounts.cost,profit=amounts.profit;
-   const sale={id:crypto.randomUUID(),productId:p.id,name:p.name,qty,price,cost:saleCost,total,profit,note,date:now(),baseQty,saleUnit,unitsPerSale};
-   const productUpdatedAt=p.updatedAt;
-   p.stock-=baseQty;
-   db.sales.push(sale);
-   try { await saveCloudChangeLocally('sale',{sale,productUpdatedAt}); }
-   catch(err){ p.stock+=baseQty; db.sales=db.sales.filter(x=>x.id!==sale.id); render(); return showToast(err.message || String(err)); }
- }else{
-   const saleCost=amounts.cost,profit=amounts.profit;
-   p.stock-=baseQty;
-   db.sales.push({id:crypto.randomUUID(),productId:p.id,name:p.name,qty,price,cost:saleCost,total,profit,note,date:now(),baseQty,saleUnit,unitsPerSale});
-   if(!save())return;
-   render();
- }
- e.target.reset();document.getElementById('saleQty').value=1;showToast('Sale recorded and stock updated.');
- } finally {saleSubmitting=false;if(submitButton)submitButton.disabled=false;}
-});
+document.getElementById('saleForm').addEventListener('submit',async event=>{event.preventDefault();if(saleSubmitting)return;if(!saleBasket.length)return showToast('Add at least one product to this sale.');const note=document.getElementById('saleNote').value.trim();if(note.length>150)return showToast('Sale note must be 150 characters or fewer.');const byProduct=new Map();for(const line of saleBasket){const p=db.products.find(x=>x.id===line.productId);if(!p)return showToast('A selected product is no longer available. Refresh and try again.');byProduct.set(p.id,p);}for(const [id,p] of byProduct){const used=saleBasket.filter(x=>x.productId===id).reduce((n,x)=>n+x.baseQty,0);if(used>p.stock)return showToast('Insufficient stock for '+p.name+'.');}const total=saleBasket.reduce((n,x)=>n+x.total,0);if(!confirm('Record '+saleBasket.length+' product line'+(saleBasket.length===1?'':'s')+' for '+money(total)+'?'))return;saleSubmitting=true;const button=event.submitter||event.currentTarget.querySelector('[type="submit"]');if(button)button.disabled=true;const transactionId=crypto.randomUUID(),stamp=now(),sales=saleBasket.map(x=>({...x,id:crypto.randomUUID(),transactionId,note,date:stamp}));try{for(const [id,p] of byProduct)p.stock-=sales.filter(x=>x.productId===id).reduce((n,x)=>n+x.baseQty,0);db.sales.push(...sales);if(cloudUser){await saveCloudChangeLocally('sale_batch',{transactionId,sales:sales.map(x=>({...x,productUpdatedAt:byProduct.get(x.productId).updatedAt}))});}else if(!save()){for(const [id,p] of byProduct)p.stock+=sales.filter(x=>x.productId===id).reduce((n,x)=>n+x.baseQty,0);db.sales=db.sales.filter(x=>x.transactionId!==transactionId);render();return;}saleBasket=[];renderSaleBasket();event.currentTarget.reset();document.getElementById('saleQty').value='1';refreshSaleUnitOptions();render();showToast('Sale recorded and stock updated.');}catch(error){for(const [id,p] of byProduct)p.stock+=sales.filter(x=>x.productId===id).reduce((n,x)=>n+x.baseQty,0);db.sales=db.sales.filter(x=>x.transactionId!==transactionId);render();showToast(error.message||'The sale could not be saved.');}finally{saleSubmitting=false;if(button)button.disabled=false;}});
+refreshSaleUnitOptions();renderSaleBasket();
 
-document.getElementById('expenseDate')&&(document.getElementById('expenseDate').value=today());
 document.getElementById('expenseForm').addEventListener('submit',async e=>{
  e.preventDefault();
  const name=document.getElementById('ename').value.trim(),amount=Number(document.getElementById('eamount').value),category=document.getElementById('expenseCategory')?.value||'Other',note=document.getElementById('expenseNote')?.value.trim()||'',dateValue=document.getElementById('expenseDate')?.value||today();
