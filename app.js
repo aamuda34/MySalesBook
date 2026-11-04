@@ -110,10 +110,11 @@ let selectedSalesSummaryPeriod='today';
 function updateSalesPeriodSummary(){
  const selector=document.getElementById('salesSummaryPeriod');if(selector&&selector.value!==selectedSalesSummaryPeriod)selector.value=selectedSalesSummaryPeriod;
  const now=new Date();now.setHours(0,0,0,0);let start=new Date(now);
- if(selectedSalesSummaryPeriod==='week'){start.setDate(now.getDate()-((now.getDay()+6)%7));}
+ if(selectedSalesSummaryPeriod==='yesterday'){start.setDate(now.getDate()-1);}
+ else if(selectedSalesSummaryPeriod==='week'){start.setDate(now.getDate()-((now.getDay()+6)%7));}
  else if(selectedSalesSummaryPeriod==='month'){start=new Date(now.getFullYear(),now.getMonth(),1);}
  else if(selectedSalesSummaryPeriod==='year'){start=new Date(now.getFullYear(),0,1);}
- const startKey=selectedSalesSummaryPeriod==='all'?'':dateKey(start),endKey=dateKey(now);
+ const startKey=selectedSalesSummaryPeriod==='all'?'':dateKey(start),endKey=selectedSalesSummaryPeriod==='yesterday'?dateKey(start):dateKey(now);
  const inPeriod=x=>{const key=validDateKey(x.date);return !!key&&key<=endKey&&(selectedSalesSummaryPeriod==='all'||key>=startKey);};
  const sales=(db.sales||[]).filter(inPeriod),expenses=(db.expenses||[]).filter(inPeriod);
  const totalSales=sales.reduce((sum,x)=>sum+(Number(x.total)||0),0),gross=sales.reduce((sum,x)=>sum+(Number(x.profit)||0),0),expenseTotal=expenses.reduce((sum,x)=>sum+(Number(x.amount)||0),0);
@@ -121,6 +122,90 @@ function updateSalesPeriodSummary(){
  if(totalEl)totalEl.textContent=money(totalSales);if(grossEl)grossEl.textContent=money(gross);if(netEl)netEl.textContent=money(gross-expenseTotal);
 }
 document.getElementById('salesSummaryPeriod')?.addEventListener('change',event=>{selectedSalesSummaryPeriod=event.target.value;updateSalesPeriodSummary();});
+
+function salesHistoryLocalDateKey(offset=0){
+ const day=new Date();day.setHours(0,0,0,0);day.setDate(day.getDate()+offset);return dateKey(day);
+}
+function salesHistoryFormatDate(key){
+ if(!key)return '';
+ const parts=key.split('-').map(Number);return new Date(parts[0],parts[1]-1,parts[2]).toLocaleDateString();
+}
+function getSalesHistoryRange(){
+ const period=document.getElementById('historySalesPeriod')?.value||'today';
+ const todayKey=salesHistoryLocalDateKey();
+ if(period==='all')return {from:'',to:todayKey,label:'All time'};
+ if(period==='yesterday'){const key=salesHistoryLocalDateKey(-1);return {from:key,to:key,label:'Yesterday · '+salesHistoryFormatDate(key)};}
+ if(period==='week'){
+  const today=new Date();today.setHours(0,0,0,0);today.setDate(today.getDate()-((today.getDay()+6)%7));
+  return {from:dateKey(today),to:todayKey,label:'This week'};
+ }
+ if(period==='month'){
+  const today=new Date();return {from:dateKey(new Date(today.getFullYear(),today.getMonth(),1)),to:todayKey,label:'This month'};
+ }
+ if(period==='custom'){
+  const from=document.getElementById('historySalesFrom')?.value||'',to=document.getElementById('historySalesTo')?.value||'';
+  const effectiveFrom=from||to||todayKey,effectiveTo=to||from||todayKey;
+  const label=effectiveFrom===effectiveTo?salesHistoryFormatDate(effectiveFrom):salesHistoryFormatDate(effectiveFrom)+' – '+salesHistoryFormatDate(effectiveTo);
+  return {from:effectiveFrom,to:effectiveTo,label};
+ }
+ return {from:todayKey,to:todayKey,label:'Today'};
+}
+function setSalesHistoryPeriod(period,shouldRender=true){
+ const allowed=['today','yesterday','week','month','all','custom'];
+ const selected=allowed.includes(period)?period:'today';
+ const selector=document.getElementById('historySalesPeriod');if(selector)selector.value=selected;
+ const fromInput=document.getElementById('historySalesFrom'),toInput=document.getElementById('historySalesTo'),todayKey=salesHistoryLocalDateKey();
+ [fromInput,toInput].forEach(input=>{if(input)input.max=todayKey;});
+ const custom=selected==='custom',wrapper=document.getElementById('historySalesCustomRange');
+ if(wrapper)wrapper.hidden=!custom;
+ if(custom){
+  if(fromInput&&!fromInput.value)fromInput.value=todayKey;
+  if(toInput&&!toInput.value)toInput.value=todayKey;
+  if(fromInput&&toInput){toInput.min=fromInput.value||'';fromInput.max=toInput.value||todayKey;}
+ }else{
+  if(fromInput)fromInput.value='';
+  if(toInput){toInput.value='';toInput.removeAttribute('min');}
+ }
+ if(shouldRender)render();
+}
+function syncSalesHistoryCustomRange(changedId){
+ const fromInput=document.getElementById('historySalesFrom'),toInput=document.getElementById('historySalesTo');
+ if(!fromInput||!toInput)return;
+ const todayKey=salesHistoryLocalDateKey();fromInput.max=todayKey;toInput.max=todayKey;
+ if(changedId==='historySalesFrom'&&fromInput.value&&toInput.value&&toInput.value<fromInput.value)toInput.value=fromInput.value;
+ if(changedId==='historySalesTo'&&fromInput.value&&toInput.value&&fromInput.value>toInput.value)fromInput.value=toInput.value;
+ toInput.min=fromInput.value||'';fromInput.max=toInput.value||todayKey;
+ const selector=document.getElementById('historySalesPeriod');if(selector)selector.value='custom';
+ const wrapper=document.getElementById('historySalesCustomRange');if(wrapper)wrapper.hidden=false;
+ render();
+}
+function openSalesHistoryPeriod(period='today'){
+ setSalesHistoryPeriod(period,false);
+ render();
+ showPage('sales-history');
+}
+function renderSalesHistory(){
+ const target=document.getElementById('salesHistoryList');if(!target)return;
+ const range=getSalesHistoryRange(),todayKey=salesHistoryLocalDateKey();
+ const query=(document.getElementById('historySalesProduct')?.value||'').trim().toLocaleLowerCase();
+ const periodRows=[...(db.sales||[])].filter(sale=>{
+  const key=validDateKey(sale.date||sale.sold_at||sale.created_at);
+  return !!key&&key<=todayKey&&(!range.from||key>=range.from)&&(!range.to||key<=range.to);
+ }).sort((a,b)=>safeDate(b.date||b.sold_at||b.created_at)-safeDate(a.date||a.sold_at||a.created_at));
+ const historyRows=periodRows.filter(sale=>!query||String(sale.name||sale.product_name||'').toLocaleLowerCase().includes(query));
+ const total=periodRows.reduce((sum,sale)=>sum+(Number(sale.total)||0),0);
+ const gross=periodRows.reduce((sum,sale)=>sum+(Number(sale.profit??sale.gross_profit)||0),0);
+ const items=periodRows.reduce((sum,sale)=>sum+(Number(sale.qty??sale.quantity)||0),0);
+ const setText=(id,value)=>{const element=document.getElementById(id);if(element)element.textContent=String(value);};
+ setText('salesHistoryPeriodLabel',range.label);setText('salesHistoryTotal',money(total));
+ setText('salesHistoryTransactionCount',periodRows.length);setText('salesHistoryItemsCount',items);setText('salesHistoryGrossProfit',money(gross));
+ target.innerHTML=historyRows.length?historyRows.map(sale=>{
+  const name=String(sale.name||sale.product_name||'Sale'),qty=Number(sale.qty??sale.quantity)||0;
+  const stamp=sale.date||sale.sold_at||sale.created_at,note=sale.note||'';
+  return '<button type="button" class="item sales-history-row" data-sale-detail="'+esc(String(sale.id||''))+'" aria-label="View sale details for '+esc(name)+'"><span class="sales-history-row-main"><span class="row"><strong>'+esc(name)+' × '+qty+'</strong><strong>'+money(Number(sale.total)||0)+'</strong></span><span class="muted">'+safeDate(stamp).toLocaleString()+' · Gross profit '+money(Number(sale.profit??sale.gross_profit)||0)+(note?' · '+esc(String(note)):'')+'</span></span><span class="sales-history-row-chevron" aria-hidden="true">›</span></button>';
+ }).join(''):(periodRows.length?'<div class="empty">No sales match your product search.</div>':'<div class="empty">No sales recorded for this period yet.</div>');
+}
+
 
 function getProfile(){return db.profile||{businessName:'',businessLogo:''};}
 function renderBrand(){const p=getProfile(),name=String(p.businessName||'').trim();document.getElementById('businessTitle').textContent=name||'Sellbook';document.getElementById('businessSubtitle').textContent=name?'Business records · Nigerian naira (₦)':'Simple business records · Nigerian naira (₦)';const logo=document.getElementById('headerBusinessLogo'),mark=document.getElementById('brandMark');if(p.businessLogo){logo.src=p.businessLogo;logo.style.display='block';mark.style.display='none';}else{logo.removeAttribute('src');logo.style.display='none';mark.style.display='grid';mark.textContent=(name||'Sellbook').split(/\s+/).slice(0,2).map(x=>x[0]||'').join('').toUpperCase()||'MS';}const input=document.getElementById('businessNameInput');if(input&&document.activeElement!==input)input.value=name;const preview=document.getElementById('businessLogoPreview');if(preview&&document.activeElement!==preview){if(p.businessLogo){preview.src=p.businessLogo;preview.style.display='block';}else{preview.removeAttribute('src');preview.style.display='none';}}}
@@ -2665,6 +2750,7 @@ function restorePageFromLocation(){const hash=location.hash.slice(1),saved=sessi
 document.querySelectorAll('nav button').forEach(b=>b.addEventListener('click',()=>{showPage(b.dataset.page);if(b.dataset.page==='messenger')loadMessengerConversations();}));
 document.getElementById('messengerPageBack')?.addEventListener('click',()=>{const target=VALID_PAGES.has(messengerReturnPage)&&messengerReturnPage!=='messenger'?messengerReturnPage:'home';if(location.hash==='#messenger'&&history.state?.mySalesBookPage==='messenger'){history.back();setTimeout(()=>{if(currentPage()==='messenger')showPage(target,{replaceHistory:true});},180);}else showPage(target);});
 document.querySelectorAll('[data-open-page]').forEach(b=>b.addEventListener('click',()=>{if(b.dataset.openPage==='admin'&&!sellbookIsAdmin)return cloudMessage('Administrator access is required.');showPage(b.dataset.openPage);if(b.dataset.openPage==='admin')loadAdminDashboard();if(b.dataset.openPage==='support'){messageListOpen=true;document.getElementById('conversationListView')?.classList.remove('hidden');document.getElementById('supportConversationView')?.classList.add('hidden');loadConversationList();}if(b.dataset.openPage==='notifications')loadUserNotifications();if(b.dataset.openPage==='subscribers')loadSubscribersPage();}));
+document.querySelectorAll('[data-open-sales-period]').forEach(button=>button.addEventListener('click',()=>openSalesHistoryPeriod(button.dataset.openSalesPeriod||'today')));
 document.querySelectorAll('[data-notification-category]').forEach(b=>b.addEventListener('click',()=>{userNotificationCategory=b.dataset.notificationCategory||'all';document.querySelectorAll('[data-notification-category]').forEach(x=>{const active=x===b;x.classList.toggle('active',active);x.setAttribute('aria-pressed',active?'true':'false');});renderUserNotifications();}));
 document.querySelectorAll('[data-open-support-direct]').forEach(b=>b.addEventListener('click',async()=>{showPage('support');messageListOpen=false;document.getElementById('conversationListView')?.classList.add('hidden');document.getElementById('supportConversationView')?.classList.remove('hidden');const selector=document.getElementById('messageConversationSelect');if(selector)selector.value='support';await loadUserSupport();}));
 function openEntryForm(type){
@@ -2827,14 +2913,17 @@ function render(){
   const filtered=[...db.sales].filter(x=>(!query||(String(x.name||'')+' '+String(x.note||'')).toLocaleLowerCase().includes(query))&&(!from||dateKey(x.date)>=from)&&(!to||dateKey(x.date)<=to)).sort((a,b)=>safeDate(b.date)-safeDate(a.date));
   document.getElementById('salesResultCount').textContent=filtered.length+' shown';
   document.getElementById('salesList').innerHTML=filtered.length?filtered.map(saleHTML).join(''):db.sales.length?'<div class="empty">No sales match these filters.</div>':'<div class="empty">No sales recorded yet.</div>';
-  const historyProduct=(document.getElementById('historySalesProduct')?.value||'').trim().toLocaleLowerCase(),historyFrom=document.getElementById('historySalesFrom')?.value||'',historyTo=document.getElementById('historySalesTo')?.value||'';const historyRows=[...(db.sales||[])].filter(x=>(!historyProduct||String(x.name||x.product_name||'').toLocaleLowerCase().includes(historyProduct))&&(!historyFrom||dateKey(x.date||x.sold_at||x.created_at)>=historyFrom)&&(!historyTo||dateKey(x.date||x.sold_at||x.created_at)<=historyTo)).sort((a,b)=>safeDate(b.date||b.sold_at||b.created_at)-safeDate(a.date||a.sold_at||a.created_at));const historyTarget=document.getElementById('salesHistoryList');if(historyTarget)historyTarget.innerHTML=historyRows.length?historyRows.map(x=>'<button type="button" class="item sales-history-row" data-sale-detail="'+esc(String(x.id||''))+'" aria-label="View sale details for '+esc(String(x.name||x.product_name||'Sale'))+'"><span class="sales-history-row-main"><span class="row"><strong>'+esc(String(x.name||x.product_name||'Sale'))+' × '+(Number(x.qty)||0)+'</strong><strong>'+money(Number(x.total)||0)+'</strong></span><span class="muted">'+safeDate(x.date||x.sold_at||x.created_at).toLocaleString()+' · Gross profit '+money(Number(x.profit)||0)+(x.note?' · '+esc(x.note):'')+'</span></span><span class="sales-history-row-chevron" aria-hidden="true">›</span></button>').join(''):'<div class="empty">No sales found for these dates.</div>';if(currentPage()==='sale-details')renderSaleDetails();
+  renderSalesHistory();if(currentPage()==='sale-details')renderSaleDetails();
   const expenseFrom=document.getElementById('historyExpensesFrom')?.value||'',expenseTo=document.getElementById('historyExpensesTo')?.value||'';const filteredExpenses=[...(db.expenses||[])].filter(x=>(!expenseFrom||dateKey(x.date)>=expenseFrom)&&(!expenseTo||dateKey(x.date)<=expenseTo)).sort((a,b)=>safeDate(b.date)-safeDate(a.date));document.getElementById('expenseList').innerHTML=filteredExpenses.length?filteredExpenses.map(x=>`<div class="item"><div class="row"><strong>${esc(x.name)}</strong><strong>${money(x.amount)}</strong></div><div class="muted">${safeDate(x.date).toLocaleString()}</div></div>`).join(''):db.expenses.length?'<div class="empty">No expenses match these dates.</div>':'<div class="empty">No expenses recorded yet.</div>';
 }
 let selectedSaleDetailId='';function renderSaleDetails(){const target=document.getElementById('saleDetailsContent');if(!target)return;const sale=(db.sales||[]).find(x=>String(x.id||'')===String(selectedSaleDetailId));if(!sale){target.innerHTML='<div class="empty">This sale could not be found. Return to Sales history and choose a sale.</div>';return;}const qty=Number(sale.qty)||0,price=Number(sale.price)||0,cost=Number(sale.cost)||0,total=Number(sale.total)||0,profit=Number(sale.profit)||0,baseQty=Number(sale.baseQty)||qty*(Number(sale.unitsPerSale)||1),unit=String(sale.saleUnit||'unit'),date=safeDate(sale.date||sale.sold_at||sale.created_at),note=String(sale.note||''),costTotal=Math.max(0,total-profit);target.innerHTML='<div class="sale-detail-card"><p class="sale-detail-product-name">'+esc(String(sale.name||sale.product_name||'Sale'))+'</p><p class="sale-detail-date">'+date.toLocaleString()+'</p></div><div class="sale-detail-card"><h2>Sales summary</h2><div class="sale-detail-summary-grid"><div class="sale-detail-metric"><small>Total sales</small><strong>'+money(total)+'</strong></div><div class="sale-detail-metric"><small>Cost of goods</small><strong>'+money(costTotal)+'</strong></div><div class="sale-detail-metric"><small>Gross profit</small><strong>'+money(profit)+'</strong></div><div class="sale-detail-metric"><small>Payment status</small><strong>Paid</strong></div></div></div><div class="sale-detail-card"><h2>Sale details</h2><div class="sale-detail-lines"><div class="sale-detail-line"><span>Product</span><strong>'+esc(String(sale.name||sale.product_name||'Sale'))+'</strong></div><div class="sale-detail-line"><span>Quantity sold</span><strong>'+qty+' '+esc(unit)+(Number(sale.unitsPerSale)>1?' ('+baseQty+' individual units)':'')+'</strong></div><div class="sale-detail-line"><span>Selling price per '+esc(unit)+'</span><strong>'+money(price)+'</strong></div><div class="sale-detail-line"><span>Cost per '+esc(unit)+'</span><strong>'+money(cost)+'</strong></div><div class="sale-detail-line"><span>Total sales</span><strong class="sale-detail-total">'+money(total)+'</strong></div><div class="sale-detail-line"><span>Cost of goods sold</span><strong>'+money(costTotal)+'</strong></div><div class="sale-detail-line"><span>Gross profit</span><strong>'+money(profit)+'</strong></div>'+(note?'<div class="sale-detail-line"><span>Sale note</span><strong>'+esc(note)+'</strong></div>':'')+'</div></div>'; }document.addEventListener('click',event=>{const row=event.target.closest('[data-sale-detail]');if(!row)return;selectedSaleDetailId=row.dataset.saleDetail||'';showPage('sale-details');});
 document.getElementById('productSearch').addEventListener('input',render);
 document.getElementById('categoryFilter').addEventListener('change',render);
 ['salesSearch','salesFrom','salesTo'].forEach(id=>document.getElementById(id).addEventListener('input',render));
- ['historySalesProduct','historySalesFrom','historySalesTo'].forEach(id=>document.getElementById(id).addEventListener('input',render));document.getElementById('clearHistorySalesDates').addEventListener('click',()=>{document.getElementById('historySalesProduct').value='';document.getElementById('historySalesFrom').value='';document.getElementById('historySalesTo').value='';render();});['historyExpensesFrom','historyExpensesTo'].forEach(id=>document.getElementById(id).addEventListener('input',render));document.getElementById('clearHistoryExpensesDates').addEventListener('click',()=>{document.getElementById('historyExpensesFrom').value='';document.getElementById('historyExpensesTo').value='';render();});
+ document.getElementById('historySalesProduct')?.addEventListener('input',render);
+document.getElementById('historySalesPeriod')?.addEventListener('change',event=>setSalesHistoryPeriod(event.target.value));
+['historySalesFrom','historySalesTo'].forEach(id=>document.getElementById(id)?.addEventListener('change',()=>syncSalesHistoryCustomRange(id)));
+document.getElementById('clearHistorySalesDates')?.addEventListener('click',()=>{const search=document.getElementById('historySalesProduct');if(search)search.value='';setSalesHistoryPeriod('today');});['historyExpensesFrom','historyExpensesTo'].forEach(id=>document.getElementById(id).addEventListener('input',render));document.getElementById('clearHistoryExpensesDates').addEventListener('click',()=>{document.getElementById('historyExpensesFrom').value='';document.getElementById('historyExpensesTo').value='';render();});
 document.getElementById('clearSalesFilters').addEventListener('click',()=>{['salesSearch','salesFrom','salesTo'].forEach(id=>document.getElementById(id).value='');render();});
 function renderBarChart(id,rows,labelFn,valueFn){const target=document.getElementById(id);if(!target)return;if(!rows.length||rows.every(r=>Number(valueFn(r))<=0)){target.innerHTML='<div class="empty">No sales in this period yet.</div>';return;}const max=Math.max(1,...rows.map(r=>Number(valueFn(r))||0));target.innerHTML='<div class="chart-bars" role="img" aria-label="Sales bar chart">'+rows.map(r=>{const v=Math.max(0,Number(valueFn(r))||0);return '<div class="chart-col" title="'+esc(labelFn(r)+': '+money(v))+'"><span class="chart-value">'+(v?esc(money(v).replace('.00','')):'')+'</span><div class="chart-bar" style="height:'+Math.max(2,v/max*100)+'%"></div><span class="chart-label">'+esc(labelFn(r))+'</span></div>';}).join('')+'</div>';}
  function salesTotalsByDate(){const totals=new Map();for(const sale of db.sales||[]){const key=validDateKey(sale.date);if(!key||key>dateKey(new Date()))continue;totals.set(key,(totals.get(key)||0)+(Number(sale.total)||0));}return totals;}
