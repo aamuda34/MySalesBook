@@ -157,31 +157,37 @@ function friendlyToastMessage(message){
   [/^could not load sellbook users\b/i,'Could not refresh the user list. Check your connection and try again.'],
   [/^could not load chat previews\b/i,'Could not refresh chat previews. Check your connection and try again.'],
   [/^traffic metrics are unavailable\b/i,'Could not refresh traffic information. Please try again.'],
-  [/^cloud operation failed\b/i,'Could not complete this action. Check your connection and try again.'],
+  [/^could not save feedback\b/i,'Could not save your feedback. Check your connection and try again.'],
+  [/^could not send feedback\b/i,'Could not send your feedback. Check your connection and try again.'],
+  [/^could not send message\b|^message not sent\b/i,'Your message could not be sent. Check your connection and try again.'],
+  [/^could not publish notification\b/i,'Could not send the notification. Check your connection and try again.'],
+  [/^could not send the verification code\b/i,'Could not send the verification code. Check your connection and try again.'],
+  [/^could not connect to buybook\b|^could not connect:/i,'Could not connect your shop to Buybook. Check your connection and try again.'],
+  [/^could not disconnect\b/i,'Could not disconnect your shop. Please try again.'],
   [/^could not check buybook connection\b/i,'Could not check your Buybook connection. Please try again.'],
-  [/^could not connect:/i,'Could not connect your shop to Buybook. Check your connection and try again.'],
-  [/^could not disconnect:/i,'Could not disconnect your shop from Buybook. Please try again.'],
-  [/^could not publish notification:/i,'Could not send the notification. Check your connection and try again.'],
-  [/^could not restore backup:/i,'Could not restore the backup. Check that it is a valid Sellbook backup and try again.'],
-  [/^could not send the verification code:/i,'Could not send the verification code. Check your connection and try again.'],
-  [/^could not send feedback:/i,'Could not send your feedback. Check your connection and try again.'],
-  [/^could not send message:/i,'Your message could not be sent. Check your connection and try again.']
+  [/^cloud operation failed\b/i,'Could not complete this action. Check your connection and try again.'],
+  [/^could not restore backup\b/i,'Could not restore the backup. Check that it is a valid Sellbook backup and try again.'],
+  [/^could not create backup\b/i,'Could not create your backup. Check that your device has enough free storage and try again.'],
+  [/^could not update your password\b/i,'Could not update your password. Request a new password reset link and try again.'],
+  [/^could not sign out\b/i,'Could not sign out. Check your connection and try again.'],
+  [/^automatic sync failed\b|^sync failed\b|^sync will retry automatically\b/i,'Sellbook could not sync your latest changes. Your saved records remain on this device. Check your connection and try again.'],
+  [/^import could not be completed\b/i,'Could not import the records. Your original records have not been deleted. Please try again.']
  ];
  for(const [pattern,replacement] of rules)if(pattern.test(value))return replacement;
- if(/failed to fetch|network request failed|networkerror|load failed|connection (?:was )?lost|timed? ?out/i.test(lower))return 'Could not connect. Check your internet connection and try again.';
- if(/row-level security|permission denied|not authorized|unauthorized|jwt expired|invalid jwt|invalid refresh token/i.test(lower))return 'Sellbook could not complete that action. Sign in again or contact Sellbook Support for help.';
+ if(/failed to fetch|network request failed|networkerror|load failed|connection (?:was )?lost|timed? ?out|internet is unavailable/i.test(lower))return 'Could not connect. Check your internet connection and try again.';
+ if(/row-level security|permission denied|not authorized|unauthorized|jwt expired|invalid jwt|invalid refresh token|authentication required/i.test(lower))return 'Sellbook could not complete that action. Sign in again or contact Sellbook Support for help.';
  if(/duplicate key|unique constraint/i.test(lower))return 'This information already exists. Check the details and try again.';
- if(/foreign key|violates.*constraint|sqlstate|relation .* does not exist|column .* does not exist|postgrest|postgresql/i.test(lower))return 'Sellbook could not complete that change. Please try again. If it continues, contact Sellbook Support.';
- if(value.length>220)return 'Sellbook could not complete that action. Please try again. If it continues, contact Sellbook Support.';
+ if(/foreign key|violates.*constraint|sqlstate|relation .* does not exist|column .* does not exist|postgrest|postgresql|supabase|http [45]\d\d|status code [45]\d\d/i.test(lower))return 'Sellbook could not complete that action. Please try again. If the problem continues, contact Sellbook Support.';
+ if(value.length>180||/\b(?:error|exception|stack trace|failed)\b.*\b(?:api|database|request|response|server|token|query)\b/i.test(value))return 'Sellbook could not complete that action. Please try again. If the problem continues, contact Sellbook Support.';
  return value;
 }
-let pageRefreshDepth=0,pageRefreshErrorShown=false,pageRefreshSuccessPending=false;
+let pageRefreshDepth=0,pageRefreshErrorShown=false,pageRefreshQuietUntil=0,pageRefreshToastPermit=false;
 function showToast(message,type){
  const popup=document.getElementById('appStatusPopup');
  const text=friendlyToastMessage(message);
  if(!popup||!text)return;
  const kind=['success','error','info'].includes(type)?type:inferToastType(text);
- if(pageRefreshDepth>0){if(kind!=='error')return;if(pageRefreshErrorShown)return;pageRefreshErrorShown=true;}
+ if(!pageRefreshToastPermit&&(pageRefreshDepth>0||Date.now()<pageRefreshQuietUntil)){if(kind==='error')pageRefreshErrorShown=true;return;}
  const textNode=popup.querySelector('[data-toast-message]');
  const icon=popup.querySelector('[data-toast-icon]');
  // Prefer the browser top layer so notices stay above every modal dialog.
@@ -216,7 +222,7 @@ async function runPageRefresh(button,action,options={}){
  if(button?.disabled)return false;
  if(!cloudUser||!supabaseClient){showToast('Sign in to Sellbook to refresh this information.','error');return false;}
  if(options.admin&&!sellbookIsAdmin){showToast('You do not have permission to refresh this information.','error');return false;}
- if(pageRefreshDepth===0){pageRefreshErrorShown=false;pageRefreshSuccessPending=false;}
+ if(pageRefreshDepth===0){pageRefreshErrorShown=false;dismissToast();}
  const requestedUserId=cloudUser.id,requestEpoch=accountSessionEpoch;
  if(button){button.disabled=true;button.setAttribute('aria-busy','true');}
  pageRefreshDepth++;
@@ -225,17 +231,18 @@ async function runPageRefresh(button,action,options={}){
   const result=await action();
   const sameAccount=cloudUser?.id===requestedUserId&&accountSessionEpoch===requestEpoch;
   refreshed=result!==false&&sameAccount&&(!options.admin||sellbookIsAdmin)&&!pageRefreshErrorShown;
-  if(!refreshed&&!pageRefreshErrorShown)showToast('Could not refresh this page. Check your internet connection and try again.','error');
  }catch(error){
-  if(!pageRefreshErrorShown)showToast('Could not refresh this page. Check your internet connection and try again.','error');
+  pageRefreshErrorShown=true;
   console.warn('Sellbook page refresh failed:',error);
  }finally{
-  if(refreshed)pageRefreshSuccessPending=true;
   pageRefreshDepth--;
   if(pageRefreshDepth===0){
-   const notifySuccess=pageRefreshSuccessPending&&!pageRefreshErrorShown;
-   pageRefreshSuccessPending=false;pageRefreshErrorShown=false;
-   if(notifySuccess)showToast('Refreshed','success');
+   const showSuccess=refreshed&&!pageRefreshErrorShown;
+   pageRefreshQuietUntil=Date.now()+4000;
+   pageRefreshToastPermit=true;
+   showToast(showSuccess?'Refreshed':'Could not refresh this page. Check your internet connection and try again.',showSuccess?'success':'error');
+   pageRefreshToastPermit=false;
+   pageRefreshErrorShown=false;
   }
   if(button){button.disabled=false;button.removeAttribute('aria-busy');}
  }
@@ -245,14 +252,18 @@ function notifyStatus(target,message,type){
  const element=typeof target==='string'?document.getElementById(target):target;
  const value=String(message??'').trim();
  if(element)element.textContent=value;
- if(value)showToast(value,type);
+ const kind=type||inferToastType(value);
+ if(value&&(kind==='error'||kind==='success'))showToast(value,kind);
 }
 function cloudMessage(text,type){
  const value=String(text??'');
  const el=document.getElementById('accountMessage'),settings=document.getElementById('settingsAccountMessage');
  if(el)el.textContent=value;
  if(settings)settings.textContent=value;
- if(value.trim())showToast(value,type);
+ // Routine loading/cache messages stay inline. Only errors or explicitly requested
+ // success outcomes become pop-up notices.
+ const kind=type||inferToastType(value);
+ if(value.trim()&&(kind==='error'||type==='success'))showToast(value,kind);
 }
 document.querySelector('[data-toast-close]')?.addEventListener('click',dismissToast);
 
@@ -1151,7 +1162,7 @@ async function handleCloudAuthChange() {
       verifyAdminAccess().then(async () => {
         if (currentPage() === 'admin' && sellbookIsAdmin) await loadAdminDashboard();
       }).catch(error => console.warn('Admin access check failed:', error));
-      loadUserSupport().catch(error => console.warn('Support panel refresh failed:', error));
+      loadUserSupport({quiet:true}).catch(error => console.warn('Support panel refresh failed:', error));
     }
   } catch (err) {
     cloudReady = false;
@@ -4376,7 +4387,7 @@ async function updateUnreadBadges(){
 }
 let userNotificationsCache=[];let userNotificationCategory='all';
 function renderUserNotifications(){const target=document.getElementById('userNotificationsList');if(!target)return;const rows=userNotificationCategory==='all'?userNotificationsCache:userNotificationsCache.filter(n=>String(n.kind||'').toLowerCase()===userNotificationCategory);target.innerHTML=rows.length?rows.map(n=>'<div class="item"><strong>'+escAdmin(n.title)+'</strong><div class="muted">'+escAdmin(({reservation:'Reservation',update:'Update',announcement:'Announcement',support:'Support',maintenance:'Maintenance'})[String(n.kind||'').toLowerCase()]||n.kind||'Notification')+' · '+escAdmin(new Date(n.created_at).toLocaleString())+'</div><p>'+escAdmin(n.body)+'</p></div>').join(''):'<div class="empty">'+(userNotificationCategory==='all'?'No notifications yet.':'No '+escAdmin(userNotificationCategory==='reservation'?'reservation':userNotificationCategory)+' notifications yet.')+'</div>';}
-async function loadUserNotifications(){
+async function loadUserNotifications(options={}){
  const target=document.getElementById('userNotificationsList');if(!target)return false;
  if(!cloudUser||!supabaseClient){userNotificationsCache=[];target.textContent='Sign in to view app announcements.';return false;}
  const requestedUserId=cloudUser.id,requestEpoch=accountSessionEpoch;
@@ -4390,7 +4401,7 @@ async function loadUserNotifications(){
   return true;
  }catch(error){
   if(!accountRequestIsCurrent(requestedUserId,requestEpoch))return false;
-  showToast('Could not load notifications: '+(error.message||'Please try again.'),'error');
+  if(!options.quiet)showToast('Could not load notifications: '+(error.message||'Please try again.'),'error');
   target.textContent='Notifications are temporarily unavailable.';
   return false;
  }
@@ -4424,9 +4435,10 @@ async function loadConversationList(){
  target.querySelectorAll('[data-conversation-id]').forEach(b=>b.addEventListener('click',()=>openMessageConversation(b.dataset.conversationId)));
  if(!current())return;
  await updateUnreadBadges();
+ return true;
 }
 
-async function loadUserSupport(){
+async function loadUserSupport(options={}){
  if(!cloudUser||!supabaseClient)return;
  const requestedUserId=cloudUser.id,requestEpoch=accountSessionEpoch;
  const current=()=>accountRequestIsCurrent(requestedUserId,requestEpoch);
@@ -4437,7 +4449,7 @@ async function loadUserSupport(){
   supabaseClient.rpc('get_my_marketplace_subscribers')
  ]);
  if(!current())return;
- if(fr.error&&currentPage()==='feedback')showToast('Could not load your feedback: '+fr.error.message,'error');
+ if(fr.error&&currentPage()==='feedback'&&!options.quiet)showToast('Could not load your feedback: '+fr.error.message,'error');
  if(feedback)feedback.innerHTML=fr.error?'<div class="empty">Feedback is temporarily unavailable.</div>':(fr.data||[]).length?fr.data.map(f=>'<div class="item"><div class="row"><strong>'+escAdmin(f.subject)+'</strong><span class="status-pill">'+escAdmin(f.status)+'</span></div><div class="muted">'+escAdmin(f.category)+' · '+escAdmin(new Date(f.created_at).toLocaleString())+'</div><p>'+escAdmin(f.message)+'</p>'+(f.admin_reply?'<p><strong>Sellbook reply:</strong> '+escAdmin(f.admin_reply)+'</p>':'')+'</div>').join(''):'<div class="empty">You have not sent feedback yet.</div>';
  if(!sr.error)marketplaceSubscribersCache=sr.data||[];
  if(selector){const old=selector.value||'support';selector.innerHTML='<option value="support">Sellbook Support</option>'+marketplaceSubscribersCache.map(x=>'<option value="'+escAdmin(x.buyer_id)+'">'+escAdmin(x.display_name||marketplaceBuyerName(x.buyer_id))+' · Buybook</option>').join('');selector.value=old==='support'||marketplaceSubscribersCache.some(x=>x.buyer_id===old)?old:'support';}
@@ -4449,19 +4461,19 @@ async function loadUserSupport(){
   let rows=mr.data||[];
   const incoming=currentPage()==='support'?rows.filter(m=>m.sender_id!==requestedUserId&&m.recipient_id===requestedUserId&&!m.read_at).map(m=>m.id):[];
   if(incoming.length){const stamp=new Date().toISOString();const {error}=await supabaseClient.from('support_messages').update({delivered_at:stamp,read_at:stamp}).in('id',incoming).eq('recipient_id',requestedUserId).select('id');if(!current())return;if(!error){const fresh=await supabaseClient.from('support_messages').select('id,sender_id,recipient_id,body,created_at,delivered_at,read_at').or('sender_id.eq.'+requestedUserId+',recipient_id.eq.'+requestedUserId).order('created_at',{ascending:true}).limit(100);if(!current())return;if(!fresh.error)rows=fresh.data||rows;}}
-  if(mr.error&&currentPage()==='support')showToast('Could not load support messages: '+mr.error.message,'error');
+  if(mr.error&&currentPage()==='support'&&!options.quiet)showToast('Could not load support messages: '+mr.error.message,'error');
    messages.innerHTML=mr.error?'<div class="empty">Support messages are temporarily unavailable.</div>':rows.length?rows.map(m=>{const mine=m.sender_id===requestedUserId,receipt=mine?(m.read_at?'Opened':m.delivered_at?'Delivered':'Sent'):'';return '<div class="chat-message '+(mine?'from-user':'from-support')+'"><strong>'+(mine?'You':'Sellbook Support')+'</strong><p>'+escAdmin(m.body)+'</p><time class="chat-time">'+escAdmin(new Date(m.created_at).toLocaleString([], {dateStyle:'medium',timeStyle:'short'}))+(receipt?' · '+receipt:'')+'</time></div>';}).join(''):'<div class="empty">No support messages yet. Send a message below to start chatting.</div>';
  }else if(messages){
   const {data,error}=await supabaseClient.from('marketplace_messages').select('id,owner_id,buyer_id,sender_id,body,created_at,read_at').eq('owner_id',requestedUserId).eq('buyer_id',chosen).order('created_at',{ascending:true}).limit(200);
   if(!current())return;
   let rows=data||[];const incoming=rows.filter(m=>m.sender_id===chosen&&!m.read_at).map(m=>m.id);
   if(incoming.length){const stamp=new Date().toISOString();const {error:readError}=await supabaseClient.from('marketplace_messages').update({read_at:stamp}).in('id',incoming).eq('owner_id',requestedUserId).eq('buyer_id',chosen);if(!current())return;if(!readError)rows=rows.map(m=>incoming.includes(m.id)?{...m,read_at:stamp}:m);}
-  if(error&&currentPage()==='support')showToast('Could not load Buybook messages: '+error.message,'error');
+  if(error&&currentPage()==='support'&&!options.quiet)showToast('Could not load Buybook messages: '+error.message,'error');
    messages.innerHTML=error?'<div class="empty">Buybook messages are temporarily unavailable.</div>':rows.length?rows.map(m=>{const mine=m.sender_id===requestedUserId;return '<div class="chat-message '+(mine?'from-user':'from-support')+'"><strong>'+escAdmin(mine?'You':marketplaceBuyerName(chosen))+'</strong><p>'+escAdmin(m.body)+'</p><time class="chat-time">'+escAdmin(new Date(m.created_at).toLocaleString([], {dateStyle:'medium',timeStyle:'short'}))+(mine&&m.read_at?' · Read':'')+'</time></div>';}).join(''):'<div class="empty">No messages from this subscriber yet. You can start the conversation below.</div>';
  }
  if(!current())return;
  if(messages)messages.scrollTop=messages.scrollHeight;
- await loadUserNotifications();
+ await loadUserNotifications({quiet:!!options.quiet});
  if(!current())return;
  await updateUnreadBadges();
 }
