@@ -157,6 +157,11 @@ assert.ok(saleQuantityStart >= 0 && saleQuantityEnd > saleQuantityStart && trans
   'Could not isolate production base-quantity and transaction grouping helpers.');
 const saleQuantityHelper = app.slice(saleQuantityStart, saleQuantityEnd);
 const transactionHelper = app.slice(transactionStart, transactionEnd);
+const reversalHelperStart = app.indexOf('function isSaleReversed(row){');
+const reversalHelperEnd = app.indexOf('\nfunction getActiveSales()', reversalHelperStart);
+assert.ok(reversalHelperStart >= 0 && reversalHelperEnd > reversalHelperStart,
+  'Could not isolate the production sale-reversal status helper.');
+const reversalHelper = app.slice(reversalHelperStart, reversalHelperEnd);
 assert.equal((app.match(/function getSalesTransactions\(rows\)/g) || []).length, 1,
   'Sales History must have one authoritative transaction grouping helper.');
 const transactionContext = {
@@ -169,7 +174,7 @@ const transactionContext = {
   safeDate: value => new Date(value)
 };
 vm.runInNewContext(
-  saleQuantityHelper + '\n' + transactionHelper + '\nglobalThis.__groups=getSalesTransactions(rows);',
+  reversalHelper + '\n' + saleQuantityHelper + '\n' + transactionHelper + '\nglobalThis.__groups=getSalesTransactions(rows);',
   transactionContext
 );
 const groupedSales = JSON.parse(JSON.stringify(transactionContext.__groups));
