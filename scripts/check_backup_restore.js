@@ -20,7 +20,7 @@ assert.equal(local.data.products[0].name,'Water');
 assert.equal(context.inspect(valid('account-123'),'account-123').accountId,'account-123');
 assert.throws(()=>context.inspect(valid('another-account'),'account-123'),/different account/i);
 assert.throws(()=>context.inspect(valid('account-123'),null),/sign in to the same/i);
-assert.throws(()=>context.inspect({...valid(),app:'Other'},null),/not a Sellbook backup/i);
+assert.throws(()=>context.inspect({...valid(),app:'Other'},null),/format is not supported/i);
 assert.throws(()=>context.inspect({...valid(),version:1},null),/format is not supported/i);
 assert.throws(()=>context.inspect({...valid(),data:{products:[],sales:[]}},null),/missing its expenses/i);
 assert.throws(()=>context.inspect({...valid(),data:{...valid().data,products:[{id:'x'},{id:'x'}]}},null),/duplicate record IDs/i);
