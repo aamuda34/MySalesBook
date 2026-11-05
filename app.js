@@ -3067,13 +3067,14 @@ function render(){
   if(statusFilter){statusFilter.value=previousStatus==='archived'?'archived':'active';const archivedOption=statusFilter.querySelector('option[value="archived"]');if(archivedOption)archivedOption.textContent='Archived ('+archivedCount+')';const activeOption=statusFilter.querySelector('option[value="active"]');if(activeOption)activeOption.textContent='Current products ('+activeCount+')';}
   const statusProducts=statusFilter?.value==='archived'?getArchivedProducts():allStatusProducts;
   const categories=[...new Set(statusProducts.map(p=>normalizeCategory(p.category)))].sort((a,b)=>a.localeCompare(b));
+  const allCategories=[...new Set((db.products||[]).map(p=>normalizeCategory(p.category)))].sort((a,b)=>a.localeCompare(b));
   categoryFilter.innerHTML='<option value="">All categories</option>'+categories.map(c=>`<option value="${esc(c)}">${esc(c)}</option>`).join('');
   if(categories.includes(previousCategory))categoryFilter.value=previousCategory;
   const selectedCategory=categoryFilter.value;
-  document.getElementById('categorySuggestions').innerHTML=categories.map(c=>`<option value="${esc(c)}"></option>`).join('');
-  const categoryChips=categories.map(c=>`<button type="button" data-category-suggestion="${esc(c)}">${esc(c)}</button>`).join('');
-  document.getElementById('categorySuggestionChips').innerHTML=categories.length?'<span class="suggestion-label">Your categories · tap to use</span>'+categoryChips:'';
-  document.getElementById('editCategorySuggestionChips').innerHTML=categories.length?'<span class="suggestion-label">Your categories · tap to use</span>'+categoryChips:'';
+  document.getElementById('categorySuggestions').innerHTML=allCategories.map(c=>`<option value="${esc(c)}"></option>`).join('');
+  const categoryChips=allCategories.map(c=>`<button type="button" data-category-suggestion="${esc(c)}">${esc(c)}</button>`).join('');
+  document.getElementById('categorySuggestionChips').innerHTML=allCategories.length?'<span class="suggestion-label">Your categories · tap to use</span>'+categoryChips:'';
+  document.getElementById('editCategorySuggestionChips').innerHTML=allCategories.length?'<span class="suggestion-label">Your categories · tap to use</span>'+categoryChips:'';
   const filteredProducts=statusProducts.filter(p=>
     p.name.toLocaleLowerCase().includes(searchTerm)&&
     (!selectedCategory||normalizeCategory(p.category)===selectedCategory)
@@ -3271,8 +3272,8 @@ function renderStockHistoryDetail(kind,id){
 }
 document.getElementById('stock-history').addEventListener('click',event=>{const more=event.target.closest('[data-history-load-more]');if(more){showMoreStockHistory(more.dataset.historyLoadMore);return;}const button=event.target.closest('[data-stock-history-id]');if(!button)return;renderStockHistoryDetail(button.dataset.stockHistoryKind,button.dataset.stockHistoryId);showPage('stock-history-detail');});
 
-function updateAdjustmentPreview(){const p=db.products.find(x=>x.id===document.getElementById('adjustProduct').value),v=document.getElementById('adjustNewStock').value;document.getElementById('adjustCurrentStock').textContent=p?String(p.stock):'—';const d=p&&v!==''?Number(v)-Number(p.stock):null;document.getElementById('adjustStockChange').textContent=d===null?'—':(d>0?'+':'')+d+' '+(p?.baseUnit||'unit');}
-document.getElementById('adjustProduct').addEventListener('change',()=>{const p=db.products.find(x=>x.id===document.getElementById('adjustProduct').value);document.getElementById('adjustNewStock').value=p?p.stock:'';updateAdjustmentPreview();});
+function updateAdjustmentPreview(){const p=getActiveProducts().find(x=>x.id===document.getElementById('adjustProduct').value),v=document.getElementById('adjustNewStock').value;document.getElementById('adjustCurrentStock').textContent=p?String(p.stock):'—';const d=p&&v!==''?Number(v)-Number(p.stock):null;document.getElementById('adjustStockChange').textContent=d===null?'—':(d>0?'+':'')+d+' '+(p?.baseUnit||'unit');}
+document.getElementById('adjustProduct').addEventListener('change',()=>{const p=getActiveProducts().find(x=>x.id===document.getElementById('adjustProduct').value);document.getElementById('adjustNewStock').value=p?p.stock:'';updateAdjustmentPreview();});
 document.getElementById('adjustNewStock').addEventListener('input',updateAdjustmentPreview);
 document.getElementById('lowStockList').addEventListener('click',e=>{const b=e.target.closest('[data-adjust-from-list]');if(!b)return;showPage('stock');document.getElementById('adjustProduct').value=b.dataset.adjustFromList;const p=db.products.find(x=>x.id===b.dataset.adjustFromList);document.getElementById('adjustNewStock').value=p?p.stock:'';updateAdjustmentPreview();});
 function renderStockAdjustments(){
@@ -3286,7 +3287,7 @@ function renderStockAdjustments(){
  }).join('')+stockHistoryLoadMoreButton('adjustments',rows.length,visible.length):'<div class="empty">No stock adjustments recorded yet.</div>';
 }
 function updateRestockPreview(){
- const p=db.products.find(x=>x.id===document.getElementById('restockProduct').value);
+ const p=getActiveProducts().find(x=>x.id===document.getElementById('restockProduct').value);
  const qty=Number(document.getElementById('restockPurchaseQty').value),units=Number(document.getElementById('restockUnitsPerPurchase').value),cost=Number(document.getElementById('restockCostPerPurchase').value);
  const out=document.getElementById('restockPreview');
  if(!p||!Number.isSafeInteger(qty)||qty<1||!Number.isSafeInteger(units)||units<1||!Number.isFinite(cost)||cost<0||qty>Math.floor(2000000000/units)){out.textContent='Choose a product and enter valid purchase details within the stock limit.';return;}
@@ -3302,7 +3303,7 @@ document.getElementById('restockForm').addEventListener('submit',async e=>{
  const submitButton=e.submitter||e.currentTarget.querySelector('button[type="submit"]');
  if(submitButton)submitButton.disabled=true;
  try {
- const p=db.products.find(x=>x.id===document.getElementById('restockProduct').value);
+ const p=getActiveProducts().find(x=>x.id===document.getElementById('restockProduct').value);
  const purchaseQuantity=Number(document.getElementById('restockPurchaseQty').value),purchaseUnit=document.getElementById('restockPurchaseUnit').value.trim(),unitsPerPurchase=Number(document.getElementById('restockUnitsPerPurchase').value),costPerPurchaseUnit=Number(document.getElementById('restockCostPerPurchase').value);
  if(!p)return showToast('Choose a product.');
  if(!Number.isSafeInteger(purchaseQuantity)||purchaseQuantity<1||!purchaseUnit||purchaseUnit.length>30||!Number.isSafeInteger(unitsPerPurchase)||unitsPerPurchase<1||!Number.isFinite(costPerPurchaseUnit)||costPerPurchaseUnit<0)return showToast('Check the purchase quantity, unit, units per purchase, and cost.');
@@ -3349,10 +3350,10 @@ document.getElementById('restockForm').addEventListener('submit',async e=>{
  }catch(err){p.stock=oldStock;p.cost=oldCost;db.restocks=db.restocks.filter(item=>item.id!==restock.id);render();showToast('Restock could not be saved: '+(err.message||String(err)));}
  } finally {restockSubmitting=false;if(submitButton)submitButton.disabled=false;}
 });
-document.getElementById('stockAdjustmentForm').addEventListener('submit',async e=>{e.preventDefault();const p=db.products.find(x=>x.id===document.getElementById('adjustProduct').value),next=Number(document.getElementById('adjustNewStock').value),reason=document.getElementById('adjustReason').value.trim();if(!p)return showToast('Choose a product first.');if(!Number.isSafeInteger(next)||next<0||next>2000000000)return showToast('Enter a whole-number stock quantity between 0 and 2,000,000,000.');if(next===p.stock)return showToast('The new stock quantity is the same as the current quantity.');if(!confirm('Change '+p.name+' stock from '+p.stock+' to '+next+' '+(p.baseUnit||'unit')+'?'))return;const old=p.stock,oldVersion=p.updatedAt,a={id:crypto.randomUUID(),productId:p.id,productName:p.name,previousStock:old,newStock:next,quantityChange:next-old,reason,date:now()};p.stock=next;if(cloudUser){try{db.stockAdjustments.push(a);await saveCloudChangesLocally([{type:'product_save',payload:{product:{...p},isNew:false}},{type:'stock_adjustment',payload:{adjustment:a}}]);}catch(err){p.stock=old;p.updatedAt=oldVersion;db.stockAdjustments=db.stockAdjustments.filter(x=>x.id!==a.id);render();return showToast(err.message||String(err));}}else{db.stockAdjustments.push(a);if(!save()){p.stock=old;db.stockAdjustments.pop();return;}render();}document.getElementById('adjustReason').value='';showToast('Stock adjustment saved.');});
+document.getElementById('stockAdjustmentForm').addEventListener('submit',async e=>{e.preventDefault();const p=getActiveProducts().find(x=>x.id===document.getElementById('adjustProduct').value),next=Number(document.getElementById('adjustNewStock').value),reason=document.getElementById('adjustReason').value.trim();if(!p)return showToast('Choose a product first.');if(!Number.isSafeInteger(next)||next<0||next>2000000000)return showToast('Enter a whole-number stock quantity between 0 and 2,000,000,000.');if(next===p.stock)return showToast('The new stock quantity is the same as the current quantity.');if(!confirm('Change '+p.name+' stock from '+p.stock+' to '+next+' '+(p.baseUnit||'unit')+'?'))return;const old=p.stock,oldVersion=p.updatedAt,a={id:crypto.randomUUID(),productId:p.id,productName:p.name,previousStock:old,newStock:next,quantityChange:next-old,reason,date:now()};p.stock=next;if(cloudUser){try{db.stockAdjustments.push(a);await saveCloudChangesLocally([{type:'product_save',payload:{product:{...p},isNew:false}},{type:'stock_adjustment',payload:{adjustment:a}}]);}catch(err){p.stock=old;p.updatedAt=oldVersion;db.stockAdjustments=db.stockAdjustments.filter(x=>x.id!==a.id);render();return showToast(err.message||String(err));}}else{db.stockAdjustments.push(a);if(!save()){p.stock=old;db.stockAdjustments.pop();return;}render();}document.getElementById('adjustReason').value='';showToast('Stock adjustment saved.');});
 
 function updateSalePrice(){
- const p=db.products.find(x=>x.id===document.getElementById('saleProduct').value);
+ const p=getActiveProducts().find(x=>x.id===document.getElementById('saleProduct').value);
  document.getElementById('salePrice').value=p?p.price:'';
  document.getElementById('saleStock').textContent=p?'Available stock: '+p.stock+' units':'';
 }
