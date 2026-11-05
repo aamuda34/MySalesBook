@@ -2805,7 +2805,7 @@ function renderProductSalesHistory(){
  const visible=rows.slice(0,stockHistoryVisible.sales);
  target.innerHTML=rows.length?visible.map(sale=>{
   const quantity=Number(sale.qty??sale.quantity)||0,unit=String(sale.saleUnit||sale.sale_unit||'unit');
-  return '<button type="button" class="stock-history-row" data-sale-detail="'+esc(String(sale.id))+'"><span class="row"><strong>'+esc(sale.name||sale.product_name||'Product')+' × '+quantity.toLocaleString('en-NG')+' '+esc(unit)+'</strong><strong>'+money(Number(sale.total)||0)+'</strong></span><span class="muted">'+safeDate(sale.date||sale.sold_at).toLocaleString()+' · Gross profit '+money(Number(sale.profit??sale.gross_profit)||0)+'</span></button>';
+  const reversed=isSaleReversed(sale);return '<button type="button" class="stock-history-row" data-sale-detail="'+esc(String(sale.id))+'"><span class="row"><strong>'+esc(sale.name||sale.product_name||'Product')+' × '+quantity.toLocaleString('en-NG')+' '+esc(unit)+'</strong><strong>'+money(Number(sale.total)||0)+'</strong></span><span class="muted">'+safeDate(sale.date||sale.sold_at).toLocaleString()+' · '+(reversed?'Reversed · excluded from totals':'Gross profit '+money(Number(sale.profit??sale.gross_profit)||0))+'</span></button>';
  }).join('')+stockHistoryLoadMoreButton('sales',rows.length,visible.length):'<div class="empty">No product sales recorded yet.</div>';
 }
 function renderProductActivityHistory(){
