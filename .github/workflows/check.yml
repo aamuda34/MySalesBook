@@ -29,3 +29,5 @@ jobs:
         run: node scripts/check_auth_experience.js
       - name: Test safe account and device backup restore
         run: node scripts/check_backup_restore.js
+      - name: Test reversible product archiving and marketplace visibility
+        run: node scripts/check_product_archive.js
