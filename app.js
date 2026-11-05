@@ -5330,6 +5330,9 @@ function adminRequestIsCurrent(userId,epoch){
    adminAccessEpoch===epoch;
 }
 function escAdmin(value){return String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+let adminChatRowsCache=[];
+let adminFeedbackCache=[];
+let adminUsersLoaded=false;
 function setAdminAccess(isAdmin){
  const next=!!isAdmin;
  // Invalidate all in-flight admin reads/writes when access is removed or changes.
@@ -5337,6 +5340,9 @@ function setAdminAccess(isAdmin){
  sellbookIsAdmin=next;
  if(!sellbookIsAdmin){
   adminUsersCache=[];
+  adminChatRowsCache=[];
+  adminFeedbackCache=[];
+  adminUsersLoaded=false;
   adminConversationRequestId++;
   adminConversationLoading=false;
  }
@@ -5398,11 +5404,135 @@ function showAdminPanel(name){
  sessionStorage.setItem('sellbook-admin-panel',name);
  if(name==='traffic')loadAdminTraffic();
  if(name==='users')loadAdminUsers();
- if(name==='support'){loadAdminUsers();}
+ if(name==='support')loadAdminUsers();
  if(name==='feedback')loadAdminFeedback();
- if(name==='notifications')loadAdminNotifications();
+ if(name==='notifications'){void loadAdminRecipientOptions();loadAdminNotifications();}
 }
 document.querySelectorAll('[data-admin-panel]').forEach(b=>b.addEventListener('click',()=>showAdminPanel(b.dataset.adminPanel)));
+document.querySelectorAll('[data-admin-open-panel]').forEach(b=>b.addEventListener('click',()=>showAdminPanel(b.dataset.adminOpenPanel)));
+function adminUserLastSeen(user){
+ if(!user?.last_sign_in_at)return 'Never signed in';
+ const date=new Date(user.last_sign_in_at);
+ if(Number.isNaN(date.getTime()))return 'Last sign-in unavailable';
+ return date.toLocaleDateString(undefined,{day:'numeric',month:'short',year:'numeric'});
+}
+function adminUserActivity(user){
+ if(!user?.last_sign_in_at)return 'never';
+ const value=Date.parse(user.last_sign_in_at);
+ if(!Number.isFinite(value))return 'inactive';
+ return Date.now()-value<=30*86400000?'recent':'inactive';
+}
+function renderAdminUsersList(){
+ const target=document.getElementById('adminUsersList');if(!target)return;
+ const query=(document.getElementById('adminUsersSearch')?.value||'').trim().toLowerCase();
+ const filter=document.getElementById('adminUsersFilter')?.value||'all';
+ const rows=adminUsersCache.filter(user=>{
+  const activity=adminUserActivity(user);
+  const matchesFilter=filter==='all'||filter===activity;
+  const haystack=[user.email,user.user_id].join(' ').toLowerCase();
+  return matchesFilter&&(!query||haystack.includes(query));
+ });
+ const summary=document.getElementById('adminUsersSummary');
+ if(summary)summary.textContent=rows.length+' of '+adminUsersCache.length+' users shown';
+ target.innerHTML=rows.length?rows.map(user=>{
+  const joined=user.created_at?new Date(user.created_at).toLocaleDateString(undefined,{day:'numeric',month:'short',year:'numeric'}):'Date unavailable';
+  const activity=adminUserActivity(user),activityLabel=activity==='recent'?'Signed in recently':activity==='never'?'Never signed in':'No sign-in in 30 days';
+  return '<article class="admin-person-row"><div class="admin-person-avatar" aria-hidden="true">'+escAdmin((user.email||'U').slice(0,1).toUpperCase())+'</div><div class="admin-person-main"><strong>'+escAdmin(user.email||'No email address')+'</strong><span>Joined '+escAdmin(joined)+'</span><small class="admin-person-activity '+activity+'">'+escAdmin(activityLabel)+'</small></div><div class="admin-person-actions"><button type="button" data-admin-user-details="'+escAdmin(user.user_id)+'">Details</button><button type="button" data-admin-user-message="'+escAdmin(user.user_id)+'">Message</button></div></article>';
+ }).join(''):'<div class="empty">No users match your search.</div>';
+ target.querySelectorAll('[data-admin-user-details]').forEach(button=>button.addEventListener('click',()=>showAdminUserDetails(button.dataset.adminUserDetails)));
+ target.querySelectorAll('[data-admin-user-message]').forEach(button=>button.addEventListener('click',()=>openAdminUserMessage(button.dataset.adminUserMessage)));
+}
+function showAdminUserDetails(userId){
+ const user=adminUsersCache.find(row=>row.user_id===userId);if(!user)return;
+ document.getElementById('adminUsersListView')?.classList.add('hidden');
+ document.getElementById('adminUserDetailsView')?.classList.remove('hidden');
+ const joined=user.created_at?new Date(user.created_at).toLocaleString([], {dateStyle:'full',timeStyle:'short'}):'Not available';
+ const signedIn=adminUserLastSeen(user);
+ const created=escAdmin(joined),email=escAdmin(user.email||'No email address'),id=escAdmin(user.user_id);
+ const target=document.getElementById('adminUserDetailsContent');if(!target)return;
+ target.innerHTML='<div class="admin-user-detail-card"><div class="admin-user-detail-heading"><span class="admin-person-avatar">'+escAdmin((user.email||'U').slice(0,1).toUpperCase())+'</span><div><strong>'+email+'</strong><small>Sellbook account</small></div></div><dl class="admin-user-detail-list"><div><dt>Email address</dt><dd>'+email+'</dd></div><div><dt>Account ID</dt><dd class="admin-user-id">'+id+'</dd></div><div><dt>Registered</dt><dd>'+created+'</dd></div><div><dt>Last sign-in</dt><dd>'+escAdmin(signedIn)+'</dd></div></dl><button type="button" class="primary admin-user-message-primary" data-admin-message-user="'+id+'">Message this user</button></div>';
+ target.querySelector('[data-admin-message-user]')?.addEventListener('click',()=>openAdminUserMessage(userId));
+}
+function openAdminUserMessage(userId){
+ const user=adminUsersCache.find(row=>row.user_id===userId);if(!user)return;
+ showAdminPanel('support');
+ document.getElementById('adminChatSearch').value='';
+ document.getElementById('adminChatFilter').value='all';
+ openAdminConversation(userId);
+}
+document.getElementById('adminUserDetailsBack')?.addEventListener('click',()=>{
+ document.getElementById('adminUserDetailsView')?.classList.add('hidden');
+ document.getElementById('adminUsersListView')?.classList.remove('hidden');
+});
+document.getElementById('adminUsersSearch')?.addEventListener('input',renderAdminUsersList);
+document.getElementById('adminUsersFilter')?.addEventListener('change',renderAdminUsersList);
+function renderAdminChatUsers(){
+ const list=document.getElementById('adminChatUserList');if(!list)return;
+ const query=(document.getElementById('adminChatSearch')?.value||'').trim().toLowerCase();
+ const filter=document.getElementById('adminChatFilter')?.value||'all';
+ const rows=adminChatRowsCache.filter(user=>{
+  const hasMessages=!!user.latest;
+  const matchesFilter=filter==='all'||(filter==='unread'&&user.unread>0)||(filter==='messages'&&hasMessages)||(filter==='new'&&!hasMessages);
+  const haystack=[user.email,user.user_id,user.latest?.body].join(' ').toLowerCase();
+  return matchesFilter&&(!query||haystack.includes(query));
+ });
+ const summary=document.getElementById('adminChatSummary');
+ if(summary)summary.textContent=rows.length+' of '+adminChatRowsCache.length+' conversations shown';
+ list.innerHTML=rows.length?rows.map(user=>'<button type="button" class="admin-chat-user-row" data-chat-user="'+escAdmin(user.user_id)+'"><span class="chat-support-avatar" aria-hidden="true">♙</span><span class="admin-chat-user-meta"><strong>'+escAdmin(user.email||'Sellbook user')+'</strong><span class="muted admin-chat-preview">'+escAdmin(user.latest?.body||'No messages yet')+'</span><span class="muted">'+escAdmin(user.latest?new Date(user.latest.created_at).toLocaleString([], {dateStyle:'medium',timeStyle:'short'}):'No conversation yet')+'</span></span>'+(user.unread?'<span class="admin-chat-unread" aria-label="'+user.unread+' unread messages">'+user.unread+'</span>':'')+'<span class="admin-chat-arrow" aria-hidden="true">›</span></button>').join(''):'<div class="empty">No conversations match this filter.</div>';
+ list.querySelectorAll('[data-chat-user]').forEach(button=>button.addEventListener('click',()=>openAdminConversation(button.dataset.chatUser)));
+}
+document.getElementById('adminChatSearch')?.addEventListener('input',renderAdminChatUsers);
+document.getElementById('adminChatFilter')?.addEventListener('change',renderAdminChatUsers);
+function renderAdminFeedbackList(){
+ const target=document.getElementById('adminFeedbackList');if(!target)return;
+ const query=(document.getElementById('adminFeedbackSearch')?.value||'').trim().toLowerCase();
+ const filter=document.getElementById('adminFeedbackFilter')?.value||'all';
+ const rows=adminFeedbackCache.filter(item=>{
+  const haystack=[item.subject,item.message,item.category,item.user_id].join(' ').toLowerCase();
+  return(filter==='all'||item.status===filter)&&(!query||haystack.includes(query));
+ });
+ const summary=document.getElementById('adminFeedbackSummary');
+ if(summary)summary.textContent=rows.length+' of '+adminFeedbackCache.length+' feedback items shown';
+ target.innerHTML=rows.length?rows.map(f=>'<article class="admin-feedback-item"><div class="admin-feedback-heading"><div><strong>'+escAdmin(f.subject)+'</strong><span class="admin-feedback-meta">'+escAdmin(f.category)+' · '+escAdmin(f.email||f.user_id)+' · '+escAdmin(new Date(f.created_at).toLocaleString([], {dateStyle:'medium',timeStyle:'short'}))+'</span></div><span class="admin-feedback-status '+escAdmin(f.status)+'">'+escAdmin(String(f.status).replace(/_/g,' '))+'</span></div><p class="admin-feedback-message">'+escAdmin(f.message)+'</p><label for="adminFeedbackStatus-'+escAdmin(f.id)+'">Status</label><select id="adminFeedbackStatus-'+escAdmin(f.id)+'" data-feedback-status="'+escAdmin(f.id)+'"><option value="new" '+(f.status==='new'?'selected':'')+'>New</option><option value="in_review" '+(f.status==='in_review'?'selected':'')+'>In review</option><option value="resolved" '+(f.status==='resolved'?'selected':'')+'>Resolved</option><option value="declined" '+(f.status==='declined'?'selected':'')+'>Declined</option></select><label for="adminFeedbackReply-'+escAdmin(f.id)+'">Reply to user</label><textarea id="adminFeedbackReply-'+escAdmin(f.id)+'" data-feedback-reply="'+escAdmin(f.id)+'" rows="2" maxlength="4000" placeholder="Write a reply">'+escAdmin(f.admin_reply||'')+'</textarea><button type="button" class="admin-feedback-save" data-save-feedback="'+escAdmin(f.id)+'">Save changes</button></article>').join(''):'<div class="empty">No feedback matches your search.</div>';
+ target.querySelectorAll('[data-save-feedback]').forEach(button=>button.addEventListener('click',saveAdminFeedbackItem));
+}
+async function saveAdminFeedbackItem(event){
+ const button=event.currentTarget;
+ if(!supabaseClient||!cloudUser||!sellbookIsAdmin)return;
+ const requestedUserId=cloudUser.id,requestEpoch=adminAccessEpoch,id=button.dataset.saveFeedback;
+ const statusControl=document.getElementById('adminFeedbackStatus-'+id),replyControl=document.getElementById('adminFeedbackReply-'+id);
+ if(!statusControl||!replyControl||!adminRequestIsCurrent(requestedUserId,requestEpoch))return;
+ const reply=replyControl.value.trim();
+ button.disabled=true;button.textContent='Saving…';
+ try{
+  const {data,error}=await supabaseClient.from('user_feedback').update({status:statusControl.value,admin_reply:reply||null,replied_at:reply?new Date().toISOString():null,updated_at:new Date().toISOString()}).eq('id',id).select('id');
+  if(!adminRequestIsCurrent(requestedUserId,requestEpoch))return;
+  if(error)throw error;
+  if(!data?.length)throw Error('No feedback item was updated. Refresh the list and try again.');
+  showToast('Feedback updated.','success');
+  await loadAdminFeedback();
+  if(adminRequestIsCurrent(requestedUserId,requestEpoch))await loadUserSupport();
+ }catch(error){
+  if(adminRequestIsCurrent(requestedUserId,requestEpoch))showToast('Could not save feedback: '+(error.message||'Please try again.'),'error');
+ }finally{
+  if(adminRequestIsCurrent(requestedUserId,requestEpoch)){button.disabled=false;button.textContent='Save changes';}
+ }
+}
+async function loadAdminRecipientOptions(){
+ if(!supabaseClient||!cloudUser||!sellbookIsAdmin)return;
+ const requestedUserId=cloudUser.id,requestEpoch=adminAccessEpoch;
+ if(!adminUsersLoaded){
+  const {data,error}=await supabaseClient.rpc('sellbook_admin_users');
+  if(!adminRequestIsCurrent(requestedUserId,requestEpoch))return;
+  if(error){showToast('User list is unavailable. You can still send a notification to everyone.','error');return;}
+  adminUsersCache=(data||[]).filter(user=>user.user_id!==requestedUserId);
+  adminUsersLoaded=true;
+ }
+ const select=document.getElementById('notificationUser');if(!select)return;
+ const previous=select.value;
+ select.innerHTML='<option value="">Choose a user</option>'+adminUsersCache.map(user=>'<option value="'+escAdmin(user.user_id)+'">'+escAdmin(user.email||'No email')+'</option>').join('');
+ if(previous&&adminUsersCache.some(user=>user.user_id===previous))select.value=previous;
+}
 function formatAdminNaira(value){return new Intl.NumberFormat('en-NG',{style:'currency',currency:'NGN',maximumFractionDigits:0}).format(Number(value)||0);}
 async function loadAdminTraffic(){
  if(!supabaseClient||!cloudUser||!sellbookIsAdmin)return;
@@ -5441,70 +5571,107 @@ async function verifyAdminAccess(){
 }
 async function loadAdminDashboard(){
  const requestedUserId=cloudUser?.id||null;
+ const status=document.getElementById('adminDashboardStatus');
+ if(status)status.textContent='Refreshing dashboard…';
  if(!requestedUserId||!await verifyAdminAccess()||cloudUser?.id!==requestedUserId)return;
  const requestEpoch=adminAccessEpoch;
  if(!adminRequestIsCurrent(requestedUserId,requestEpoch))return;
-
- const {data:overview,error}=await supabaseClient.rpc('sellbook_admin_overview');
- if(!adminRequestIsCurrent(requestedUserId,requestEpoch))return;
- if(error){cloudMessage('Admin dashboard could not load: '+error.message);return;}
- document.getElementById('adminTotalUsers').textContent=overview.total_users??'—';
- document.getElementById('adminNewUsers').textContent=overview.new_users_30d??'—';
- document.getElementById('adminOpenFeedback').textContent=overview.feedback_open??'—';
- document.getElementById('adminUnreadMessages').textContent=overview.messages_unread??'—';
-
- const {data:metrics,error:metricsError}=await supabaseClient.rpc('sellbook_admin_platform_metrics');
- if(!adminRequestIsCurrent(requestedUserId,requestEpoch))return;
- if(metricsError){document.getElementById('adminPlatformProducts').textContent='—';document.getElementById('adminPlatformSales').textContent='—';document.getElementById('adminPlatformSalesValue').textContent='Unavailable';}
- else{document.getElementById('adminPlatformProducts').textContent=metrics.total_products??0;document.getElementById('adminPlatformSales').textContent=metrics.total_sales??0;document.getElementById('adminPlatformSalesValue').textContent=formatAdminNaira(metrics.sales_value);}
- if(adminRequestIsCurrent(requestedUserId,requestEpoch))showAdminPanel(sessionStorage.getItem('sellbook-admin-panel')||'overview');
+ const accountEmail=document.getElementById('adminAccountEmail');
+ if(accountEmail)accountEmail.textContent=cloudUser.email||'Signed-in admin account';
+ try{
+  const {data:overview,error}=await supabaseClient.rpc('sellbook_admin_overview');
+  if(!adminRequestIsCurrent(requestedUserId,requestEpoch))return;
+  if(error)throw error;
+  document.getElementById('adminTotalUsers').textContent=overview.total_users??'—';
+  document.getElementById('adminNewUsers').textContent=overview.new_users_30d??'—';
+  document.getElementById('adminOpenFeedback').textContent=overview.feedback_open??'—';
+  document.getElementById('adminUnreadMessages').textContent=overview.messages_unread??'—';
+  const {data:metrics,error:metricsError}=await supabaseClient.rpc('sellbook_admin_platform_metrics');
+  if(!adminRequestIsCurrent(requestedUserId,requestEpoch))return;
+  if(metricsError){
+   document.getElementById('adminPlatformProducts').textContent='—';
+   document.getElementById('adminPlatformSales').textContent='—';
+   document.getElementById('adminPlatformSalesValue').textContent='Unavailable';
+   if(status)status.textContent='Overview loaded. Some platform metrics are unavailable.';
+  }else{
+   document.getElementById('adminPlatformProducts').textContent=metrics.total_products??0;
+   document.getElementById('adminPlatformSales').textContent=metrics.total_sales??0;
+   document.getElementById('adminPlatformSalesValue').textContent=formatAdminNaira(metrics.sales_value);
+   if(status)status.textContent='Dashboard is up to date.';
+  }
+  const stamp=new Date();
+  const updated=document.getElementById('adminLastUpdated');
+  if(updated)updated.textContent='Updated '+stamp.toLocaleTimeString([],{hour:'numeric',minute:'2-digit'});
+  if(adminRequestIsCurrent(requestedUserId,requestEpoch))showAdminPanel(sessionStorage.getItem('sellbook-admin-panel')||'overview');
+ }catch(error){
+  if(!adminRequestIsCurrent(requestedUserId,requestEpoch))return;
+  if(status)status.textContent='Dashboard could not refresh. Please try again.';
+  showToast('Admin dashboard could not load: '+(error.message||'Please try again.'),'error');
+ }
 }
 async function loadAdminUsers(){
  if(!supabaseClient||!cloudUser||!sellbookIsAdmin)return;
  const requestedUserId=cloudUser.id,requestEpoch=adminAccessEpoch;
- const target=document.getElementById('adminUsersList');if(target)target.textContent='Loading users…';
- const list=document.getElementById('adminChatUserList');if(list)list.innerHTML='<div class="empty">Loading chats…</div>';
- const {data,error}=await supabaseClient.rpc('sellbook_admin_users');
- if(!adminRequestIsCurrent(requestedUserId,requestEpoch))return;
- if(error){showToast('Could not load Sellbook users: '+error.message,'error');if(target)target.textContent='User information is temporarily unavailable.';if(list)list.innerHTML='<div class="empty">Chat previews are temporarily unavailable.</div>';return;}
- const rowsForUser=(data||[]).filter(u=>u.user_id!==requestedUserId);
- const opts='<option value="">Choose a user</option>'+rowsForUser.map(u=>'<option value="'+escAdmin(u.user_id)+'">'+escAdmin(u.email||'No email')+'</option>').join('');
- const chatSelect=document.getElementById('adminMessageUser'),previousUser=chatSelect.value;
- chatSelect.innerHTML=opts;
- document.getElementById('notificationUser').innerHTML=opts;
- if(target)target.innerHTML=rowsForUser.length?rowsForUser.map(u=>'<div class="item"><strong>'+escAdmin(u.email||'No email')+'</strong><div class="muted">Joined '+escAdmin(u.created_at?new Date(u.created_at).toLocaleDateString():'unknown')+' · Last sign-in '+escAdmin(u.last_sign_in_at?new Date(u.last_sign_in_at).toLocaleDateString():'not available')+'</div></div>').join(''):'<div class="empty">No registered users found.</div>';
- const {data:allMessages,error:msgError}=await supabaseClient.from('support_messages').select('id,sender_id,recipient_id,body,created_at,delivered_at,read_at').order('created_at',{ascending:false}).limit(1000);
- if(!adminRequestIsCurrent(requestedUserId,requestEpoch))return;
- if(msgError){showToast('Could not load chat previews: '+msgError.message,'error');if(list)list.innerHTML='<div class="empty">Chat previews are temporarily unavailable.</div>';return;}
- const msgs=allMessages||[];
- const rows=rowsForUser.map(u=>{const convo=msgs.filter(m=>(m.sender_id===u.user_id)||(m.recipient_id===u.user_id));const latest=convo[0]||null;const unread=convo.filter(m=>m.sender_id===u.user_id&&!m.read_at).length;return {...u,latest,unread};}).sort((x,y)=>new Date(y.latest?.created_at||y.created_at||0)-new Date(x.latest?.created_at||x.created_at||0));
- adminUsersCache=rowsForUser;
- if(list)list.innerHTML=rows.length?rows.map(u=>'<button type="button" class="admin-chat-user-row" data-chat-user="'+escAdmin(u.user_id)+'"><span class="chat-support-avatar" aria-hidden="true"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg></span><span class="admin-chat-user-meta"><strong>'+escAdmin(u.email||'Sellbook user')+'</strong><span class="muted admin-chat-preview">'+escAdmin(u.latest?.body||'No messages yet')+'</span><span class="muted">'+escAdmin(u.latest?new Date(u.latest.created_at).toLocaleString([], {dateStyle:'medium',timeStyle:'short'}):'No conversation yet')+'</span></span>'+(u.unread?'<span class="admin-chat-unread" aria-label="'+u.unread+' unread messages">'+u.unread+'</span>':'')+'<span class="admin-chat-arrow" aria-hidden="true">›</span></button>').join(''):'<div class="empty">No registered users found.</div>';
- if(list)list.querySelectorAll('[data-chat-user]').forEach(btn=>btn.addEventListener('click',()=>openAdminConversation(btn.dataset.chatUser)));
- if(previousUser&&adminUsersCache.some(u=>u.user_id===previousUser))chatSelect.value=previousUser;
- if(adminRequestIsCurrent(requestedUserId,requestEpoch))await updateUnreadBadges();
+ const target=document.getElementById('adminUsersList');if(target)target.innerHTML='<div class="empty">Loading users…</div>';
+ const list=document.getElementById('adminChatUserList');if(list)list.innerHTML='<div class="empty">Loading conversations…</div>';
+ try{
+  const {data,error}=await supabaseClient.rpc('sellbook_admin_users');
+  if(!adminRequestIsCurrent(requestedUserId,requestEpoch))return;
+  if(error)throw error;
+  adminUsersCache=(data||[]).filter(user=>user.user_id!==requestedUserId);
+  adminUsersLoaded=true;
+  const chatSelect=document.getElementById('adminMessageUser'),previousUser=chatSelect.value;
+  chatSelect.innerHTML='<option value="">Choose a user</option>'+adminUsersCache.map(user=>'<option value="'+escAdmin(user.user_id)+'">'+escAdmin(user.email||'No email')+'</option>').join('');
+  if(previousUser&&adminUsersCache.some(user=>user.user_id===previousUser))chatSelect.value=previousUser;
+  const notificationSelect=document.getElementById('notificationUser');
+  if(notificationSelect){
+   const previous=notificationSelect.value;
+   notificationSelect.innerHTML='<option value="">Choose a user</option>'+adminUsersCache.map(user=>'<option value="'+escAdmin(user.user_id)+'">'+escAdmin(user.email||'No email')+'</option>').join('');
+   if(previous&&adminUsersCache.some(user=>user.user_id===previous))notificationSelect.value=previous;
+  }
+  renderAdminUsersList();
+  const {data:allMessages,error:msgError}=await supabaseClient.from('support_messages').select('id,sender_id,recipient_id,body,created_at,delivered_at,read_at').order('created_at',{ascending:false}).limit(1000);
+  if(!adminRequestIsCurrent(requestedUserId,requestEpoch))return;
+  if(msgError){
+   if(list)list.innerHTML='<div class="empty">User accounts loaded. Conversation previews are temporarily unavailable.</div>';
+   showToast('Support conversations could not be loaded: '+msgError.message,'error');
+   return;
+  }
+  const msgs=allMessages||[];
+  adminChatRowsCache=adminUsersCache.map(user=>{
+   const convo=msgs.filter(message=>message.sender_id===user.user_id||message.recipient_id===user.user_id);
+   const latest=convo[0]||null;
+   const unread=convo.filter(message=>message.sender_id===user.user_id&&!message.read_at).length;
+   return {...user,latest,unread};
+  }).sort((a,b)=>new Date(b.latest?.created_at||b.created_at||0)-new Date(a.latest?.created_at||a.created_at||0));
+  renderAdminChatUsers();
+  if(adminRequestIsCurrent(requestedUserId,requestEpoch))await updateUnreadBadges();
+ }catch(error){
+  if(!adminRequestIsCurrent(requestedUserId,requestEpoch))return;
+  showToast('Could not load Sellbook users: '+(error.message||'Please try again.'),'error');
+  if(target)target.innerHTML='<div class="empty">User information is temporarily unavailable. Refresh to try again.</div>';
+  if(list)list.innerHTML='<div class="empty">Conversation list is temporarily unavailable.</div>';
+ }
 }
 
 async function loadAdminFeedback(){
  if(!supabaseClient||!cloudUser||!sellbookIsAdmin)return;
  const requestedUserId=cloudUser.id,requestEpoch=adminAccessEpoch;
- const target=document.getElementById('adminFeedbackList');target.textContent='Loading feedback…';
- const {data,error}=await supabaseClient.from('user_feedback').select('id,user_id,category,subject,message,status,admin_reply,created_at').order('created_at',{ascending:false}).limit(100);
- if(!adminRequestIsCurrent(requestedUserId,requestEpoch))return;
- if(error){showToast('Could not load feedback: '+error.message,'error');target.textContent='Feedback is temporarily unavailable.';return;}
- target.innerHTML=(data||[]).length?data.map(f=>'<div class="item"><div class="row"><strong>'+escAdmin(f.subject)+'</strong><span class="status-pill">'+escAdmin(f.status)+'</span></div><div class="muted">'+escAdmin(f.category)+' · '+escAdmin(f.user_id)+' · '+escAdmin(new Date(f.created_at).toLocaleString())+'</div><p>'+escAdmin(f.message)+'</p><label>Status</label><select data-feedback-status="'+escAdmin(f.id)+'"><option value="new" '+(f.status==='new'?'selected':'')+'>New</option><option value="in_review" '+(f.status==='in_review'?'selected':'')+'>In review</option><option value="resolved" '+(f.status==='resolved'?'selected':'')+'>Resolved</option><option value="declined" '+(f.status==='declined'?'selected':'')+'>Declined</option></select><label>Reply to user</label><textarea data-feedback-reply="'+escAdmin(f.id)+'" rows="2" maxlength="4000" style="width:100%;padding:10px;border:1px solid #ccd6ce;border-radius:8px;font:inherit">'+escAdmin(f.admin_reply||'')+'</textarea><button type="button" data-save-feedback="'+escAdmin(f.id)+'" style="margin-top:8px">Save / send reply</button></div>').join(''):'<div class="empty">No feedback has been submitted yet.</div>';
- target.querySelectorAll('[data-save-feedback]').forEach(b=>b.addEventListener('click',async()=>{
+ const target=document.getElementById('adminFeedbackList');if(target)target.innerHTML='<div class="empty">Loading feedback…</div>';
+ try{
+  const {data,error}=await supabaseClient.from('user_feedback').select('id,user_id,category,subject,message,status,admin_reply,created_at').order('created_at',{ascending:false}).limit(100);
   if(!adminRequestIsCurrent(requestedUserId,requestEpoch))return;
-  const id=b.dataset.saveFeedback,status=target.querySelector('[data-feedback-status="'+id+'"]').value,reply=target.querySelector('[data-feedback-reply="'+id+'"]').value.trim();
-  b.disabled=true;
-  const {error}=await supabaseClient.from('user_feedback').update({status,admin_reply:reply||null,replied_at:reply?new Date().toISOString():null,updated_at:new Date().toISOString()}).eq('id',id);
+  if(error)throw error;
+  adminFeedbackCache=data||[];
+  renderAdminFeedbackList();
+ }catch(error){
   if(!adminRequestIsCurrent(requestedUserId,requestEpoch))return;
-  b.disabled=false;
-  if(error){showToast('Could not save feedback: '+error.message);return;}
-  await loadAdminFeedback();
-  if(cloudUser?.id===requestedUserId)await loadUserSupport();
- }));
+  showToast('Could not load feedback: '+(error.message||'Please try again.'),'error');
+  if(target)target.innerHTML='<div class="empty">Feedback is temporarily unavailable. Refresh to try again.</div>';
+ }
 }
+document.getElementById('adminFeedbackSearch')?.addEventListener('input',renderAdminFeedbackList);
+document.getElementById('adminFeedbackFilter')?.addEventListener('change',renderAdminFeedbackList);
 async function loadAdminNotifications(){
  if(!supabaseClient||!cloudUser||!sellbookIsAdmin)return;
  const requestedUserId=cloudUser.id,requestEpoch=adminAccessEpoch;
@@ -5930,13 +6097,21 @@ messengerRefreshTimer=setInterval(()=>{if(document.visibilityState==='visible'&&
 document.getElementById('openFeedbackPage').addEventListener('click',()=>showPage('feedback'));
 const chatInput=document.getElementById('supportMessageBody');chatInput.addEventListener('input',()=>{chatInput.style.height='auto';chatInput.style.height=Math.min(chatInput.scrollHeight,140)+'px';});
 function openAdminConversation(uid){
- const select=document.getElementById('adminMessageUser');select.value=uid;
+ const select=document.getElementById('adminMessageUser');
+ if(!select||!adminUsersCache.some(user=>user.user_id===uid))return;
+ adminConversationRequestId++;
+ adminConversationLoading=false;
+ select.value=uid;
+ const target=document.getElementById('adminSupportMessages');
+ if(target){target.dataset.loaded='';target.innerHTML='<div class="empty">Loading conversation…</div>';}
  document.getElementById('adminChatUserListView').classList.add('hidden');
  document.getElementById('adminChatConversationView').classList.remove('hidden');
  document.body.classList.add('admin-conversation-open');
  loadAdminConversation();
 }
 function backToAdminChatList(){
+ adminConversationRequestId++;
+ adminConversationLoading=false;
  document.body.classList.remove('admin-conversation-open');
  document.getElementById('adminChatConversationView').classList.add('hidden');
  document.getElementById('adminChatUserListView').classList.remove('hidden');
@@ -5950,7 +6125,7 @@ async function loadAdminConversation(){
  if(adminConversationLoading||!supabaseClient||!cloudUser||!sellbookIsAdmin)return;
  const requestId=++adminConversationRequestId;
  const requestedUserId=cloudUser.id,requestEpoch=adminAccessEpoch;
- const current=()=>adminRequestIsCurrent(requestedUserId,requestEpoch);
+ const current=()=>requestId===adminConversationRequestId&&adminRequestIsCurrent(requestedUserId,requestEpoch);
  adminConversationLoading=true;
  const target=document.getElementById('adminSupportMessages');
  const input=document.getElementById('adminReplyBody');
@@ -6034,25 +6209,34 @@ setInterval(()=>{if(sellbookIsAdmin&&currentPage()==='admin'&&sessionStorage.get
 setInterval(()=>{if(!cloudUser||document.hidden)return;if(!sellbookIsAdmin&&currentPage()==='support')loadUserSupport();else updateUnreadBadges();if(currentPage()==='home')refreshHomeReservationCount();},30000);
 window.addEventListener('focus',()=>{if(!cloudUser)return;void updateUnreadBadges();if(currentPage()==='home')void refreshHomeReservationCount(true);});
 
-document.getElementById('notificationAudience').addEventListener('change',e=>document.getElementById('notificationUserWrap').classList.toggle('hidden',e.target.value!=='selected'));
-document.getElementById('adminNotificationForm').addEventListener('submit',async e=>{
- e.preventDefault();
+document.getElementById('notificationAudience').addEventListener('change',event=>{
+ document.getElementById('notificationUserWrap').classList.toggle('hidden',event.target.value!=='selected');
+ if(event.target.value==='selected')void loadAdminRecipientOptions();
+});
+document.getElementById('refreshAdminNotifications')?.addEventListener('click',()=>loadAdminNotifications());
+document.getElementById('adminNotificationForm').addEventListener('submit',async event=>{
+ event.preventDefault();
  if(!supabaseClient||!cloudUser||!sellbookIsAdmin)return;
  const requestedUserId=cloudUser.id,requestEpoch=adminAccessEpoch;
- const audience=document.getElementById('notificationAudience').value,uid=document.getElementById('notificationUser').value,status=document.getElementById('adminNotificationStatus');
- if(audience==='selected'&&!uid){notifyStatus(status,'Choose a user.','error');return;}
- const payload={created_by:requestedUserId,recipient_id:audience==='selected'?uid:null,kind:document.getElementById('notificationKind').value,title:document.getElementById('notificationTitle').value.trim(),body:document.getElementById('notificationBody').value.trim()};
- const button=e.target.querySelector('button[type="submit"]');if(button)button.disabled=true;
+ const form=event.target,audience=document.getElementById('notificationAudience').value,uid=document.getElementById('notificationUser').value,status=document.getElementById('adminNotificationStatus');
+ if(audience==='selected'&&!uid){notifyStatus(status,'Choose a user before publishing.','error');return;}
+ const title=document.getElementById('notificationTitle').value.trim(),body=document.getElementById('notificationBody').value.trim();
+ if(!title||!body){notifyStatus(status,'Enter both a title and message.','error');return;}
+ if(audience==='all'&&!confirm('Send this notification to every Sellbook user?'))return;
+ const payload={created_by:requestedUserId,recipient_id:audience==='selected'?uid:null,kind:document.getElementById('notificationKind').value,title,body};
+ const button=form.querySelector('button[type="submit"]');
+ button.disabled=true;button.textContent='Publishing…';notifyStatus(status,'Publishing notification…','info');
  try{
   const {error}=await supabaseClient.from('app_notifications').insert(payload);
   if(!adminRequestIsCurrent(requestedUserId,requestEpoch))return;
-  if(error){notifyStatus(status,'Could not publish notification: '+error.message,'error');return;}
-  e.target.reset();document.getElementById('notificationUserWrap').classList.add('hidden');notifyStatus(status,'Notification published.','success');
+  if(error)throw error;
+  form.reset();document.getElementById('notificationUserWrap').classList.add('hidden');
+  notifyStatus(status,'Notification published successfully.','success');
   await loadAdminNotifications();
  }catch(error){
   if(adminRequestIsCurrent(requestedUserId,requestEpoch))notifyStatus(status,'Could not publish notification: '+(error.message||'Please try again.'),'error');
  }finally{
-  if(button)button.disabled=false;
+  if(adminRequestIsCurrent(requestedUserId,requestEpoch)){button.disabled=false;button.textContent='Publish notification';}
  }
 });
 function bindPageRefresh(id,action,options={}){
