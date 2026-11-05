@@ -157,6 +157,11 @@ assert.ok(saleQuantityStart >= 0 && saleQuantityEnd > saleQuantityStart && trans
   'Could not isolate production base-quantity and transaction grouping helpers.');
 const saleQuantityHelper = app.slice(saleQuantityStart, saleQuantityEnd);
 const transactionHelper = app.slice(transactionStart, transactionEnd);
+const reversalHelperStart = app.indexOf('function isSaleReversed(row){');
+const reversalHelperEnd = app.indexOf('\nfunction getActiveSales()', reversalHelperStart);
+assert.ok(reversalHelperStart >= 0 && reversalHelperEnd > reversalHelperStart,
+  'Could not isolate the production sale-reversal status helper.');
+const reversalHelper = app.slice(reversalHelperStart, reversalHelperEnd);
 assert.equal((app.match(/function getSalesTransactions\(rows\)/g) || []).length, 1,
   'Sales History must have one authoritative transaction grouping helper.');
 const transactionContext = {
@@ -169,7 +174,7 @@ const transactionContext = {
   safeDate: value => new Date(value)
 };
 vm.runInNewContext(
-  saleQuantityHelper + '\n' + transactionHelper + '\nglobalThis.__groups=getSalesTransactions(rows);',
+  reversalHelper + '\n' + saleQuantityHelper + '\n' + transactionHelper + '\nglobalThis.__groups=getSalesTransactions(rows);',
   transactionContext
 );
 const groupedSales = JSON.parse(JSON.stringify(transactionContext.__groups));
@@ -178,7 +183,7 @@ assert.equal(groupedSales[0].id, 'basket-1');
 assert.equal(groupedSales[0].total, 150);
 assert.equal(groupedSales[0].profit, 40);
 assert.equal(groupedSales[0].items, 27, 'Pack quantities must be converted to base units for the sales summary.');
-requireText(app, 'items=periodRows.reduce((n,x)=>n+saleBaseQuantity(x),0)', 'Sales History summary counts base units, not only packs');
+requireText(app, 'items=activeRows.reduce((n,x)=>n+saleBaseQuantity(x),0)', 'Sales History summary counts base units, not only packs');
 console.log('PASS: grouped sales count as one transaction and aggregate converted stock units.');
 
 // Exercise the real queued product-version propagation for edits, restocks and basket sales.
@@ -397,5 +402,5 @@ requireText(meMarkup,'data-open-page="products"','Products metric opens products
 requireText(meMarkup,'data-open-page="stock"','Units in stock opens stock management');
 requireText(app,"document.getElementById('meBuybookStatus')",'Buybook connection state refreshes the Me page');
 requireText(app,"setUnreadBadge('meSupportBadge',supportCount)",'Me displays a separate unread Support indicator');
-requireText(sw,'sellbook-shell-v135','the communication changes refresh the installed PWA shell cache');
+requireText(sw,'sellbook-shell-v136','the communication and sale-correction changes refresh the installed PWA shell cache');
 console.log('PASS: Me page has direct Buybook/customer actions and actionable business metrics.');

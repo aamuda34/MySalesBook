@@ -5032,3 +5032,15 @@ body.product-page-open #appWorkspace,body.low-stock-page-open #appWorkspace,body
 .product-archive-button{min-height:44px;padding:0 16px;border:1px solid #d7e4d9;border-radius:12px;background:#f3f8f3;color:#14532d;font-weight:700}
 .product-archive-actions .secondary-button{min-height:44px}
 @media(max-width:420px){.product-status-filter{flex-wrap:wrap}.product-status-filter select{flex:1 1 auto}}
+
+
+/* Sale corrections use the same restrained card and form treatment as sale details. */
+.sale-reversal-card{margin-top:14px}
+.sale-reversal-form{display:grid;gap:12px;margin-top:14px}
+.sale-reversal-form[hidden]{display:none}
+.sale-reversal-form textarea{width:100%;min-height:82px;resize:vertical}
+.sale-reversal-stock-option{display:flex;align-items:flex-start;gap:10px}
+.sale-reversal-stock-option input{flex:0 0 auto;width:18px;height:18px;margin-top:3px}
+.sale-reversal-stock-option>span{display:grid;gap:4px}
+.sale-reversal-actions{display:flex;justify-content:flex-end;flex-wrap:wrap;gap:8px}
+.sale-reversed-status{font-weight:700}

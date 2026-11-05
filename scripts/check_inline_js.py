@@ -60,7 +60,10 @@ with tempfile.TemporaryDirectory() as tmp:
 
 combined = "\n".join(source for _, source, _ in local_scripts)
 referenced = set(re.findall(r"""getElementById\(\s*['"]([^'"]+)['"]\s*\)""", combined))
-missing = sorted(referenced - parser.ids)
+# Some focused page forms are created from literal HTML strings only when a user
+# opens a detail page. Count those declared markup IDs as valid runtime elements.
+generated_markup_ids = set(re.findall(r"""\bid\s*=\s*['"]([^'"]+)['"]""", combined))
+missing = sorted(referenced - parser.ids - generated_markup_ids)
 if missing:
     raise SystemExit("Missing HTML IDs referenced by JavaScript: " + ", ".join(missing))
 print(f"External JavaScript syntax and DOM ID checks passed for {len(local_scripts)} local script(s).")
