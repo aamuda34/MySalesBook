@@ -3176,8 +3176,8 @@ document.getElementById('reportRange').addEventListener('change',renderReports);
 function downloadSellbookCsv(filename,headers,rows,numericColumns=[]){
  if(!rows.length){showToast('There are no records in the current filters to export.');return;}
  const numeric=new Set(numericColumns);
- const cell=(value,index)=>{let text=String(value??'');if(!numeric.has(index)&&/^[\\s]*[=+\\-@]/.test(text))text="'"+text;return '"'+text.replace(/"/g,'""')+'"';};
- const csv='\\uFEFF'+[headers,...rows].map(row=>row.map((value,index)=>cell(value,index)).join(',')).join('\\r\\n');
+ const cell=(value,index)=>{let text=String(value??'');if(!numeric.has(index)&&/^[=+@-]/.test(text.trimStart()))text="'"+text;return '"'+text.replace(/"/g,'""')+'"';};
+ const csv=String.fromCharCode(0xFEFF)+[headers,...rows].map(row=>row.map((value,index)=>cell(value,index)).join(',')).join(String.fromCharCode(13,10));
  const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'}),url=URL.createObjectURL(blob),anchor=document.createElement('a');
  anchor.href=url;anchor.download=filename;anchor.hidden=true;document.body.appendChild(anchor);anchor.click();anchor.remove();
  setTimeout(()=>URL.revokeObjectURL(url),1500);showToast('CSV export created.');
