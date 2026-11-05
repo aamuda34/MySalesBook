@@ -101,6 +101,16 @@
 <p id="accountMessage" class="muted auth-message" role="status" aria-live="polite"></p></section>
 <section id="securityPinGate" class="card security-pin-gate hidden" aria-labelledby="securityPinTitle">
  <div class="auth-brand-lockup auth-pin-brand-lockup"><img src="./icons/icon.svg" alt="" width="48" height="48"><span class="auth-brand-wordmark"><strong>Sellbook</strong><small>Made Business Simple.</small></span></div>
+ <div id="securityPinIdentity" class="security-pin-identity" hidden aria-live="polite">
+  <div class="security-pin-avatar">
+   <img id="securityPinAvatarImage" alt="" referrerpolicy="no-referrer" hidden>
+   <span id="securityPinAvatarFallback" aria-hidden="true">S</span>
+  </div>
+  <div class="security-pin-identity-copy">
+   <span class="security-pin-identity-label">Welcome back</span>
+   <strong id="securityPinFirstName">Your account</strong>
+  </div>
+ </div>
  <div class="security-pin-icon" aria-hidden="true">●</div>
  <h2 id="securityPinTitle">Enter your Sellbook PIN</h2>
  <p id="securityPinSubtitle" class="muted">Your business records are locked until you verify your six-digit PIN.</p>
@@ -115,6 +125,7 @@
  </form>
  <button type="button" id="securityPinCancel" class="security-pin-cancel hidden">Cancel PIN change</button>
  <button type="button" id="securityPinForgot" class="security-pin-forgot">Forgot your PIN? Sign in again to reset it.</button>
+ <button type="button" id="securityPinSwitchAccount" class="security-pin-switch-account">Switch account</button>
  <p id="securityPinMessage" class="muted" role="status" aria-live="polite"></p>
 </section>
 </section>
