@@ -1047,9 +1047,11 @@ window.addEventListener('storage',event=>{
 });
 function getSecurityPinFirstName(user){
  const meta=user?.user_metadata||{};
- const candidates=[meta.first_name,meta.given_name,meta.full_name,meta.name,meta.display_name,meta.preferred_username,user?.email?.split('@')[0]];
+ const candidates=[meta.first_name,meta.given_name,meta.full_name,meta.name,meta.display_name,meta.preferred_username];
  const source=candidates.find(value=>typeof value==='string'&&value.trim());
- return String(source||'Your account').trim().split(/\s+/)[0]||'Your account';
+ if(source)return String(source).trim().split(/\s+/)[0]||'Your account';
+ const emailName=String(user?.email||'').split('@')[0].split(/[._+-]/)[0].trim();
+ return emailName||'Your account';
 }
 function renderSecurityPinIdentity(){
  const identity=document.getElementById('securityPinIdentity');
