@@ -1045,6 +1045,47 @@ window.addEventListener('storage',event=>{
   lockSellbookForPin('Sellbook is locked. Enter your six-digit PIN to continue.');
  }
 });
+function getSecurityPinFirstName(user){
+ const meta=user?.user_metadata||{};
+ const candidates=[meta.first_name,meta.given_name,meta.full_name,meta.name,meta.display_name,meta.preferred_username];
+ const source=candidates.find(value=>typeof value==='string'&&value.trim());
+ if(source)return String(source).trim().split(/\s+/)[0]||'Your account';
+ const emailName=String(user?.email||'').split('@')[0].split(/[._+-]/)[0].trim();
+ return emailName||'Your account';
+}
+function renderSecurityPinIdentity(){
+ const identity=document.getElementById('securityPinIdentity');
+ const switchButton=document.getElementById('securityPinSwitchAccount');
+ const image=document.getElementById('securityPinAvatarImage');
+ const fallback=document.getElementById('securityPinAvatarFallback');
+ const name=document.getElementById('securityPinFirstName');
+ const user=cloudUser;
+ if(!identity)return;
+ identity.hidden=!user;
+ if(switchButton)switchButton.hidden=!user;
+ if(!user)return;
+ const firstName=getSecurityPinFirstName(user);
+ if(name)name.textContent=firstName;
+ if(fallback)fallback.textContent=firstName.charAt(0).toLocaleUpperCase()||'S';
+ if(!image||!fallback)return;
+ const meta=user.user_metadata||{};
+ const candidate=[meta.avatar_url,meta.picture,meta.profile_picture,meta.photo_url,meta.avatar].find(value=>typeof value==='string'&&value.trim());
+ let photoUrl='';
+ if(candidate){
+  try{
+   const parsed=new URL(candidate.trim(),window.location.origin);
+   if(parsed.protocol==='https:'||parsed.origin===window.location.origin)photoUrl=parsed.href;
+  }catch(_){}
+ }
+ image.dataset.userId=String(user.id||'');
+ image.onload=()=>{if(image.dataset.userId===String(cloudUser?.id||'')){image.hidden=false;fallback.hidden=true;}};
+ image.onerror=()=>{if(image.dataset.userId===String(cloudUser?.id||'')){image.hidden=true;fallback.hidden=false;}};
+ image.hidden=true;
+ fallback.hidden=false;
+ image.removeAttribute('src');
+ if(photoUrl)image.src=photoUrl;
+}
+
 function showSecurityPinGate(mode='verify',message=''){
  securityPinGateVisible=true;
  securityPinGateMode=mode;
@@ -1062,6 +1103,7 @@ function showSecurityPinGate(mode='verify',message=''){
  const input=document.getElementById('securityPinInput');
  const confirmInput=document.getElementById('securityPinConfirm');
  if(!gate)return;
+ renderSecurityPinIdentity();
  gate.classList.remove('hidden');
  document.getElementById('appWorkspace')?.classList.add('hidden');
  document.getElementById('accountCard')?.classList.add('hidden');
@@ -1173,6 +1215,35 @@ document.getElementById('securityPinForgot')?.addEventListener('click',async()=>
   sessionStorage.removeItem('sellbook-pin-reset-after-auth');
   notifyStatus('securityPinMessage','Could not start PIN recovery: '+(error.message||'Please try again.'),'error');
  }finally{button.disabled=false;}
+});
+document.getElementById('securityPinSwitchAccount')?.addEventListener('click',async()=>{
+ const button=document.getElementById('securityPinSwitchAccount');
+ if(!button||button.disabled)return;
+ if(!supabaseClient){notifyStatus('securityPinMessage','Account service is unavailable. Check your connection and try again.','error');return;}
+ const userId=cloudUser?.id;
+ const queued=userId?readQueue(userId).filter(item=>item.status!=='synced'):[];
+ if(queued.length&&!confirm('You have '+queued.length+' unsynchronised change(s). They will remain on this device and cannot be restored to a new phone until they sync. Switch accounts anyway?'))return;
+ button.disabled=true;
+ const originalLabel=button.textContent;
+ button.textContent='Switching account…';
+ try{
+  const {error}=await supabaseClient.auth.signOut({scope:'local'});
+  if(error)throw error;
+  sessionStorage.removeItem('sellbook-pin-reset-after-auth');
+  hideSecurityPinGate();
+  securityPinExpiresAt=0;
+  if(securityPinExpiryTimer){clearTimeout(securityPinExpiryTimer);securityPinExpiryTimer=null;}
+  document.getElementById('appWorkspace')?.classList.add('hidden');
+  document.getElementById('accountCard')?.classList.remove('hidden');
+  setAuthScreen('choices');
+  await refreshAccountStatus();
+  showToast('Signed out. Choose another account to continue.','success');
+ }catch(error){
+  notifyStatus('securityPinMessage','Could not switch accounts: '+(error.message||'Please try again.'),'error');
+ }finally{
+  button.disabled=false;
+  button.textContent=originalLabel;
+ }
 });
 // Existing PIN changes are started only after successful email OTP verification.
 document.getElementById('securityPinCancel')?.addEventListener('click',()=>{
