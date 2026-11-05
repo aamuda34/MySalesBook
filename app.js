@@ -1331,10 +1331,13 @@ async function handleCloudAuthChange() {
     // These checks are useful but must not block the business book from opening.
     refreshAccountStatus().catch(error => console.warn('Account status refresh failed:', error));
     if (cloudUser) {
-      verifyAdminAccess().then(async () => {
-        if (currentPage() === 'admin' && sellbookIsAdmin) await loadAdminDashboard();
-      }).catch(error => console.warn('Admin access check failed:', error));
-      loadUserSupport({quiet:true}).catch(error => console.warn('Support panel refresh failed:', error));
+      verifyAdminAccess().then(async isAdmin => {
+        if (isAdmin) {
+          if (currentPage() === 'admin') await loadAdminDashboard();
+          return;
+        }
+        if (['support','feedback'].includes(currentPage())) await loadUserSupport({quiet:true});
+      }).catch(error => console.warn('Administrator access check failed:', error));
     }
   } catch (err) {
     cloudReady = false;
@@ -2692,7 +2695,7 @@ async function refreshHomeReservationCount(force=false){
  catch(_){if(current()&&!cached){el.textContent='—';setUnreadBadge('homeReservationBadge',0);}}
  finally{if(homeReservationCountRequest?.key===requestKey)homeReservationCountRequest=null;}
 }
-function paintPage(name,scroll){if(!VALID_PAGES.has(name))name='home';if(name==='business-details')updateBusinessDetailsPage();document.body.classList.toggle('notifications-page-open',name==='notifications');document.body.classList.toggle('subscribers-page-open',name==='subscribers');document.body.classList.toggle('reservations-page-open',name==='reservations');document.body.classList.toggle('settings-main-page-open',name==='settings');document.body.classList.toggle('settings-detail-page-open',['settings-business','settings-sync','settings-preferences','settings-account','settings-buybook','settings-buybook-setup'].includes(name));document.body.classList.toggle('business-profile-page-open',name==='business-details');document.body.classList.toggle('legal-page-open',name==='settings-legal');document.body.classList.toggle('about-sellbook-page-open',name==='about-sellbook');document.body.classList.toggle('reports-page-open',name==='reports');document.body.classList.toggle('stock-page-open',name==='stock');document.body.classList.toggle('stock-history-page-open',name==='stock-history');document.body.classList.toggle('stock-history-detail-page-open',name==='stock-history-detail');document.body.classList.toggle('product-page-open',name==='products');document.body.classList.toggle('low-stock-page-open',name==='low-stock');document.body.classList.toggle('product-details-page-open',name==='product-details');document.body.classList.toggle('sales-page-open',name==='sales');document.body.classList.toggle('sales-history-page-open',name==='sales-history');document.body.classList.toggle('profit-history-page-open',name==='profit-history');document.body.classList.toggle('quick-guide-page-open',name==='quick-guide');document.body.classList.toggle('sale-details-page-open',name==='sale-details');document.body.classList.toggle('expenses-page-open',name==='expenses');document.body.classList.toggle('expenses-history-page-open',name==='expenses-history');document.body.classList.toggle('expense-details-page-open',name==='expense-details');document.body.classList.toggle('record-entry-page-open',['record-sale','record-product','record-expense'].includes(name));const saleBackButton=document.querySelector('#record-sale [data-app-back]');if(saleBackButton){const destination=resolveSaleReturnPage(saleReturnPage,'home');const label=destination==='sales'?'Back to Sales':'Back to Home';saleBackButton.setAttribute('aria-label',label);saleBackButton.title=label;}document.querySelectorAll('.page').forEach(x=>x.classList.toggle('hidden',x.id!==name));document.querySelectorAll('nav button').forEach(x=>x.classList.toggle('active',x.dataset.page===name||(x.dataset.page==='messages'&&name==='messenger')||(x.dataset.page==='me'&&['me','more','reports','stock','low-stock','settings','business-details','settings-business','settings-sync','settings-preferences','settings-account','settings-legal','settings-buybook','settings-buybook-setup'].includes(name))));sessionStorage.setItem('my-sales-book-current-page',name);if(name==='home')renderHomePanelSummary();else render();renderDailySalesSummary();refreshHomeWeeklySales();const homeProductCount=document.getElementById('productCountHome'),homeProductSellingValue=document.getElementById('productSellingValueHome');if(homeProductCount)homeProductCount.textContent=String((db.products||[]).length);if(homeProductSellingValue){const total=(db.products||[]).reduce((sum,p)=>sum+Math.max(0,Number(p.stock)||0)*Math.max(0,Number(p.price??p.selling_price)||0),0);homeProductSellingValue.textContent=money(total);}if(name==='home'){refreshHomeReservationCount(true);if(cloudUser)void updateUnreadBadges();}const fab=document.getElementById('quickSaleFab');const fabPages={home:{label:'Record a sale',title:'Record a sale'},sales:{label:'Record a sale',title:'Record a sale'},products:{label:'Add a product',title:'Add a product'},expenses:{label:'Add an expense',title:'Add an expense'}};const fabAction=fabPages[name];if(fab){fab.style.display='none';fab.hidden=true;fab.setAttribute('aria-hidden','true');if(fabAction&&name!=='home'&&!sellbookIsAdmin){fab.hidden=false;fab.style.display='flex';fab.setAttribute('aria-hidden','false');fab.setAttribute('aria-label',fabAction.label);fab.title=fabAction.title;fab.dataset.action=name;}}if(name==='support'&&cloudUser){loadUserSupport();}if(name==='feedback'&&cloudUser){loadUserSupport();}if(name==='notifications'&&cloudUser){void updateUnreadBadges();}if((name==='settings-buybook'||name==='settings-buybook-setup')&&cloudUser){loadBuybookConnection();}if(name==='reservations')loadReservationsPage();if(name==='me'){updateMePanel();if(cloudUser)void loadBuybookConnection({quiet:true});}if(scroll)window.scrollTo({top:0,behavior:'auto'});}
+function paintPage(name,scroll){if(!VALID_PAGES.has(name))name='home';if(sellbookIsAdmin&&name!=='admin')name='admin';if(!sellbookIsAdmin&&name==='admin')name='home';if(name==='business-details')updateBusinessDetailsPage();document.body.classList.toggle('notifications-page-open',name==='notifications');document.body.classList.toggle('subscribers-page-open',name==='subscribers');document.body.classList.toggle('reservations-page-open',name==='reservations');document.body.classList.toggle('settings-main-page-open',name==='settings');document.body.classList.toggle('settings-detail-page-open',['settings-business','settings-sync','settings-preferences','settings-account','settings-buybook','settings-buybook-setup'].includes(name));document.body.classList.toggle('business-profile-page-open',name==='business-details');document.body.classList.toggle('legal-page-open',name==='settings-legal');document.body.classList.toggle('about-sellbook-page-open',name==='about-sellbook');document.body.classList.toggle('reports-page-open',name==='reports');document.body.classList.toggle('stock-page-open',name==='stock');document.body.classList.toggle('stock-history-page-open',name==='stock-history');document.body.classList.toggle('stock-history-detail-page-open',name==='stock-history-detail');document.body.classList.toggle('product-page-open',name==='products');document.body.classList.toggle('low-stock-page-open',name==='low-stock');document.body.classList.toggle('product-details-page-open',name==='product-details');document.body.classList.toggle('sales-page-open',name==='sales');document.body.classList.toggle('sales-history-page-open',name==='sales-history');document.body.classList.toggle('profit-history-page-open',name==='profit-history');document.body.classList.toggle('quick-guide-page-open',name==='quick-guide');document.body.classList.toggle('sale-details-page-open',name==='sale-details');document.body.classList.toggle('expenses-page-open',name==='expenses');document.body.classList.toggle('expenses-history-page-open',name==='expenses-history');document.body.classList.toggle('expense-details-page-open',name==='expense-details');document.body.classList.toggle('record-entry-page-open',['record-sale','record-product','record-expense'].includes(name));const saleBackButton=document.querySelector('#record-sale [data-app-back]');if(saleBackButton){const destination=resolveSaleReturnPage(saleReturnPage,'home');const label=destination==='sales'?'Back to Sales':'Back to Home';saleBackButton.setAttribute('aria-label',label);saleBackButton.title=label;}document.querySelectorAll('.page').forEach(x=>x.classList.toggle('hidden',x.id!==name));document.querySelectorAll('nav button').forEach(x=>x.classList.toggle('active',x.dataset.page===name||(x.dataset.page==='messages'&&name==='messenger')||(x.dataset.page==='me'&&['me','more','reports','stock','low-stock','settings','business-details','settings-business','settings-sync','settings-preferences','settings-account','settings-legal','settings-buybook','settings-buybook-setup'].includes(name))));sessionStorage.setItem('my-sales-book-current-page',name);if(name==='home')renderHomePanelSummary();else render();renderDailySalesSummary();refreshHomeWeeklySales();const homeProductCount=document.getElementById('productCountHome'),homeProductSellingValue=document.getElementById('productSellingValueHome');if(homeProductCount)homeProductCount.textContent=String((db.products||[]).length);if(homeProductSellingValue){const total=(db.products||[]).reduce((sum,p)=>sum+Math.max(0,Number(p.stock)||0)*Math.max(0,Number(p.price??p.selling_price)||0),0);homeProductSellingValue.textContent=money(total);}if(name==='home'){refreshHomeReservationCount(true);if(cloudUser)void updateUnreadBadges();}const fab=document.getElementById('quickSaleFab');const fabPages={home:{label:'Record a sale',title:'Record a sale'},sales:{label:'Record a sale',title:'Record a sale'},products:{label:'Add a product',title:'Add a product'},expenses:{label:'Add an expense',title:'Add an expense'}};const fabAction=fabPages[name];if(fab){fab.style.display='none';fab.hidden=true;fab.setAttribute('aria-hidden','true');if(fabAction&&name!=='home'&&!sellbookIsAdmin){fab.hidden=false;fab.style.display='flex';fab.setAttribute('aria-hidden','false');fab.setAttribute('aria-label',fabAction.label);fab.title=fabAction.title;fab.dataset.action=name;}}if(name==='support'&&cloudUser){loadUserSupport();}if(name==='feedback'&&cloudUser){loadUserSupport();}if(name==='notifications'&&cloudUser){void updateUnreadBadges();}if((name==='settings-buybook'||name==='settings-buybook-setup')&&cloudUser){loadBuybookConnection();}if(name==='reservations')loadReservationsPage();if(name==='me'){updateMePanel();if(cloudUser)void loadBuybookConnection({quiet:true});}if(name==='admin'&&sellbookIsAdmin){const saved=sessionStorage.getItem('sellbook-admin-panel')||'overview',active=['traffic','notifications'].includes(saved)?'more':saved;document.querySelectorAll('#adminBottomNav [data-admin-panel]').forEach(button=>{const selected=button.dataset.adminPanel===active;button.classList.toggle('active',selected);if(selected)button.setAttribute('aria-current','page');else button.removeAttribute('aria-current');});}if(scroll)window.scrollTo({top:0,behavior:'auto'});}
 // Keep all page back arrows consistent. Use the actual previous app page when it
 // matches the intended parent; otherwise replace the current history entry with
 // the safe parent so Back cannot reopen the page the user just left.
@@ -2857,7 +2860,7 @@ function resolveSaleReturnPage(previousPage,fallback='home'){
  if(['home','sales'].includes(previousPage))return previousPage;
  return ['home','sales'].includes(fallback)?fallback:'home';
 }
-function showPage(name,options={}){if(!VALID_PAGES.has(name))return;const previous=currentPage();if(name==='record-sale'&&previous!=='record-sale')saleReturnPage=resolveSaleReturnPage(previous,saleReturnPage);if(name==='settings-buybook'&&previous!=='settings-buybook-setup'&&['settings','home','me'].includes(previous))buybookOverviewReturnPage=previous;if(name==='messenger'&&previous!=='messenger')messengerReturnPage=previous;document.body.classList.toggle('user-support-open',name==='support'&&!sellbookIsAdmin);document.body.classList.toggle('messenger-open',name==='messenger');if(name!=='messenger')document.body.classList.remove('messenger-conversation-open');if(name==='messenger'&&cloudUser)loadMessengerConversations();if(name==='stock-history'){renderProductCreationHistory();renderProductSalesHistory();renderStockAdjustments();renderRestockHistory();renderProductActivityHistory();refreshStockHistoryBadges();void refreshStockHistoryFromCloud();}if(!options.fromHistory&&previous!==name){const previousForHistory=options.replaceHistory?(history.state&&history.state.mySalesBookPreviousPage):previous;const state={mySalesBookPage:name,mySalesBookPreviousPage:previousForHistory,mySalesBookReturnPage:name==='messenger'?messengerReturnPage:undefined};if(options.replaceHistory)history.replaceState(state,'','#'+name);else history.pushState(state,'','#'+name);}paintPage(name,options.scroll!==false);}
+function showPage(name,options={}){if(!VALID_PAGES.has(name))return;if(sellbookIsAdmin&&name!=='admin')name='admin';if(!sellbookIsAdmin&&name==='admin'){name='home';cloudMessage('Administrator access is required.');}const previous=currentPage();if(name==='record-sale'&&previous!=='record-sale')saleReturnPage=resolveSaleReturnPage(previous,saleReturnPage);if(name==='settings-buybook'&&previous!=='settings-buybook-setup'&&['settings','home','me'].includes(previous))buybookOverviewReturnPage=previous;if(name==='messenger'&&previous!=='messenger')messengerReturnPage=previous;document.body.classList.toggle('user-support-open',name==='support'&&!sellbookIsAdmin);document.body.classList.toggle('messenger-open',name==='messenger');if(name!=='messenger')document.body.classList.remove('messenger-conversation-open');if(name==='messenger'&&cloudUser)loadMessengerConversations();if(name==='stock-history'){renderProductCreationHistory();renderProductSalesHistory();renderStockAdjustments();renderRestockHistory();renderProductActivityHistory();refreshStockHistoryBadges();void refreshStockHistoryFromCloud();}if(!options.fromHistory&&previous!==name){const previousForHistory=options.replaceHistory?(history.state&&history.state.mySalesBookPreviousPage):previous;const state={mySalesBookPage:name,mySalesBookPreviousPage:previousForHistory,mySalesBookReturnPage:name==='messenger'?messengerReturnPage:undefined};if(options.replaceHistory)history.replaceState(state,'','#'+name);else history.pushState(state,'','#'+name);}paintPage(name,options.scroll!==false);}
 function restorePageFromLocation(){const hash=location.hash.slice(1),saved=sessionStorage.getItem('my-sales-book-current-page'),name=VALID_PAGES.has(hash)?hash:(VALID_PAGES.has(saved)?saved:'home');document.body.classList.toggle('user-support-open',name==='support'&&!sellbookIsAdmin);document.body.classList.toggle('messenger-open',name==='messenger');paintPage(name,false);}
 // Keep Android/browser Back inside the app. Page changes have their own
 // history entries; the duplicate root entry prevents the app from closing
@@ -5323,33 +5326,32 @@ document.getElementById('googleSignOut').addEventListener('click', async () => {
 let sellbookIsAdmin=false;
 let adminUsersCache=[];
 let adminAccessEpoch=0;
+let adminSectionRequests={dashboard:0,traffic:0,users:0,feedback:0,notifications:0,recipients:0};
 function adminRequestIsCurrent(userId,epoch){
- return !!sellbookIsAdmin &&
-   !!userId &&
-   cloudUser?.id===userId &&
-   adminAccessEpoch===epoch;
+ return !!sellbookIsAdmin && !!userId && cloudUser?.id===userId && adminAccessEpoch===epoch;
 }
+function beginAdminSectionRequest(section){adminSectionRequests[section]=(adminSectionRequests[section]||0)+1;return adminSectionRequests[section];}
+function isAdminSectionRequestCurrent(section,requestId,userId,epoch){return adminSectionRequests[section]===requestId&&adminRequestIsCurrent(userId,epoch);}
+function invalidateAdminSectionRequests(){Object.keys(adminSectionRequests).forEach(section=>{adminSectionRequests[section]++;});}
 function escAdmin(value){return String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 let adminChatRowsCache=[];
 let adminFeedbackCache=[];
 let adminUsersLoaded=false;
 function setAdminAccess(isAdmin){
  const next=!!isAdmin;
- // Invalidate all in-flight admin reads/writes when access is removed or changes.
- if(sellbookIsAdmin!==next||!next)adminAccessEpoch++;
+ if(sellbookIsAdmin!==next||!next){adminAccessEpoch++;invalidateAdminSectionRequests();}
  sellbookIsAdmin=next;
  if(!sellbookIsAdmin){
-  adminUsersCache=[];
-  adminChatRowsCache=[];
-  adminFeedbackCache=[];
-  adminUsersLoaded=false;
-  adminConversationRequestId++;
-  adminConversationLoading=false;
+  adminUsersCache=[];adminChatRowsCache=[];adminFeedbackCache=[];adminUsersLoaded=false;
+  adminConversationRequestId++;adminConversationLoading=false;
+  document.body.classList.remove('admin-conversation-open','user-support-open','messenger-open','messenger-conversation-open');
+  setUnreadBadge('adminSupportBadge',0);setUnreadBadge('adminFeedbackBadge',0);
  }
  document.body.classList.toggle('admin-mode',sellbookIsAdmin);
+ document.body.classList.toggle('user-support-open',!sellbookIsAdmin&&currentPage()==='support');
  document.getElementById('adminMenuTile')?.classList.toggle('hidden',!sellbookIsAdmin);
- if(sellbookIsAdmin&&currentPage()!=='admin'&&currentPage()!=='support')showPage('admin');
- if(!sellbookIsAdmin&&currentPage()==='admin')showPage('home');
+ if(sellbookIsAdmin){document.body.classList.remove('messenger-open','messenger-conversation-open','user-support-open');if(currentPage()!=='admin')showPage('admin',{replaceHistory:true});}
+ else if(currentPage()==='admin')showPage('home',{replaceHistory:true});
 }
 function clearAccountScopedUiState(){
  accountSessionEpoch++;
@@ -5397,14 +5399,19 @@ function clearAccountScopedUiState(){
 }
 function showAdminPanel(name){
  if(!supabaseClient||!cloudUser||!sellbookIsAdmin)return;
- const allowed=new Set(['overview','traffic','users','feedback','support','notifications']);
+ const allowed=new Set(['overview','users','support','feedback','more','traffic','notifications']);
  if(!allowed.has(name))name='overview';
- document.querySelectorAll('[data-admin-panel-content]').forEach(p=>p.classList.toggle('hidden',p.dataset.adminPanelContent!==name));
- document.querySelectorAll('[data-admin-panel]').forEach(b=>{const active=b.dataset.adminPanel===name;b.classList.toggle('active',active);b.setAttribute('aria-selected',active?'true':'false');});
+ document.querySelectorAll('[data-admin-panel-content]').forEach(panel=>panel.classList.toggle('hidden',panel.dataset.adminPanelContent!==name));
+ const navSection=['traffic','notifications'].includes(name)?'more':name;
+ document.querySelectorAll('#adminBottomNav [data-admin-panel]').forEach(button=>{
+  const active=button.dataset.adminPanel===navSection;button.classList.toggle('active',active);
+  if(active)button.setAttribute('aria-current','page');else button.removeAttribute('aria-current');
+ });
+ const labels={overview:'Overview',users:'Users',support:'Support',feedback:'Feedback',more:'More tools',traffic:'Website traffic',notifications:'Notifications'};
+ const heading=document.getElementById('adminActiveSection');if(heading)heading.textContent=labels[name]||'Overview';
  sessionStorage.setItem('sellbook-admin-panel',name);
  if(name==='traffic')loadAdminTraffic();
- if(name==='users')loadAdminUsers();
- if(name==='support')loadAdminUsers();
+ if(name==='users'||name==='support')loadAdminUsers();
  if(name==='feedback')loadAdminFeedback();
  if(name==='notifications'){void loadAdminRecipientOptions();loadAdminNotifications();}
 }
@@ -5519,33 +5526,46 @@ async function saveAdminFeedbackItem(event){
  }
 }
 async function loadAdminRecipientOptions(){
- if(!supabaseClient||!cloudUser||!sellbookIsAdmin)return;
- const requestedUserId=cloudUser.id,requestEpoch=adminAccessEpoch;
- if(!adminUsersLoaded){
-  const {data,error}=await supabaseClient.rpc('sellbook_admin_users');
-  if(!adminRequestIsCurrent(requestedUserId,requestEpoch))return;
-  if(error){showToast('User list is unavailable. You can still send a notification to everyone.','error');return;}
-  adminUsersCache=(data||[]).filter(user=>user.user_id!==requestedUserId);
-  adminUsersLoaded=true;
+ if(!supabaseClient||!cloudUser||!sellbookIsAdmin)return false;
+ const requestedUserId=cloudUser.id,requestEpoch=adminAccessEpoch,requestId=beginAdminSectionRequest('recipients'),select=document.getElementById('notificationUser');
+ if(!select)return false;
+ try{
+  if(!adminUsersLoaded){
+   const {data,error}=await supabaseClient.rpc('sellbook_admin_users');
+   if(!isAdminSectionRequestCurrent('recipients',requestId,requestedUserId,requestEpoch))return false;
+   if(error)throw error;
+   adminUsersCache=(data||[]).filter(user=>user.user_id!==requestedUserId);adminUsersLoaded=true;
+  }
+  if(!isAdminSectionRequestCurrent('recipients',requestId,requestedUserId,requestEpoch))return false;
+  const previous=select.value;
+  select.innerHTML='<option value="">Choose a user</option>'+adminUsersCache.map(user=>'<option value="'+escAdmin(user.user_id)+'">'+escAdmin(user.email||'No email')+'</option>').join('');
+  if(previous&&adminUsersCache.some(user=>user.user_id===previous))select.value=previous;
+  return true;
+ }catch(error){
+  if(isAdminSectionRequestCurrent('recipients',requestId,requestedUserId,requestEpoch))showToast('Could not load recipient accounts: '+(error.message||'Please try again.'),'error');
+  return false;
  }
- const select=document.getElementById('notificationUser');if(!select)return;
- const previous=select.value;
- select.innerHTML='<option value="">Choose a user</option>'+adminUsersCache.map(user=>'<option value="'+escAdmin(user.user_id)+'">'+escAdmin(user.email||'No email')+'</option>').join('');
- if(previous&&adminUsersCache.some(user=>user.user_id===previous))select.value=previous;
 }
 function formatAdminNaira(value){return new Intl.NumberFormat('en-NG',{style:'currency',currency:'NGN',maximumFractionDigits:0}).format(Number(value)||0);}
 async function loadAdminTraffic(){
- if(!supabaseClient||!cloudUser||!sellbookIsAdmin)return;
- const requestedUserId=cloudUser.id,requestEpoch=adminAccessEpoch;
- const chart=document.getElementById('adminTrafficChart');if(chart)chart.textContent='Loading traffic…';
- const {data,error}=await supabaseClient.rpc('sellbook_admin_platform_metrics');
- if(!adminRequestIsCurrent(requestedUserId,requestEpoch))return;
- if(error){showToast('Traffic metrics are unavailable: '+error.message,'error');if(chart)chart.textContent='Traffic metrics are temporarily unavailable.';return;}
- document.getElementById('adminVisitsToday').textContent=data.visits_today??0;
- document.getElementById('adminVisits7d').textContent=data.visits_7d??0;
- document.getElementById('adminVisits30d').textContent=data.visits_30d??0;
- const rows=data.traffic_daily||[];
- if(chart)chart.innerHTML=rows.length?'<div class="chart-bars">'+rows.map(r=>{const max=Math.max(1,...rows.map(x=>Number(x.visits)||0));const val=Number(r.visits)||0;return '<div class="chart-col"><span class="chart-value">'+val+'</span><div class="chart-bar" style="height:'+Math.max(3,val/max*100)+'%"></div><span class="chart-label">'+escAdmin(String(r.day).slice(5))+'</span></div>';}).join('')+'</div>':'<div class="empty">No visits recorded yet.</div>';
+ if(!supabaseClient||!cloudUser||!sellbookIsAdmin)return false;
+ const requestedUserId=cloudUser.id,requestEpoch=adminAccessEpoch,requestId=beginAdminSectionRequest('traffic');
+ const chart=document.getElementById('adminTrafficChart');if(chart)chart.innerHTML='<div class="empty">Loading traffic…</div>';
+ try{
+  const {data,error}=await supabaseClient.rpc('sellbook_admin_platform_metrics');
+  if(!isAdminSectionRequestCurrent('traffic',requestId,requestedUserId,requestEpoch))return false;
+  if(error)throw error;
+  document.getElementById('adminVisitsToday').textContent=data?.visits_today??0;
+  document.getElementById('adminVisits7d').textContent=data?.visits_7d??0;
+  document.getElementById('adminVisits30d').textContent=data?.visits_30d??0;
+  const rows=data?.traffic_daily||[];
+  if(chart)chart.innerHTML=rows.length?'<div class="chart-bars">'+rows.map(r=>{const max=Math.max(1,...rows.map(x=>Number(x.visits)||0));const val=Number(r.visits)||0;return '<div class="chart-col"><span class="chart-value">'+val+'</span><div class="chart-bar" style="height:'+Math.max(3,val/max*100)+'%"></div><span class="chart-label">'+escAdmin(String(r.day).slice(5))+'</span></div>';}).join('')+'</div>':'<div class="empty">No visits recorded yet.</div>';
+  return true;
+ }catch(error){
+  if(!isAdminSectionRequestCurrent('traffic',requestId,requestedUserId,requestEpoch))return false;
+  if(chart)chart.innerHTML='<div class="empty">Traffic information is temporarily unavailable. Refresh to try again.</div>';
+  showToast('Traffic metrics could not be loaded: '+(error.message||'Please try again.'),'error');return false;
+ }
 }
 async function recordSellbookVisit(){
  if(!supabaseClient)return;
@@ -5553,134 +5573,119 @@ async function recordSellbookVisit(){
  await supabaseClient.rpc('record_sellbook_visit',{p_session_key:key});}catch(e){console.warn('Visit tracking unavailable',e);}
 }
 async function verifyAdminAccess(){
- const expectedUserId=cloudUser?.id||null;
+ const expectedUserId=cloudUser?.id||null,sessionEpoch=accountSessionEpoch;
  if(!supabaseClient||!expectedUserId){setAdminAccess(false);return false;}
  try{
   const {data,error}=await supabaseClient.rpc('is_sellbook_admin');
   if(error)throw error;
-  // Ignore a late response from the previous account after a fast sign-out
-  // or account switch. Admin state belongs to one authenticated user only.
-  if(cloudUser?.id!==expectedUserId)return false;
-  const allowed=data===true;
-  setAdminAccess(allowed);
-  return allowed;
- }catch(e){
-  if(cloudUser?.id===expectedUserId)setAdminAccess(false);
-  return false;
+  if(!accountRequestIsCurrent(expectedUserId,sessionEpoch))return false;
+  const allowed=data===true;setAdminAccess(allowed);return allowed;
+ }catch(error){
+  if(accountRequestIsCurrent(expectedUserId,sessionEpoch))setAdminAccess(false);
+  console.warn('Administrator access verification failed:',error?.message||error);return false;
  }
 }
 async function loadAdminDashboard(){
- const requestedUserId=cloudUser?.id||null;
- const status=document.getElementById('adminDashboardStatus');
- if(status)status.textContent='Refreshing dashboard…';
- if(!requestedUserId||!await verifyAdminAccess()||cloudUser?.id!==requestedUserId)return;
- const requestEpoch=adminAccessEpoch;
- if(!adminRequestIsCurrent(requestedUserId,requestEpoch))return;
- const accountEmail=document.getElementById('adminAccountEmail');
- if(accountEmail)accountEmail.textContent=cloudUser.email||'Signed-in admin account';
+ const requestedUserId=cloudUser?.id||null,status=document.getElementById('adminDashboardStatus');
+ if(status)status.textContent='Checking administrator access…';
+ if(!requestedUserId||!await verifyAdminAccess()||cloudUser?.id!==requestedUserId||!sellbookIsAdmin)return false;
+ const requestEpoch=adminAccessEpoch,requestId=beginAdminSectionRequest('dashboard');
+ if(status)status.textContent='Loading platform overview…';
+ const accountEmail=document.getElementById('adminAccountEmail');if(accountEmail)accountEmail.textContent=cloudUser.email||'Signed-in administrator';
  try{
   const {data:overview,error}=await supabaseClient.rpc('sellbook_admin_overview');
-  if(!adminRequestIsCurrent(requestedUserId,requestEpoch))return;
+  if(!isAdminSectionRequestCurrent('dashboard',requestId,requestedUserId,requestEpoch))return false;
   if(error)throw error;
-  document.getElementById('adminTotalUsers').textContent=overview.total_users??'—';
-  document.getElementById('adminNewUsers').textContent=overview.new_users_30d??'—';
-  document.getElementById('adminOpenFeedback').textContent=overview.feedback_open??'—';
-  document.getElementById('adminUnreadMessages').textContent=overview.messages_unread??'—';
+  document.getElementById('adminTotalUsers').textContent=overview?.total_users??'—';
+  document.getElementById('adminNewUsers').textContent=overview?.new_users_30d??'—';
+  document.getElementById('adminOpenFeedback').textContent=overview?.feedback_open??'—';
+  document.getElementById('adminUnreadMessages').textContent=overview?.messages_unread??'—';
   const {data:metrics,error:metricsError}=await supabaseClient.rpc('sellbook_admin_platform_metrics');
-  if(!adminRequestIsCurrent(requestedUserId,requestEpoch))return;
+  if(!isAdminSectionRequestCurrent('dashboard',requestId,requestedUserId,requestEpoch))return false;
   if(metricsError){
-   document.getElementById('adminPlatformProducts').textContent='—';
-   document.getElementById('adminPlatformSales').textContent='—';
-   document.getElementById('adminPlatformSalesValue').textContent='Unavailable';
-   if(status)status.textContent='Overview loaded. Some platform metrics are unavailable.';
+   document.getElementById('adminPlatformProducts').textContent='—';document.getElementById('adminPlatformSales').textContent='—';document.getElementById('adminPlatformSalesValue').textContent='Unavailable';
+   if(status)status.textContent='Overview loaded. Some platform totals are unavailable.';
   }else{
-   document.getElementById('adminPlatformProducts').textContent=metrics.total_products??0;
-   document.getElementById('adminPlatformSales').textContent=metrics.total_sales??0;
-   document.getElementById('adminPlatformSalesValue').textContent=formatAdminNaira(metrics.sales_value);
-   if(status)status.textContent='Dashboard is up to date.';
+   document.getElementById('adminPlatformProducts').textContent=metrics?.total_products??0;document.getElementById('adminPlatformSales').textContent=metrics?.total_sales??0;document.getElementById('adminPlatformSalesValue').textContent=formatAdminNaira(metrics?.sales_value);
+   if(status)status.textContent='Admin workspace is ready.';
   }
-  const stamp=new Date();
-  const updated=document.getElementById('adminLastUpdated');
-  if(updated)updated.textContent='Updated '+stamp.toLocaleTimeString([],{hour:'numeric',minute:'2-digit'});
-  if(adminRequestIsCurrent(requestedUserId,requestEpoch))showAdminPanel(sessionStorage.getItem('sellbook-admin-panel')||'overview');
+  const updated=document.getElementById('adminLastUpdated');if(updated)updated.textContent='Updated '+new Date().toLocaleTimeString([],{hour:'numeric',minute:'2-digit'});
+  const saved=sessionStorage.getItem('sellbook-admin-panel'),allowedPanels=new Set(['overview','users','support','feedback','more','traffic','notifications']);
+  showAdminPanel(allowedPanels.has(saved)?saved:'overview');return true;
  }catch(error){
-  if(!adminRequestIsCurrent(requestedUserId,requestEpoch))return;
-  if(status)status.textContent='Dashboard could not refresh. Please try again.';
-  showToast('Admin dashboard could not load: '+(error.message||'Please try again.'),'error');
+  if(!isAdminSectionRequestCurrent('dashboard',requestId,requestedUserId,requestEpoch))return false;
+  if(status)status.textContent='Dashboard could not refresh. Check your connection and try again.';
+  showToast('Admin dashboard could not load: '+(error.message||'Please try again.'),'error');return false;
  }
 }
 async function loadAdminUsers(){
- if(!supabaseClient||!cloudUser||!sellbookIsAdmin)return;
- const requestedUserId=cloudUser.id,requestEpoch=adminAccessEpoch;
- const target=document.getElementById('adminUsersList');if(target)target.innerHTML='<div class="empty">Loading users…</div>';
- const list=document.getElementById('adminChatUserList');if(list)list.innerHTML='<div class="empty">Loading conversations…</div>';
+ if(!supabaseClient||!cloudUser||!sellbookIsAdmin)return false;
+ const requestedUserId=cloudUser.id,requestEpoch=adminAccessEpoch,requestId=beginAdminSectionRequest('users');
+ const target=document.getElementById('adminUsersList'),list=document.getElementById('adminChatUserList');
+ if(target)target.innerHTML='<div class="empty">Loading users…</div>';
+ if(list)list.innerHTML='<div class="empty">Loading conversations…</div>';
  try{
   const {data,error}=await supabaseClient.rpc('sellbook_admin_users');
-  if(!adminRequestIsCurrent(requestedUserId,requestEpoch))return;
+  if(!isAdminSectionRequestCurrent('users',requestId,requestedUserId,requestEpoch))return false;
   if(error)throw error;
-  adminUsersCache=(data||[]).filter(user=>user.user_id!==requestedUserId);
-  adminUsersLoaded=true;
-  const chatSelect=document.getElementById('adminMessageUser'),previousUser=chatSelect.value;
-  chatSelect.innerHTML='<option value="">Choose a user</option>'+adminUsersCache.map(user=>'<option value="'+escAdmin(user.user_id)+'">'+escAdmin(user.email||'No email')+'</option>').join('');
-  if(previousUser&&adminUsersCache.some(user=>user.user_id===previousUser))chatSelect.value=previousUser;
+  adminUsersCache=(data||[]).filter(user=>user.user_id!==requestedUserId);adminUsersLoaded=true;
+  const chatSelect=document.getElementById('adminMessageUser'),previousUser=chatSelect?.value||'';
+  if(chatSelect){chatSelect.innerHTML='<option value="">Choose a user</option>'+adminUsersCache.map(user=>'<option value="'+escAdmin(user.user_id)+'">'+escAdmin(user.email||'No email')+'</option>').join('');if(previousUser&&adminUsersCache.some(user=>user.user_id===previousUser))chatSelect.value=previousUser;}
   const notificationSelect=document.getElementById('notificationUser');
-  if(notificationSelect){
-   const previous=notificationSelect.value;
-   notificationSelect.innerHTML='<option value="">Choose a user</option>'+adminUsersCache.map(user=>'<option value="'+escAdmin(user.user_id)+'">'+escAdmin(user.email||'No email')+'</option>').join('');
-   if(previous&&adminUsersCache.some(user=>user.user_id===previous))notificationSelect.value=previous;
-  }
+  if(notificationSelect){const previous=notificationSelect.value;notificationSelect.innerHTML='<option value="">Choose a user</option>'+adminUsersCache.map(user=>'<option value="'+escAdmin(user.user_id)+'">'+escAdmin(user.email||'No email')+'</option>').join('');if(previous&&adminUsersCache.some(user=>user.user_id===previous))notificationSelect.value=previous;}
   renderAdminUsersList();
   const {data:allMessages,error:msgError}=await supabaseClient.from('support_messages').select('id,sender_id,recipient_id,body,created_at,delivered_at,read_at').order('created_at',{ascending:false}).limit(1000);
-  if(!adminRequestIsCurrent(requestedUserId,requestEpoch))return;
-  if(msgError){
-   if(list)list.innerHTML='<div class="empty">User accounts loaded. Conversation previews are temporarily unavailable.</div>';
-   showToast('Support conversations could not be loaded: '+msgError.message,'error');
-   return;
-  }
-  const msgs=allMessages||[];
+  if(!isAdminSectionRequestCurrent('users',requestId,requestedUserId,requestEpoch))return false;
+  if(msgError){adminChatRowsCache=[];if(list)list.innerHTML='<div class="empty">Accounts loaded, but support previews are unavailable. Refresh to retry.</div>';showToast('Support conversations could not be loaded: '+msgError.message,'error');return false;}
+  const messages=allMessages||[];
   adminChatRowsCache=adminUsersCache.map(user=>{
-   const convo=msgs.filter(message=>message.sender_id===user.user_id||message.recipient_id===user.user_id);
-   const latest=convo[0]||null;
-   const unread=convo.filter(message=>message.sender_id===user.user_id&&!message.read_at).length;
+   const conversation=messages.filter(message=>message.sender_id===user.user_id||message.recipient_id===user.user_id),latest=conversation[0]||null;
+   const unread=conversation.filter(message=>message.sender_id===user.user_id&&!message.read_at).length;
    return {...user,latest,unread};
   }).sort((a,b)=>new Date(b.latest?.created_at||b.created_at||0)-new Date(a.latest?.created_at||a.created_at||0));
-  renderAdminChatUsers();
-  if(adminRequestIsCurrent(requestedUserId,requestEpoch))await updateUnreadBadges();
+  renderAdminChatUsers();if(isAdminSectionRequestCurrent('users',requestId,requestedUserId,requestEpoch))await updateUnreadBadges();return true;
  }catch(error){
-  if(!adminRequestIsCurrent(requestedUserId,requestEpoch))return;
+  if(!isAdminSectionRequestCurrent('users',requestId,requestedUserId,requestEpoch))return false;
   showToast('Could not load Sellbook users: '+(error.message||'Please try again.'),'error');
   if(target)target.innerHTML='<div class="empty">User information is temporarily unavailable. Refresh to try again.</div>';
-  if(list)list.innerHTML='<div class="empty">Conversation list is temporarily unavailable.</div>';
+  if(list)list.innerHTML='<div class="empty">Conversation list is temporarily unavailable. Refresh to try again.</div>';return false;
  }
 }
 
 async function loadAdminFeedback(){
- if(!supabaseClient||!cloudUser||!sellbookIsAdmin)return;
- const requestedUserId=cloudUser.id,requestEpoch=adminAccessEpoch;
- const target=document.getElementById('adminFeedbackList');if(target)target.innerHTML='<div class="empty">Loading feedback…</div>';
+ if(!supabaseClient||!cloudUser||!sellbookIsAdmin)return false;
+ const requestedUserId=cloudUser.id,requestEpoch=adminAccessEpoch,requestId=beginAdminSectionRequest('feedback'),target=document.getElementById('adminFeedbackList');
+ if(target)target.innerHTML='<div class="empty">Loading feedback…</div>';
  try{
   const {data,error}=await supabaseClient.from('user_feedback').select('id,user_id,category,subject,message,status,admin_reply,created_at').order('created_at',{ascending:false}).limit(100);
-  if(!adminRequestIsCurrent(requestedUserId,requestEpoch))return;
+  if(!isAdminSectionRequestCurrent('feedback',requestId,requestedUserId,requestEpoch))return false;
   if(error)throw error;
   adminFeedbackCache=data||[];
-  renderAdminFeedbackList();
+  setUnreadBadge('adminFeedbackBadge',adminFeedbackCache.filter(item=>['new','in_review'].includes(String(item.status||'').toLowerCase())).length);
+  renderAdminFeedbackList();return true;
  }catch(error){
-  if(!adminRequestIsCurrent(requestedUserId,requestEpoch))return;
+  if(!isAdminSectionRequestCurrent('feedback',requestId,requestedUserId,requestEpoch))return false;
   showToast('Could not load feedback: '+(error.message||'Please try again.'),'error');
-  if(target)target.innerHTML='<div class="empty">Feedback is temporarily unavailable. Refresh to try again.</div>';
+  if(target)target.innerHTML='<div class="empty">Feedback is temporarily unavailable. Refresh to try again.</div>';return false;
  }
 }
 document.getElementById('adminFeedbackSearch')?.addEventListener('input',renderAdminFeedbackList);
 document.getElementById('adminFeedbackFilter')?.addEventListener('change',renderAdminFeedbackList);
 async function loadAdminNotifications(){
- if(!supabaseClient||!cloudUser||!sellbookIsAdmin)return;
- const requestedUserId=cloudUser.id,requestEpoch=adminAccessEpoch;
- const target=document.getElementById('adminNotificationsList');
- const {data,error}=await supabaseClient.from('app_notifications').select('id,title,body,kind,recipient_id,created_at').order('created_at',{ascending:false}).limit(20);
- if(!adminRequestIsCurrent(requestedUserId,requestEpoch))return;
- if(error){showToast('Could not load notifications: '+error.message,'error');target.textContent='Notifications are temporarily unavailable.';return;}
- 
- target.innerHTML=(data||[]).length?data.map(n=>'<div class="item"><strong>'+escAdmin(n.title)+'</strong><div class="muted">'+escAdmin(n.kind)+' · '+(n.recipient_id?'Specific user':'All users')+' · '+escAdmin(new Date(n.created_at).toLocaleString())+'</div><p>'+escAdmin(n.body)+'</p></div>').join(''):'<div class="empty">No notifications published yet.</div>';
+ if(!supabaseClient||!cloudUser||!sellbookIsAdmin)return false;
+ const requestedUserId=cloudUser.id,requestEpoch=adminAccessEpoch,requestId=beginAdminSectionRequest('notifications'),target=document.getElementById('adminNotificationsList');
+ if(!target)return false;target.innerHTML='<div class="empty">Loading notifications…</div>';
+ try{
+  const {data,error}=await supabaseClient.from('app_notifications').select('id,title,body,kind,recipient_id,created_at').order('created_at',{ascending:false}).limit(20);
+  if(!isAdminSectionRequestCurrent('notifications',requestId,requestedUserId,requestEpoch))return false;
+  if(error)throw error;
+  target.innerHTML=(data||[]).length?data.map(n=>'<div class="item"><strong>'+escAdmin(n.title)+'</strong><div class="muted">'+escAdmin(n.kind)+' · '+(n.recipient_id?'Specific user':'All users')+' · '+escAdmin(new Date(n.created_at).toLocaleString())+'</div><p>'+escAdmin(n.body)+'</p></div>').join(''):'<div class="empty">No notifications published yet.</div>';
+  return true;
+ }catch(error){
+  if(!isAdminSectionRequestCurrent('notifications',requestId,requestedUserId,requestEpoch))return false;
+  target.innerHTML='<div class="empty">Notifications are temporarily unavailable. Refresh to try again.</div>';
+  showToast('Could not load notifications: '+(error.message||'Please try again.'),'error');return false;
+ }
 }
 function updateBusinessDetailsPage(){
  const profile=getProfile();
@@ -5722,7 +5727,8 @@ function setUnreadBadge(id,count){const el=document.getElementById(id);if(!el)re
 async function updateUnreadBadges(){
  if(!cloudUser||!supabaseClient){
   setUnreadBadge('notificationBadge',0);setUnreadBadge('messageBadge',0);
-  setUnreadBadge('supportBadge',0);setUnreadBadge('meSupportBadge',0);return;
+  setUnreadBadge('supportBadge',0);setUnreadBadge('meSupportBadge',0);
+  setUnreadBadge('adminSupportBadge',0);setUnreadBadge('adminFeedbackBadge',0);return;
  }
  const requestedUserId=cloudUser.id,requestEpoch=accountSessionEpoch;
  try{
@@ -5735,7 +5741,7 @@ async function updateUnreadBadges(){
   ]);
   if(!accountRequestIsCurrent(requestedUserId,requestEpoch))return;
   if(!notificationUnread.error)setUnreadBadge('notificationBadge',Number(notificationUnread.data)||0);
-  if(!supportUnread.error){const supportCount=Number(supportUnread.count)||0;setUnreadBadge('supportBadge',supportCount);setUnreadBadge('meSupportBadge',supportCount);}
+  if(!supportUnread.error){const supportCount=Number(supportUnread.count)||0;setUnreadBadge('supportBadge',supportCount);setUnreadBadge('meSupportBadge',supportCount);setUnreadBadge('adminSupportBadge',sellbookIsAdmin?supportCount:0);}
   if(!marketUnread.error)setUnreadBadge('messageBadge',Number(marketUnread.count)||0);
  }catch(_){/* Keep the interface quiet if the device is offline. */}
 }
@@ -6253,13 +6259,19 @@ bindPageRefresh('refreshAdminUsers',()=>loadAdminUsers(),{admin:true});
 bindPageRefresh('refreshAdminFeedback',()=>loadAdminFeedback(),{admin:true});
 bindPageRefresh('refreshAdminChat',()=>loadAdminUsers(),{admin:true});
 bindPageRefresh('refreshAdminChatConversation',()=>adminConversationLoading?false:loadAdminConversation(),{admin:true});
-document.getElementById('adminSignOut').addEventListener('click',async()=>{
+document.getElementById('adminSignOut').addEventListener('click',async event=>{
  if(!supabaseClient)return;
- const queued=cloudUser?readQueue(cloudUser.id).filter(item=>item.status!=='synced'):[];
- if(queued.length&&!confirm('You have '+queued.length+' unsynchronised change(s). They will remain on this device. Sign out anyway?'))return;
- const {error}=await supabaseClient.auth.signOut({scope:'local'});
- if(error){cloudMessage('Could not sign out: '+error.message);return;}
- await refreshAccountStatus();
+ const button=event.currentTarget,queued=cloudUser?readQueue(cloudUser.id).filter(item=>item.status!=='synced'):[];
+ if(queued.length&&!confirm('There are '+queued.length+' unsynchronised local change(s) on this account. They will remain on this device. Sign out anyway?'))return;
+ button.disabled=true;button.textContent='Signing out…';
+ try{
+  const {error}=await supabaseClient.auth.signOut({scope:'local'});
+  if(error)throw error;
+  setAdminAccess(false);await refreshAccountStatus();
+ }catch(error){
+  button.disabled=false;button.textContent='Sign out';
+  cloudMessage('Could not sign out: '+(error.message||'Please check your connection and try again.'),'error');
+ }
 });
 recordSellbookVisit();
 

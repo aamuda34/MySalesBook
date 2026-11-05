@@ -1,44 +1,28 @@
-const fs = require('node:fs');
-const assert = require('node:assert/strict');
-
-const html = fs.readFileSync('index.html', 'utf8');
-const app = fs.readFileSync('app.js', 'utf8');
-const css = fs.readFileSync('styles.css', 'utf8');
-
-const adminStart = html.indexOf('<section id="admin"');
-assert.notEqual(adminStart, -1, 'Admin console must exist');
-const adminEnd = html.indexOf('</section>', adminStart);
-assert.notEqual(adminEnd, -1, 'Admin console section must close');
-const adminHtml = html.slice(adminStart, adminEnd);
-
-const expectedPanels = ['overview', 'traffic', 'users', 'feedback', 'support', 'notifications'];
-for (const panel of expectedPanels) {
-  assert.match(adminHtml, new RegExp('data-admin-panel="' + panel + '"'), 'Missing admin tab: ' + panel);
-  assert.match(adminHtml, new RegExp('data-admin-panel-content="' + panel + '"'), 'Missing admin panel: ' + panel);
-}
-const requiredIds = [
-  'adminAccountEmail', 'adminDashboardStatus', 'adminLastUpdated',
-  'adminUsersSearch', 'adminUsersFilter', 'adminUsersSummary', 'adminUsersList',
-  'adminUserDetailsView', 'adminUserDetailsContent', 'adminUserDetailsBack',
-  'adminFeedbackSearch', 'adminFeedbackFilter', 'adminFeedbackSummary', 'adminFeedbackList',
-  'adminChatSearch', 'adminChatFilter', 'adminChatSummary', 'adminChatUserList',
-  'adminNotificationForm', 'adminNotificationsList', 'refreshAdminNotifications'
-];
-for (const id of requiredIds) {
-  assert.match(adminHtml, new RegExp('id="' + id + '"'), 'Missing admin control: ' + id);
-}
-
-for (const panel of expectedPanels) {
-  assert.ok(app.includes("name==='") && app.includes("'"+panel+"'"), 'Admin navigation should recognize ' + panel);
-}
-assert.match(app, /supabaseClient\.rpc\('is_sellbook_admin'\)/, 'Admin access must be checked on the server');
-assert.match(app, /adminRequestIsCurrent\(requestedUserId,requestEpoch\)/, 'Admin requests must be bound to the current account and permission epoch');
-assert.match(app, /supabaseClient\.rpc\('sellbook_admin_users'\)/, 'User directory must use the protected admin RPC');
-assert.match(app, /adminUsersCache=\(data\|\|\[\]\)\.filter/, 'User cache should populate before support-message reads');
-assert.match(app, /function renderAdminUsersList\(/, 'User search and filters must render from cached results');
-assert.match(app, /function renderAdminFeedbackList\(/, 'Feedback filters must render from cached results');
-assert.match(app, /function renderAdminChatUsers\(/, 'Support conversation filters must render from cached results');
-assert.match(app, /if\(audience==='all'&&!confirm\(/, 'Broadcast notifications must require confirmation');
-assert.match(css, /\.admin-console-page/, 'Admin console styles must be scoped to the admin page');
-assert.match(css, /\.admin-list-tools/, 'Admin search and filter controls must be styled');
-console.log('Admin console checks passed.');
+const fs=require('node:fs');
+const assert=require('node:assert/strict');
+const html=fs.readFileSync('index.html','utf8'),app=fs.readFileSync('app.js','utf8'),css=fs.readFileSync('styles.css','utf8'),sw=fs.readFileSync('sw.js','utf8');
+const start=html.indexOf('<section id="admin"');
+assert.notEqual(start,-1,'Dedicated admin workspace must exist');
+const end=html.indexOf('</section>',start);
+const markup=html.slice(start,end);
+for(const panel of ['overview','users','support','feedback','more','traffic','notifications'])assert.ok(markup.includes('data-admin-panel-content="'+panel+'"'),'Missing panel '+panel);
+const nav=markup.slice(markup.indexOf('<nav id="adminBottomNav"'));
+assert.ok(nav.includes('</nav>'),'Admin bottom navigation must close');
+for(const panel of ['overview','users','support','feedback','more'])assert.ok(nav.includes('data-admin-panel="'+panel+'"'),'Missing bottom navigation item '+panel);
+assert.ok(!markup.includes('admin-panel-nav'),'Old top tabs must not return');
+for(const id of ['adminSignOut','adminAccountEmail','adminActiveSection','adminDashboardStatus','adminSupportBadge','adminFeedbackBadge','adminUsersSearch','adminUsersFilter','adminFeedbackSearch','adminFeedbackFilter','adminChatSearch','adminChatFilter','adminNotificationForm','adminNotificationsList'])assert.ok(markup.includes('id="'+id+'"'),'Missing admin control '+id);
+assert.match(app,/supabaseClient\.rpc\('is_sellbook_admin'\)/,'Admin permission must be verified on the server');
+assert.match(app,/if\(sellbookIsAdmin&&name!=='admin'\)name='admin'/,'Administrators must stay inside the admin workspace');
+assert.match(app,/if\(!sellbookIsAdmin&&name==='admin'\)/,'Non-admins must be routed away from admin');
+assert.match(app,/beginAdminSectionRequest\(/,'Admin reads must use per-section request IDs');
+assert.match(app,/isAdminSectionRequestCurrent\(/,'Late admin responses must be ignored');
+assert.match(app,/function renderAdminUsersList\(/,'User search should remain available');
+assert.match(app,/function renderAdminFeedbackList\(/,'Feedback filters should remain available');
+assert.match(app,/function renderAdminChatUsers\(/,'Support filters should remain available');
+assert.match(app,/if\(audience==='all'&&!confirm\(/,'Broadcast requires confirmation');
+assert.match(app,/adminSupportBadge/,'Unread support count must be shown in admin navigation');
+assert.match(css,/body\.admin-mode #adminBottomNav/,'Admin bottom navigation must be displayed in admin mode');
+assert.match(css,/body\.admin-mode>\.seller-welcome-header/,'Seller header must be hidden from admin');
+assert.match(css,/body\.admin-mode #appWorkspace>nav/,'Seller navigation must be hidden from admin');
+assert.match(sw,/sellbook-shell-v139/,'PWA shell cache version must be updated');
+console.log('Dedicated admin workspace checks passed.');
