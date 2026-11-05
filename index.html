@@ -338,7 +338,7 @@
  <div class="sales-history-period"><label for="historySalesPeriod">Show sales for</label><select id="historySalesPeriod" class="expense-period-select" aria-label="Choose sales history period"><option value="today" selected>Today</option><option value="yesterday">Yesterday</option><option value="week">This week</option><option value="month">This month</option><option value="year">This year</option><option value="all">All time</option><option value="custom">Custom date range</option></select></div>
  <div class="sales-history-search"><label for="historySalesProduct">Search products</label><input id="historySalesProduct" type="search" placeholder="Enter product name..." autocomplete="off"></div>
  <div class="sales-history-custom-range" id="historySalesCustomRange" hidden><div><label for="historySalesFrom">From date</label><input id="historySalesFrom" type="date"></div><div><label for="historySalesTo">To date</label><input id="historySalesTo" type="date"></div></div>
- <button type="button" id="clearHistorySalesDates">Reset filters</button>
+ <div class="sales-history-export-actions"><button type="button" id="clearHistorySalesDates">Reset filters</button><button type="button" id="exportSalesHistoryCsv" class="secondary-button history-export-button">Export CSV</button></div>
 </div>
 <section class="sales-history-summary" aria-live="polite" aria-label="Sales summary for selected period">
  <div class="sales-history-summary-main"><div><span class="sales-history-summary-label" id="salesHistoryPeriodLabel">Today</span><small>Total sales</small></div><strong id="salesHistoryTotal">₦0</strong></div>
@@ -389,7 +389,7 @@
  <div><label for="expenseHistorySearch">Search expenses</label><input id="expenseHistorySearch" type="search" placeholder="Description or note..." autocomplete="off"></div>
  <div><label for="expenseHistoryCategory">Category</label><select id="expenseHistoryCategory"><option value="">All categories</option><option>Transport</option><option>Rent</option><option>Electricity</option><option>Supplies</option><option>Repairs</option><option>Staff</option><option>Internet and phone</option><option>Packaging</option><option>Marketing</option><option>Other</option><option>Other business costs</option></select></div>
  <div id="expenseHistoryCustomRange" class="expense-history-custom-range" hidden><div><label for="expenseHistoryFrom">From date</label><input id="expenseHistoryFrom" type="date"></div><div><label for="expenseHistoryTo">To date</label><input id="expenseHistoryTo" type="date"></div></div>
- <button type="button" id="resetExpenseHistoryFilters">Reset filters</button>
+ <div class="sales-history-export-actions"><button type="button" id="resetExpenseHistoryFilters">Reset filters</button><button type="button" id="exportExpenseHistoryCsv" class="secondary-button history-export-button">Export CSV</button></div>
 </div>
 <section class="sales-history-summary expense-history-summary" aria-live="polite">
  <div class="sales-history-summary-main"><div><span id="expenseHistoryPeriodLabel" class="sales-history-summary-label">Today</span><small>Total expenses</small></div><strong id="expenseHistoryTotal">₦0</strong></div>
@@ -596,7 +596,7 @@
   <button type="button" class="products-back-button" data-app-back="home" aria-label="Back to Home" title="Back to Home"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6M9 12h11"/></svg></button>
   <h1>Profit history</h1>
  </div>
- <p class="profit-history-intro">Review your gross profit, expenses and net profit over time.</p>
+ <p class="profit-history-intro">Review your gross profit, expenses and net profit over time.</p><p class="profit-history-explanation">Net profit is an estimate: recorded gross profit minus recorded expenses. It does not include taxes, payment fees, owner withdrawals, unrecorded costs or stock losses.</p>
  <div class="profit-history-controls">
   <label for="profitHistoryRange">Time period</label>
   <select id="profitHistoryRange" aria-label="Profit history time period">
@@ -1141,6 +1141,11 @@ body.expenses-history-page-open .products-page-header,body.expense-details-page-
 
 .product-change-line{display:flex;justify-content:space-between;gap:12px;padding:7px 0;border-top:1px solid var(--border);font-size:12px}.product-change-line span{font-weight:650;color:var(--muted)}.product-change-line small{max-width:65%;text-align:right;overflow-wrap:anywhere;color:var(--text)}
 .sale-receipt-actions{max-width:760px;margin:0 auto;padding:0 14px 20px}.sale-receipt-actions button{width:100%;min-height:44px}
+
+.sales-history-export-actions{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:10px}
+.sales-history-export-actions button{min-height:42px}
+.history-export-button{border:1px solid var(--border);background:var(--surface,#fff);color:var(--green);font-weight:700}
+.profit-history-explanation{margin:7px 0 14px;color:var(--muted);font-size:12px;line-height:1.5}
 </style>
 <script src="./stock-history-tabs.js"></script>
 

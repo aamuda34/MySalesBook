@@ -1,0 +1,44 @@
+'use strict';
+const assert=require('node:assert/strict');
+const fs=require('node:fs');
+const vm=require('node:vm');
+const app=fs.readFileSync('app.js','utf8');
+const html=fs.readFileSync('index.html','utf8');
+const sw=fs.readFileSync('sw.js','utf8');
+const start=app.indexOf('function inspectSellbookBackup(');
+const end=app.indexOf(String.fromCharCode(10)+'function isSellbookUuid',start);
+assert.ok(start>=0&&end>start,'Could not isolate production backup validator.');
+const context={};
+vm.runInNewContext(app.slice(start,end)+String.fromCharCode(10)+'globalThis.inspect=inspectSellbookBackup;',context);
+const valid=(accountId=null)=>({app:'Sellbook',version:2,exportedAt:'2026-11-05T10:00:00.000Z',accountId,data:{
+ products:[{id:'product-1',name:'Water'}],sales:[{id:'sale-1'}],expenses:[{id:'expense-1'}],profile:{businessName:'Corner Shop'},
+ stockAdjustments:[{id:'adjust-1'}],restocks:[{id:'restock-1'}]
+}});
+const local=context.inspect(valid(),null);
+assert.deepEqual(JSON.parse(JSON.stringify(local.counts)),{products:1,sales:1,expenses:1,stockAdjustments:1,restocks:1,productAdditions:0,productActivity:0});
+assert.equal(local.data.products[0].name,'Water');
+assert.equal(local.data.profile.businessName,'Corner Shop','Local restore preserves the saved business profile.');
+assert.equal(context.inspect(valid('account-123'),'account-123').accountId,'account-123');
+assert.throws(()=>context.inspect(valid('another-account'),'account-123'),/different account/i);
+assert.throws(()=>context.inspect(valid('account-123'),null),/sign in to the same/i);
+assert.throws(()=>context.inspect({...valid(),app:'Other'},null),/format is not supported/i);
+assert.throws(()=>context.inspect({...valid(),version:1},null),/format is not supported/i);
+assert.throws(()=>context.inspect({...valid(),data:{products:[],sales:[]}},null),/missing its expenses/i);
+assert.throws(()=>context.inspect({...valid(),data:{...valid().data,products:[{id:'x'},{id:'x'}]}},null),/duplicate record IDs/i);
+assert.throws(()=>context.inspect({...valid(),data:{...valid().data,products:[{name:'No ID'}]}},null),/missing its record ID/i);
+assert.throws(()=>context.inspect({...valid(),exportedAt:'not-a-date'},null),/backup date is invalid/i);
+assert.ok(app.includes(".upsert(batch,{onConflict:'id',ignoreDuplicates:true}).select('id')"),'Cloud restore uses idempotent insert-only upserts.');
+assert.ok(app.includes('inspectSellbookBackup(parsed,cloudUser?.id||null)'),'Restore validates account ownership before writing.');
+assert.ok(app.includes('accountRequestIsCurrent(userId,requestEpoch)'),'Cloud restore checks the active account between batches.');
+assert.ok(app.includes('const queuedChanges=readQueue(user.id)')&&app.includes("queuedChanges.some(item=>item.status!=='synced')"),'Cloud restore refuses to race unsynchronised local changes.');
+assert.ok(app.includes('queueReadErrors.has(user.id)'),'Cloud restore refuses to proceed when the local queue needs recovery.');
+assert.ok(app.includes('await cloudLoadAll();'),'Cloud restore refreshes from the account database.');
+assert.ok(app.includes('db=previousDb;throw Error(\'Could not save the restored records'),'Failed device restore preserves in-memory records.');
+assert.ok(html.includes('id="exportSalesHistoryCsv"')&&html.includes('id="exportExpenseHistoryCsv"'),'Both histories expose CSV exports.');
+assert.ok(html.includes('Net profit is an estimate:'),'Profit history explains the net profit estimate.');
+assert.ok(app.includes('description:description.slice(0,100)')&&app.includes("category:String(row.category||'Other').slice(0,40)"),'Backup import respects expense database field limits.');
+assert.ok(app.includes("note:row.note?String(row.note).slice(0,150):null"),'Backup import respects the sales note length limit.');
+assert.ok(app.includes("'sale gross profit',{min:-9999999999.99}"),'Backup import preserves legitimate negative gross profit.');
+assert.ok(sw.includes('sellbook-shell-v133'),'PWA cache is advanced with app shell changes.');
+assert.ok(app.includes("if(!numeric.has(index)&&/^[=+@-]/.test(text.trimStart()))"),'CSV text cells are protected from spreadsheet formula injection.');
+console.log('PASS: backup validation, account ownership, idempotent cloud restore guards, CSV exports and profit disclosure.');
