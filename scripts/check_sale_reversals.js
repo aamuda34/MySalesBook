@@ -7,7 +7,7 @@ const app=fs.readFileSync('app.js','utf8');
 const html=fs.readFileSync('index.html','utf8');
 const sw=fs.readFileSync('sw.js','utf8');
 const migration=fs.readFileSync('supabase/migrations/20261105015350_audited_sale_reversals.sql','utf8');
-const adminMetricsMigration=fs.readFileSync('supabase/migrations/20261105020128_exclude_reversed_sales_from_admin_metrics.sql','utf8');
+const adminMetricsMigration=fs.readFileSync('supabase/migrations/20261105020234_exclude_reversed_sales_from_admin_metrics.sql','utf8');
 
 // Execute the production sale-status helpers and transaction aggregator with sample data.
 const helperStart=app.indexOf('function isSaleReversed(');
