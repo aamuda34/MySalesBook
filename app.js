@@ -89,6 +89,8 @@ function dateKey(value){const d=safeDate(value);return d.getFullYear()+'-'+Strin
 function validDateKey(value){if(value==null||value==='')return null;const raw=String(value);if(/^\d{4}-\d{2}-\d{2}$/.test(raw)){const [year,month,day]=raw.split('-').map(Number);const check=new Date(year,month-1,day);return check.getFullYear()===year&&check.getMonth()===month-1&&check.getDate()===day?raw:null;}const d=new Date(value);if(!Number.isFinite(d.getTime()))return null;return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
 function operationalDate(row){return row?.date||row?.sold_at||row?.spent_at||row?.created_at||row?.createdAt||null;}
 function isExpenseVoided(row){return !!(row?.voidedAt||row?.voided_at);}
+function isSaleReversed(row){return !!(row?.reversedAt||row?.reversed_at);}
+function getActiveSales(){return (db.sales||[]).filter(row=>!isSaleReversed(row));}
 function getLocalPeriodBounds(period,from='',to=''){const today=new Date();today.setHours(0,0,0,0);const todayKey=dateKey(today);let start=new Date(today),end=todayKey;if(period==='yesterday'){start.setDate(start.getDate()-1);end=dateKey(start);}else if(period==='week')start.setDate(start.getDate()-((start.getDay()+6)%7));else if(period==='month')start=new Date(today.getFullYear(),today.getMonth(),1);else if(period==='year')start=new Date(today.getFullYear(),0,1);else if(period==='all')return {from:'',to:todayKey};else if(period==='custom')return {from:from||to||todayKey,to:to||from||todayKey};return {from:dateKey(start),to:end};}
 function withinPeriod(row,bounds){const key=validDateKey(operationalDate(row));return !!key&&key<=bounds.to&&(!bounds.from||key>=bounds.from);}
 
@@ -97,7 +99,7 @@ function setExpensePeriod(period){if(!['today','yesterday','week','month','year'
 function updateExpensePeriodTotal(){const label=document.getElementById('expensePeriodLabel'),amount=document.getElementById('todayExpenses');if(!label||!amount)return;const bounds=getLocalPeriodBounds(selectedExpensePeriod),titles={today:'Total expenses today',yesterday:'Total expenses yesterday',week:'Total expenses this week',month:'Total expenses this month',year:'Total expenses this year',all:'Total expenses all time'};const rows=(db.expenses||[]).filter(x=>!isExpenseVoided(x)&&withinPeriod(x,bounds));label.textContent=titles[selectedExpensePeriod]||titles.today;amount.textContent=money(rows.reduce((sum,x)=>sum+(Number(x.amount)||0),0));}
 document.getElementById('expensePeriodSelect')?.addEventListener('change',event=>setExpensePeriod(event.target.value));
 let selectedSalesSummaryPeriod='today';
-function updateSalesPeriodSummary(){const selector=document.getElementById('salesSummaryPeriod');if(selector&&selector.value!==selectedSalesSummaryPeriod)selector.value=selectedSalesSummaryPeriod;const bounds=getLocalPeriodBounds(selectedSalesSummaryPeriod);const sales=(db.sales||[]).filter(x=>withinPeriod(x,bounds)),expenses=(db.expenses||[]).filter(x=>!isExpenseVoided(x)&&withinPeriod(x,bounds));const totalSales=sales.reduce((sum,x)=>sum+(Number(x.total)||0),0),gross=sales.reduce((sum,x)=>sum+(Number(x.profit??x.gross_profit)||0),0),expenseTotal=expenses.reduce((sum,x)=>sum+(Number(x.amount)||0),0);const totalEl=document.getElementById('salesSummaryTotal'),grossEl=document.getElementById('salesSummaryGross'),netEl=document.getElementById('salesSummaryNet');if(totalEl)totalEl.textContent=money(totalSales);if(grossEl)grossEl.textContent=money(gross);if(netEl)netEl.textContent=money(gross-expenseTotal);}
+function updateSalesPeriodSummary(){const selector=document.getElementById('salesSummaryPeriod');if(selector&&selector.value!==selectedSalesSummaryPeriod)selector.value=selectedSalesSummaryPeriod;const bounds=getLocalPeriodBounds(selectedSalesSummaryPeriod);const sales=getActiveSales().filter(x=>withinPeriod(x,bounds)),expenses=(db.expenses||[]).filter(x=>!isExpenseVoided(x)&&withinPeriod(x,bounds));const totalSales=sales.reduce((sum,x)=>sum+(Number(x.total)||0),0),gross=sales.reduce((sum,x)=>sum+(Number(x.profit??x.gross_profit)||0),0),expenseTotal=expenses.reduce((sum,x)=>sum+(Number(x.amount)||0),0);const totalEl=document.getElementById('salesSummaryTotal'),grossEl=document.getElementById('salesSummaryGross'),netEl=document.getElementById('salesSummaryNet');if(totalEl)totalEl.textContent=money(totalSales);if(grossEl)grossEl.textContent=money(gross);if(netEl)netEl.textContent=money(gross-expenseTotal);}
 document.getElementById('salesSummaryPeriod')?.addEventListener('change',event=>{selectedSalesSummaryPeriod=event.target.value;updateSalesPeriodSummary();});
 
 function salesHistoryLocalDateKey(offset=0){
@@ -178,20 +180,23 @@ function getSalesTransactions(rows){
   const group=groups.get(key);group.sales.push(sale);
   if(safeDate(operationalDate(sale))>safeDate(group.date))group.date=operationalDate(sale);
  }
- return [...groups.values()].map(group=>({
-  ...group,
-  total:group.sales.reduce((sum,row)=>sum+(Number(row.total)||0),0),
-  profit:group.sales.reduce((sum,row)=>sum+(Number(row.profit??row.gross_profit)||0),0),
-  items:group.sales.reduce((sum,row)=>sum+saleBaseQuantity(row),0)
- })).sort((a,b)=>safeDate(b.date)-safeDate(a.date));
+ return [...groups.values()].map(group=>{
+  const active=group.sales.filter(row=>!isSaleReversed(row));
+  return {...group,reversed:active.length===0,
+   originalTotal:group.sales.reduce((sum,row)=>sum+(Number(row.total)||0),0),
+   originalProfit:group.sales.reduce((sum,row)=>sum+(Number(row.profit??row.gross_profit)||0),0),
+   total:active.reduce((sum,row)=>sum+(Number(row.total)||0),0),
+   profit:active.reduce((sum,row)=>sum+(Number(row.profit??row.gross_profit)||0),0),
+   items:active.reduce((sum,row)=>sum+saleBaseQuantity(row),0)};
+ }).sort((a,b)=>safeDate(b.date)-safeDate(a.date));
 }
 function renderSalesHistory(){
  const target=document.getElementById('salesHistoryList');if(!target)return;const range=getSalesHistoryRange(),todayKey=salesHistoryLocalDateKey(),query=(document.getElementById('historySalesProduct')?.value||'').trim().toLocaleLowerCase();
  const periodRows=(db.sales||[]).filter(sale=>{const key=validDateKey(operationalDate(sale));return !!key&&key<=todayKey&&(!range.from||key>=range.from)&&(!range.to||key<=range.to);});
- const groups=getSalesTransactions(periodRows),visible=groups.filter(group=>!query||group.sales.some(x=>String(x.name||x.product_name||'').toLocaleLowerCase().includes(query)));
- const total=periodRows.reduce((n,x)=>n+(Number(x.total)||0),0),gross=periodRows.reduce((n,x)=>n+(Number(x.profit??x.gross_profit)||0),0),items=periodRows.reduce((n,x)=>n+saleBaseQuantity(x),0),set=(id,v)=>{const el=document.getElementById(id);if(el)el.textContent=String(v);};
- set('salesHistoryPeriodLabel',range.label);set('salesHistoryTotal',money(total));set('salesHistoryTransactionCount',groups.length);set('salesHistoryItemsCount',items);set('salesHistoryGrossProfit',money(gross));
- target.innerHTML=visible.length?visible.map(group=>{const lines=group.sales.map(x=>String(x.name||x.product_name||'Product')+' × '+Number(x.qty??x.quantity??0)+' '+String(x.saleUnit||x.sale_unit||'unit')).join(', '),label=group.sales.length===1?lines:group.sales.length+' products · '+lines;return '<button type="button" class="item sales-history-row" data-sale-detail="'+esc(group.id)+'"><span class="sales-history-row-main"><span class="row"><strong>'+esc(label)+'</strong><strong>'+money(group.total)+'</strong></span><span class="muted">'+safeDate(group.date).toLocaleString()+' · Gross profit '+money(group.profit)+'</span></span><span class="sales-history-row-chevron" aria-hidden="true">›</span></button>';}).join(''):(periodRows.length?'<div class="empty">No sales match your product search.</div>':'<div class="empty">No sales recorded for this period yet.</div>');
+ const groups=getSalesTransactions(periodRows),activeGroups=groups.filter(group=>!group.reversed),visible=groups.filter(group=>!query||group.sales.some(x=>String(x.name||x.product_name||'').toLocaleLowerCase().includes(query)));
+ const activeRows=periodRows.filter(sale=>!isSaleReversed(sale)),total=activeRows.reduce((n,x)=>n+(Number(x.total)||0),0),gross=activeRows.reduce((n,x)=>n+(Number(x.profit??x.gross_profit)||0),0),items=activeRows.reduce((n,x)=>n+saleBaseQuantity(x),0),set=(id,v)=>{const el=document.getElementById(id);if(el)el.textContent=String(v);};
+ set('salesHistoryPeriodLabel',range.label);set('salesHistoryTotal',money(total));set('salesHistoryTransactionCount',activeGroups.length);set('salesHistoryItemsCount',items);set('salesHistoryGrossProfit',money(gross));
+ target.innerHTML=visible.length?visible.map(group=>{const lines=group.sales.map(x=>String(x.name||x.product_name||'Product')+' × '+Number(x.qty??x.quantity??0)+' '+String(x.saleUnit||x.sale_unit||'unit')).join(', '),label=group.sales.length===1?lines:group.sales.length+' products · '+lines,amount=group.reversed?'Reversed · '+money(group.originalTotal):money(group.total),status=group.reversed?'Reversed · excluded from sales and profit totals':'Gross profit '+money(group.profit);return '<button type="button" class="item sales-history-row" data-sale-detail="'+esc(group.id)+'"><span class="sales-history-row-main"><span class="row"><strong>'+esc(label)+'</strong><strong>'+esc(amount)+'</strong></span><span class="muted">'+safeDate(group.date).toLocaleString()+' · '+esc(status)+'</span></span><span class="sales-history-row-chevron" aria-hidden="true">›</span></button>';}).join(''):(periodRows.length?'<div class="empty">No sales match your product search.</div>':'<div class="empty">No sales recorded for this period yet.</div>');
 }
 function getProfile(){return db.profile||{businessName:'',businessLogo:''};}
 function renderBrand(){const p=getProfile(),name=String(p.businessName||'').trim();document.getElementById('businessTitle').textContent=name||'Sellbook';document.getElementById('businessSubtitle').textContent=name?'Business records · Nigerian naira (₦)':'Simple business records · Nigerian naira (₦)';const logo=document.getElementById('headerBusinessLogo'),mark=document.getElementById('brandMark');if(p.businessLogo){logo.src=p.businessLogo;logo.style.display='block';mark.style.display='none';}else{logo.removeAttribute('src');logo.style.display='none';mark.style.display='grid';mark.textContent=(name||'Sellbook').split(/\s+/).slice(0,2).map(x=>x[0]||'').join('').toUpperCase()||'MS';}const input=document.getElementById('businessNameInput');if(input&&document.activeElement!==input)input.value=name;const preview=document.getElementById('businessLogoPreview');if(preview&&document.activeElement!==preview){if(p.businessLogo){preview.src=p.businessLogo;preview.style.display='block';}else{preview.removeAttribute('src');preview.style.display='none';}}}
@@ -1994,7 +1999,7 @@ async function cloudLoadAll() {
   const cachedRestockDetails=new Map((db.restocks||[]).map(item=>[String(item.id),item]));
   const [pr,sr,er,ar,rr,profileResult]=await Promise.all([
     fetchAllCloudRows(()=>supabaseClient.from('products').select('id,name,category,cost_price,selling_price,stock,base_unit,purchase_unit,units_per_purchase,pack_unit,units_per_pack,pack_selling_price,image_path,archived_at,created_at,updated_at').eq('user_id',user.id).order('created_at').order('id')),
-    fetchAllCloudRows(()=>supabaseClient.from('sales').select('id,product_id,product_name,quantity,unit_price,unit_cost,total,gross_profit,note,sold_at,base_quantity,sale_unit,units_per_sale,transaction_id').eq('user_id',user.id).order('sold_at').order('id')),
+    fetchAllCloudRows(()=>supabaseClient.from('sales').select('id,product_id,product_name,quantity,unit_price,unit_cost,total,gross_profit,note,sold_at,base_quantity,sale_unit,units_per_sale,transaction_id,reversed_at,reversal_reason,stock_returned').eq('user_id',user.id).order('sold_at').order('id')),
     fetchAllCloudRows(()=>supabaseClient.from('expenses').select('id,description,amount,spent_at,category,note,voided_at,void_reason').eq('user_id',user.id).order('spent_at').order('id')),
     fetchAllCloudRows(()=>supabaseClient.from('stock_adjustments').select('id,product_id,product_name,previous_stock,new_stock,quantity_change,reason,adjusted_at').eq('user_id',user.id).order('adjusted_at',{ascending:false}).order('id',{ascending:false})),
     fetchAllCloudRows(()=>supabaseClient.from('stock_purchases').select('id,product_id,product_name,purchase_quantity,purchase_unit,units_per_purchase,base_quantity,cost_per_purchase_unit,total_cost,average_cost_before,average_cost_after,previous_stock,new_stock,restocked_at').eq('user_id',user.id).order('restocked_at',{ascending:false}).order('id',{ascending:false})),
@@ -2017,7 +2022,7 @@ async function cloudLoadAll() {
     image:'',offlineImage:'',imagePath:row.image_path||'',archivedAt:row.archived_at||null,
     createdAt:row.created_at,updatedAt:row.updated_at
   }));
-  const sales=(sr.data||[]).map(row=>({id:row.id,productId:row.product_id,name:row.product_name,qty:Number(row.quantity),price:Number(row.unit_price),cost:Number(row.unit_cost),total:Number(row.total),profit:Number(row.gross_profit),note:row.note||'',date:row.sold_at,baseQty:Number(row.base_quantity||row.quantity),saleUnit:row.sale_unit||'unit',unitsPerSale:Number(row.units_per_sale||1),transactionId:row.transaction_id||null}));
+  const sales=(sr.data||[]).map(row=>({id:row.id,productId:row.product_id,name:row.product_name,qty:Number(row.quantity),price:Number(row.unit_price),cost:Number(row.unit_cost),total:Number(row.total),profit:Number(row.gross_profit),note:row.note||'',date:row.sold_at,baseQty:Number(row.base_quantity||row.quantity),saleUnit:row.sale_unit||'unit',unitsPerSale:Number(row.units_per_sale||1),transactionId:row.transaction_id||null,reversedAt:row.reversed_at||null,reversalReason:row.reversal_reason||'',stockReturned:!!row.stock_returned}));
   const expenses=(er.data||[]).map(row=>({id:row.id,name:row.description,amount:Number(row.amount),date:row.spent_at,category:row.category||'Other',note:row.note||'',voidedAt:row.voided_at||null,voidReason:row.void_reason||''}));
   const stockAdjustments=(ar.data||[]).map(row=>({id:row.id,productId:row.product_id,productName:row.product_name,previousStock:Number(row.previous_stock),newStock:Number(row.new_stock),quantityChange:Number(row.quantity_change),reason:row.reason||'',date:row.adjusted_at}));
   const restocks=(rr.data||[]).map(row=>{
@@ -2492,8 +2497,8 @@ document.addEventListener('click',event=>{
 function showLegalSection(section){const privacy=section!=='terms';const privacyPanel=document.getElementById('legalPrivacyContent'),termsPanel=document.getElementById('legalTermsContent'),privacyTab=document.getElementById('legalPrivacyTab'),termsTab=document.getElementById('legalTermsTab');if(!privacyPanel||!termsPanel||!privacyTab||!termsTab)return;privacyPanel.classList.toggle('hidden',!privacy);termsPanel.classList.toggle('hidden',privacy);privacyTab.classList.toggle('active',privacy);termsTab.classList.toggle('active',!privacy);privacyTab.setAttribute('aria-selected',String(privacy));termsTab.setAttribute('aria-selected',String(!privacy));}
 const VALID_PAGES=new Set(['home','quick-guide','about-sellbook','stock-history','stock-history-detail','sales-history','sale-details','expenses-history','expense-details','subscribers','reservations','products','record-product','product-details','low-stock','sales','record-sale','more','expenses','record-expense','reports','profit-history','stock','settings','business-details','settings-business','settings-sync','settings-preferences','settings-account','settings-legal','settings-buybook','settings-buybook-setup','support','messenger','feedback','admin','me','notifications']);
 function currentPage(){return [...document.querySelectorAll('.page')].find(x=>!x.classList.contains('hidden'))?.id||'home';}
-async function renderDailySalesSummary(){const target=document.getElementById('dailySalesSummary');if(!target)return;const rows=new Map(),today=new Date();today.setHours(0,0,0,0);for(let i=0;i<7;i++){const d=new Date(today);d.setDate(today.getDate()-i);const key=dateKey(d);rows.set(key,{label:i===0?'Today':i===1?'Yesterday':d.toLocaleDateString(undefined,{weekday:'short',day:'numeric',month:'short'}),total:0,count:0});}for(const sale of db.sales||[]){const key=validDateKey(operationalDate(sale)),row=key?rows.get(key):null;if(row){row.total+=Number(sale.total)||0;row.count++;}}target.innerHTML=[...rows.values()].map(r=>'<div class="daily-sales-row"><span>'+escAdmin(r.label)+' · '+r.count+' sale'+(r.count===1?'':'s')+'</span><strong>'+escAdmin(new Intl.NumberFormat('en-NG',{style:'currency',currency:'NGN',maximumFractionDigits:2}).format(r.total))+'</strong></div>').join('');}
-function refreshHomeWeeklySales(){const el=document.getElementById('weeklySalesHome');if(!el)return;const bounds=getLocalPeriodBounds('week');const total=(db.sales||[]).filter(s=>withinPeriod(s,bounds)).reduce((sum,s)=>sum+(Number(s.total)||0),0);el.textContent=money(total);}
+async function renderDailySalesSummary(){const target=document.getElementById('dailySalesSummary');if(!target)return;const rows=new Map(),today=new Date();today.setHours(0,0,0,0);for(let i=0;i<7;i++){const d=new Date(today);d.setDate(today.getDate()-i);const key=dateKey(d);rows.set(key,{label:i===0?'Today':i===1?'Yesterday':d.toLocaleDateString(undefined,{weekday:'short',day:'numeric',month:'short'}),total:0,count:0});}for(const sale of getActiveSales()){const key=validDateKey(operationalDate(sale)),row=key?rows.get(key):null;if(row){row.total+=Number(sale.total)||0;row.count++;}}target.innerHTML=[...rows.values()].map(r=>'<div class="daily-sales-row"><span>'+escAdmin(r.label)+' · '+r.count+' sale'+(r.count===1?'':'s')+'</span><strong>'+escAdmin(new Intl.NumberFormat('en-NG',{style:'currency',currency:'NGN',maximumFractionDigits:2}).format(r.total))+'</strong></div>').join('');}
+function refreshHomeWeeklySales(){const el=document.getElementById('weeklySalesHome');if(!el)return;const bounds=getLocalPeriodBounds('week');const total=(getActiveSales()).filter(s=>withinPeriod(s,bounds)).reduce((sum,s)=>sum+(Number(s.total)||0),0);el.textContent=money(total);}
 let marketplaceReservationsCache=[];let marketplaceSelectedReservationId=null;let selectedReservationFilter='pending';
 function reservationStatusBucket(reservation,nowTime=Date.now()){
  const raw=String(reservation?.status||'pending').toLowerCase();
@@ -2990,7 +2995,7 @@ function renderHomePanelSummary(){
  db=normalizeDb(db);
  renderBrand();updateHomeProductSummary();renderGettingStarted();
  const day=today();
- const salesTodayRows=(db.sales||[]).filter(sale=>dateKey(sale.date||sale.sold_at||sale.created_at)===day);
+ const salesTodayRows=getActiveSales().filter(sale=>dateKey(sale.date||sale.sold_at||sale.created_at)===day);
  const expensesToday=(db.expenses||[]).filter(expense=>!isExpenseVoided(expense)).reduce((sum,expense)=>dateKey(expense.date||expense.spent_at)===day?sum+(Number(expense.amount)||0):sum,0);
  const salesToday=salesTodayRows.reduce((sum,sale)=>sum+(Number(sale.total)||0),0);
  const grossToday=salesTodayRows.reduce((sum,sale)=>sum+(Number(sale.profit)||0),0);
@@ -3001,7 +3006,7 @@ function renderHomePanelSummary(){
  if(homeProductCount)homeProductCount.textContent=String(getActiveProducts().length);
  setSalesAmountVisibility();
 
- const allGross=(db.sales||[]).reduce((sum,sale)=>sum+(Number(sale.profit)||0),0);
+ const allGross=getActiveSales().reduce((sum,sale)=>sum+(Number(sale.profit)||0),0);
  const allExpenses=(db.expenses||[]).filter(expense=>!isExpenseVoided(expense)).reduce((sum,expense)=>sum+(Number(expense.amount)||0),0);
  const meNet=document.getElementById('meAllNet'),meProducts=document.getElementById('meProductCount'),meStock=document.getElementById('meStockCount');
  if(meNet)meNet.textContent=money(allGross-allExpenses);
@@ -3029,7 +3034,7 @@ function renderHomePanelSummary(){
 
  const recentSalesPreview=document.getElementById('recentSalesPreviewText');
  if(recentSalesPreview){
-  const latest=[...(db.sales||[])].sort((a,b)=>safeDate(b.date||b.sold_at||b.created_at)-safeDate(a.date||a.sold_at||a.created_at))[0];
+  const latest=[...getActiveSales()].sort((a,b)=>safeDate(b.date||b.sold_at||b.created_at)-safeDate(a.date||a.sold_at||a.created_at))[0];
   if(latest){
    const saleName=String(latest.name||latest.product_name||'Sale');
    const quantity=Number(latest.qty??latest.quantity);
@@ -3113,10 +3118,60 @@ function renderSaleDetails(){
  const target=document.getElementById('saleDetailsContent');if(!target)return;
  const first=(db.sales||[]).find(x=>String(x.id||'')===String(selectedSaleDetailId)||String(x.transactionId||x.transaction_id||'')===String(selectedSaleDetailId));
  if(!first){target.innerHTML='<div class="empty">This sale could not be found. Return to Sales history and choose a sale.</div>';return;}
- const key=String(first.transactionId||first.transaction_id||first.id),lines=(db.sales||[]).filter(x=>String(x.transactionId||x.transaction_id||x.id)===key),total=lines.reduce((n,x)=>n+(Number(x.total)||0),0),profit=lines.reduce((n,x)=>n+(Number(x.profit??x.gross_profit)||0),0),cost=Math.max(0,total-profit),stamp=safeDate(operationalDate(first)),note=first.note||'';
+ const key=String(first.transactionId||first.transaction_id||first.id),lines=(db.sales||[]).filter(x=>String(x.transactionId||x.transaction_id||x.id)===key);
+ const reversed=lines.every(isSaleReversed),originalTotal=lines.reduce((n,x)=>n+(Number(x.total)||0),0),originalProfit=lines.reduce((n,x)=>n+(Number(x.profit??x.gross_profit)||0),0);
+ const cost=Math.max(0,originalTotal-originalProfit),stamp=safeDate(operationalDate(first)),note=first.note||'';
+ const reversedLine=lines.find(isSaleReversed),reason=reversedLine?.reversalReason||reversedLine?.reversal_reason||'';
+ const returned=lines.some(x=>x.stockReturned||x.stock_returned);
  const items=lines.map(x=>{const qty=Number(x.qty??x.quantity)||0,unit=x.saleUnit||x.sale_unit||'unit',base=Number(x.baseQty??x.base_quantity)||qty*(Number(x.unitsPerSale??x.units_per_sale)||1),price=Number(x.price??x.unit_price)||0;return '<div class="sale-detail-line"><span>'+esc(x.name||x.product_name||'Product')+' × '+qty+' '+esc(unit)+(base!==qty?' ('+base+' individual units)':'')+'</span><strong>'+money(Number(x.total)||0)+'</strong></div><div class="sale-detail-line sale-detail-subline"><span>'+money(price)+' per '+esc(unit)+'</span><span>Gross profit '+money(Number(x.profit??x.gross_profit)||0)+'</span></div>';}).join('');
- target.innerHTML='<div class="sale-detail-card"><p class="sale-detail-product-name">'+(lines.length===1?esc(first.name||first.product_name||'Sale'):'Sale receipt · '+lines.length+' products')+'</p><p class="sale-detail-date">'+stamp.toLocaleString()+'</p></div><div class="sale-detail-card"><h2>Sales summary</h2><div class="sale-detail-summary-grid"><div class="sale-detail-metric"><small>Total sales</small><strong>'+money(total)+'</strong></div><div class="sale-detail-metric"><small>Cost of goods</small><strong>'+money(cost)+'</strong></div><div class="sale-detail-metric"><small>Gross profit</small><strong>'+money(profit)+'</strong></div><div class="sale-detail-metric"><small>Payment status</small><strong>Paid</strong></div></div></div><div class="sale-detail-card"><h2>Items sold</h2><div class="sale-detail-lines">'+items+'</div><div class="sale-detail-line"><span>Total paid</span><strong class="sale-detail-total">'+money(total)+'</strong></div>'+(note?'<p class="muted">Note: '+esc(note)+'</p>':'')+'</div>';
+ const summary=reversed
+  ?'<div class="sale-detail-metric"><small>Original sale total</small><strong>'+money(originalTotal)+'</strong></div><div class="sale-detail-metric"><small>Original gross profit</small><strong>'+money(originalProfit)+'</strong></div><div class="sale-detail-metric"><small>Status</small><strong class="sale-reversed-status">Reversed</strong></div><div class="sale-detail-metric"><small>Stock</small><strong>'+(returned?'Returned to inventory':'Not returned')+'</strong></div>'
+  :'<div class="sale-detail-metric"><small>Total sales</small><strong>'+money(originalTotal)+'</strong></div><div class="sale-detail-metric"><small>Cost of goods</small><strong>'+money(cost)+'</strong></div><div class="sale-detail-metric"><small>Gross profit</small><strong>'+money(originalProfit)+'</strong></div><div class="sale-detail-metric"><small>Payment status</small><strong>Paid</strong></div>';
+ let correction='';
+ if(reversed){
+  correction='<div class="sale-detail-card sale-reversal-card"><h2>Sale correction</h2><p class="sale-reversed-status">This sale has been reversed and is excluded from sales and profit totals.</p><p class="muted">Reason: '+esc(reason||'Not provided')+'</p><p class="muted">'+(returned?'Returned items were added back to stock and recorded in Stock history.':'No stock was returned to inventory.')+'</p></div>';
+ }else if(cloudUser&&supabaseClient){
+  correction='<div class="sale-detail-card sale-reversal-card"><h2>Correct this sale</h2><p class="muted">Use this when a sale was recorded by mistake or cancelled. The original sale stays in history. Sellbook removes it from sales and profit totals.</p><button type="button" class="secondary" data-open-sale-reversal>Reverse sale</button><div id="saleReversalForm" class="sale-reversal-form" hidden><label for="saleReversalReason">Why are you reversing this sale?</label><textarea id="saleReversalReason" maxlength="200" rows="2" placeholder="For example: Sale was entered twice" required></textarea><label class="sale-reversal-stock-option"><input type="checkbox" id="saleReturnToStock"><span><strong>The goods were physically returned</strong><span class="muted">Tick this only when the items are back in your shop. Sellbook will add them to stock and record the adjustment.</span></span></label><p class="muted">This action cannot be undone. Check the reason and stock option before confirming.</p><div class="sale-reversal-actions"><button type="button" class="secondary" data-cancel-sale-reversal>Cancel</button><button type="button" data-confirm-sale-reversal>Confirm reversal</button></div></div></div>';
+ }else{
+  correction='<div class="sale-detail-card sale-reversal-card"><h2>Correct this sale</h2><p class="muted">Sign in and connect to the internet to safely reverse a recorded sale. This keeps the correction synchronised with your account.</p></div>';
+ }
+ target.innerHTML='<div class="sale-detail-card"><p class="sale-detail-product-name">'+(lines.length===1?esc(first.name||first.product_name||'Sale'):'Sale receipt · '+lines.length+' products')+'</p><p class="sale-detail-date">'+stamp.toLocaleString()+'</p></div><div class="sale-detail-card"><h2>Sales summary</h2><div class="sale-detail-summary-grid">'+summary+'</div></div><div class="sale-detail-card"><h2>Items sold</h2><div class="sale-detail-lines">'+items+'</div><div class="sale-detail-line"><span>'+(reversed?'Original sale total':'Total paid')+'</span><strong class="sale-detail-total">'+money(originalTotal)+'</strong></div>'+(note?'<p class="muted">Note: '+esc(note)+'</p>':'')+'</div>'+correction;
 }
+async function reverseSelectedSaleTransaction(button){
+ const first=(db.sales||[]).find(x=>String(x.id||'')===String(selectedSaleDetailId)||String(x.transactionId||x.transaction_id||'')===String(selectedSaleDetailId));
+ if(!first||isSaleReversed(first))return showToast('This sale has already been reversed or could not be found.');
+ const reasonInput=document.getElementById('saleReversalReason'),returnInput=document.getElementById('saleReturnToStock');
+ const reason=String(reasonInput?.value||'').trim(),returnToStock=!!returnInput?.checked;
+ if(reason.length<3||reason.length>200){reasonInput?.focus();return showToast('Enter a correction reason between 3 and 200 characters.');}
+ if(!cloudUser||!supabaseClient)return showToast('Sign in to correct this sale.');
+ if(!navigator.onLine)return showToast('Connect to the internet before correcting a sale.');
+ if(!confirm(returnToStock?'Reverse this sale and add the returned goods back to stock? The original sale will remain in history.':'Reverse this sale? It will remain in history but will no longer count toward sales or profit.'))return;
+ const transactionId=String(first.transactionId||first.transaction_id||first.id),requestedUserId=cloudUser.id,requestEpoch=accountSessionEpoch;
+ button.disabled=true;button.textContent='Reversing…';
+ try{
+  await requireCloudUser(requestedUserId);
+  if(!accountRequestIsCurrent(requestedUserId,requestEpoch))throw Error('Your account changed. Sign in again before correcting this sale.');
+  if(!navigator.onLine)throw Error('Your internet connection was lost. No correction was made.');
+  const {error}=await supabaseClient.rpc('reverse_sale_transaction',{p_transaction_id:transactionId,p_reason:reason,p_return_to_stock:returnToStock});
+  if(error)throw error;
+  if(!accountRequestIsCurrent(requestedUserId,requestEpoch))throw Error('The account changed after the correction. Sign in again to refresh your records.');
+  const refreshed=await cloudLoadAll();
+  if(refreshed===false)throw Error('The correction was saved, but this account could not refresh. Reopen Sellbook while online to see the updated records.');
+  selectedSaleDetailId=transactionId;showPage('sale-details');
+  showToast(returnToStock?'Sale reversed. Returned goods were added to stock.':'Sale reversed and removed from sales and profit totals.');
+ }catch(error){
+  button.disabled=false;button.textContent='Confirm reversal';
+  showToast(error?.message||'Could not correct this sale. No changes were confirmed.');
+ }
+}
+document.addEventListener('click',event=>{
+ if(event.target.closest('[data-open-sale-reversal]')){
+  const form=document.getElementById('saleReversalForm');if(form){form.hidden=false;document.getElementById('saleReversalReason')?.focus();}return;
+ }
+ if(event.target.closest('[data-cancel-sale-reversal]')){renderSaleDetails();return;}
+ const confirmButton=event.target.closest('[data-confirm-sale-reversal]');
+ if(confirmButton){void reverseSelectedSaleTransaction(confirmButton);}
+});
 document.addEventListener('click',event=>{const row=event.target.closest('[data-sale-detail]');if(!row)return;selectedSaleDetailId=row.dataset.saleDetail||'';showPage('sale-details');});
 document.getElementById('productSearch').addEventListener('input',render);
 document.getElementById('productStatusFilter')?.addEventListener('change',render);
@@ -3128,8 +3183,8 @@ document.getElementById('historySalesPeriod')?.addEventListener('change',event=>
 document.getElementById('clearHistorySalesDates')?.addEventListener('click',()=>{const search=document.getElementById('historySalesProduct');if(search)search.value='';setSalesHistoryPeriod('today');});
 document.getElementById('clearSalesFilters').addEventListener('click',()=>{['salesSearch','salesFrom','salesTo'].forEach(id=>document.getElementById(id).value='');render();});
 function renderBarChart(id,rows,labelFn,valueFn){const target=document.getElementById(id);if(!target)return;if(!rows.length||rows.every(r=>Number(valueFn(r))<=0)){target.innerHTML='<div class="empty">No sales in this period yet.</div>';return;}const max=Math.max(1,...rows.map(r=>Number(valueFn(r))||0));target.innerHTML='<div class="chart-bars" role="img" aria-label="Sales bar chart">'+rows.map(r=>{const v=Math.max(0,Number(valueFn(r))||0);return '<div class="chart-col" title="'+esc(labelFn(r)+': '+money(v))+'"><span class="chart-value">'+(v?esc(money(v).replace('.00','')):'')+'</span><div class="chart-bar" style="height:'+Math.max(2,v/max*100)+'%"></div><span class="chart-label">'+esc(labelFn(r))+'</span></div>';}).join('')+'</div>';}
- function salesTotalsByDate(){const totals=new Map();for(const sale of db.sales||[]){const key=validDateKey(sale.date);if(!key||key>dateKey(new Date()))continue;totals.set(key,(totals.get(key)||0)+(Number(sale.total)||0));}return totals;}
- function reportRows(){const range=document.getElementById('reportRange')?.value||'30';const allTime=range==='all';const days=allTime?0:Number(range);const start=new Date();start.setHours(0,0,0,0);if(!allTime)start.setDate(start.getDate()-days+1);else{const dates=[...(db.sales||[]),...(db.expenses||[])].map(x=>validDateKey(x.date)).filter(Boolean).map(key=>{const [year,month,day]=key.split('-').map(Number);return new Date(year,month-1,day);}).filter(d=>d<=new Date());if(dates.length){const earliest=dates.reduce((minimum,d)=>Math.min(minimum,d.getTime()),Infinity);start.setTime(earliest);start.setHours(0,0,0,0);}else{start.setFullYear(start.getFullYear(),0,1);}}const span=Math.max(1,Math.floor((new Date().setHours(0,0,0,0)-start.getTime())/86400000)+1);const size=allTime?Math.max(1,Math.ceil(span/14)):Math.max(1,Math.ceil(days/14));const dailyTotals=salesTotalsByDate(),rows=[];for(let offset=0;offset<span;offset+=size){const d=new Date(start);d.setDate(start.getDate()+offset);let total=0;for(let i=offset;i<Math.min(span,offset+size);i++){const day=new Date(start);day.setDate(start.getDate()+i);total+=dailyTotals.get(dateKey(day))||0;}rows.push({label:d.toLocaleDateString(undefined,{month:'numeric',day:'numeric'}),sales:total});}return {start,rows};}
+ function salesTotalsByDate(){const totals=new Map();for(const sale of getActiveSales()){const key=validDateKey(sale.date);if(!key||key>dateKey(new Date()))continue;totals.set(key,(totals.get(key)||0)+(Number(sale.total)||0));}return totals;}
+ function reportRows(){const range=document.getElementById('reportRange')?.value||'30';const allTime=range==='all';const days=allTime?0:Number(range);const start=new Date();start.setHours(0,0,0,0);if(!allTime)start.setDate(start.getDate()-days+1);else{const dates=[...getActiveSales(),...(db.expenses||[])].map(x=>validDateKey(x.date)).filter(Boolean).map(key=>{const [year,month,day]=key.split('-').map(Number);return new Date(year,month-1,day);}).filter(d=>d<=new Date());if(dates.length){const earliest=dates.reduce((minimum,d)=>Math.min(minimum,d.getTime()),Infinity);start.setTime(earliest);start.setHours(0,0,0,0);}else{start.setFullYear(start.getFullYear(),0,1);}}const span=Math.max(1,Math.floor((new Date().setHours(0,0,0,0)-start.getTime())/86400000)+1);const size=allTime?Math.max(1,Math.ceil(span/14)):Math.max(1,Math.ceil(days/14));const dailyTotals=salesTotalsByDate(),rows=[];for(let offset=0;offset<span;offset+=size){const d=new Date(start);d.setDate(start.getDate()+offset);let total=0;for(let i=offset;i<Math.min(span,offset+size);i++){const day=new Date(start);day.setDate(start.getDate()+i);total+=dailyTotals.get(dateKey(day))||0;}rows.push({label:d.toLocaleDateString(undefined,{month:'numeric',day:'numeric'}),sales:total});}return {start,rows};}
  function reportRowsFor7(){const dailyTotals=salesTotalsByDate(),rows=[];for(let i=6;i>=0;i--){const d=new Date();d.setHours(0,0,0,0);d.setDate(d.getDate()-i);const key=dateKey(d);rows.push({label:d.toLocaleDateString(undefined,{weekday:'short'}),sales:dailyTotals.get(key)||0});}return rows;}
 function renderProfitHistory(){
  const list=document.getElementById('profitHistoryList');
@@ -3148,7 +3203,7 @@ function renderProfitHistory(){
   if(!daily.has(key))daily.set(key,{gross:0,expenses:0});
   return daily.get(key);
  };
- for(const sale of (db.sales||[])){
+ for(const sale of getActiveSales()){
   const key=validDateKey(sale.date||sale.sold_at||sale.created_at);
   if(!key||key>todayKey||(startKey&&key<startKey))continue;
   ensureDay(key).gross+=Number(sale.profit)||0;
@@ -3180,7 +3235,7 @@ function renderProfitHistory(){
   return '<article class="profit-history-day"><div class="profit-history-day-heading"><strong>'+esc(label)+'</strong><strong class="profit-history-day-net '+netClass+'">'+money(dayNet)+'</strong></div><div class="profit-history-day-breakdown"><span>Gross profit<strong>'+money(row.gross)+'</strong></span><span>Expenses<strong>'+money(row.expenses)+'</strong></span></div></article>';
  }).join('');
 }
-function renderReports(){const {start,rows}=reportRows(),allTime=document.getElementById('reportRange')?.value==='all',key=dateKey(start),todayKey=dateKey(new Date()),inRange=x=>{const recordKey=validDateKey(x.date);return !!recordKey&&recordKey<=todayKey&&(allTime||recordKey>=key);},sales=db.sales.filter(inRange),expenses=db.expenses.filter(x=>!isExpenseVoided(x)&&inRange(x));const total=sales.reduce((n,x)=>n+x.total,0),gross=sales.reduce((n,x)=>n+x.profit,0),costs=expenses.reduce((n,x)=>n+x.amount,0);document.getElementById('reportSales').textContent=money(total);document.getElementById('reportGross').textContent=money(gross);document.getElementById('reportExpenses').textContent=money(costs);document.getElementById('reportNet').textContent=money(gross-costs);renderBarChart('salesTrendChart',reportRowsFor7(),x=>x.label,x=>x.sales);renderBarChart('reportSalesChart',rows,x=>x.label,x=>x.sales);const sums=new Map();sales.forEach(x=>sums.set(x.name,(sums.get(x.name)||0)+x.qty));const top=[...sums.entries()].map(([name,qty])=>({name,qty})).sort((a,b)=>b.qty-a.qty).slice(0,5),max=top[0]?.qty||1;document.getElementById('topProductsChart').innerHTML=top.length?top.map(x=>'<div class="progress-row"><strong>'+esc(x.name)+'</strong><div class="progress-track"><div class="progress-fill" style="width:'+(x.qty/max*100)+'%"></div></div><span class="muted">'+x.qty+' sold</span></div>').join(''):'<div class="empty">No product sales in this period.</div>';}
+function renderReports(){const {start,rows}=reportRows(),allTime=document.getElementById('reportRange')?.value==='all',key=dateKey(start),todayKey=dateKey(new Date()),inRange=x=>{const recordKey=validDateKey(x.date);return !!recordKey&&recordKey<=todayKey&&(allTime||recordKey>=key);},sales=getActiveSales().filter(inRange),expenses=db.expenses.filter(x=>!isExpenseVoided(x)&&inRange(x));const total=sales.reduce((n,x)=>n+x.total,0),gross=sales.reduce((n,x)=>n+x.profit,0),costs=expenses.reduce((n,x)=>n+x.amount,0);document.getElementById('reportSales').textContent=money(total);document.getElementById('reportGross').textContent=money(gross);document.getElementById('reportExpenses').textContent=money(costs);document.getElementById('reportNet').textContent=money(gross-costs);renderBarChart('salesTrendChart',reportRowsFor7(),x=>x.label,x=>x.sales);renderBarChart('reportSalesChart',rows,x=>x.label,x=>x.sales);const sums=new Map();sales.forEach(x=>sums.set(x.name,(sums.get(x.name)||0)+x.qty));const top=[...sums.entries()].map(([name,qty])=>({name,qty})).sort((a,b)=>b.qty-a.qty).slice(0,5),max=top[0]?.qty||1;document.getElementById('topProductsChart').innerHTML=top.length?top.map(x=>'<div class="progress-row"><strong>'+esc(x.name)+'</strong><div class="progress-track"><div class="progress-fill" style="width:'+(x.qty/max*100)+'%"></div></div><span class="muted">'+x.qty+' sold</span></div>').join(''):'<div class="empty">No product sales in this period.</div>';}
 document.getElementById('reportRange').addEventListener('change',renderReports);document.getElementById('profitHistoryRange')?.addEventListener('change',renderProfitHistory);
 function downloadSellbookCsv(filename,headers,rows,numericColumns=[]){
  if(!rows.length){showToast('There are no records in the current filters to export.');return;}
@@ -3197,8 +3252,9 @@ document.getElementById('exportSalesHistoryCsv')?.addEventListener('click',()=>{
  const groups=getSalesTransactions(periodRows).filter(group=>!query||group.sales.some(row=>String(row.name||row.product_name||'').toLocaleLowerCase().includes(query)));
  const rows=groups.flatMap(group=>group.sales.map(sale=>[operationalDate(sale)||'',group.id,sale.name||sale.product_name||'Product',
   Number(sale.qty??sale.quantity)||0,sale.saleUnit||sale.sale_unit||'unit',Number(sale.price??sale.unit_price)||0,
-  Number(sale.cost??sale.unit_cost)||0,Number(sale.total)||0,Number(sale.profit??sale.gross_profit)||0,sale.note||'']));
- downloadSellbookCsv('sellbook-sales-'+today()+'.csv',['Date','Transaction ID','Product','Quantity','Sale unit','Unit price (NGN)','Unit cost (NGN)','Sale total (NGN)','Gross profit (NGN)','Note'],rows,[3,5,6,7,8]);
+  Number(sale.cost??sale.unit_cost)||0,Number(sale.total)||0,Number(sale.profit??sale.gross_profit)||0,
+  isSaleReversed(sale)?'Reversed':'Active',sale.reversalReason||sale.reversal_reason||'',sale.reversedAt||sale.reversed_at||'',sale.stockReturned||sale.stock_returned?'Yes':'No',sale.note||'']));
+ downloadSellbookCsv('sellbook-sales-'+today()+'.csv',['Date','Transaction ID','Product','Quantity','Sale unit','Unit price (NGN)','Unit cost (NGN)','Original sale total (NGN)','Original gross profit (NGN)','Status','Correction reason','Reversed at','Returned to stock','Note'],rows,[3,5,6,7,8]);
 });
 document.getElementById('exportExpenseHistoryCsv')?.addEventListener('click',()=>{
  const rows=getExpenseHistoryRows().map(expense=>[operationalDate(expense)||'',expense.name||expense.description||'Expense',
