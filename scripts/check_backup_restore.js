@@ -39,6 +39,6 @@ assert.ok(html.includes('Net profit is an estimate:'),'Profit history explains t
 assert.ok(app.includes('description:description.slice(0,100)')&&app.includes("category:String(row.category||'Other').slice(0,40)"),'Backup import respects expense database field limits.');
 assert.ok(app.includes("note:row.note?String(row.note).slice(0,150):null"),'Backup import respects the sales note length limit.');
 assert.ok(app.includes("'sale gross profit',{min:-9999999999.99}"),'Backup import preserves legitimate negative gross profit.');
-assert.ok(sw.includes('sellbook-shell-v136'),'PWA cache is advanced with app shell changes.');
+assert.ok(sw.includes('sellbook-shell-v137'),'PWA cache is advanced with app shell changes.');
 assert.ok(app.includes("if(!numeric.has(index)&&/^[=+@-]/.test(text.trimStart()))"),'CSV text cells are protected from spreadsheet formula injection.');
 console.log('PASS: backup validation, account ownership, idempotent cloud restore guards, CSV exports and profit disclosure.');
