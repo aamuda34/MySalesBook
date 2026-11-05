@@ -1,13 +1,83 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#14532d"><title>Privacy Notice · Sellbook</title><style>
-:root{font-family:Arial,sans-serif;color:#17231c;background:#f3f6f3}*{box-sizing:border-box}body{margin:0;line-height:1.65}header{background:#14532d;color:white;padding:22px 16px}main{max-width:760px;margin:20px auto;padding:0 16px 30px}.card{background:white;border:1px solid #e4ebe5;border-radius:14px;padding:20px;margin-bottom:14px}h1{font-size:24px;margin:0}h2{font-size:18px;margin-top:0}p,li{font-size:15px}a{color:#14532d}small{color:#526358}
-</style></head><body><header><h1>Privacy Notice</h1><p>Sellbook · Made Business Simple. · Effective 23 October 2026</p></header><main>
-<div class="card"><p><strong>Please read this notice before using Sellbook.</strong> This is a practical privacy notice for the app, not legal advice. The operator should review it for compliance with applicable Nigerian data-protection law before a public launch.</p></div>
-<div class="card"><h2>Information the app handles</h2><ul><li>Account information used to sign in, such as your email address and authentication identifier.</li><li>Business records you enter, including product names, prices, stock quantities, sales, expenses, notes, and stock adjustments.</li><li>Optional business profile details and product or business-logo images you choose to upload.</li><li>Device-local records, cached records, and pending changes used to support offline access and later synchronisation.</li></ul></div>
-<div class="card"><h2>Where information is stored</h2><p>Some information may be stored in your browser on your device. When you sign in and use cloud features, your records and uploaded images are stored using the app's configured Supabase service. Google sign-in, if used, is handled by the relevant authentication provider. Offline records may not reach the cloud until you reconnect.</p><p>Anyone with access to your unlocked device or browser profile may be able to access local records. Do not use a shared device without signing out and protecting the device.</p></div>
-<div class="card"><h2>How information is used</h2><p>Information is used to provide sign-in, sales and expense recording, stock management, reports, syncing between devices, image display, backup/restore, and account deletion. Do not enter passwords, payment-card details, or unrelated sensitive personal information into business notes.</p></div>
-<div class="card"><h2>Sharing and service providers</h2><p>Your cloud records are intended to be isolated by account. The app relies on hosting and database/authentication providers to operate. Their own terms and privacy notices may also apply. The app operator should publish the identity and contact details of the responsible data controller and any additional processors before broad public launch.</p></div>
-<div class="card"><h2>Retention, export and deletion</h2><p>You can use the app's export feature to save a backup. Keep backups private and secure; exported files may contain your business records. Account deletion is intended to delete cloud account data, and may also clear local cached records for that account. Export anything you need and synchronise pending changes before deleting an account. Deletion may not remove copies already exported or held in independent backups.</p></div>
-<div class="card"><h2>Security and your choices</h2><p>Use a strong, unique password, keep your device updated and locked, sign out on shared devices, and maintain backups. No online or offline storage method can be guaranteed completely secure. You should avoid storing information that is not needed for the sales-book purpose.</p></div>
-<div class="card"><h2>Contact and updates</h2><p>For support or privacy questions, open Sellbook and go to <strong>Me → Support</strong>. For a privacy request, include “Privacy request” in your message so it can be routed appropriately.</p><p>The operator’s full legal identity and direct data-protection contact details are not yet published in this notice. They must be added, and this notice reviewed against applicable Nigerian data-protection requirements, before broader public launch.</p><p><a href="./index.html">Return to Sellbook</a> · <a href="./terms.html">Terms of Use</a></p><small>Last updated: 5 November 2026</small></div>
-</main></body></html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#14532d">
+<meta name="description" content="How Sellbook handles account, business, support and marketplace information.">
+<title>Privacy Notice · Sellbook</title>
+<style>
+:root{font-family:Arial,sans-serif;color:#17231c;background:#f3f6f3}*{box-sizing:border-box}body{margin:0;line-height:1.65}header{background:#14532d;color:#fff;padding:22px 16px}header p{margin:7px 0 0;color:#e5f1e8}main{max-width:780px;margin:20px auto;padding:0 16px 34px}.card{background:#fff;border:1px solid #e4ebe5;border-radius:14px;padding:20px;margin-bottom:14px}h1{font-size:24px;margin:0}h2{font-size:18px;margin:0 0 10px}p,li{font-size:15px}ul{padding-left:22px}a{color:#14532d}small{color:#526358}.notice{border-left:4px solid #b7791f;background:#fff8e8}.notice strong{color:#754b13}.meta{font-size:13px;color:#526358}
+</style>
+</head>
+<body>
+<header><h1>Privacy Notice</h1><p>Sellbook · Made Business Simple.</p><p class="meta">Effective date: 5 November 2026 · Last updated: 5 November 2026</p></header>
+<main>
+<section class="card">
+<p><strong>This notice explains what Sellbook collects, why it is used, where it is stored, and the choices available to users.</strong> It applies to the Sellbook business-management service and the optional Buybook shop, subscription, messaging and reservation features connected to it.</p>
+</section>
+<section class="card notice">
+<h2>Operator information required before unrestricted public launch</h2>
+<p>The service operator must publish its full legal name, residence or place of business, and a monitored privacy contact before Sellbook is opened to unrestricted public registration. These details have not been provided for this release, so they are intentionally not invented here. This notice is not complete for unrestricted launch until the operator fills them in.</p>
+<p><strong>Data controller/legal operator:</strong> To be supplied by the operator.</p>
+<p><strong>Residence/place of business:</strong> To be supplied by the operator.</p>
+<p><strong>Privacy and data-rights contact:</strong> A monitored email or other direct contact method must be supplied by the operator.</p>
+</section>
+<section class="card">
+<h2>Information Sellbook handles</h2>
+<ul>
+<li><strong>Account and authentication:</strong> email address, authentication identifier, sign-in provider details and account security state.</li>
+<li><strong>Business records:</strong> product names and categories, cost and selling prices, stock, stock changes, sales, expenses, notes, reports and business-profile details.</li>
+<li><strong>Images:</strong> product and business images uploaded by a seller. Private Sellbook product images are stored in an account-scoped area. Images deliberately published for a Buybook listing or shop-front are publicly accessible so buyers can view the listing.</li>
+<li><strong>Buybook activity, when enabled:</strong> shop details, public listings, subscriptions, reservation details, buyer/seller messages and related status updates.</li>
+<li><strong>Support and feedback:</strong> messages, feedback, replies and the information needed to respond to a request.</li>
+<li><strong>Service activity:</strong> a pseudonymous visit/session key, visit date and creation time used to count visits and understand basic service usage. Sellbook does not need a visitor's name to count a page visit.</li>
+<li><strong>Device and offline data:</strong> records cached on the device and pending changes waiting to synchronise. Anyone with access to an unlocked device or browser profile may be able to see local records.</li>
+</ul>
+</section>
+<section class="card">
+<h2>Why information is used</h2>
+<p>Information is used to create and secure accounts; provide product, stock, sales, expense, report, backup and synchronisation features; operate optional Buybook listings, subscriptions, messages and reservations; answer support requests; prevent abuse; maintain service reliability; and meet applicable legal obligations.</p>
+<p>Depending on the activity, processing may be necessary to provide the service requested by the user, comply with a legal obligation, pursue legitimate interests such as account security and service reliability, or rely on consent for an optional activity. Where consent is the basis, it may be withdrawn for future processing, subject to other lawful grounds.</p>
+</section>
+<section class="card">
+<h2>Marketplace images and automated review</h2>
+<p>When a seller chooses to connect a shop to Buybook, the uploaded shop-front photograph is submitted to an automated image-classification check to determine whether it clearly depicts the outside front or entrance of a physical shop. The current classifier runs through Cloudflare Workers AI using the <code>@cf/moondream/moondream3.1-9B-A2B</code> model. The result may approve or reject the shop-front image; an inconclusive result does not approve the shop.</p>
+<p>Automated image review can make mistakes. A seller who believes a photo was rejected incorrectly can contact Sellbook Support and request a review. The shop-front image may be publicly accessible when used for a connected Buybook shop. Do not upload images containing people, identity documents, private interiors or unrelated personal information.</p>
+<p>Sellbook's current shop-front check is an image check; this notice does not describe or authorise face matching or national identity number verification.</p>
+</section>
+<section class="card">
+<h2>Where information is stored and who provides services</h2>
+<p>Signed-in cloud records, authentication data and uploaded files are handled by Supabase. The configured database is hosted in the EU West (Ireland) region. The web app is hosted through Vercel and uses Cloudflare infrastructure for delivery, backup deployment and the optional shop-front image-classification service. Google may process authentication information when a user chooses Google sign-in.</p>
+<p>These service providers process information as needed to provide their services. Depending on the service and infrastructure location, information may be processed outside Nigeria. Before unrestricted launch, the operator must review the providers' applicable data-processing terms and confirm the safeguards required for any international transfer.</p>
+<p>Buybook listing and shop-front images are made public when the seller chooses to publish a connected shop. Public listings may be viewed by anyone. Private Sellbook product images and private business records are not intended to be publicly available.</p>
+</section>
+<section class="card">
+<h2>How long information is kept</h2>
+<p>Account and business information is kept while the account is active and as needed to provide the service, respond to support requests, maintain security, resolve disputes and meet legal obligations. When an account is deleted, Sellbook runs its account-deletion process for cloud account data and account-owned files. Data already exported by a user, publicly copied content, and copies retained in independent provider backups may not be removed immediately by that process.</p>
+<p>Users should export a backup and allow pending offline changes to synchronise before deleting an account. Backup files can contain sensitive business records and should be stored securely.</p>
+</section>
+<section class="card">
+<h2>Your privacy choices and rights</h2>
+<p>Subject to applicable law, users may request access to their personal data, correction of inaccurate information, deletion, restriction of processing, data portability, or object to certain processing. Where processing relies on consent, users may withdraw that consent. Users may also lodge a complaint with the Nigeria Data Protection Commission.</p>
+<p>Signed-in users can submit a privacy request through <strong>Me → Support</strong> in Sellbook and include “Privacy request” in the subject or message. The operator must publish the direct privacy contact in the operator-information section above so that people who cannot sign in can also make a request.</p>
+<p><a href="https://ndpc.gov.ng/" target="_blank" rel="noopener noreferrer">Nigeria Data Protection Commission</a></p>
+</section>
+<section class="card">
+<h2>Security and user responsibilities</h2>
+<p>Sellbook uses authenticated access, account-scoped database permissions and server-side checks for sensitive operations. No online service or device storage can be guaranteed completely secure. Use a unique password, protect your device, sign out on shared devices, do not share your Sellbook PIN, and keep independent backups.</p>
+<p>Do not enter passwords, payment-card details, government identity numbers or unrelated sensitive personal information into product names, sales notes, expense notes or support messages.</p>
+</section>
+<section class="card">
+<h2>Payments and financial information</h2>
+<p>Sellbook is a business-record and inventory tool. The app does not collect or store payment-card details or hold customer funds. Users and buyers arrange payment directly with one another outside Sellbook. Sales and expense amounts entered into Sellbook are business records supplied by the user.</p>
+</section>
+<section class="card">
+<h2>Updates and contact</h2>
+<p>This notice may be updated when Sellbook's features, service providers or legal obligations change. The operator should notify users of material changes through an appropriate in-app notice.</p>
+<p><strong>Important:</strong> the operator's legal name, place of business and direct privacy contact remain required fields. Complete them before unrestricted public launch and have this notice reviewed for the operator's actual processing activities.</p>
+<p><a href="./index.html">Return to Sellbook</a> · <a href="./terms.html">Terms of Use</a></p>
+</section>
+</main>
+</body>
+</html>
