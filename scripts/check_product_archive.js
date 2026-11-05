@@ -5,6 +5,7 @@ const vm=require('node:vm');
 const app=fs.readFileSync('app.js','utf8');
 const html=fs.readFileSync('index.html','utf8');
 const migration=fs.readFileSync('supabase/migrations/20261105010100_reversible_product_archiving.sql','utf8');
+const salesGuard=fs.readFileSync('supabase/migrations/20261105010200_reject_sales_for_archived_products.sql','utf8');
 const start=app.indexOf('function isProductArchived(');
 const end=app.indexOf('function getActiveProducts(',start);
 assert.ok(start>=0&&end>start,'Could not locate the production archive status helper.');
@@ -25,4 +26,7 @@ assert.ok(migration.includes('ADD COLUMN IF NOT EXISTS archived_at timestamptz')
 assert.ok(migration.includes('NEW.archived_at IS NULL'),'Product changes set marketplace listing visibility from archive state.');
 assert.ok(migration.includes('archived_at IS NULL'),'Bulk marketplace sync skips archived products.');
 assert.ok(migration.includes('SET is_active=false'),'Archiving retains but deactivates existing marketplace listings.');
+assert.ok(salesGuard.includes('FOR UPDATE'),'New sales serialize with concurrent archive changes.');
+assert.ok(salesGuard.includes('v_archived_at IS NOT NULL'),'Database rejects inserts when the product is archived.');
+assert.ok(salesGuard.includes('BEFORE INSERT ON public.sales'),'Every sales write path is guarded centrally.');
 console.log('PASS: reversible archive status, active-only selectors, hard-delete protection and Buybook listing visibility.');
