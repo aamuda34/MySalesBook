@@ -2970,7 +2970,7 @@ function gettingStartedDismissKey(){return 'sellbook-getting-started-dismissed-v
 function renderGettingStarted(){
  const card=document.getElementById('gettingStartedCard');if(!card)return;
  let dismissed=false;try{dismissed=localStorage.getItem(gettingStartedDismissKey())==='1';}catch(error){}
- const steps=[{key:'products',done:getActiveProducts().length>0},{key:'sales',done:(db.sales||[]).length>0}];
+ const steps=[{key:'products',done:getActiveProducts().length>0},{key:'sales',done:(db.sales||[]).length>0},{key:'expenses',done:(db.expenses||[]).some(expense=>!isExpenseVoided(expense))}];
  const essentialsComplete=steps.every(step=>step.done),visible=!dismissed&&!essentialsComplete;
  card.classList.toggle('hidden',!visible);card.setAttribute('aria-hidden',String(!visible));
  if(!visible)return;
