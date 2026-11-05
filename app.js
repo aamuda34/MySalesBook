@@ -3951,6 +3951,9 @@ async function restoreSellbookBackupToCloud(checked){
  if(!navigator.onLine)throw Error('Connect to the internet before restoring an account backup.');
  const user=await requireCloudUser(requestedUserId);
  if(!accountRequestIsCurrent(requestedUserId,requestEpoch))throw Error('Your account changed. Sign in again and retry the restore.');
+ const queuedChanges=readQueue(user.id);
+ if(queueReadErrors.has(user.id))throw Error('Your sync queue needs recovery. Open Settings > Sync and data, download the recovery file, and resolve it before restoring a backup.');
+ if(syncingQueue||queuedChanges.some(item=>item.status!=='synced'))throw Error('Finish synchronising your current changes before restoring a backup. Open Settings > Sync and data and wait until Sellbook says All changes synchronised.');
  const progress={products:0,sales:0,expenses:0,stockAdjustments:0,restocks:0,skippedStockAdjustments:0,skippedRestocks:0};
  try{
   const productRows=checked.data.products.map(row=>{
