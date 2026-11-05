@@ -6,6 +6,7 @@ const app=fs.readFileSync('app.js','utf8');
 const html=fs.readFileSync('index.html','utf8');
 const migration=fs.readFileSync('supabase/migrations/20261105010100_reversible_product_archiving.sql','utf8');
 const salesGuard=fs.readFileSync('supabase/migrations/20261105010200_reject_sales_for_archived_products.sql','utf8');
+const triggerPrivileges=fs.readFileSync('supabase/migrations/20261105010700_revoke_archived_sale_trigger_function_rpc.sql','utf8');
 const start=app.indexOf('function isProductArchived(');
 const end=app.indexOf('function getActiveProducts(',start);
 assert.ok(start>=0&&end>start,'Could not locate the production archive status helper.');
@@ -29,4 +30,5 @@ assert.ok(migration.includes('SET is_active=false'),'Archiving retains but deact
 assert.ok(salesGuard.includes('FOR UPDATE'),'New sales serialize with concurrent archive changes.');
 assert.ok(salesGuard.includes('v_archived_at IS NOT NULL'),'Database rejects inserts when the product is archived.');
 assert.ok(salesGuard.includes('BEFORE INSERT ON public.sales'),'Every sales write path is guarded centrally.');
+assert.ok(triggerPrivileges.includes('REVOKE ALL ON FUNCTION public.reject_sale_for_archived_product() FROM PUBLIC, anon, authenticated'),'Trigger guard cannot be called directly through client RPC roles.');
 console.log('PASS: reversible archive status, active-only selectors, hard-delete protection and Buybook listing visibility.');
