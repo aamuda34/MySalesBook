@@ -17,6 +17,8 @@ jobs:
           python-version: '3.x'
       - name: Check app assets, JavaScript syntax and DOM IDs
         run: python scripts/check_inline_js.py
+      - name: Check Sellbook brand name and tagline consistency
+        run: node scripts/check_brand_identity.js
       - name: Test sales calculations, offline queue recovery and sync retries
         run: node scripts/check_sync_safety.js
       - name: Test business profile rendering and responsive content
