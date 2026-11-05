@@ -7,6 +7,7 @@ const app=fs.readFileSync('app.js','utf8');
 const html=fs.readFileSync('index.html','utf8');
 const sw=fs.readFileSync('sw.js','utf8');
 const migration=fs.readFileSync('supabase/migrations/20261105015350_audited_sale_reversals.sql','utf8');
+const adminMetricsMigration=fs.readFileSync('supabase/migrations/20261105020128_exclude_reversed_sales_from_admin_metrics.sql','utf8');
 
 // Execute the production sale-status helpers and transaction aggregator with sample data.
 const helperStart=app.indexOf('function isSaleReversed(');
@@ -87,3 +88,10 @@ assert.ok(app.includes('data-confirm-sale-reversal')&&app.includes('data-cancel-
 assert.ok(html.includes('id="saleDetailsContent"'),'The existing sale details page is used; no extra navigation destination is added.');
 assert.ok(sw.includes('sellbook-shell-v136'),'The PWA cache version is refreshed for the new UI.');
 console.log('PASS: dashboards, reports, history, CSV exports, backups and PWA shell handle reversed sales consistently.');
+
+// Platform-wide admin figures must agree with individual business reports.
+assert.ok(adminMetricsMigration.includes("'total_sales'" ) && adminMetricsMigration.includes("'sales_value'"),'Admin metrics migration updates total sales and sales value.');
+assert.equal((adminMetricsMigration.match(/WHERE reversed_at IS NULL/g)||[]).length,2,'Both admin sales count and value exclude reversed sales.');
+assert.ok(adminMetricsMigration.includes('public.is_sellbook_admin()')&&adminMetricsMigration.includes('private.is_sellbook_pin_verified()'),'Admin metrics remain restricted to a verified Sellbook administrator.');
+assert.ok(adminMetricsMigration.includes('SECURITY DEFINER')&&adminMetricsMigration.includes("SET search_path TO ''"),'Admin metric replacement preserves hardened function execution settings.');
+console.log('PASS: administrator platform sales metrics exclude reversed receipts without weakening administrator checks.');
