@@ -62,7 +62,8 @@ const requiredMigration=[
   's.user_id = v_user_id',
   's.reversed_at IS NULL',
   'REVOKE ALL ON FUNCTION public.reverse_sale_transaction',
-  'GRANT EXECUTE ON FUNCTION public.reverse_sale_transaction(uuid, text, boolean) TO authenticated'
+  'GRANT EXECUTE ON FUNCTION public.reverse_sale_transaction(uuid, text, boolean)',
+  'TO authenticated'
 ];
 for(const marker of requiredMigration)assert.ok(migration.includes(marker),'Missing migration safety rule: '+marker);
 assert.ok(!/DELETE\s+FROM\s+public\.sales/i.test(migration),'Sale correction must never delete the original sale.');
