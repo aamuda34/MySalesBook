@@ -145,11 +145,12 @@ jobs:
           grep -q "email_confirmed_at" app.js
 
 
-      - name: Verify visit tracking is not redundantly triggered by admin navigation
+      - name: Ensure disabled public visit tracking is not called by the browser
         shell: bash
         run: |
           set -euo pipefail
-          test "$(grep -Fc 'recordSellbookVisit();' app.js)" -eq 1
+          ! grep -Fq 'recordSellbookVisit' app.js
+          ! grep -Fq "rpc('record_sellbook_visit'" app.js
 
       - name: Verify admin data access requires a verified admin session
         shell: bash
