@@ -1,4 +1,4 @@
-name: Check My Sales Book
+name: Check Sellbook
 on:
   push:
     branches: [main, account-offline-upgrade]
