@@ -6104,7 +6104,6 @@ function openAdminConversation(uid){
  select.value=uid;
  const target=document.getElementById('adminSupportMessages');
  if(target){target.dataset.loaded='';target.innerHTML='<div class="empty">Loading conversation…</div>';}
- document.getElementById('adminChatListView')?.classList.add('hidden');
  document.getElementById('adminChatUserListView').classList.add('hidden');
  document.getElementById('adminChatConversationView').classList.remove('hidden');
  document.body.classList.add('admin-conversation-open');
