@@ -5569,11 +5569,6 @@ async function loadAdminTraffic(){
   showToast('Traffic metrics could not be loaded: '+(error.message||'Please try again.'),'error');return false;
  }
 }
-async function recordSellbookVisit(){
- if(!supabaseClient)return;
- try{let key=sessionStorage.getItem('sellbook-visit-key');if(!key){key='sbv-'+(crypto.randomUUID?crypto.randomUUID():Date.now().toString(36)+Math.random().toString(36).slice(2));sessionStorage.setItem('sellbook-visit-key',key);}
- await supabaseClient.rpc('record_sellbook_visit',{p_session_key:key});}catch(e){console.warn('Visit tracking unavailable',e);}
-}
 async function verifyAdminAccess(){
  const expectedUserId=cloudUser?.id||null,sessionEpoch=accountSessionEpoch;
  if(!supabaseClient||!expectedUserId){setAdminAccess(false);return false;}
@@ -6280,8 +6275,6 @@ document.getElementById('adminSignOut').addEventListener('click',async event=>{
   cloudMessage('Could not sign out: '+(error.message||'Please check your connection and try again.'),'error');
  }
 });
-recordSellbookVisit();
-
 load();
 applyTheme();
 localSnapshot = snapshotLocalRecords();
