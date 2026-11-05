@@ -544,51 +544,105 @@
 <div class="card"><div class="section-heading"><h2>Your feedback</h2><button type="button" id="refreshFeedback">Refresh</button></div><div id="userFeedbackList" class="empty">Your submitted feedback will appear here.</div></div>
 </section>
 
-<section id="admin" class="page hidden">
-<h2 class="page-title">Sellbook administration</h2>
-<p class="page-intro">Manage Sellbook from separate panels. Platform-wide figures are aggregated; individual users' product and sales records are not displayed.</p>
-<div class="admin-toolbar"><button type="button" id="adminSignOut" class="danger">Sign out</button><button type="button" id="refreshAdminOverview">Refresh overview</button></div>
-<div class="admin-panel-nav" role="tablist" aria-label="Administration panels">
-<button type="button" class="admin-panel-tab active" data-admin-panel="overview" role="tab" aria-selected="true">Overview</button>
-<button type="button" class="admin-panel-tab" data-admin-panel="traffic" role="tab" aria-selected="false">Traffic</button>
-<button type="button" class="admin-panel-tab" data-admin-panel="users" role="tab" aria-selected="false">Users</button>
-<button type="button" class="admin-panel-tab" data-admin-panel="feedback" role="tab" aria-selected="false">Feedback</button>
-<button type="button" class="admin-panel-tab" data-admin-panel="support" role="tab" aria-selected="false">Support</button>
-<button type="button" class="admin-panel-tab" data-admin-panel="notifications" role="tab" aria-selected="false">Notifications</button>
+<section id="admin" class="page hidden admin-console-page">
+<div class="admin-page-header">
+ <div class="admin-page-heading">
+  <button type="button" class="admin-back-button" data-app-back="me" aria-label="Back to Me" title="Back to Me">‹</button>
+  <div><p class="admin-eyebrow">SELLBOOK CONTROL CENTRE</p><h1 class="page-title">Admin dashboard</h1><p class="page-intro">Manage users, support and platform activity from one place.</p></div>
+ </div>
+ <div class="admin-account-strip">
+  <span class="admin-account-mark" aria-hidden="true">A</span>
+  <span class="admin-account-copy"><strong>Administrator</strong><small id="adminAccountEmail">Checking account…</small></span>
+  <button type="button" id="adminSignOut" class="admin-signout-button">Sign out</button>
+ </div>
+</div>
+<div class="admin-toolbar"><span id="adminDashboardStatus" class="admin-dashboard-status" role="status" aria-live="polite">Checking administrator access…</span><button type="button" id="refreshAdminOverview" class="admin-refresh-button">↻ Refresh</button></div>
+<div class="admin-panel-nav" role="tablist" aria-label="Admin sections">
+ <button type="button" class="admin-panel-tab active" data-admin-panel="overview" role="tab" aria-selected="true">Overview</button>
+ <button type="button" class="admin-panel-tab" data-admin-panel="traffic" role="tab" aria-selected="false">Traffic</button>
+ <button type="button" class="admin-panel-tab" data-admin-panel="users" role="tab" aria-selected="false">Users</button>
+ <button type="button" class="admin-panel-tab" data-admin-panel="feedback" role="tab" aria-selected="false">Feedback</button>
+ <button type="button" class="admin-panel-tab" data-admin-panel="support" role="tab" aria-selected="false">Support</button>
+ <button type="button" class="admin-panel-tab" data-admin-panel="notifications" role="tab" aria-selected="false">Notifications</button>
 </div>
 <div class="admin-panel" data-admin-panel-content="overview">
-<div class="stats" id="adminStats">
-<div class="stat"><small>Registered users</small><strong id="adminTotalUsers">—</strong></div>
-<div class="stat"><small>New users · 30 days</small><strong id="adminNewUsers">—</strong></div>
-<div class="stat"><small>Products · all users</small><strong id="adminPlatformProducts">—</strong></div>
-<div class="stat"><small>Sales records · all users</small><strong id="adminPlatformSales">—</strong></div>
-<div class="stat"><small>Total sales value</small><strong id="adminPlatformSalesValue">—</strong></div>
-<div class="stat"><small>Open feedback</small><strong id="adminOpenFeedback">—</strong></div>
-<div class="stat"><small>Unread support</small><strong id="adminUnreadMessages">—</strong></div>
-</div>
-<p class="muted">Only totals are shown here. Individual users' products and sales remain private.</p>
+ <div class="admin-section-intro"><div><h2>Platform overview</h2><p>Key figures across Sellbook.</p></div><span id="adminLastUpdated" class="admin-updated-label">Not refreshed yet</span></div>
+ <div class="admin-overview-stats" id="adminStats">
+  <div class="admin-stat-card"><span>Registered users</span><strong id="adminTotalUsers">—</strong><small>All accounts</small></div>
+  <div class="admin-stat-card"><span>New users</span><strong id="adminNewUsers">—</strong><small>Last 30 days</small></div>
+  <div class="admin-stat-card"><span>Products</span><strong id="adminPlatformProducts">—</strong><small>Across all users</small></div>
+  <div class="admin-stat-card"><span>Sales records</span><strong id="adminPlatformSales">—</strong><small>Across all users</small></div>
+  <div class="admin-stat-card admin-stat-emphasis"><span>Total sales value</span><strong id="adminPlatformSalesValue">—</strong><small>Recorded on Sellbook</small></div>
+  <div class="admin-stat-card"><span>Open feedback</span><strong id="adminOpenFeedback">—</strong><small>Needs review</small></div>
+  <div class="admin-stat-card"><span>Unread support</span><strong id="adminUnreadMessages">—</strong><small>Waiting for reply</small></div>
+ </div>
+ <div class="admin-quick-card"><div><h3>Quick access</h3><p>Go straight to the section you need.</p></div><div class="admin-quick-actions">
+  <button type="button" data-admin-open-panel="users"><span aria-hidden="true">♙</span>Manage users <b>›</b></button>
+  <button type="button" data-admin-open-panel="feedback"><span aria-hidden="true">✎</span>Review feedback <b>›</b></button>
+  <button type="button" data-admin-open-panel="support"><span aria-hidden="true">☏</span>Open support <b>›</b></button>
+  <button type="button" data-admin-open-panel="notifications"><span aria-hidden="true">♧</span>Send notification <b>›</b></button>
+ </div></div>
+ <p class="admin-privacy-note">Privacy: this dashboard shows platform totals and account information only. Users’ individual products, sales and expenses remain private.</p>
 </div>
 <div class="admin-panel hidden" data-admin-panel-content="traffic">
-<div class="stats">
-<div class="stat"><small>Visits today</small><strong id="adminVisitsToday">—</strong></div>
-<div class="stat"><small>Visits · 7 days</small><strong id="adminVisits7d">—</strong></div>
-<div class="stat"><small>Visits · 30 days</small><strong id="adminVisits30d">—</strong></div>
-</div>
-<div class="card"><div class="section-heading"><h2>Daily visits</h2><button type="button" id="refreshAdminTraffic">Refresh</button></div><div id="adminTrafficChart" class="empty">Loading traffic…</div><p class="muted">Visits are counted once per browser session per UTC day on this device/browser. This tracking starts after this update; older traffic is unavailable.</p></div>
+ <div class="admin-section-intro"><div><h2>Website traffic</h2><p>Recorded visits to Sellbook.</p></div><button type="button" id="refreshAdminTraffic" class="admin-inline-refresh">↻ Refresh</button></div>
+ <div class="admin-overview-stats admin-traffic-stats">
+  <div class="admin-stat-card"><span>Visits today</span><strong id="adminVisitsToday">—</strong></div>
+  <div class="admin-stat-card"><span>Last 7 days</span><strong id="adminVisits7d">—</strong></div>
+  <div class="admin-stat-card"><span>Last 30 days</span><strong id="adminVisits30d">—</strong></div>
+ </div>
+ <div class="card admin-simple-card"><h3>Daily visits</h3><div id="adminTrafficChart" class="empty">Loading traffic…</div><p class="admin-helper-text">A visit is counted once per browser session per UTC day. Historical visits before tracking was enabled are not available.</p></div>
 </div>
 <div class="admin-panel hidden" data-admin-panel-content="users">
-<div class="card"><div class="section-heading"><h2>Registered users</h2><button type="button" id="refreshAdminUsers">Refresh</button></div><div id="adminUsersList" class="empty">Loading user list…</div></div>
+ <div id="adminUsersListView">
+  <div class="admin-section-intro"><div><h2>Users</h2><p>Find an account and view its basic details.</p></div><button type="button" id="refreshAdminUsers" class="admin-inline-refresh">↻ Refresh</button></div>
+  <div class="admin-list-tools"><label class="admin-search-field"><span aria-hidden="true">⌕</span><input id="adminUsersSearch" type="search" placeholder="Search email or account ID" autocomplete="off" aria-label="Search users"></label><select id="adminUsersFilter" aria-label="Filter users"><option value="all">All users</option><option value="recent">Signed in · 30 days</option><option value="inactive">Not signed in · 30 days</option><option value="never">Never signed in</option></select></div>
+  <p id="adminUsersSummary" class="admin-list-summary">Loading users…</p>
+  <div id="adminUsersList" class="admin-people-list"><div class="empty">Loading user list…</div></div>
+  <p class="admin-helper-text">The directory displays the 200 most recently registered accounts.</p>
+ </div>
+ <div id="adminUserDetailsView" class="hidden">
+  <div class="admin-section-intro"><div><h2>User details</h2><p>Basic account information.</p></div><button type="button" id="adminUserDetailsBack" class="admin-inline-back">‹ Users</button></div>
+  <div id="adminUserDetailsContent"></div>
+ </div>
 </div>
 <div class="admin-panel hidden" data-admin-panel-content="feedback">
-<div class="card"><div class="section-heading"><h2>User feedback</h2><button type="button" id="refreshAdminFeedback">Refresh</button></div><div id="adminFeedbackList" class="empty">Loading feedback…</div></div>
+ <div class="admin-section-intro"><div><h2>User feedback</h2><p>Review reports, update status and reply to users.</p></div><button type="button" id="refreshAdminFeedback" class="admin-inline-refresh">↻ Refresh</button></div>
+ <div class="admin-list-tools"><label class="admin-search-field"><span aria-hidden="true">⌕</span><input id="adminFeedbackSearch" type="search" placeholder="Search subject, message or user" autocomplete="off" aria-label="Search feedback"></label><select id="adminFeedbackFilter" aria-label="Filter feedback"><option value="all">All statuses</option><option value="new">New</option><option value="in_review">In review</option><option value="resolved">Resolved</option><option value="declined">Declined</option></select></div>
+ <p id="adminFeedbackSummary" class="admin-list-summary">Loading feedback…</p>
+ <div id="adminFeedbackList" class="admin-feedback-list"><div class="empty">Loading feedback…</div></div>
 </div>
 <div class="admin-panel hidden" data-admin-panel-content="support">
-<div class="card admin-chat-card">
-<div id="adminChatUserListView"><div class="section-heading admin-chat-heading"><div><h2>Chats with users</h2><p class="muted">Select a user to open their conversation.</p></div><button type="button" id="refreshAdminChat" aria-label="Refresh chat" title="Refresh chat">Refresh</button></div><div id="adminChatUserList" class="admin-chat-user-list"><div class="empty">Loading users…</div></div></div>
-<div id="adminChatConversationView" class="hidden"><div class="section-heading admin-chat-heading"><button type="button" id="backAdminChatList">‹ All chats</button><button type="button" id="refreshAdminChatConversation" aria-label="Refresh conversation">Refresh</button></div><div class="admin-chat-contact"><div class="chat-support-avatar" aria-hidden="true"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M20 11.5a7.5 7.5 0 0 1-7.5 7.5H5l-1-4a7.5 7.5 0 1 1 16-3.5Z"/><path d="M8 10h8M8 14h5"/></svg></div><div><strong id="adminChatContactName">Sellbook user</strong><div class="muted" id="adminChatContactStatus">Conversation</div></div></div><div id="adminSupportMessages" class="admin-chat-transcript" aria-live="polite"><div class="empty">Choose a user to view messages.</div></div><form id="adminReplyForm" class="chat-composer admin-chat-composer"><textarea id="adminReplyBody" rows="1" maxlength="4000" required placeholder="Write a message…" aria-label="Write a message" disabled></textarea><button class="chat-send-button" type="submit" aria-label="Send message" title="Send message" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg></button></form><p id="adminReplyStatus" class="muted chat-status" aria-live="polite"></p></div><select id="adminMessageUser" class="hidden" aria-hidden="true"><option value="">Choose a user</option></select></div>
+ <div id="adminChatUserListView">
+  <div class="admin-section-intro"><div><h2>Support conversations</h2><p>Choose a user to view and reply to their messages.</p></div><button type="button" id="refreshAdminChat" class="admin-inline-refresh">↻ Refresh</button></div>
+  <div class="admin-list-tools"><label class="admin-search-field"><span aria-hidden="true">⌕</span><input id="adminChatSearch" type="search" placeholder="Search conversations" autocomplete="off" aria-label="Search support conversations"></label><select id="adminChatFilter" aria-label="Filter conversations"><option value="all">All conversations</option><option value="unread">Unread only</option><option value="messages">With messages</option><option value="new">No messages yet</option></select></div>
+  <p id="adminChatSummary" class="admin-list-summary">Loading conversations…</p>
+  <div id="adminChatUserList" class="admin-chat-user-list"><div class="empty">Loading conversations…</div></div>
+ </div>
+ <div id="adminChatConversationView" class="hidden">
+  <div class="section-heading admin-chat-heading"><button type="button" id="backAdminChatList" class="admin-inline-back">‹ All conversations</button><button type="button" id="refreshAdminChatConversation" class="admin-inline-refresh" aria-label="Refresh conversation" title="Refresh conversation">↻</button></div>
+  <div class="admin-chat-contact"><div class="chat-support-avatar" aria-hidden="true">♙</div><div><strong id="adminChatContactName">Sellbook user</strong><div class="muted" id="adminChatContactStatus">Conversation</div></div></div>
+  <div id="adminSupportMessages" class="admin-chat-transcript" aria-live="polite"><div class="empty">Choose a user to view messages.</div></div>
+  <form id="adminReplyForm" class="chat-composer admin-chat-composer"><textarea id="adminReplyBody" rows="1" maxlength="4000" required placeholder="Write a message…" aria-label="Write a message" disabled></textarea><button class="chat-send-button" type="submit" aria-label="Send message" title="Send message" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg></button></form>
+  <p id="adminReplyStatus" class="muted chat-status" aria-live="polite"></p>
+ </div>
+ <select id="adminMessageUser" class="hidden" aria-hidden="true" tabindex="-1"><option value="">Choose a user</option></select>
 </div>
 <div class="admin-panel hidden" data-admin-panel-content="notifications">
-<div class="card"><h2>Send notification</h2><form id="adminNotificationForm"><label for="notificationAudience">Audience</label><select id="notificationAudience"><option value="all">All users</option><option value="selected">One selected user</option></select><div id="notificationUserWrap" class="hidden"><label for="notificationUser">User</label><select id="notificationUser"></select></div><label for="notificationKind">Type</label><select id="notificationKind"><option value="announcement">Announcement</option><option value="update">App update</option><option value="maintenance">Maintenance</option><option value="support">Support</option></select><label for="notificationTitle">Title</label><input id="notificationTitle" required maxlength="120"><label for="notificationBody">Message</label><textarea id="notificationBody" required maxlength="4000" rows="4" style="width:100%;padding:12px;border:1px solid #ccd6ce;border-radius:8px;font:inherit"></textarea><button class="primary" type="submit">Publish notification</button></form><p id="adminNotificationStatus" class="muted" aria-live="polite"></p><div id="adminNotificationsList" class="empty">Your recent notifications will appear here.</div></div>
+ <div class="admin-section-intro"><div><h2>Notifications</h2><p>Send an in-app update to one user or everyone.</p></div></div>
+ <div class="card admin-simple-card">
+  <h3>New notification</h3>
+  <form id="adminNotificationForm" class="admin-notification-form">
+   <label for="notificationAudience">Send to</label><select id="notificationAudience"><option value="all">All users</option><option value="selected">One selected user</option></select>
+   <div id="notificationUserWrap" class="hidden"><label for="notificationUser">Choose user</label><select id="notificationUser"></select></div>
+   <label for="notificationKind">Notification type</label><select id="notificationKind"><option value="announcement">Announcement</option><option value="update">App update</option><option value="maintenance">Maintenance</option><option value="support">Support</option></select>
+   <label for="notificationTitle">Title</label><input id="notificationTitle" required maxlength="120" placeholder="Enter a short title">
+   <label for="notificationBody">Message</label><textarea id="notificationBody" required maxlength="4000" rows="4" placeholder="Write the notification"></textarea>
+   <button class="primary" type="submit">Publish notification</button>
+  </form>
+  <p id="adminNotificationStatus" class="muted chat-status" role="status" aria-live="polite"></p>
+ </div>
+ <div class="card admin-simple-card"><div class="section-heading"><h3>Recent notifications</h3><button type="button" id="refreshAdminNotifications" class="admin-inline-refresh">↻ Refresh</button></div><div id="adminNotificationsList" class="admin-notifications-list"><div class="empty">Loading notifications…</div></div></div>
 </div>
 </section>
 <section id="reports" class="page hidden"><div class="reports-page-heading"><button type="button" class="reports-back-button" data-app-back="me" aria-label="Go back">‹</button><h2 class="page-title">Reports</h2></div>

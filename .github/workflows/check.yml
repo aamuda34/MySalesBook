@@ -37,3 +37,5 @@ jobs:
         run: node scripts/check_sale_reversals.js
       - name: Test first-use getting-started checklist
         run: node scripts/check_getting_started.js
+      - name: Test admin console navigation, search and security wiring
+        run: node scripts/check_admin_console.js
