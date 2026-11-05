@@ -12,9 +12,6 @@ const privacy = read('privacy.html');
 const terms = read('terms.html');
 const sw = read('sw.js');
 
-const tagline = 'Made Business Simple.';
-const lockup = 'Sellbook · Made Business Simple.';
-
 assert.match(index, /<title>Sellbook — Made Business Simple\.<\/title>/, 'main app title must use the approved name and tagline');
 assert.equal((index.match(/<small>Made Business Simple\.<\/small>/g) || []).length, 2, 'sign-in and PIN screens must use the same brand lockup');
 assert.ok(index.includes('<p class="muted" style="margin:0">Made Business Simple.</p>'), 'About page must show the approved tagline');
