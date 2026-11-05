@@ -5526,6 +5526,7 @@ async function saveAdminFeedbackItem(event){
  }
 }
 async function loadAdminRecipientOptions(){
+ if(!supabaseClient||!cloudUser||!sellbookIsAdmin)return;
  if(!supabaseClient||!cloudUser||!sellbookIsAdmin)return false;
  const requestedUserId=cloudUser.id,requestEpoch=adminAccessEpoch,requestId=beginAdminSectionRequest('recipients'),select=document.getElementById('notificationUser');
  if(!select)return false;
@@ -5548,6 +5549,7 @@ async function loadAdminRecipientOptions(){
 }
 function formatAdminNaira(value){return new Intl.NumberFormat('en-NG',{style:'currency',currency:'NGN',maximumFractionDigits:0}).format(Number(value)||0);}
 async function loadAdminTraffic(){
+ if(!supabaseClient||!cloudUser||!sellbookIsAdmin)return;
  if(!supabaseClient||!cloudUser||!sellbookIsAdmin)return false;
  const requestedUserId=cloudUser.id,requestEpoch=adminAccessEpoch,requestId=beginAdminSectionRequest('traffic');
  const chart=document.getElementById('adminTrafficChart');if(chart)chart.innerHTML='<div class="empty">Loading traffic…</div>';
@@ -5578,10 +5580,12 @@ async function verifyAdminAccess(){
  try{
   const {data,error}=await supabaseClient.rpc('is_sellbook_admin');
   if(error)throw error;
+  if(cloudUser?.id!==expectedUserId)return false;
   if(!accountRequestIsCurrent(expectedUserId,sessionEpoch))return false;
   const allowed=data===true;setAdminAccess(allowed);return allowed;
  }catch(error){
-  if(accountRequestIsCurrent(expectedUserId,sessionEpoch))setAdminAccess(false);
+  if(!accountRequestIsCurrent(expectedUserId,sessionEpoch))return false;
+  if(cloudUser?.id===expectedUserId)setAdminAccess(false);
   console.warn('Administrator access verification failed:',error?.message||error);return false;
  }
 }
@@ -5619,6 +5623,7 @@ async function loadAdminDashboard(){
  }
 }
 async function loadAdminUsers(){
+ if(!supabaseClient||!cloudUser||!sellbookIsAdmin)return;
  if(!supabaseClient||!cloudUser||!sellbookIsAdmin)return false;
  const requestedUserId=cloudUser.id,requestEpoch=adminAccessEpoch,requestId=beginAdminSectionRequest('users');
  const target=document.getElementById('adminUsersList'),list=document.getElementById('adminChatUserList');
@@ -5653,6 +5658,7 @@ async function loadAdminUsers(){
 }
 
 async function loadAdminFeedback(){
+ if(!supabaseClient||!cloudUser||!sellbookIsAdmin)return;
  if(!supabaseClient||!cloudUser||!sellbookIsAdmin)return false;
  const requestedUserId=cloudUser.id,requestEpoch=adminAccessEpoch,requestId=beginAdminSectionRequest('feedback'),target=document.getElementById('adminFeedbackList');
  if(target)target.innerHTML='<div class="empty">Loading feedback…</div>';
@@ -5672,6 +5678,7 @@ async function loadAdminFeedback(){
 document.getElementById('adminFeedbackSearch')?.addEventListener('input',renderAdminFeedbackList);
 document.getElementById('adminFeedbackFilter')?.addEventListener('change',renderAdminFeedbackList);
 async function loadAdminNotifications(){
+ if(!supabaseClient||!cloudUser||!sellbookIsAdmin)return;
  if(!supabaseClient||!cloudUser||!sellbookIsAdmin)return false;
  const requestedUserId=cloudUser.id,requestEpoch=adminAccessEpoch,requestId=beginAdminSectionRequest('notifications'),target=document.getElementById('adminNotificationsList');
  if(!target)return false;target.innerHTML='<div class="empty">Loading notifications…</div>';
