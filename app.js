@@ -3098,7 +3098,7 @@ function render(){
   sel.innerHTML='<option value="">Choose a product</option>'+getActiveProducts().map(p=>`<option value="${p.id}">${esc(p.name)} (${p.stock} in stock)</option>`).join('');
   if(getActiveProducts().some(p=>p.id===previous))sel.value=previous;refreshSaleUnitOptions();
 
-  const saleHTML=x=>`<div class="item"><div class="row"><strong>${esc(x.name)} × ${x.qty}</strong><strong>${money(x.total)}</strong></div><div class="muted">${safeDate(x.date).toLocaleString()} · Gross profit ${money(x.profit)}${x.note?' · '+esc(x.note):''}</div></div>`;
+  const saleHTML=x=>{const reversed=isSaleReversed(x);return `<div class="item"><div class="row"><strong>${esc(x.name)} × ${x.qty}</strong><strong>${money(x.total)}</strong></div><div class="muted">${safeDate(x.date).toLocaleString()} · ${reversed?'Reversed · excluded from totals':'Gross profit '+money(x.profit)}${x.note?' · '+esc(x.note):''}${reversed&&x.reversalReason?' · '+esc(x.reversalReason):''}</div></div>`;};
   const query=(document.getElementById('salesSearch').value||'').trim().toLocaleLowerCase(),from=document.getElementById('salesFrom').value,to=document.getElementById('salesTo').value;
   const filtered=[...db.sales].filter(x=>(!query||(String(x.name||'')+' '+String(x.note||'')).toLocaleLowerCase().includes(query))&&(!from||dateKey(x.date)>=from)&&(!to||dateKey(x.date)<=to)).sort((a,b)=>safeDate(b.date)-safeDate(a.date));
   document.getElementById('salesResultCount').textContent=filtered.length+' shown';
@@ -3111,7 +3111,7 @@ let selectedSaleDetailId='';document.getElementById('shareSaleReceipt')?.addEven
  if(!first)return showToast('This sale could not be found.');
  const key=String(first.transactionId||first.transaction_id||first.id),lines=(db.sales||[]).filter(x=>String(x.transactionId||x.transaction_id||x.id)===key);
  const total=lines.reduce((n,x)=>n+(Number(x.total)||0),0),profit=lines.reduce((n,x)=>n+(Number(x.profit??x.gross_profit)||0),0);
- const textReceipt='SELLBOOK · SALES RECEIPT\n'+safeDate(operationalDate(first)).toLocaleString()+'\n\n'+lines.map(x=>(x.name||x.product_name||'Product')+' × '+Number(x.qty??x.quantity??0)+' — '+money(Number(x.total)||0)).join('\n')+'\n\nTOTAL: '+money(total)+'\nGross profit: '+money(profit);
+ const reversed=lines.some(isSaleReversed),reason=lines.find(isSaleReversed)?.reversalReason||lines.find(isSaleReversed)?.reversal_reason||'';const textReceipt=(reversed?'SELLBOOK · REVERSED SALE':'SELLBOOK · SALES RECEIPT')+'\n'+safeDate(operationalDate(first)).toLocaleString()+'\n\n'+lines.map(x=>(x.name||x.product_name||'Product')+' × '+Number(x.qty??x.quantity??0)+' — '+money(Number(x.total)||0)).join('\n')+'\n\n'+(reversed?'ORIGINAL TOTAL: ':'TOTAL: ')+money(total)+'\nGross profit: '+money(profit)+(reversed?'\nStatus: Reversed\nReason: '+reason:'');
  try{if(navigator.share)await navigator.share({title:'Sellbook sales receipt',text:textReceipt});else if(navigator.clipboard?.writeText){await navigator.clipboard.writeText(textReceipt);showToast('Receipt copied.');}else showToast('Sharing is not available on this device.');}catch(error){if(error?.name!=='AbortError')showToast('Could not share this receipt.');}
 });
 function renderSaleDetails(){
@@ -4084,7 +4084,10 @@ async function restoreSellbookBackupToCloud(checked){
     quantity,unit_price:price,unit_cost:cost,total,gross_profit:profit,note:row.note?String(row.note).slice(0,150):null,
     sold_at:sellbookBackupTimestamp(row.date||row.sold_at,'sale'),base_quantity:baseQuantity,
     sale_unit:String(row.saleUnit||row.sale_unit||'unit').slice(0,40),units_per_sale:units,
-    transaction_id:isSellbookUuid(String(transactionId||''))?String(transactionId):null};
+    transaction_id:isSellbookUuid(String(transactionId||''))?String(transactionId):null,
+    reversed_at:(row.reversedAt||row.reversed_at)?sellbookBackupTimestamp(row.reversedAt||row.reversed_at,'sale reversal'):null,
+    reversal_reason:(row.reversalReason||row.reversal_reason)?String(row.reversalReason||row.reversal_reason).trim().slice(0,200):null,
+    stock_returned:!!(row.stockReturned||row.stock_returned)};
   });
   const salesResult=await insertSellbookBackupRows('sales',salesRows,user.id,requestEpoch,count=>{progress.sales=count;});progress.sales=salesResult.inserted;
   const expenseRows=checked.data.expenses.map(row=>{
