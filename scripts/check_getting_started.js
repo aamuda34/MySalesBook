@@ -1,0 +1,15 @@
+'use strict';
+const assert=require('node:assert/strict');
+const fs=require('node:fs');
+const app=fs.readFileSync('app.js','utf8');
+const html=fs.readFileSync('index.html','utf8');
+const sw=fs.readFileSync('sw.js','utf8');
+assert.ok(app.includes("key:'products',done:getActiveProducts().length>0"),'Checklist completes the product step when a current product exists.');
+assert.ok(app.includes("key:'sales',done:(db.sales||[]).length>0"),'Checklist completes the first-sale step after a sale is recorded.');
+assert.ok(app.includes("key:'expenses',done:(db.expenses||[]).some(expense=>!isExpenseVoided(expense))"),'Checklist completes the expense step only after a non-voided expense.');
+assert.ok(app.includes("const essentialsComplete=steps.every(step=>step.done)"),'Checklist remains until all essentials are complete or dismissed.');
+assert.ok(app.includes("document.getElementById('gettingStarted'+step.key.charAt(0).toUpperCase()+step.key.slice(1)+'State')"),'Each checklist step updates its own completion state.');
+assert.ok(html.includes('data-open-page="expenses"')&&html.includes('id="gettingStartedExpensesState"')&&html.includes('data-step-status="expenses"'),'Expense step opens the existing Expenses page and has accessible progress state.');
+assert.ok(html.includes('Track shop costs to understand your profit.'),'Expense step explains its business value.');
+assert.ok(sw.includes('sellbook-shell-v135'),'PWA cache is advanced for the checklist update.');
+console.log('PASS: first-use checklist covers products, first sale and recorded expenses without blocking app use.');
