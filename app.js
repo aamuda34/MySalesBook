@@ -1049,7 +1049,7 @@ function getSecurityPinFirstName(user){
  const meta=user?.user_metadata||{};
  const candidates=[meta.first_name,meta.given_name,meta.full_name,meta.name,meta.display_name,meta.preferred_username,user?.email?.split('@')[0]];
  const source=candidates.find(value=>typeof value==='string'&&value.trim());
- return String(source||'Your account').trim().split(/\\s+/)[0]||'Your account';
+ return String(source||'Your account').trim().split(/\s+/)[0]||'Your account';
 }
 function renderSecurityPinIdentity(){
  const identity=document.getElementById('securityPinIdentity');
