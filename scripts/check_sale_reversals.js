@@ -10,7 +10,7 @@ const migration=fs.readFileSync('supabase/migrations/20261105023000_audited_sale
 
 // Execute the production sale-status helpers and transaction aggregator with sample data.
 const helperStart=app.indexOf('function isSaleReversed(');
-const helperEnd=app.indexOf('function isProductArchived(',helperStart);
+const helperEnd=app.indexOf('function getLocalPeriodBounds(',helperStart);
 assert.ok(helperStart>=0&&helperEnd>helperStart,'Could not isolate production sale-status helpers.');
 const groupStart=app.indexOf('function getSalesTransactions(rows){');
 const groupEnd=app.indexOf('\nfunction renderSalesHistory()',groupStart);
