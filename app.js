@@ -50,6 +50,9 @@ const now=()=>new Date().toISOString();
 function productCreationSnapshot(p){return {id:String(p.id),productId:String(p.id),productName:String(p.name||'Product'),category:String(p.category||'Uncategorized'),cost:Number(p.cost)||0,price:Number(p.price)||0,initialStock:Number(p.stock)||0,baseUnit:p.baseUnit||'unit',packUnit:p.packUnit||'',unitsPerPack:Number(p.unitsPerPack)||1,packPrice:p.packPrice==null?null:Number(p.packPrice),imagePath:p.imagePath||'',addedAt:p.createdAt||now()};}
 let db={products:[],sales:[],expenses:[],stockAdjustments:[],restocks:[],profile:{businessName:'',businessLogo:''}};
 function normalizeDb(v){return {products:Array.isArray(v?.products)?v.products:[],sales:Array.isArray(v?.sales)?v.sales:[],expenses:Array.isArray(v?.expenses)?v.expenses:[],stockAdjustments:Array.isArray(v?.stockAdjustments)?v.stockAdjustments:[],restocks:Array.isArray(v?.restocks)?v.restocks:[],productAdditions:Array.isArray(v?.productAdditions)?v.productAdditions:[],productActivity:Array.isArray(v?.productActivity)?v.productActivity:[],profile:v?.profile&&typeof v.profile==='object'?v.profile:{businessName:'',businessLogo:''}};}
+function isProductArchived(product){return !!(product?.archivedAt||product?.archived_at);}
+function getActiveProducts(){return (db.products||[]).filter(product=>!isProductArchived(product));}
+function getArchivedProducts(){return (db.products||[]).filter(isProductArchived);}
 let lowStockThreshold=Number(localStorage.getItem('my-sales-book-low-stock-v1')||5);if(!Number.isSafeInteger(lowStockThreshold)||lowStockThreshold<0)lowStockThreshold=5;
 
 const THEME_PREFERENCE_KEY='my-sales-book-theme-v1';
@@ -1990,7 +1993,7 @@ async function cloudLoadAll() {
   // Keep cached values only as a compatibility fallback for older rows.
   const cachedRestockDetails=new Map((db.restocks||[]).map(item=>[String(item.id),item]));
   const [pr,sr,er,ar,rr,profileResult]=await Promise.all([
-    fetchAllCloudRows(()=>supabaseClient.from('products').select('id,name,category,cost_price,selling_price,stock,base_unit,purchase_unit,units_per_purchase,pack_unit,units_per_pack,pack_selling_price,image_path,created_at,updated_at').eq('user_id',user.id).order('created_at').order('id')),
+    fetchAllCloudRows(()=>supabaseClient.from('products').select('id,name,category,cost_price,selling_price,stock,base_unit,purchase_unit,units_per_purchase,pack_unit,units_per_pack,pack_selling_price,image_path,archived_at,created_at,updated_at').eq('user_id',user.id).order('created_at').order('id')),
     fetchAllCloudRows(()=>supabaseClient.from('sales').select('id,product_id,product_name,quantity,unit_price,unit_cost,total,gross_profit,note,sold_at,base_quantity,sale_unit,units_per_sale,transaction_id').eq('user_id',user.id).order('sold_at').order('id')),
     fetchAllCloudRows(()=>supabaseClient.from('expenses').select('id,description,amount,spent_at,category,note,voided_at,void_reason').eq('user_id',user.id).order('spent_at').order('id')),
     fetchAllCloudRows(()=>supabaseClient.from('stock_adjustments').select('id,product_id,product_name,previous_stock,new_stock,quantity_change,reason,adjusted_at').eq('user_id',user.id).order('adjusted_at',{ascending:false}).order('id',{ascending:false})),
@@ -2011,7 +2014,7 @@ async function cloudLoadAll() {
     unitsPerPurchase:Number(row.units_per_purchase||1),packUnit:row.pack_unit||'',
     unitsPerPack:Number(row.units_per_pack||1),
     packPrice:row.pack_selling_price==null?null:Number(row.pack_selling_price),
-    image:'',offlineImage:'',imagePath:row.image_path||'',
+    image:'',offlineImage:'',imagePath:row.image_path||'',archivedAt:row.archived_at||null,
     createdAt:row.created_at,updatedAt:row.updated_at
   }));
   const sales=(sr.data||[]).map(row=>({id:row.id,productId:row.product_id,name:row.product_name,qty:Number(row.quantity),price:Number(row.unit_price),cost:Number(row.unit_cost),total:Number(row.total),profit:Number(row.gross_profit),note:row.note||'',date:row.sold_at,baseQty:Number(row.base_quantity||row.quantity),saleUnit:row.sale_unit||'unit',unitsPerSale:Number(row.units_per_sale||1),transactionId:row.transaction_id||null}));
@@ -2167,7 +2170,7 @@ async function cloudSaveProduct(product,isNew,expectedUserId=cloudUser?.id) {
   // The original data is the most reliable source for publishing the matching Buybook photo.
   const newImageData=product.image&&product.image.startsWith('data:image/')?product.image:null;
   const imagePath= newImageData ? await cloudUploadProductImage(newImageData,expectedUserId) : (product.imagePath||null);
-  const row={user_id:user.id,name:product.name,category:normalizeCategory(product.category),cost_price:product.cost,selling_price:product.price,stock:product.stock,base_unit:product.baseUnit||'unit',purchase_unit:product.purchaseUnit||'unit',units_per_purchase:product.unitsPerPurchase||1,pack_unit:product.packUnit||null,units_per_pack:product.packUnit?(product.unitsPerPack||1):null,pack_selling_price:product.packUnit&&product.packPrice?product.packPrice:null,image_path:imagePath,updated_at:product.syncUpdatedAt||now()};
+  const row={user_id:user.id,name:product.name,category:normalizeCategory(product.category),cost_price:product.cost,selling_price:product.price,stock:product.stock,base_unit:product.baseUnit||'unit',purchase_unit:product.purchaseUnit||'unit',units_per_purchase:product.unitsPerPurchase||1,pack_unit:product.packUnit||null,units_per_pack:product.packUnit?(product.unitsPerPack||1):null,pack_selling_price:product.packUnit&&product.packPrice?product.packPrice:null,image_path:imagePath,archived_at:product.archivedAt||null,updated_at:product.syncUpdatedAt||now()};
   const result=isNew
     // Retrying after a timed-out response must not create a duplicate-key conflict.
     ? await supabaseClient.from('products').upsert({id:product.id,...row},{onConflict:'id'})
@@ -2961,13 +2964,13 @@ let salesAmountVisible=true;try{salesAmountVisible=localStorage.getItem('sellboo
 function setSalesAmountVisibility(){document.querySelectorAll('#todaySales, #todayNet, #productSellingValueHome').forEach(amount=>{amount.textContent=salesAmountVisible?amount.dataset.actualAmount||'₦0':'₦••••••';});const button=document.getElementById('salesVisibilityToggle');if(button){button.setAttribute('aria-label',salesAmountVisible?'Hide sales, profit and products amounts':'Show sales, profit and products amounts');button.setAttribute('title',salesAmountVisible?'Hide sales, profit and products amounts':'Show sales, profit and products amounts');button.innerHTML=salesAmountVisible?'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12Z"></path><circle cx="12" cy="12" r="3"></circle></svg>':'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3l18 18M10.6 5.2A10.8 10.8 0 0 1 12 5c6.4 0 10 7 10 7a16 16 0 0 1-3.1 3.8M6.2 6.3C3.5 8.1 2 12 2 12s3.6 7 10 7c1.5 0 2.8-.4 4-1"></path></svg>';}}
 function toggleSalesVisibility(){salesAmountVisible=!salesAmountVisible;try{localStorage.setItem('sellbook-sales-amount-visible-v1',String(salesAmountVisible));}catch(e){}setSalesAmountVisibility();}
 
-function updateHomeProductSummary(){const products=db.products||[],count=document.getElementById('productCountHome'),label=document.querySelector('.home-products-count-label'),value=document.getElementById('productSellingValueHome');if(count)count.textContent=String(products.length);if(label)label.lastChild.textContent=products.length===1?' Product':' Products';if(value){const total=products.reduce((sum,p)=>sum+Math.max(0,Number(p.stock)||0)*Math.max(0,Number(p.price??p.selling_price)||0),0);value.dataset.actualAmount=money(total);setSalesAmountVisibility();}}
+function updateHomeProductSummary(){const products=getActiveProducts(),count=document.getElementById('productCountHome'),label=document.querySelector('.home-products-count-label'),value=document.getElementById('productSellingValueHome');if(count)count.textContent=String(products.length);if(label)label.lastChild.textContent=products.length===1?' Product':' Products';if(value){const total=products.reduce((sum,p)=>sum+Math.max(0,Number(p.stock)||0)*Math.max(0,Number(p.price??p.selling_price)||0),0);value.dataset.actualAmount=money(total);setSalesAmountVisibility();}}
 
 function gettingStartedDismissKey(){return 'sellbook-getting-started-dismissed-v1:'+(cloudUser?.id||'local');}
 function renderGettingStarted(){
  const card=document.getElementById('gettingStartedCard');if(!card)return;
  let dismissed=false;try{dismissed=localStorage.getItem(gettingStartedDismissKey())==='1';}catch(error){}
- const steps=[{key:'products',done:(db.products||[]).length>0},{key:'sales',done:(db.sales||[]).length>0}];
+ const steps=[{key:'products',done:getActiveProducts().length>0},{key:'sales',done:(db.sales||[]).length>0}];
  const essentialsComplete=steps.every(step=>step.done),visible=!dismissed&&!essentialsComplete;
  card.classList.toggle('hidden',!visible);card.setAttribute('aria-hidden',String(!visible));
  if(!visible)return;
@@ -2995,15 +2998,15 @@ function renderHomePanelSummary(){
  if(salesAmount)salesAmount.dataset.actualAmount=money(salesToday);
  document.querySelectorAll('#todayNet').forEach(amount=>{amount.dataset.actualAmount=money(grossToday-expensesToday);});
  const homeProductCount=document.getElementById('homeProductCount');
- if(homeProductCount)homeProductCount.textContent=String((db.products||[]).length);
+ if(homeProductCount)homeProductCount.textContent=String(getActiveProducts().length);
  setSalesAmountVisibility();
 
  const allGross=(db.sales||[]).reduce((sum,sale)=>sum+(Number(sale.profit)||0),0);
  const allExpenses=(db.expenses||[]).filter(expense=>!isExpenseVoided(expense)).reduce((sum,expense)=>sum+(Number(expense.amount)||0),0);
  const meNet=document.getElementById('meAllNet'),meProducts=document.getElementById('meProductCount'),meStock=document.getElementById('meStockCount');
  if(meNet)meNet.textContent=money(allGross-allExpenses);
- if(meProducts)meProducts.textContent=String((db.products||[]).length);
- if(meStock)meStock.textContent=String((db.products||[]).reduce((sum,product)=>sum+(Number(product.stock)||0),0));
+ if(meProducts)meProducts.textContent=String(getActiveProducts().length);
+ if(meStock)meStock.textContent=String(getActiveProducts().reduce((sum,product)=>sum+(Number(product.stock)||0),0));
 
  const sellerGreeting=document.getElementById('businessTitle');
  const meta=cloudUser?.user_metadata||{};
@@ -3013,7 +3016,7 @@ function renderHomePanelSummary(){
  if(sellerGreeting)sellerGreeting.textContent=greeting+' '+firstName.toUpperCase();
  const meFirstName=document.getElementById('meUserFirstName');if(meFirstName)meFirstName.textContent=firstName.toUpperCase();
 
- const low=(db.products||[]).filter(product=>Number(product.stock)<=lowStockThreshold).sort((a,b)=>Number(a.stock)-Number(b.stock));
+ const low=getActiveProducts().filter(product=>Number(product.stock)<=lowStockThreshold).sort((a,b)=>Number(a.stock)-Number(b.stock));
  const homeLowStockAlert=document.getElementById('homeLowStockAlert');
  if(homeLowStockAlert){
   homeLowStockAlert.hidden=low.length===0;
@@ -3041,7 +3044,7 @@ function renderHomePanelSummary(){
 }
 
 function render(){
- const restockSelect=document.getElementById('restockProduct');if(restockSelect){const selected=restockSelect.value;restockSelect.innerHTML=db.products.map(p=>'<option value="'+esc(p.id)+'">'+esc(p.name)+'</option>').join('');if(db.products.some(p=>p.id===selected))restockSelect.value=selected;updateRestockPreview();}
+ const restockSelect=document.getElementById('restockProduct');if(restockSelect){const selected=restockSelect.value;restockSelect.innerHTML=getActiveProducts().map(p=>'<option value="'+esc(p.id)+'">'+esc(p.name)+'</option>').join('');if(getActiveProducts().some(p=>p.id===selected))restockSelect.value=selected;updateRestockPreview();}
 
   db=normalizeDb(db);
   const low=renderHomePanelSummary();
@@ -3053,13 +3056,17 @@ function render(){
   if(lowStockPreview)lowStockPreview.innerHTML=low.length?low.slice(0,5).map(p=>'<div class="item"><div class="row"><strong>'+esc(p.name)+'</strong><span class="low-stock-badge">'+p.stock+' left</span></div></div>').join(''):'<div class="empty">No products at or below '+lowStockThreshold+' units.</div>';
   const lowStockList=document.getElementById('lowStockList');
   if(lowStockList)lowStockList.innerHTML=low.length?low.map(p=>'<div class="item"><div class="row"><div><strong>'+esc(p.name)+'</strong><div class="muted">Current stock: '+p.stock+'</div></div><button type="button" data-adjust-from-list="'+p.id+'">Adjust</button></div></div>').join(''):'<div class="empty">No low-stock products.</div>';
-  const adj=document.getElementById('adjustProduct'),prevAdj=adj.value;adj.innerHTML='<option value="">Choose a product</option>'+db.products.map(p=>'<option value="'+p.id+'">'+esc(p.name)+' ('+p.stock+' in stock)</option>').join('');if(db.products.some(p=>p.id===prevAdj))adj.value=prevAdj;
+  const adj=document.getElementById('adjustProduct'),prevAdj=adj.value;adj.innerHTML='<option value="">Choose a product</option>'+getActiveProducts().map(p=>'<option value="'+p.id+'">'+esc(p.name)+' ('+p.stock+' in stock)</option>').join('');if(getActiveProducts().some(p=>p.id===prevAdj))adj.value=prevAdj;
   updateAdjustmentPreview();renderStockAdjustments();renderReports();renderProfitHistory();
   db.products.forEach(p=>{p.category=normalizeCategory(p.category);});
   const searchTerm=(document.getElementById('productSearch').value||'').trim().toLocaleLowerCase();
   const categoryFilter=document.getElementById('categoryFilter');
   const previousCategory=categoryFilter.value;
-  const categories=[...new Set(db.products.map(p=>normalizeCategory(p.category)))].sort((a,b)=>a.localeCompare(b));
+  const allStatusProducts=getActiveProducts(),statusFilter=document.getElementById('productStatusFilter'),previousStatus=statusFilter?.value||'active';
+  const archivedCount=getArchivedProducts().length,activeCount=allStatusProducts.length;
+  if(statusFilter){statusFilter.value=previousStatus==='archived'?'archived':'active';const archivedOption=statusFilter.querySelector('option[value="archived"]');if(archivedOption)archivedOption.textContent='Archived ('+archivedCount+')';const activeOption=statusFilter.querySelector('option[value="active"]');if(activeOption)activeOption.textContent='Current products ('+activeCount+')';}
+  const statusProducts=statusFilter?.value==='archived'?getArchivedProducts():allStatusProducts;
+  const categories=[...new Set(statusProducts.map(p=>normalizeCategory(p.category)))].sort((a,b)=>a.localeCompare(b));
   categoryFilter.innerHTML='<option value="">All categories</option>'+categories.map(c=>`<option value="${esc(c)}">${esc(c)}</option>`).join('');
   if(categories.includes(previousCategory))categoryFilter.value=previousCategory;
   const selectedCategory=categoryFilter.value;
@@ -3067,7 +3074,7 @@ function render(){
   const categoryChips=categories.map(c=>`<button type="button" data-category-suggestion="${esc(c)}">${esc(c)}</button>`).join('');
   document.getElementById('categorySuggestionChips').innerHTML=categories.length?'<span class="suggestion-label">Your categories · tap to use</span>'+categoryChips:'';
   document.getElementById('editCategorySuggestionChips').innerHTML=categories.length?'<span class="suggestion-label">Your categories · tap to use</span>'+categoryChips:'';
-  const filteredProducts=db.products.filter(p=>
+  const filteredProducts=statusProducts.filter(p=>
     p.name.toLocaleLowerCase().includes(searchTerm)&&
     (!selectedCategory||normalizeCategory(p.category)===selectedCategory)
   );
@@ -3077,13 +3084,13 @@ function render(){
     const lowStock=Number(p.stock)<=Number(lowStockThreshold);
     return `<button type="button" class="item product-summary-item product-open-button" data-product-open="${p.id}" aria-label="View ${esc(p.name)}"><span class="item-product">${photo}<span class="item-product-details">
     <span class="row product-summary-top"><strong>${esc(p.name)}</strong><strong>${money(p.price)}</strong></span>
-    <span class="muted">Stock: <strong>${p.stock} units</strong>${lowStock?' · Low stock':''}</span>
+    <span class="muted">Stock: <strong>${p.stock} units</strong>${isProductArchived(p)?' · Archived':lowStock?' · Low stock':''}</span>
     </span></span></button>`;
-  }).join(''):db.products.length?'<div class="empty">No products match your search or category.</div>':'<div class="empty">No products yet.</div>';
+  }).join(''):statusProducts.length?'<div class="empty">No products match your search or category.</div>':(statusFilter?.value==='archived'?'<div class="empty">No archived products. Products you archive will appear here.</div>':'<div class="empty">No products yet. Add your first product to get started.</div>');
 
   const sel=document.getElementById('saleProduct'), previous=sel.value;
-  sel.innerHTML='<option value="">Choose a product</option>'+db.products.map(p=>`<option value="${p.id}">${esc(p.name)} (${p.stock} in stock)</option>`).join('');
-  if(db.products.some(p=>p.id===previous))sel.value=previous;refreshSaleUnitOptions();
+  sel.innerHTML='<option value="">Choose a product</option>'+getActiveProducts().map(p=>`<option value="${p.id}">${esc(p.name)} (${p.stock} in stock)</option>`).join('');
+  if(getActiveProducts().some(p=>p.id===previous))sel.value=previous;refreshSaleUnitOptions();
 
   const saleHTML=x=>`<div class="item"><div class="row"><strong>${esc(x.name)} × ${x.qty}</strong><strong>${money(x.total)}</strong></div><div class="muted">${safeDate(x.date).toLocaleString()} · Gross profit ${money(x.profit)}${x.note?' · '+esc(x.note):''}</div></div>`;
   const query=(document.getElementById('salesSearch').value||'').trim().toLocaleLowerCase(),from=document.getElementById('salesFrom').value,to=document.getElementById('salesTo').value;
@@ -3111,6 +3118,7 @@ function renderSaleDetails(){
 }
 document.addEventListener('click',event=>{const row=event.target.closest('[data-sale-detail]');if(!row)return;selectedSaleDetailId=row.dataset.saleDetail||'';showPage('sale-details');});
 document.getElementById('productSearch').addEventListener('input',render);
+document.getElementById('productStatusFilter')?.addEventListener('change',render);
 document.getElementById('categoryFilter').addEventListener('change',render);
 ['salesSearch','salesFrom','salesTo'].forEach(id=>document.getElementById(id).addEventListener('input',render));
  document.getElementById('historySalesProduct')?.addEventListener('input',render);
@@ -3647,7 +3655,7 @@ document.getElementById('deleteEditedProduct').addEventListener('click',async()=
   const id=document.getElementById('editProductId').value;
   const product=db.products.find(x=>x.id===id);
   if(!product)return showToast('This product could not be found.');
-  if(db.sales.some(sale=>sale.productId===id))return showToast('This product has sales history and cannot be deleted. You can edit its details instead.');
+  if(db.sales.some(sale=>sale.productId===id)||db.stockAdjustments.some(row=>row.productId===id)||db.restocks.some(row=>row.productId===id))return showToast('This product has business history. Archive it instead so its records remain available.');
   if(!confirm('Delete '+product.name+'? This cannot be undone.'))return;
   const button=document.getElementById('deleteEditedProduct');
   button.disabled=true;
@@ -3769,13 +3777,42 @@ function renderProductDetails(p){
  const target=document.getElementById('productDetailsContent');if(!target||!p)return;
  const rawImage=typeof p.image==='string'&&p.image.startsWith('data:image/')?p.image:(p.offlineImage||p.image||'');
  const image=typeof rawImage==='string'&&(rawImage.startsWith('data:image/')||rawImage.startsWith('https://'))?'<img class="product-details-photo" src="'+rawImage.replace(/"/g,'&quot;')+'" alt="'+esc(p.name)+'">':'<div class="product-details-photo" style="height:220px;display:grid;place-items:center;color:#647269">No product photo</div>';
+ const archived=isProductArchived(p),archiveDate=archived?safeDate(p.archivedAt||p.archived_at).toLocaleDateString():'';
  const added=p.createdAt||p.created_at||p.dateAdded||p.addedAt||p.updatedAt||p.updated_at;
  const addedText=added?safeDate(added).toLocaleDateString():'Not available';
  const cost=Number(p.cost??p.costPrice??p.cost_price??0),price=Number(p.price??p.sellingPrice??p.selling_price??0),stock=Number(p.stock||0);
  const field=(label,value)=>'<div class="product-details-field"><small>'+label+'</small><strong>'+value+'</strong></div>';
- target.innerHTML='<div class="card">'+image+'<div class="product-details-title-row"><h2 class="product-details-name">'+esc(p.name)+'</h2><button type="button" class="product-details-edit-icon" data-details-edit="'+String(p.id).replace(/"/g,'&quot;')+'" aria-label="Edit product" title="Edit product"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L8 18l-4 1 1-4Z"/></svg></button></div><p class="muted">'+esc(p.category||'Uncategorised')+'</p><div class="product-details-grid">'+field('Date added',esc(addedText))+field('Category',esc(p.category||'Not set'))+field('Cost price',money(cost))+field('Selling price',money(price))+field('Profit per unit',money(price-cost))+field('Current stock',esc(String(stock))+' units')+(p.baseUnit?field('Stock unit',esc(p.baseUnit)):'')+(p.purchaseUnit?field('Purchase unit',esc(p.purchaseUnit)):'')+'</div></div>';
+ target.innerHTML='<div class="card">'+image+'<div class="product-details-title-row"><h2 class="product-details-name">'+esc(p.name)+'</h2><button type="button" class="product-details-edit-icon" data-details-edit="'+String(p.id).replace(/"/g,'&quot;')+'" aria-label="Edit product" title="Edit product"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L8 18l-4 1 1-4Z"/></svg></button></div><p class="muted">'+esc(p.category||'Uncategorised')+'</p><div class="product-details-grid">'+field('Date added',esc(addedText))+field('Category',esc(p.category||'Not set'))+field('Cost price',money(cost))+field('Selling price',money(price))+field('Profit per unit',money(price-cost))+field('Current stock',esc(String(stock))+' units')+(p.baseUnit?field('Stock unit',esc(p.baseUnit)):'')+(p.purchaseUnit?field('Purchase unit',esc(p.purchaseUnit)):'')+'</div>'+(archived?'<p class="product-archived-note">Archived on '+esc(archiveDate)+'. This product is hidden from sales and Buybook. Its sales and stock history are preserved.</p>':'')+'<div class="product-archive-actions"><button type="button" class="'+(archived?'secondary-button':'product-archive-button')+'" data-toggle-product-archive="'+esc(String(p.id))+'">'+(archived?'Restore product':'Archive product')+'</button></div></div>';
  const edit=target.querySelector('[data-details-edit]');edit.addEventListener('click',()=>{showPage('products');const trigger=document.createElement('button');trigger.type='button';trigger.dataset.edit=String(p.id);trigger.hidden=true;document.getElementById('productList').appendChild(trigger);trigger.click();trigger.remove();});
 }
+
+document.getElementById('productDetailsContent')?.addEventListener('click',async event=>{
+ const button=event.target.closest('[data-toggle-product-archive]');if(!button)return;
+ const id=String(button.dataset.toggleProductArchive||''),product=db.products.find(item=>String(item.id)===id);
+ if(!product)return showToast('This product could not be found. Refresh and try again.');
+ const wasArchived=isProductArchived(product),nextArchived=!wasArchived;
+ const question=nextArchived
+  ?'Archive '+product.name+'? It will no longer be available for new sales, restocking or Buybook reservations. Existing sales, stock and reservation history will remain.'
+  :'Restore '+product.name+'? It will be available for new sales and stock operations again. If your Buybook shop is active, it can be listed there again.';
+ if(!confirm(question))return;
+ button.disabled=true;
+ const previous={...product};
+ try{
+  product.archivedAt=nextArchived?now():null;
+  product.updatedAt=product.updatedAt||now();
+  product.syncUpdatedAt=now();
+  if(cloudUser)await saveCloudChangeLocally('product_save',{product:{...product},isNew:false});
+  else if(!save()){Object.assign(product,previous);throw Error('Could not save this product status. Your previous records have been kept.');}
+  const statusFilter=document.getElementById('productStatusFilter');
+  if(statusFilter)statusFilter.value=nextArchived?'archived':'active';
+  render();showPage('products');
+  showToast(nextArchived?'Product archived. Its history has been kept.':'Product restored.');
+ }catch(error){
+  const current=db.products.find(item=>String(item.id)===id);if(current)Object.assign(current,previous);
+  render();showToast(error.message||'Could not update this product.');
+ }finally{button.disabled=false;}
+});
+
 document.getElementById('productList').addEventListener('click',async e=>{
  const openButton=e.target.closest('[data-product-open]');
  if(openButton){const p=db.products.find(x=>String(x.id)===String(openButton.dataset.productOpen));if(!p)return;renderProductDetails(p);showPage('product-details');return;}
@@ -3807,7 +3844,7 @@ document.getElementById('productList').addEventListener('click',async e=>{
  if(button.dataset.edit){
   openProductEditor(p);
  }else if(button.dataset.delete){
-  if(db.sales.some(s=>s.productId===id))return showToast('This product has sales history. Edit it instead of deleting it.');
+  if(db.sales.some(s=>s.productId===id)||db.stockAdjustments.some(row=>row.productId===id)||db.restocks.some(row=>row.productId===id))return showToast('This product has business history. Archive it instead so its records remain available.');
   if(confirm('Delete '+p.name+'?')){
     if(cloudUser){
       const oldProducts=db.products;
@@ -3821,12 +3858,12 @@ document.getElementById('productList').addEventListener('click',async e=>{
  }
 });
 
-function updateSaleTotal(){const p=db.products.find(x=>x.id===document.getElementById('saleProduct')?.value),qty=Number(document.getElementById('saleQty')?.value),price=Number(document.getElementById('salePrice')?.value),out=document.getElementById('saleTotalAmount');if(!out)return;if(!p||!Number.isSafeInteger(qty)||qty<1||!Number.isFinite(price)||price<=0){out.textContent=money(0);return;}try{const units=document.getElementById('saleUnit').value==='pack'?Number(p.unitsPerPack||1):1;out.textContent=money(calculateSaleAmounts(qty,price,p.cost,units).total);}catch(_){out.textContent=money(0);}}
-function refreshSaleUnitOptions(){const p=db.products.find(x=>x.id===document.getElementById('saleProduct').value),sel=document.getElementById('saleUnit');if(!sel)return;const previous=sel.value;sel.innerHTML='<option value="base">Individual '+esc(p?.baseUnit||'unit')+'</option>';if(p?.packUnit&&Number(p.unitsPerPack)>1&&Number(p.packPrice)>0)sel.insertAdjacentHTML('beforeend','<option value="pack">Full '+esc(p.packUnit)+'</option>');if(previous==='pack'&&p?.packUnit)sel.value='pack';const pack=sel.value==='pack';document.getElementById('salePriceLabel').textContent=pack?'Selling price per full pack (₦)':'Selling price per individual unit (₦)';document.getElementById('salePrice').value=p?(pack?Number(p.packPrice):Number(p.price)).toFixed(2):'';document.getElementById('saleStock').textContent=p?'Available: '+p.stock+' '+(p.baseUnit||'units')+(p.packUnit?' · '+Math.floor(p.stock/Math.max(1,p.unitsPerPack))+' '+p.packUnit+' possible':''):'Choose a product to see available stock.';updateSaleTotal();}
+function updateSaleTotal(){const p=getActiveProducts().find(x=>x.id===document.getElementById('saleProduct')?.value),qty=Number(document.getElementById('saleQty')?.value),price=Number(document.getElementById('salePrice')?.value),out=document.getElementById('saleTotalAmount');if(!out)return;if(!p||!Number.isSafeInteger(qty)||qty<1||!Number.isFinite(price)||price<=0){out.textContent=money(0);return;}try{const units=document.getElementById('saleUnit').value==='pack'?Number(p.unitsPerPack||1):1;out.textContent=money(calculateSaleAmounts(qty,price,p.cost,units).total);}catch(_){out.textContent=money(0);}}
+function refreshSaleUnitOptions(){const p=getActiveProducts().find(x=>x.id===document.getElementById('saleProduct').value),sel=document.getElementById('saleUnit');if(!sel)return;const previous=sel.value;sel.innerHTML='<option value="base">Individual '+esc(p?.baseUnit||'unit')+'</option>';if(p?.packUnit&&Number(p.unitsPerPack)>1&&Number(p.packPrice)>0)sel.insertAdjacentHTML('beforeend','<option value="pack">Full '+esc(p.packUnit)+'</option>');if(previous==='pack'&&p?.packUnit)sel.value='pack';const pack=sel.value==='pack';document.getElementById('salePriceLabel').textContent=pack?'Selling price per full pack (₦)':'Selling price per individual unit (₦)';document.getElementById('salePrice').value=p?(pack?Number(p.packPrice):Number(p.price)).toFixed(2):'';document.getElementById('saleStock').textContent=p?'Available: '+p.stock+' '+(p.baseUnit||'units')+(p.packUnit?' · '+Math.floor(p.stock/Math.max(1,p.unitsPerPack))+' '+p.packUnit+' possible':''):'Choose a product to see available stock.';updateSaleTotal();}
 document.getElementById('saleProduct').addEventListener('change',refreshSaleUnitOptions);document.getElementById('saleUnit').addEventListener('change',refreshSaleUnitOptions);document.getElementById('saleQty').addEventListener('input',updateSaleTotal);document.getElementById('salePrice').addEventListener('input',updateSaleTotal);
 let saleBasket=[];
 function renderSaleBasket(){const target=document.getElementById('saleBasketList'),count=document.getElementById('saleBasketCount'),total=document.getElementById('saleTotalAmount');if(!target)return;if(!saleBasket.length){target.innerHTML='<div class="empty">Add a product to begin this sale.</div>';if(count)count.textContent='No items added yet.';if(total)total.textContent=money(0);return;}if(count)count.textContent=saleBasket.length+' product '+(saleBasket.length===1?'line':'lines');if(total)total.textContent=money(saleBasket.reduce((n,x)=>n+x.total,0));target.innerHTML=saleBasket.map((x,i)=>'<div class="sale-basket-row"><span><strong>'+esc(x.name)+' × '+x.qty+' '+esc(x.saleUnit)+'</strong><small>'+money(x.price)+' per '+esc(x.saleUnit)+' · '+money(x.total)+'</small></span><button type="button" data-remove-sale-line="'+i+'" aria-label="Remove '+esc(x.name)+'">Remove</button></div>').join('');}
-document.getElementById('addSaleBasketItem')?.addEventListener('click',()=>{const p=db.products.find(x=>x.id===document.getElementById('saleProduct').value),qty=Number(document.getElementById('saleQty').value),price=Number(document.getElementById('salePrice').value),pack=document.getElementById('saleUnit').value==='pack',units=pack?Number(p?.unitsPerPack||1):1;if(!p)return showToast('Choose a product.');if(!Number.isSafeInteger(qty)||qty<1||!Number.isFinite(price)||price<=0)return showToast('Enter a valid quantity and selling price.');const baseQty=qty*units;if(!Number.isSafeInteger(baseQty)||baseQty>2000000000)return showToast('Sale quantity exceeds the safe stock limit.');const existing=saleBasket.filter(x=>x.productId===p.id).reduce((n,x)=>n+x.baseQty,0);if(existing+baseQty>p.stock)return showToast('The quantity exceeds available stock for '+p.name+'.');const unit=pack?p.packUnit:(p.baseUnit||'unit');if(saleBasket.some(x=>x.productId===p.id&&x.saleUnit===unit))return showToast('This product is already in the sale. Remove its line and add it again to change the quantity.');const amounts=calculateSaleAmounts(qty,price,p.cost,units);saleBasket.push({productId:p.id,name:p.name,qty,price,cost:amounts.cost,profit:amounts.profit,total:amounts.total,baseQty,saleUnit:unit,unitsPerSale:units,productUpdatedAt:p.updatedAt});renderSaleBasket();document.getElementById('saleQty').value='1';});
+document.getElementById('addSaleBasketItem')?.addEventListener('click',()=>{const p=getActiveProducts().find(x=>x.id===document.getElementById('saleProduct').value),qty=Number(document.getElementById('saleQty').value),price=Number(document.getElementById('salePrice').value),pack=document.getElementById('saleUnit').value==='pack',units=pack?Number(p?.unitsPerPack||1):1;if(!p)return showToast('Choose a product.');if(!Number.isSafeInteger(qty)||qty<1||!Number.isFinite(price)||price<=0)return showToast('Enter a valid quantity and selling price.');const baseQty=qty*units;if(!Number.isSafeInteger(baseQty)||baseQty>2000000000)return showToast('Sale quantity exceeds the safe stock limit.');const existing=saleBasket.filter(x=>x.productId===p.id).reduce((n,x)=>n+x.baseQty,0);if(existing+baseQty>p.stock)return showToast('The quantity exceeds available stock for '+p.name+'.');const unit=pack?p.packUnit:(p.baseUnit||'unit');if(saleBasket.some(x=>x.productId===p.id&&x.saleUnit===unit))return showToast('This product is already in the sale. Remove its line and add it again to change the quantity.');const amounts=calculateSaleAmounts(qty,price,p.cost,units);saleBasket.push({productId:p.id,name:p.name,qty,price,cost:amounts.cost,profit:amounts.profit,total:amounts.total,baseQty,saleUnit:unit,unitsPerSale:units,productUpdatedAt:p.updatedAt});renderSaleBasket();document.getElementById('saleQty').value='1';});
 document.getElementById('saleBasketList')?.addEventListener('click',event=>{const b=event.target.closest('[data-remove-sale-line]');if(!b)return;saleBasket.splice(Number(b.dataset.removeSaleLine),1);renderSaleBasket();});
 let saleSubmitting=false;
 document.getElementById('saleForm').addEventListener('submit',async event=>{event.preventDefault();if(saleSubmitting)return;if(!saleBasket.length)return showToast('Add at least one product to this sale.');const note=document.getElementById('saleNote').value.trim();if(note.length>150)return showToast('Sale note must be 150 characters or fewer.');const byProduct=new Map();for(const line of saleBasket){const p=db.products.find(x=>x.id===line.productId);if(!p)return showToast('A selected product is no longer available. Refresh and try again.');byProduct.set(p.id,p);}for(const [id,p] of byProduct){const used=saleBasket.filter(x=>x.productId===id).reduce((n,x)=>n+x.baseQty,0);if(used>p.stock)return showToast('Insufficient stock for '+p.name+'.');}const total=saleBasket.reduce((n,x)=>n+x.total,0);if(!confirm('Record '+saleBasket.length+' product line'+(saleBasket.length===1?'':'s')+' for '+money(total)+'?'))return;saleSubmitting=true;const formControls=[...event.currentTarget.querySelectorAll('input,select,textarea,button')],formDisabledState=formControls.map(control=>control.disabled);formControls.forEach(control=>{control.disabled=true;});const button=event.submitter||event.currentTarget.querySelector('[type="submit"]');const transactionId=crypto.randomUUID(),stamp=now(),sales=saleBasket.map(x=>({...x,id:crypto.randomUUID(),transactionId,note,date:stamp}));try{for(const [id,p] of byProduct)p.stock-=sales.filter(x=>x.productId===id).reduce((n,x)=>n+x.baseQty,0);db.sales.push(...sales);if(cloudUser){await saveCloudChangeLocally('sale_batch',{transactionId,sales:sales.map(x=>({...x,productUpdatedAt:byProduct.get(x.productId).updatedAt}))});}else if(!save()){for(const [id,p] of byProduct)p.stock+=sales.filter(x=>x.productId===id).reduce((n,x)=>n+x.baseQty,0);db.sales=db.sales.filter(x=>x.transactionId!==transactionId);render();return;}saleBasket=[];renderSaleBasket();event.currentTarget.reset();document.getElementById('saleQty').value='1';refreshSaleUnitOptions();render();showToast('Sale recorded and stock updated.');}catch(error){for(const [id,p] of byProduct)p.stock+=sales.filter(x=>x.productId===id).reduce((n,x)=>n+x.baseQty,0);db.sales=db.sales.filter(x=>x.transactionId!==transactionId);render();showToast(error.message||'The sale could not be saved.');}finally{saleSubmitting=false;formControls.forEach((control,index)=>{control.disabled=formDisabledState[index];});}});
@@ -3969,7 +4006,8 @@ async function restoreSellbookBackupToCloud(checked){
     pack_unit:row.packUnit||row.pack_unit||null,units_per_pack:packUnits==null?null:sellbookBackupNumber(packUnits,'pack size',{integer:true,min:1}),
     pack_selling_price:(row.packPrice??row.pack_selling_price)==null?null:sellbookBackupNumber(row.packPrice??row.pack_selling_price,'pack selling price',{min:0.01}),
     created_at:sellbookBackupTimestamp(row.createdAt||row.created_at,'product creation'),
-    updated_at:sellbookBackupTimestamp(row.updatedAt||row.updated_at||row.createdAt||row.created_at,'product update')};
+    updated_at:sellbookBackupTimestamp(row.updatedAt||row.updated_at||row.createdAt||row.created_at,'product update'),
+    archived_at:(row.archivedAt||row.archived_at)?sellbookBackupTimestamp(row.archivedAt||row.archived_at,'product archive'):null};
   });
   const productsResult=await insertSellbookBackupRows('products',productRows,user.id,requestEpoch,count=>{progress.products=count;});progress.products=productsResult.inserted;
   const ownedProducts=new Set((db.products||[]).map(row=>String(row.id)));
