@@ -12,7 +12,7 @@ This checklist is the release gate for unrestricted public registration. Passing
 - [x] Browser configuration uses a Supabase publishable key; server-side secrets are not part of the browser configuration.
 - [x] Product-image storage is private and user-folder scoped. Buybook marketplace images are public by design when sellers publish listings.
 - [x] Service worker does not cache Supabase REST, Auth, Storage or Functions responses.
-- [ ] Verify that the current main commit is the active Vercel Production deployment and that the primary domain serves that exact release.
+- [x] Verify that the current main commit is the active Vercel Production deployment and that the primary domain is assigned to that exact release.
 - [ ] Run the complete live Android test plan below after the production deployment is updated.
 
 ## Live Android acceptance test
