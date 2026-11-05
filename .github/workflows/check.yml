@@ -27,3 +27,5 @@ jobs:
         run: node scripts/check_screen_layouts.js
       - name: Test sign-in and account recovery UI wiring
         run: node scripts/check_auth_experience.js
+      - name: Test safe account and device backup restore
+        run: node scripts/check_backup_restore.js

@@ -3173,6 +3173,31 @@ function renderProfitHistory(){
 }
 function renderReports(){const {start,rows}=reportRows(),allTime=document.getElementById('reportRange')?.value==='all',key=dateKey(start),todayKey=dateKey(new Date()),inRange=x=>{const recordKey=validDateKey(x.date);return !!recordKey&&recordKey<=todayKey&&(allTime||recordKey>=key);},sales=db.sales.filter(inRange),expenses=db.expenses.filter(x=>!isExpenseVoided(x)&&inRange(x));const total=sales.reduce((n,x)=>n+x.total,0),gross=sales.reduce((n,x)=>n+x.profit,0),costs=expenses.reduce((n,x)=>n+x.amount,0);document.getElementById('reportSales').textContent=money(total);document.getElementById('reportGross').textContent=money(gross);document.getElementById('reportExpenses').textContent=money(costs);document.getElementById('reportNet').textContent=money(gross-costs);renderBarChart('salesTrendChart',reportRowsFor7(),x=>x.label,x=>x.sales);renderBarChart('reportSalesChart',rows,x=>x.label,x=>x.sales);const sums=new Map();sales.forEach(x=>sums.set(x.name,(sums.get(x.name)||0)+x.qty));const top=[...sums.entries()].map(([name,qty])=>({name,qty})).sort((a,b)=>b.qty-a.qty).slice(0,5),max=top[0]?.qty||1;document.getElementById('topProductsChart').innerHTML=top.length?top.map(x=>'<div class="progress-row"><strong>'+esc(x.name)+'</strong><div class="progress-track"><div class="progress-fill" style="width:'+(x.qty/max*100)+'%"></div></div><span class="muted">'+x.qty+' sold</span></div>').join(''):'<div class="empty">No product sales in this period.</div>';}
 document.getElementById('reportRange').addEventListener('change',renderReports);document.getElementById('profitHistoryRange')?.addEventListener('change',renderProfitHistory);
+function downloadSellbookCsv(filename,headers,rows,numericColumns=[]){
+ if(!rows.length){showToast('There are no records in the current filters to export.');return;}
+ const numeric=new Set(numericColumns);
+ const cell=(value,index)=>{let text=String(value??'');if(!numeric.has(index)&&/^[\\s]*[=+\\-@]/.test(text))text="'"+text;return '"'+text.replace(/"/g,'""')+'"';};
+ const csv='\\uFEFF'+[headers,...rows].map(row=>row.map((value,index)=>cell(value,index)).join(',')).join('\\r\\n');
+ const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'}),url=URL.createObjectURL(blob),anchor=document.createElement('a');
+ anchor.href=url;anchor.download=filename;anchor.hidden=true;document.body.appendChild(anchor);anchor.click();anchor.remove();
+ setTimeout(()=>URL.revokeObjectURL(url),1500);showToast('CSV export created.');
+}
+document.getElementById('exportSalesHistoryCsv')?.addEventListener('click',()=>{
+ const range=getSalesHistoryRange(),todayKey=salesHistoryLocalDateKey(),query=(document.getElementById('historySalesProduct')?.value||'').trim().toLocaleLowerCase();
+ const periodRows=(db.sales||[]).filter(sale=>{const key=validDateKey(operationalDate(sale));return !!key&&key<=todayKey&&(!range.from||key>=range.from)&&(!range.to||key<=range.to);});
+ const groups=getSalesTransactions(periodRows).filter(group=>!query||group.sales.some(row=>String(row.name||row.product_name||'').toLocaleLowerCase().includes(query)));
+ const rows=groups.flatMap(group=>group.sales.map(sale=>[operationalDate(sale)||'',group.id,sale.name||sale.product_name||'Product',
+  Number(sale.qty??sale.quantity)||0,sale.saleUnit||sale.sale_unit||'unit',Number(sale.price??sale.unit_price)||0,
+  Number(sale.cost??sale.unit_cost)||0,Number(sale.total)||0,Number(sale.profit??sale.gross_profit)||0,sale.note||'']));
+ downloadSellbookCsv('sellbook-sales-'+today()+'.csv',['Date','Transaction ID','Product','Quantity','Sale unit','Unit price (NGN)','Unit cost (NGN)','Sale total (NGN)','Gross profit (NGN)','Note'],rows,[3,5,6,7,8]);
+});
+document.getElementById('exportExpenseHistoryCsv')?.addEventListener('click',()=>{
+ const rows=getExpenseHistoryRows().map(expense=>[operationalDate(expense)||'',expense.name||expense.description||'Expense',
+  expense.category||'Other',Number(expense.amount)||0,isExpenseVoided(expense)?'Voided':'Included in profit',
+  expense.voidReason||expense.void_reason||'',expense.note||'']);
+ downloadSellbookCsv('sellbook-expenses-'+today()+'.csv',['Date','Description','Category','Amount (NGN)','Status','Void reason','Note'],rows,[3]);
+});
+
 function renderRestockHistory(){
  const target=document.getElementById('restockHistoryList');if(!target)return;
  const productById=new Map((db.products||[]).map(product=>[String(product.id),product]));
@@ -3866,16 +3891,185 @@ document.getElementById('exportBtn').addEventListener('click',()=>{
  }catch(error){cloudMessage('Could not create backup: '+(error.message||String(error)));}
 });
 updateBackupStatus();
+
+function inspectSellbookBackup(parsed,expectedAccountId=null){
+ if(!parsed||typeof parsed!=='object'||Array.isArray(parsed))throw Error('This file is not a Sellbook backup.');
+ if(parsed.app!=='Sellbook'||Number(parsed.version)!==2)throw Error('This backup format is not supported. Export a fresh backup from Sellbook and try again.');
+ const owner=typeof parsed.accountId==='string'&&parsed.accountId.trim()?parsed.accountId.trim():null;
+ if(expectedAccountId){if(owner!==expectedAccountId)throw Error('This backup belongs to a different account, or it was created in device-only mode. Sign in to the original account and choose its backup.');}
+ else if(owner)throw Error('This is an account backup. Sign in to the same Sellbook account before restoring it.');
+ if(parsed.exportedAt&&Number.isNaN(Date.parse(parsed.exportedAt)))throw Error('The backup date is invalid. Export a new backup and try again.');
+ const source=parsed.data;
+ if(!source||typeof source!=='object'||Array.isArray(source))throw Error('The backup does not contain business records.');
+ const required=['products','sales','expenses'],optional=['stockAdjustments','restocks','productAdditions','productActivity'],data={},counts={};
+ for(const key of [...required,...optional]){
+  const value=source[key];
+  if(required.includes(key)&&!Array.isArray(value))throw Error('The backup is missing its '+key+' records.');
+  if(value!==undefined&&!Array.isArray(value))throw Error('The '+key+' section in this backup is invalid.');
+  const rows=Array.isArray(value)?value:[];
+  if(rows.length>25000)throw Error('The '+key+' section contains too many records to restore safely.');
+  const seen=new Set();
+  for(const row of rows){
+   if(!row||typeof row!=='object'||Array.isArray(row))throw Error('A record in '+key+' is not valid.');
+   const id=row.id;
+   if(!['string','number'].includes(typeof id)||!String(id).trim()||String(id).length>128)throw Error('A record in '+key+' is missing its record ID.');
+   const stableId=String(id);
+   if(seen.has(stableId))throw Error('The '+key+' section contains duplicate record IDs. Export a fresh backup before restoring.');
+   seen.add(stableId);
+  }
+  data[key]=rows;counts[key]=rows.length;
+ }
+ return {data,counts,exportedAt:parsed.exportedAt||null,accountId:owner};
+}
+function isSellbookUuid(value){return typeof value==='string'&&/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);}
+function sellbookBackupNumber(value,label,{integer=false,min=0}={}){
+ const number=Number(value);
+ if(!Number.isFinite(number)||number<min||(integer&&!Number.isSafeInteger(number)))throw Error('The backup contains an invalid '+label+'.');
+ return number;
+}
+function sellbookBackupTimestamp(value,label){
+ const date=value?new Date(value):new Date();
+ if(Number.isNaN(date.getTime()))throw Error('The backup contains an invalid '+label+' date.');
+ return date.toISOString();
+}
+async function insertSellbookBackupRows(table,rows,userId,requestEpoch){
+ let inserted=0;const insertedIds=new Set();
+ for(let offset=0;offset<rows.length;offset+=100){
+  if(!accountRequestIsCurrent(userId,requestEpoch))throw Error('Your account changed during restore. Any records already added are safe; sign back in to the same account and retry the same backup.');
+  const batch=rows.slice(offset,offset+100);
+  const {data,error}=await supabaseClient.from(table).upsert(batch,{onConflict:'id',ignoreDuplicates:true}).select('id');
+  if(error)throw error;
+  for(const row of data||[]){if(row?.id)insertedIds.add(String(row.id));}
+  inserted+=(data||[]).length;
+ }
+ return {inserted,insertedIds};
+}
+async function restoreSellbookBackupToCloud(checked){
+ const requestedUserId=cloudUser?.id,requestEpoch=accountSessionEpoch;
+ if(!requestedUserId)throw Error('Sign in to the account that created this backup before restoring it.');
+ if(!navigator.onLine)throw Error('Connect to the internet before restoring an account backup.');
+ const user=await requireCloudUser(requestedUserId);
+ if(!accountRequestIsCurrent(requestedUserId,requestEpoch))throw Error('Your account changed. Sign in again and retry the restore.');
+ const progress={products:0,sales:0,expenses:0,stockAdjustments:0,restocks:0,skippedStockAdjustments:0,skippedRestocks:0};
+ try{
+  const productRows=checked.data.products.map(row=>{
+   if(!isSellbookUuid(String(row.id)))throw Error('A product record has an invalid ID. Use a backup exported from your signed-in Sellbook account.');
+   const name=String(row.name||'').trim();if(!name)throw Error('A product in this backup has no name.');
+   const units=sellbookBackupNumber(row.unitsPerPurchase??row.units_per_purchase??1,'product purchase unit count',{integer:true,min:1});
+   const cost=sellbookBackupNumber(row.cost??row.costPrice??row.cost_price,'product cost price');
+   const price=sellbookBackupNumber(row.price??row.sellingPrice??row.selling_price,'product selling price',{min:0.01});
+   const stock=sellbookBackupNumber(row.stock??0,'product stock',{integer:true,min:0}),packUnits=row.unitsPerPack??row.units_per_pack;
+   return {id:String(row.id),user_id:user.id,name,category:normalizeCategory(row.category),cost_price:cost,selling_price:price,stock,
+    image_path:row.imagePath||row.image_path||null,base_unit:String(row.baseUnit||row.base_unit||'unit').slice(0,40),
+    purchase_unit:String(row.purchaseUnit||row.purchase_unit||row.baseUnit||row.base_unit||'unit').slice(0,40),units_per_purchase:units,
+    pack_unit:row.packUnit||row.pack_unit||null,units_per_pack:packUnits==null?null:sellbookBackupNumber(packUnits,'pack size',{integer:true,min:1}),
+    pack_selling_price:(row.packPrice??row.pack_selling_price)==null?null:sellbookBackupNumber(row.packPrice??row.pack_selling_price,'pack selling price',{min:0.01}),
+    created_at:sellbookBackupTimestamp(row.createdAt||row.created_at,'product creation'),
+    updated_at:sellbookBackupTimestamp(row.updatedAt||row.updated_at||row.createdAt||row.created_at,'product update')};
+  });
+  const productsResult=await insertSellbookBackupRows('products',productRows,user.id,requestEpoch);progress.products=productsResult.inserted;
+  const ownedProducts=new Set((db.products||[]).map(row=>String(row.id)));
+  for(const id of productsResult.insertedIds)ownedProducts.add(id);
+  const salesRows=checked.data.sales.map(row=>{
+   if(!isSellbookUuid(String(row.id)))throw Error('A sales record has an invalid ID. Use a backup exported from your signed-in Sellbook account.');
+   const quantity=sellbookBackupNumber(row.qty??row.quantity,'sale quantity',{integer:true,min:1});
+   const units=sellbookBackupNumber(row.unitsPerSale??row.units_per_sale??1,'sale unit count',{integer:true,min:1});
+   const price=sellbookBackupNumber(row.price??row.unit_price,'sale price',{min:0.01});
+   const cost=sellbookBackupNumber(row.cost??row.unit_cost??0,'sale cost');
+   const total=sellbookBackupNumber(row.total??quantity*price,'sale total');
+   const baseQuantity=sellbookBackupNumber(row.baseQty??row.base_quantity??quantity*units,'sale stock quantity',{integer:true,min:1});
+   const profit=sellbookBackupNumber(row.profit??row.gross_profit??(total-cost*baseQuantity),'sale gross profit');
+   const originalProductId=row.productId||row.product_id||null,productId=originalProductId&&ownedProducts.has(String(originalProductId))?String(originalProductId):null;
+   const transactionId=row.transactionId||row.transaction_id||null;
+   return {id:String(row.id),user_id:user.id,product_id:productId,product_name:String(row.name||row.product_name||'Product').slice(0,200),
+    quantity,unit_price:price,unit_cost:cost,total,gross_profit:profit,note:row.note?String(row.note).slice(0,500):null,
+    sold_at:sellbookBackupTimestamp(row.date||row.sold_at,'sale'),base_quantity:baseQuantity,
+    sale_unit:String(row.saleUnit||row.sale_unit||'unit').slice(0,40),units_per_sale:units,
+    transaction_id:isSellbookUuid(String(transactionId||''))?String(transactionId):null};
+  });
+  const salesResult=await insertSellbookBackupRows('sales',salesRows,user.id,requestEpoch);progress.sales=salesResult.inserted;
+  const expenseRows=checked.data.expenses.map(row=>{
+   if(!isSellbookUuid(String(row.id)))throw Error('An expense record has an invalid ID. Use a backup exported from your signed-in Sellbook account.');
+   const description=String(row.name||row.description||'').trim();if(!description)throw Error('An expense in this backup has no description.');
+   return {id:String(row.id),user_id:user.id,description:description.slice(0,200),
+    amount:sellbookBackupNumber(row.amount,'expense amount',{min:0.01}),
+    spent_at:sellbookBackupTimestamp(row.date||row.spent_at,'expense'),category:String(row.category||'Other').slice(0,80),
+    note:row.note?String(row.note).slice(0,500):null,
+    voided_at:row.voidedAt||row.voided_at?sellbookBackupTimestamp(row.voidedAt||row.voided_at,'expense void'):null,
+    void_reason:row.voidReason||row.void_reason?String(row.voidReason||row.void_reason).slice(0,300):null,
+    updated_at:sellbookBackupTimestamp(row.updatedAt||row.updated_at||row.date||row.spent_at,'expense update')};
+  });
+  const expensesResult=await insertSellbookBackupRows('expenses',expenseRows,user.id,requestEpoch);progress.expenses=expensesResult.inserted;
+  const adjustmentRows=[];
+  for(const row of checked.data.stockAdjustments){
+   if(!isSellbookUuid(String(row.id)))throw Error('A stock adjustment has an invalid ID.');
+   const productId=String(row.productId||row.product_id||'');
+   if(!ownedProducts.has(productId)){progress.skippedStockAdjustments++;continue;}
+   adjustmentRows.push({id:String(row.id),user_id:user.id,product_id:productId,
+    product_name:String(row.productName||row.product_name||'Product').slice(0,200),
+    previous_stock:sellbookBackupNumber(row.previousStock??row.previous_stock,'previous stock',{integer:true,min:0}),
+    new_stock:sellbookBackupNumber(row.newStock??row.new_stock,'new stock',{integer:true,min:0}),
+    quantity_change:sellbookBackupNumber(row.quantityChange??row.quantity_change,'stock change',{integer:true,min:-2147483647}),
+    reason:String(row.reason||'').slice(0,300),adjusted_at:sellbookBackupTimestamp(row.date||row.adjusted_at,'stock adjustment')});
+  }
+  const adjustmentsResult=await insertSellbookBackupRows('stock_adjustments',adjustmentRows,user.id,requestEpoch);progress.stockAdjustments=adjustmentsResult.inserted;
+  const restockRows=[];
+  for(const row of checked.data.restocks){
+   if(!isSellbookUuid(String(row.id)))throw Error('A restock record has an invalid ID.');
+   const productId=String(row.productId||row.product_id||'');
+   if(!ownedProducts.has(productId)){progress.skippedRestocks++;continue;}
+   const units=sellbookBackupNumber(row.unitsPerPurchase??row.units_per_purchase??1,'restock unit count',{integer:true,min:1});
+   const cost=sellbookBackupNumber(row.costPerPurchaseUnit??row.cost_per_purchase_unit,'restock purchase cost');
+   const totalCost=sellbookBackupNumber(row.totalCost??row.total_cost,'restock total cost');
+   const baseUnitCost=sellbookBackupNumber(row.baseUnitCost??row.base_unit_cost??cost/units,'restock unit cost');
+   restockRows.push({id:String(row.id),user_id:user.id,product_id:productId,
+    product_name:String(row.productName||row.product_name||'Product').slice(0,200),
+    purchase_quantity:sellbookBackupNumber(row.purchaseQuantity??row.purchase_quantity,'restock quantity',{integer:true,min:1}),
+    purchase_unit:String(row.purchaseUnit||row.purchase_unit||'unit').slice(0,40),units_per_purchase:units,
+    base_quantity:sellbookBackupNumber(row.baseQuantity??row.base_quantity,'restocked unit quantity',{integer:true,min:1}),
+    cost_per_purchase_unit:cost,total_cost:totalCost,base_unit_cost:baseUnitCost,
+    average_cost_before:sellbookBackupNumber(row.averageCostBefore??row.average_cost_before??baseUnitCost,'previous average cost'),
+    average_cost_after:sellbookBackupNumber(row.averageCostAfter??row.average_cost_after??baseUnitCost,'new average cost'),
+    restocked_at:sellbookBackupTimestamp(row.date||row.restocked_at,'restock'),
+    previous_stock:row.previousStock==null&&row.previous_stock==null?null:sellbookBackupNumber(row.previousStock??row.previous_stock,'previous restock stock',{integer:true,min:0}),
+    new_stock:row.newStock==null&&row.new_stock==null?null:sellbookBackupNumber(row.newStock??row.new_stock,'new restock stock',{integer:true,min:0})});
+  }
+  const restocksResult=await insertSellbookBackupRows('stock_purchases',restockRows,user.id,requestEpoch);progress.restocks=restocksResult.inserted;
+  if(!accountRequestIsCurrent(user.id,requestEpoch))throw Error('Your account changed during restore. Some records may already have been added safely; retry the same backup after signing in.');
+  await cloudLoadAll();
+  return {progress,imagesNotUploaded:checked.data.products.filter(row=>!row.imagePath&&!row.image_path&&typeof row.image==='string'&&row.image.startsWith('data:image/')).length,
+   supplementalNotRestored:checked.data.productActivity.length+checked.data.productAdditions.length};
+ }catch(error){const wrapped=new Error(error.message||'Backup restore could not be completed.');wrapped.sellbookRestoreProgress={...progress};throw wrapped;}
+}
+
 document.getElementById('importFile').addEventListener('change',async e=>{
  const file=e.target.files[0];if(!file)return;
  try{
-  const parsed=JSON.parse(await file.text()),d=parsed.data;
-  if(!d||!Array.isArray(d.products)||!Array.isArray(d.sales)||!Array.isArray(d.expenses))throw Error('Invalid backup format.');
-  if(cloudUser)throw Error('Backup restore is currently available only in local mode. Sign out of your cloud account before restoring a local backup. This prevents a local restore from being mistaken for a cloud restore.');
-  if(!confirm('Replace all current records with this backup?'))return;
-  db=normalizeDb(d);if(save()){render();showToast('Backup restored.');}
- }catch(err){showToast('Could not restore backup: '+err.message);}
- finally{e.target.value='';}
+  if(file.size>50*1024*1024)throw Error('This backup is larger than 50 MB. Export a smaller backup or split the records before restoring.');
+  const parsed=JSON.parse(await file.text()),checked=inspectSellbookBackup(parsed,cloudUser?.id||null);
+  const total=['products','sales','expenses','stockAdjustments','restocks'].reduce((sum,key)=>sum+(checked.counts[key]||0),0);
+  if(!total)throw Error('This backup does not contain any business records.');
+  if(cloudUser){
+   if(!confirm('Restore '+total.toLocaleString()+' record(s) into this signed-in account? Sellbook will add missing records only. Existing records will not be replaced or deleted. Keep this device online until the restore finishes.'))return;
+   const result=await restoreSellbookBackupToCloud(checked),progress=result.progress;
+   const added=progress.products+progress.sales+progress.expenses+progress.stockAdjustments+progress.restocks;
+   const skipped=progress.skippedStockAdjustments+progress.skippedRestocks;
+   const photoNote=result.imagesNotUploaded?' '+result.imagesNotUploaded+' device-only product photo(s) were not uploaded; add those photos again from the product page.':'';
+   const supplementNote=result.supplementalNotRestored?' '+result.supplementalNotRestored+' supplemental activity record(s) were not imported; product creation history is recreated by Sellbook when supported.':'';
+   showToast('Backup restore complete. '+added.toLocaleString()+' new record(s) added; existing records were kept.'+(skipped?' '+skipped+' stock history record(s) with missing products were skipped.':'')+photoNote+supplementNote);
+  }else{
+   if(!confirm('Replace all records currently stored on this device with this device-only backup? This does not change any cloud account.'))return;
+   const previousDb=db;db=normalizeDb(checked.data);
+   if(!save()){db=previousDb;throw Error('Could not save the restored records on this device. Your previous records remain in place.');}
+   localSnapshot=snapshotLocalRecords();render();updateBackupStatus();showToast('Backup restored on this device.');
+  }
+ }catch(err){
+  const progress=err.sellbookRestoreProgress;
+  if(progress){
+   const added=progress.products+progress.sales+progress.expenses+progress.stockAdjustments+progress.restocks;
+   showToast('Restore stopped after adding '+added.toLocaleString()+' record(s). No existing records were replaced or deleted. Retry the same backup to safely continue. '+err.message,'error');
+  }else showToast('Could not restore backup: '+(err.message||String(err)),'error');
+ }finally{e.target.value='';}
 });
 let emailAuthMode = 'signin';
 let authScreenMode = 'choices';
