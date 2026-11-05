@@ -11,12 +11,13 @@ assert.ok(start>=0&&end>start,'Could not isolate production backup validator.');
 const context={};
 vm.runInNewContext(app.slice(start,end)+String.fromCharCode(10)+'globalThis.inspect=inspectSellbookBackup;',context);
 const valid=(accountId=null)=>({app:'Sellbook',version:2,exportedAt:'2026-11-05T10:00:00.000Z',accountId,data:{
- products:[{id:'product-1',name:'Water'}],sales:[{id:'sale-1'}],expenses:[{id:'expense-1'}],
+ products:[{id:'product-1',name:'Water'}],sales:[{id:'sale-1'}],expenses:[{id:'expense-1'}],profile:{businessName:'Corner Shop'},
  stockAdjustments:[{id:'adjust-1'}],restocks:[{id:'restock-1'}]
 }});
 const local=context.inspect(valid(),null);
 assert.deepEqual(JSON.parse(JSON.stringify(local.counts)),{products:1,sales:1,expenses:1,stockAdjustments:1,restocks:1,productAdditions:0,productActivity:0});
 assert.equal(local.data.products[0].name,'Water');
+assert.equal(local.data.profile.businessName,'Corner Shop','Local restore preserves the saved business profile.');
 assert.equal(context.inspect(valid('account-123'),'account-123').accountId,'account-123');
 assert.throws(()=>context.inspect(valid('another-account'),'account-123'),/different account/i);
 assert.throws(()=>context.inspect(valid('account-123'),null),/sign in to the same/i);
