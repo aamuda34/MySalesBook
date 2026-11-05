@@ -3955,7 +3955,7 @@ async function restoreSellbookBackupToCloud(checked){
  try{
   const productRows=checked.data.products.map(row=>{
    if(!isSellbookUuid(String(row.id)))throw Error('A product record has an invalid ID. Use a backup exported from your signed-in Sellbook account.');
-   const name=String(row.name||'').trim();if(!name)throw Error('A product in this backup has no name.');
+   const name=String(row.name||'').trim().slice(0,100);if(!name)throw Error('A product in this backup has no name.');
    const units=sellbookBackupNumber(row.unitsPerPurchase??row.units_per_purchase??1,'product purchase unit count',{integer:true,min:1});
    const cost=sellbookBackupNumber(row.cost??row.costPrice??row.cost_price,'product cost price');
    const price=sellbookBackupNumber(row.price??row.sellingPrice??row.selling_price,'product selling price',{min:0.01});
@@ -3983,7 +3983,7 @@ async function restoreSellbookBackupToCloud(checked){
    const originalProductId=row.productId||row.product_id||null,productId=originalProductId&&ownedProducts.has(String(originalProductId))?String(originalProductId):null;
    const transactionId=row.transactionId||row.transaction_id||null;
    return {id:String(row.id),user_id:user.id,product_id:productId,product_name:String(row.name||row.product_name||'Product').slice(0,200),
-    quantity,unit_price:price,unit_cost:cost,total,gross_profit:profit,note:row.note?String(row.note).slice(0,500):null,
+    quantity,unit_price:price,unit_cost:cost,total,gross_profit:profit,note:row.note?String(row.note).slice(0,150):null,
     sold_at:sellbookBackupTimestamp(row.date||row.sold_at,'sale'),base_quantity:baseQuantity,
     sale_unit:String(row.saleUnit||row.sale_unit||'unit').slice(0,40),units_per_sale:units,
     transaction_id:isSellbookUuid(String(transactionId||''))?String(transactionId):null};
@@ -3992,12 +3992,12 @@ async function restoreSellbookBackupToCloud(checked){
   const expenseRows=checked.data.expenses.map(row=>{
    if(!isSellbookUuid(String(row.id)))throw Error('An expense record has an invalid ID. Use a backup exported from your signed-in Sellbook account.');
    const description=String(row.name||row.description||'').trim();if(!description)throw Error('An expense in this backup has no description.');
-   return {id:String(row.id),user_id:user.id,description:description.slice(0,200),
+   return {id:String(row.id),user_id:user.id,description:description.slice(0,100),
     amount:sellbookBackupNumber(row.amount,'expense amount',{min:0.01}),
-    spent_at:sellbookBackupTimestamp(row.date||row.spent_at,'expense'),category:String(row.category||'Other').slice(0,80),
+    spent_at:sellbookBackupTimestamp(row.date||row.spent_at,'expense'),category:String(row.category||'Other').slice(0,40),
     note:row.note?String(row.note).slice(0,500):null,
     voided_at:row.voidedAt||row.voided_at?sellbookBackupTimestamp(row.voidedAt||row.voided_at,'expense void'):null,
-    void_reason:row.voidReason||row.void_reason?String(row.voidReason||row.void_reason).slice(0,300):null,
+    void_reason:row.voidReason||row.void_reason?String(row.voidReason||row.void_reason).slice(0,200):null,
     updated_at:sellbookBackupTimestamp(row.updatedAt||row.updated_at||row.date||row.spent_at,'expense update')};
   });
   const expensesResult=await insertSellbookBackupRows('expenses',expenseRows,user.id,requestEpoch,count=>{progress.expenses=count;});progress.expenses=expensesResult.inserted;
