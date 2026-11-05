@@ -30,6 +30,8 @@ assert.throws(()=>context.inspect({...valid(),exportedAt:'not-a-date'},null),/ba
 assert.ok(app.includes(".upsert(batch,{onConflict:'id',ignoreDuplicates:true}).select('id')"),'Cloud restore uses idempotent insert-only upserts.');
 assert.ok(app.includes('inspectSellbookBackup(parsed,cloudUser?.id||null)'),'Restore validates account ownership before writing.');
 assert.ok(app.includes('accountRequestIsCurrent(userId,requestEpoch)'),'Cloud restore checks the active account between batches.');
+assert.ok(app.includes('const queuedChanges=readQueue(user.id)')&&app.includes("queuedChanges.some(item=>item.status!=='synced')"),'Cloud restore refuses to race unsynchronised local changes.');
+assert.ok(app.includes('queueReadErrors.has(user.id)'),'Cloud restore refuses to proceed when the local queue needs recovery.');
 assert.ok(app.includes('await cloudLoadAll();'),'Cloud restore refreshes from the account database.');
 assert.ok(app.includes('db=previousDb;throw Error(\'Could not save the restored records'),'Failed device restore preserves in-memory records.');
 assert.ok(html.includes('id="exportSalesHistoryCsv"')&&html.includes('id="exportExpenseHistoryCsv"'),'Both histories expose CSV exports.');
