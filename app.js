@@ -3901,7 +3901,7 @@ function inspectSellbookBackup(parsed,expectedAccountId=null){
  if(parsed.exportedAt&&Number.isNaN(Date.parse(parsed.exportedAt)))throw Error('The backup date is invalid. Export a new backup and try again.');
  const source=parsed.data;
  if(!source||typeof source!=='object'||Array.isArray(source))throw Error('The backup does not contain business records.');
- const required=['products','sales','expenses'],optional=['stockAdjustments','restocks','productAdditions','productActivity'],data={},counts={};
+ const required=['products','sales','expenses'],optional=['stockAdjustments','restocks','productAdditions','productActivity'],data={...source},counts={};
  for(const key of [...required,...optional]){
   const value=source[key];
   if(required.includes(key)&&!Array.isArray(value))throw Error('The backup is missing its '+key+' records.');
