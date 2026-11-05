@@ -6,10 +6,10 @@ const app=fs.readFileSync('app.js','utf8');
 const html=fs.readFileSync('index.html','utf8');
 const sw=fs.readFileSync('sw.js','utf8');
 const start=app.indexOf('function inspectSellbookBackup(');
-const end=app.indexOf('\\nfunction isSellbookUuid',start);
+const end=app.indexOf(String.fromCharCode(10)+'function isSellbookUuid',start);
 assert.ok(start>=0&&end>start,'Could not isolate production backup validator.');
 const context={};
-vm.runInNewContext(app.slice(start,end)+'\\nglobalThis.inspect=inspectSellbookBackup;',context);
+vm.runInNewContext(app.slice(start,end)+String.fromCharCode(10)+'globalThis.inspect=inspectSellbookBackup;',context);
 const valid=(accountId=null)=>({app:'Sellbook',version:2,exportedAt:'2026-11-05T10:00:00.000Z',accountId,data:{
  products:[{id:'product-1',name:'Water'}],sales:[{id:'sale-1'}],expenses:[{id:'expense-1'}],
  stockAdjustments:[{id:'adjust-1'}],restocks:[{id:'restock-1'}]
@@ -34,5 +34,5 @@ assert.ok(app.includes('db=previousDb;throw Error(\'Could not save the restored 
 assert.ok(html.includes('id="exportSalesHistoryCsv"')&&html.includes('id="exportExpenseHistoryCsv"'),'Both histories expose CSV exports.');
 assert.ok(app.includes('Net profit is an estimate:'),'Profit history explains the net profit estimate.');
 assert.ok(sw.includes('sellbook-shell-v133'),'PWA cache is advanced with app shell changes.');
-assert.ok(app.includes("/^[\\\\s]*[=+\\\\-@]/.test(text)"),'CSV text cells are protected from spreadsheet formula injection.');
+assert.ok(app.includes("if(!numeric.has(index)&&/^[=+@-]/.test(text.trimStart()))"),'CSV text cells are protected from spreadsheet formula injection.');
 console.log('PASS: backup validation, account ownership, idempotent cloud restore guards, CSV exports and profit disclosure.');
