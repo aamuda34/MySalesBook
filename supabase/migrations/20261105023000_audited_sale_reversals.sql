@@ -92,7 +92,7 @@ BEGIN
         s.product_id,
         pg_catalog.max(s.product_name) AS product_name,
         pg_catalog.sum(
-          COALESCE(s.base_quantity, s.quantity * COALESCE(s.units_per_sale, 1))::bigint
+          COALESCE(s.base_quantity::bigint, s.quantity::bigint * COALESCE(s.units_per_sale, 1)::bigint)
         )::bigint AS returned_quantity
       FROM public.sales s
       WHERE s.user_id = v_user_id
