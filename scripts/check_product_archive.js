@@ -10,7 +10,7 @@ const start=app.indexOf('function isProductArchived(');
 const end=app.indexOf('function getActiveProducts(',start);
 assert.ok(start>=0&&end>start,'Could not locate the production archive status helper.');
 const context={};
-vm.runInNewContext(app.slice(start,end)+'\\nglobalThis.isArchived=isProductArchived;',context);
+vm.runInNewContext(app.slice(start,end)+String.fromCharCode(10)+'globalThis.isArchived=isProductArchived;',context);
 assert.equal(context.isArchived({id:'a',archivedAt:null}),false);
 assert.equal(context.isArchived({id:'a',archivedAt:'2026-11-05T00:00:00Z'}),true);
 assert.equal(context.isArchived({id:'a',archived_at:'2026-11-05T00:00:00Z'}),true);
