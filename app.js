@@ -5402,9 +5402,6 @@ function showAdminPanel(name){
  document.querySelectorAll('[data-admin-panel-content]').forEach(p=>p.classList.toggle('hidden',p.dataset.adminPanelContent!==name));
  document.querySelectorAll('[data-admin-panel]').forEach(b=>{const active=b.dataset.adminPanel===name;b.classList.toggle('active',active);b.setAttribute('aria-selected',active?'true':'false');});
  sessionStorage.setItem('sellbook-admin-panel',name);
- const headings={overview:'Platform overview',traffic:'Website traffic',users:'Users',feedback:'User feedback',support:'Support conversations',notifications:'Notifications'};
- const heading=document.getElementById('adminActiveSection');
- if(heading)heading.textContent=headings[name]||'Admin dashboard';
  if(name==='traffic')loadAdminTraffic();
  if(name==='users')loadAdminUsers();
  if(name==='support')loadAdminUsers();
@@ -6102,15 +6099,20 @@ const chatInput=document.getElementById('supportMessageBody');chatInput.addEvent
 function openAdminConversation(uid){
  const select=document.getElementById('adminMessageUser');
  if(!select||!adminUsersCache.some(user=>user.user_id===uid))return;
+ adminConversationRequestId++;
+ adminConversationLoading=false;
  select.value=uid;
  const target=document.getElementById('adminSupportMessages');
  if(target){target.dataset.loaded='';target.innerHTML='<div class="empty">Loading conversation…</div>';}
+ document.getElementById('adminChatListView')?.classList.add('hidden');
  document.getElementById('adminChatUserListView').classList.add('hidden');
  document.getElementById('adminChatConversationView').classList.remove('hidden');
  document.body.classList.add('admin-conversation-open');
  loadAdminConversation();
 }
 function backToAdminChatList(){
+ adminConversationRequestId++;
+ adminConversationLoading=false;
  document.body.classList.remove('admin-conversation-open');
  document.getElementById('adminChatConversationView').classList.add('hidden');
  document.getElementById('adminChatUserListView').classList.remove('hidden');
@@ -6124,7 +6126,7 @@ async function loadAdminConversation(){
  if(adminConversationLoading||!supabaseClient||!cloudUser||!sellbookIsAdmin)return;
  const requestId=++adminConversationRequestId;
  const requestedUserId=cloudUser.id,requestEpoch=adminAccessEpoch;
- const current=()=>adminRequestIsCurrent(requestedUserId,requestEpoch);
+ const current=()=>requestId===adminConversationRequestId&&adminRequestIsCurrent(requestedUserId,requestEpoch);
  adminConversationLoading=true;
  const target=document.getElementById('adminSupportMessages');
  const input=document.getElementById('adminReplyBody');
