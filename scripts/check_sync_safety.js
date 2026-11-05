@@ -183,7 +183,7 @@ assert.equal(groupedSales[0].id, 'basket-1');
 assert.equal(groupedSales[0].total, 150);
 assert.equal(groupedSales[0].profit, 40);
 assert.equal(groupedSales[0].items, 27, 'Pack quantities must be converted to base units for the sales summary.');
-requireText(app, 'items=periodRows.reduce((n,x)=>n+saleBaseQuantity(x),0)', 'Sales History summary counts base units, not only packs');
+requireText(app, 'items=activeRows.reduce((n,x)=>n+saleBaseQuantity(x),0)', 'Sales History summary counts base units, not only packs');
 console.log('PASS: grouped sales count as one transaction and aggregate converted stock units.');
 
 // Exercise the real queued product-version propagation for edits, restocks and basket sales.
