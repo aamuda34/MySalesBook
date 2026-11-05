@@ -1,0 +1,1 @@
+create index if not exists sellbook_security_action_grants_session_id_idx on private.sellbook_security_action_grants (session_id);
