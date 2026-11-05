@@ -3932,7 +3932,7 @@ function sellbookBackupTimestamp(value,label){
  if(Number.isNaN(date.getTime()))throw Error('The backup contains an invalid '+label+' date.');
  return date.toISOString();
 }
-async function insertSellbookBackupRows(table,rows,userId,requestEpoch){
+async function insertSellbookBackupRows(table,rows,userId,requestEpoch,onProgress){
  let inserted=0;const insertedIds=new Set();
  for(let offset=0;offset<rows.length;offset+=100){
   if(!accountRequestIsCurrent(userId,requestEpoch))throw Error('Your account changed during restore. Any records already added are safe; sign back in to the same account and retry the same backup.');
@@ -3941,6 +3941,7 @@ async function insertSellbookBackupRows(table,rows,userId,requestEpoch){
   if(error)throw error;
   for(const row of data||[]){if(row?.id)insertedIds.add(String(row.id));}
   inserted+=(data||[]).length;
+  if(onProgress)onProgress(inserted,insertedIds);
  }
  return {inserted,insertedIds};
 }
@@ -3967,7 +3968,7 @@ async function restoreSellbookBackupToCloud(checked){
     created_at:sellbookBackupTimestamp(row.createdAt||row.created_at,'product creation'),
     updated_at:sellbookBackupTimestamp(row.updatedAt||row.updated_at||row.createdAt||row.created_at,'product update')};
   });
-  const productsResult=await insertSellbookBackupRows('products',productRows,user.id,requestEpoch);progress.products=productsResult.inserted;
+  const productsResult=await insertSellbookBackupRows('products',productRows,user.id,requestEpoch,count=>{progress.products=count;});progress.products=productsResult.inserted;
   const ownedProducts=new Set((db.products||[]).map(row=>String(row.id)));
   for(const id of productsResult.insertedIds)ownedProducts.add(id);
   const salesRows=checked.data.sales.map(row=>{
@@ -3978,7 +3979,7 @@ async function restoreSellbookBackupToCloud(checked){
    const cost=sellbookBackupNumber(row.cost??row.unit_cost??0,'sale cost');
    const total=sellbookBackupNumber(row.total??quantity*price,'sale total');
    const baseQuantity=sellbookBackupNumber(row.baseQty??row.base_quantity??quantity*units,'sale stock quantity',{integer:true,min:1});
-   const profit=sellbookBackupNumber(row.profit??row.gross_profit??(total-cost*baseQuantity),'sale gross profit');
+   const profit=sellbookBackupNumber(row.profit??row.gross_profit??(total-cost*baseQuantity),'sale gross profit',{min:-9999999999.99});
    const originalProductId=row.productId||row.product_id||null,productId=originalProductId&&ownedProducts.has(String(originalProductId))?String(originalProductId):null;
    const transactionId=row.transactionId||row.transaction_id||null;
    return {id:String(row.id),user_id:user.id,product_id:productId,product_name:String(row.name||row.product_name||'Product').slice(0,200),
@@ -3987,7 +3988,7 @@ async function restoreSellbookBackupToCloud(checked){
     sale_unit:String(row.saleUnit||row.sale_unit||'unit').slice(0,40),units_per_sale:units,
     transaction_id:isSellbookUuid(String(transactionId||''))?String(transactionId):null};
   });
-  const salesResult=await insertSellbookBackupRows('sales',salesRows,user.id,requestEpoch);progress.sales=salesResult.inserted;
+  const salesResult=await insertSellbookBackupRows('sales',salesRows,user.id,requestEpoch,count=>{progress.sales=count;});progress.sales=salesResult.inserted;
   const expenseRows=checked.data.expenses.map(row=>{
    if(!isSellbookUuid(String(row.id)))throw Error('An expense record has an invalid ID. Use a backup exported from your signed-in Sellbook account.');
    const description=String(row.name||row.description||'').trim();if(!description)throw Error('An expense in this backup has no description.');
@@ -3999,7 +4000,7 @@ async function restoreSellbookBackupToCloud(checked){
     void_reason:row.voidReason||row.void_reason?String(row.voidReason||row.void_reason).slice(0,300):null,
     updated_at:sellbookBackupTimestamp(row.updatedAt||row.updated_at||row.date||row.spent_at,'expense update')};
   });
-  const expensesResult=await insertSellbookBackupRows('expenses',expenseRows,user.id,requestEpoch);progress.expenses=expensesResult.inserted;
+  const expensesResult=await insertSellbookBackupRows('expenses',expenseRows,user.id,requestEpoch,count=>{progress.expenses=count;});progress.expenses=expensesResult.inserted;
   const adjustmentRows=[];
   for(const row of checked.data.stockAdjustments){
    if(!isSellbookUuid(String(row.id)))throw Error('A stock adjustment has an invalid ID.');
@@ -4012,7 +4013,7 @@ async function restoreSellbookBackupToCloud(checked){
     quantity_change:sellbookBackupNumber(row.quantityChange??row.quantity_change,'stock change',{integer:true,min:-2147483647}),
     reason:String(row.reason||'').slice(0,300),adjusted_at:sellbookBackupTimestamp(row.date||row.adjusted_at,'stock adjustment')});
   }
-  const adjustmentsResult=await insertSellbookBackupRows('stock_adjustments',adjustmentRows,user.id,requestEpoch);progress.stockAdjustments=adjustmentsResult.inserted;
+  const adjustmentsResult=await insertSellbookBackupRows('stock_adjustments',adjustmentRows,user.id,requestEpoch,count=>{progress.stockAdjustments=count;});progress.stockAdjustments=adjustmentsResult.inserted;
   const restockRows=[];
   for(const row of checked.data.restocks){
    if(!isSellbookUuid(String(row.id)))throw Error('A restock record has an invalid ID.');
@@ -4034,10 +4035,10 @@ async function restoreSellbookBackupToCloud(checked){
     previous_stock:row.previousStock==null&&row.previous_stock==null?null:sellbookBackupNumber(row.previousStock??row.previous_stock,'previous restock stock',{integer:true,min:0}),
     new_stock:row.newStock==null&&row.new_stock==null?null:sellbookBackupNumber(row.newStock??row.new_stock,'new restock stock',{integer:true,min:0})});
   }
-  const restocksResult=await insertSellbookBackupRows('stock_purchases',restockRows,user.id,requestEpoch);progress.restocks=restocksResult.inserted;
+  const restocksResult=await insertSellbookBackupRows('stock_purchases',restockRows,user.id,requestEpoch,count=>{progress.restocks=count;});progress.restocks=restocksResult.inserted;
   if(!accountRequestIsCurrent(user.id,requestEpoch))throw Error('Your account changed during restore. Some records may already have been added safely; retry the same backup after signing in.');
   await cloudLoadAll();
-  return {progress,imagesNotUploaded:checked.data.products.filter(row=>!row.imagePath&&!row.image_path&&typeof row.image==='string'&&row.image.startsWith('data:image/')).length,
+  return {progress,imagesNotUploaded:checked.data.products.filter(row=>!(row.imagePath||row.image_path)&&!!(row.image||row.offlineImage)).length,
    supplementalNotRestored:checked.data.productActivity.length+checked.data.productAdditions.length};
  }catch(error){const wrapped=new Error(error.message||'Backup restore could not be completed.');wrapped.sellbookRestoreProgress={...progress};throw wrapped;}
 }
