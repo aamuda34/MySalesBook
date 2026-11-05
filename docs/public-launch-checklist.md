@@ -39,10 +39,13 @@ The active migration files whose timestamps differed from the live Supabase hist
 
 ## Legal and operator launch gate
 
-- [ ] Supply the operator's legal identity and residence/place of business.
-- [ ] Supply a monitored privacy/support contact that prospective users can use without already having an account.
+- [x] Record the registered business name as ADEYIMIKA INTEGRATED ENTERPRISES, a CAC-registered Business Name (not a limited company).
+- [x] Record the proprietor and individual service operator as ADEYIMIKA AMUDA, matching the CAC proprietor details supplied.
+- [x] Record the CAC business/service address as Along Riverside Hotel, Odo-Oba, Iwo, Iwo, Osun State, Nigeria. The proprietor authorised publication of this address; the CAC entry's `NULL` means no building number was assigned.
+- [x] Add the supplied direct privacy/support email, sellbook.support@gmail.com, to the Privacy Notice and Terms of Use.
+- [ ] Verify that the email inbox is accessible, active and monitored, and test that a person who is signed out can contact the operator.
 - [ ] Have the Privacy Notice and Terms reviewed against the operator's actual processing activities and applicable Nigerian law.
 - [ ] Confirm provider data-processing terms and safeguards for any transfer of personal data outside Nigeria.
 - [ ] Decide whether the operator's scale or processing activities require NDPC registration, a Data Protection Officer, or a data protection impact assessment. Obtain qualified advice where needed.
 
-The legal pages deliberately show that the operator details are still outstanding. They must not be presented as complete until the operator supplies those details.
+The operator details have now been added to the legal pages. The remaining unchecked items are independent launch requirements; publishing the details does not by itself complete legal review or establish that the contact inbox is operational.
