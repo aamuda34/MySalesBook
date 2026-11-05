@@ -4,15 +4,15 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#14532d">
-<meta name="description" content="Install Sellbook — a simple business record app for tracking sales, expenses, products, stock and profit in Nigerian naira.">
+<meta name="description" content="Sellbook — Made Business Simple. Record sales, manage products and stock, track expenses and review business performance in one place.">
 <meta property="og:type" content="website">
-<meta property="og:title" content="Sellbook — Your Business Records, Made Simple">
-<meta property="og:description" content="Keep sales, expenses, products, stock and profit organised in one simple app. Install Sellbook on your phone.">
+<meta property="og:title" content="Sellbook — Made Business Simple.">
+<meta property="og:description" content="Made Business Simple. Keep sales, expenses, products, stock and profit organised in one straightforward app.">
 <meta property="og:url" content="https://my-sales-book.vercel.app/install.html">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:title" content="Sellbook — Your Business Records, Made Simple">
-<meta name="twitter:description" content="A simple app for sales, expenses, stock and business profit.">
-<title>Install Sellbook — Your Business Records, Made Simple</title>
+<meta name="twitter:title" content="Sellbook — Made Business Simple.">
+<meta name="twitter:description" content="Made Business Simple. Record sales, track expenses, manage stock and review business profit with Sellbook.">
+<title>Install Sellbook — Made Business Simple.</title>
 <link rel="manifest" href="./manifest.webmanifest">
 <link rel="icon" href="./icons/icon.svg" type="image/svg+xml">
 <style>
@@ -87,7 +87,7 @@ summary:focus-visible,a:focus-visible,button:focus-visible{outline:3px solid #70
 <body>
 <header class="topbar">
  <div class="brand-icon" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><rect width="512" height="512" rx="112" fill="#14532d"/><path d="M118 126Q118 108 138 108H374Q394 108 394 128V350Q394 370 374 370H198Q174 370 158 389L118 420Z" fill="#fff"/><path d="M160 315V190Q160 178 172 178H191V315Z" fill="#22c55e"/><path d="M211 315V153Q211 141 223 141H242V315Z" fill="#16a34a"/><path d="M262 315V120Q262 108 274 108H293V315Z" fill="#15803d"/><path d="M143 342H350" fill="none" stroke="#d1fae5" stroke-width="14" stroke-linecap="round"/><path d="M118 420Q155 381 198 381H374" fill="none" stroke="#fff" stroke-width="19" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
- <div><div class="brand-name">Sellbook</div><div class="brand-tag">YOUR BUSINESS RECORDS, MADE SIMPLE</div></div>
+ <div><div class="brand-name">Sellbook</div><div class="brand-tag">Made Business Simple.</div></div>
 </header>
 <main>
  <section class="hero" aria-labelledby="hero-title">
@@ -176,7 +176,7 @@ summary:focus-visible,a:focus-visible,button:focus-visible{outline:3px solid #70
 </div>
 <footer>
  <div class="footer-links"><a href="./">Open Sellbook in browser</a><a href="#faq">Installation help</a><a href="https://my-sales-book.vercel.app/manifest.webmanifest">App details</a></div>
- <div>Sellbook · Your Business Records, Made Simple.</div>
+ <div>Sellbook · Made Business Simple.</div>
 </footer>
 <script>
 let deferredInstallPrompt = null;
@@ -218,7 +218,7 @@ showInstalledState();
 const installPageUrl = 'https://my-sales-book.vercel.app/install.html';
 const shareStatus = document.getElementById('share-status');
 document.getElementById('share-sellbook').addEventListener('click', async () => {
- const shareData = {title:'Sellbook', text:'Install Sellbook — a simple app for recording sales, expenses, stock and business profit.', url:installPageUrl};
+ const shareData = {title:'Sellbook', text:'Sellbook — Made Business Simple. Record sales, expenses, stock and business profit in one simple app.', url:installPageUrl};
  try {
   if (navigator.share) { await navigator.share(shareData); shareStatus.textContent='Choose an app or contact to share Sellbook.'; }
   else { await navigator.clipboard.writeText(installPageUrl); shareStatus.textContent='Installation link copied. Paste it into WhatsApp or any message.'; }
