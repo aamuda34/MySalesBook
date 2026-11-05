@@ -11,5 +11,5 @@ assert.ok(app.includes("const essentialsComplete=steps.every(step=>step.done)"),
 assert.ok(app.includes("document.getElementById('gettingStarted'+step.key.charAt(0).toUpperCase()+step.key.slice(1)+'State')"),'Each checklist step updates its own completion state.');
 assert.ok(html.includes('data-open-page="expenses"')&&html.includes('id="gettingStartedExpensesState"')&&html.includes('data-step-status="expenses"'),'Expense step opens the existing Expenses page and has accessible progress state.');
 assert.ok(html.includes('Track shop costs to understand your profit.'),'Expense step explains its business value.');
-assert.ok(sw.includes('sellbook-shell-v139'),'PWA cache is advanced for the checklist update.');
+assert.ok(sw.includes('sellbook-shell-v140'),'PWA cache is advanced for the checklist update.');
 console.log('PASS: first-use checklist covers products, first sale and recorded expenses without blocking app use.');

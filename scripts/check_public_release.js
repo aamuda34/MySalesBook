@@ -35,6 +35,12 @@ assert.equal(manifest.display, 'standalone', 'The PWA must retain its standalone
 assert.ok(Array.isArray(manifest.icons) && manifest.icons.some(icon => icon.sizes === '192x192'), 'The PWA must declare its 192px install icon.');
 assert.ok(manifest.icons.some(icon => icon.sizes === '512x512'), 'The PWA must declare its 512px install icon.');
 
+const app = read('app.js');
+const index = read('index.html');
+assert.doesNotMatch(app, /recordSellbookVisit|rpc\(['"]record_sellbook_visit['"]/, 'The browser must not call the revoked public traffic RPC.');
+assert.ok(index.includes('Historical visits recorded before public visit tracking was paused.'), 'Admin traffic must be labelled as historical while collection is disabled.');
+assert.ok(index.includes('New visitor tracking is currently paused.'), 'Admin traffic must disclose that new visits are not being collected.');
+
 const sw = read('sw.js');
 assert.match(sw, /sellbook-shell-v\d+/i, 'The service worker cache must be versioned.');
 for (const path of ['/rest/', '/auth/', '/storage/', '/functions/']) {
