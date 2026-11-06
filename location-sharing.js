@@ -245,6 +245,10 @@
       }, (payload) => {
         if (payload.new && payload.new.kind === "buyer_locating_shop") {
           notify("A customer is sharing their live location with your shop.");
+          if (typeof updateUnreadBadges === "function") updateUnreadBadges().catch(() => {});
+          if (typeof currentPage === "function" && currentPage() === "notifications") {
+            loadUserNotifications({ quiet: true });
+          }
         }
       })
       .subscribe((status) => {
