@@ -9,6 +9,11 @@ const disconnectMigration = fs.readFileSync(
   "supabase/migrations/20261106091212_stop_location_sessions_when_shop_disconnects.sql",
   "utf8"
 );
+const guestActivityMigration = fs.readFileSync(
+  "supabase/migrations/20261106092540_touch_marketplace_guest_accounts_on_activity.sql",
+  "utf8"
+);
+
 
 function check(label, condition) {
   assert.ok(condition, label);
