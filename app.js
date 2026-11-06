@@ -5841,7 +5841,7 @@ function renderUserNotifications(){
  rows.forEach(n=>{const label=notificationGroupLabel(n.created_at);if(!groups.has(label))groups.set(label,[]);groups.get(label).push(n);});
  const groupHtml=[...groups.entries()].map(([label,items])=>'<section class="notification-date-group"><h3>'+escAdmin(label)+'</h3>'+items.map(n=>{
   const kind=String(n.kind||'').toLowerCase();
-  const kindLabel=({reservation:'Reservation',update:'Update',announcement:'Announcement',support:'Support',maintenance:'Maintenance'})[kind]||n.kind||'Notification';
+  const kindLabel=({reservation:'Reservation',update:'Update',announcement:'Announcement',support:'Support',maintenance:'Maintenance',buyer_locating_shop:'Shop location'})[kind]||n.kind||'Notification';
   return '<button type="button" class="user-notification-row'+(n.isRead?' is-read':' is-unread')+'" data-notification-id="'+escAdmin(n.id)+'" aria-label="'+escAdmin(n.title)+(n.reservation_id?'. Open reservation':'')+'"><span class="notification-read-indicator" aria-hidden="true"></span><span class="user-notification-copy"><span class="user-notification-heading"><strong>'+escAdmin(n.title)+'</strong><small>'+escAdmin(kindLabel)+'</small></span><span class="user-notification-body">'+escAdmin(n.body)+'</span><time>'+escAdmin(new Date(n.created_at).toLocaleString([], {dateStyle:'medium',timeStyle:'short'}))+'</time></span>'+(n.reservation_id?'<span class="notification-action" aria-hidden="true">›</span>':'')+'</button>';
  }).join('')+'</section>').join('');
  const empty='<div class="empty">'+(userNotificationCategory==='all'?'No notifications yet.':'No '+escAdmin(userNotificationCategory==='reservation'?'reservation':userNotificationCategory)+' notifications yet.')+'</div>';
