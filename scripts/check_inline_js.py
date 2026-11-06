@@ -297,7 +297,7 @@ email_auth_checks = {
     "email auth has its own full-page screen": '<section id="authPage" class="auth-page"' in index_html,
     "email sign-in entry point is available": 'id="openEmailSignIn"' in index_html,
     "email/password form is not forcibly hidden": 'id="emailAuthPanel" class="auth-email-panel hidden" aria-hidden="true"' in index_html and 'id="emailAuthPanel" class="hidden" aria-hidden="true" style="display:none!important"' not in index_html,
-    "email/password sign-in uses Supabase Auth": "supabaseClient.auth.signInWithPassword({email,password})" in app_js,
+    "email/password sign-in uses Supabase Auth": "supabaseClient.auth.signInWithPassword({email,password,options:{captchaToken}})" in app_js,
     "email signup uses Supabase Auth": "supabaseClient.auth.signUp({email,password" in app_js,
     "signup confirmation can be resent": "supabaseClient.auth.resend({type:'signup'" in app_js,
     "email confirmation is not bypassed": "emailRedirectTo:window.location.origin+window.location.pathname+window.location.search" in app_js,
