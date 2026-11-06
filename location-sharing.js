@@ -14,6 +14,7 @@
   let currentShop = null;
   let currentRows = [];
   let sellerSessionEpoch = 0;
+  let locationRefreshRequestId = 0;
   let refreshTimer = null;
 
   const esc = (value) => String(value == null ? "" : value).replace(/[&<>"']/g, (c) => ({
@@ -191,6 +192,7 @@
     if (!client || !userId || !currentShop || !currentShop.is_connected || !currentShop.is_active) return;
     const requestedUserId = userId;
     const requestEpoch = sellerSessionEpoch;
+    const requestId = ++locationRefreshRequestId;
     if (!client || !requestedUserId || !currentShop || !currentShop.is_connected || !currentShop.is_active) return;
     const { data, error } = await client.from("marketplace_location_sessions")
       .select("id,buyer_id,buyer_type,latitude,longitude,accuracy_m,heading_deg,speed_mps,started_at,updated_at,expires_at,status")
@@ -199,7 +201,8 @@
       .gt("expires_at", new Date().toISOString())
       .order("updated_at", { ascending: false })
       .limit(50);
-    if (requestEpoch !== sellerSessionEpoch || requestedUserId !== userId) return;
+    if (requestEpoch !== sellerSessionEpoch || requestedUserId !== userId ||
+        requestId !== locationRefreshRequestId) return;
     if (error) {
       // Recompute freshness from the cached server timestamps even when the
       // network is down, so markers cannot remain live indefinitely.
@@ -223,6 +226,7 @@
     const card = $("sellbook-live-location-card");
     if (!card) return;
     const requestEpoch = ++sellerSessionEpoch;
+    locationRefreshRequestId++;
     stopChannel();
     userId = user && !user.is_anonymous ? user.id : null;
     const requestedUserId = userId;
