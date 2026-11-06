@@ -179,7 +179,7 @@ BEGIN
         NEW.buyer_id,
         NEW.owner_id,
         NEW.id,
-        'reservation',
+        'update',
         'Reservation cancelled',
         'A buyer has cancelled a pending reservation. Open Sellbook → Connect to Buybook to review it.'
       )
