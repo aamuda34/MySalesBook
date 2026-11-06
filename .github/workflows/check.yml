@@ -43,3 +43,17 @@ jobs:
         run: node scripts/check_getting_started.js
       - name: Test admin console navigation, search and security wiring
         run: node scripts/check_admin_console.js
+      - name: Check live-location disconnect cleanup migration
+        shell: bash
+        run: |
+          set -euo pipefail
+          migration="supabase/migrations/20261106091212_stop_location_sessions_when_shop_disconnects.sql"
+          test -s "$migration"
+          grep -q "security definer" "$migration"
+          grep -q "set search_path to ''" "$migration"
+          grep -q "after update of is_connected, is_active" "$migration"
+          grep -q "status = 'stopped'" "$migration"
+          grep -q "latitude = 0" "$migration"
+          grep -q "longitude = 0" "$migration"
+          grep -qi "revoke all on function public.stop_marketplace_location_sessions_when_shop_disconnects()" "$migration"
+          grep -qi "from public, anon, authenticated" "$migration"
