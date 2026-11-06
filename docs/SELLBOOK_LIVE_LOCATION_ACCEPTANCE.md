@@ -26,6 +26,7 @@
 - [ ] Stop sharing in Buybook; confirm the marker disappears and coordinates are cleared.
 - [ ] Close Buybook without stopping; confirm the seller view stops showing live location after the stale timeout.
 - [ ] Confirm expired and stopped records are cleared and eventually deleted by the scheduled cleanup.
+- [ ] Confirm anonymous authentication accounts created solely for guest location use are deleted after 30 days without further location use.
 - [ ] Confirm customer names, email addresses and phone numbers are not shown on this map; display a minimal buyer label only.
 - [ ] Confirm the location panel does not expose any other shop's customers.
 
