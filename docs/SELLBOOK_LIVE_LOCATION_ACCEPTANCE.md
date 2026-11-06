@@ -17,6 +17,7 @@
 - [ ] Confirm more than one test buyer can share location with the same shop.
 - [ ] Confirm a seller account for a different shop cannot see the buyer or the buyer's coordinates.
 - [ ] Confirm a disconnected shop stops receiving/reading live-location sessions.
+- [ ] Confirm a buyer session is automatically stopped and coordinates cleared after the shop disconnects.
 - [ ] Confirm the map fallback message appears if map tiles or the Leaflet CDN are unavailable; ordinary Sellbook sales and stock functions must continue working.
 
 ## Privacy and lifecycle checks
