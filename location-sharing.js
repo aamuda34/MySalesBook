@@ -112,8 +112,8 @@
         const point = { lat: Number(row.latitude), lng: Number(row.longitude) };
         const distance = fresh && shopPoint ? distanceMetres(shopPoint, point) : null;
         const distanceLabel = distance == null ? "" : (distance < 1000
-          ? Math.round(distance) + " m from your shop"
-          : (distance / 1000).toFixed(1) + " km from your shop");
+          ? "about " + Math.round(distance) + " m straight-line"
+          : "about " + (distance / 1000).toFixed(1) + " km straight-line");
         const accuracy = fresh && row.accuracy_m != null ? "GPS ±" + Math.round(Number(row.accuracy_m)) + " m" : "";
         const details = fresh
           ? ["Live", relativeTime(row.updated_at), distanceLabel, accuracy].filter(Boolean).join(" · ")
