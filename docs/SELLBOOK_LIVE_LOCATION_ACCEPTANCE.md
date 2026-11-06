@@ -9,7 +9,7 @@
 - [ ] Confirm the Home panel **Customers locating your shop** is visible.
 - [ ] Confirm an unconnected or inactive shop receives no live location sessions.
 - [ ] Confirm the map pin matches the shop location saved in Connect to Buybook.
-- [ ] Have a test buyer start Locate shop from Buybook; confirm one seller notification appears.
+- [ ] Have a test buyer start Locate seller from Buybook; confirm one seller notification appears.
 - [ ] Confirm the buyer is shown on the map only for the selected shop owner.
 - [ ] Confirm the seller sees a live state, last-update time, approximate distance and reported GPS accuracy.
 - [ ] Confirm the buyer marker moves as the test phone moves.
