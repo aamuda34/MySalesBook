@@ -4397,11 +4397,13 @@ function loadSellbookTurnstile(){
 async function requestSellbookAuthCaptcha(containerId='sellbook-auth-captcha',action='sellbook_auth'){
   const container=document.getElementById(containerId);
   if(!container)throw Error('The security check is unavailable. Refresh Sellbook and try again.');
+  const overlay=container.closest('.auth-captcha-overlay');
+  if(overlay)overlay.hidden=false;
   container.hidden=false;
   container.setAttribute('aria-live','polite');
   container.textContent='Loading a quick security check…';
   try{await loadSellbookTurnstile();}
-  catch(error){container.hidden=true;container.textContent='';throw error;}
+  catch(error){container.hidden=true;container.textContent='';if(overlay)overlay.hidden=true;throw error;}
   container.textContent='';
   container.scrollIntoView?.({behavior:'smooth',block:'center'});
   return new Promise((resolve,reject)=>{
@@ -4412,6 +4414,7 @@ async function requestSellbookAuthCaptcha(containerId='sellbook-auth-captcha',ac
       settled=true;clearTimeout(timeout);
       if(widgetId!==null&&window.turnstile){try{window.turnstile.remove(widgetId);}catch(_){}}
       container.hidden=true;container.textContent='';
+      if(overlay)overlay.hidden=true;
       if(error)reject(error);else resolve(token);
     };
     try{
