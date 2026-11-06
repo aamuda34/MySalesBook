@@ -57,7 +57,12 @@
 
   function initialiseMap() {
     const node = $("sellbook-location-map");
-    if (!node || !window.L || !shopHasPin(currentShop)) return;
+    if (!node || !shopHasPin(currentShop)) return;
+    if (!window.L) {
+      $("sellbook-location-map-wrap").hidden = true;
+      cardMessage("The map service is unavailable right now. Location notifications and session checks will continue; refresh Home to retry the map.", "error");
+      return;
+    }
     if (!map) {
       map = L.map(node, { zoomControl: true, scrollWheelZoom: false })
         .setView([Number(currentShop.latitude), Number(currentShop.longitude)], 14);
@@ -229,8 +234,7 @@
         schema: "public",
         table: "marketplace_location_sessions",
         filter: "owner_id=eq." + userId
-      }, (payload) => {
-        if (payload.eventType === "INSERT") notify("A customer is locating your shop. Open the live map on Sellbook Home.");
+      }, () => {
         refreshSessions().catch((e) => console.warn("Sellbook live location refresh failed", e));
       })
       .on("postgres_changes", {
