@@ -31,6 +31,15 @@
 - [ ] Confirm customer names, email addresses and phone numbers are not shown on this map; display a minimal buyer label only.
 - [ ] Confirm the location panel does not expose any other shop's customers.
 
+## Shared Supabase Auth CAPTCHA checks
+
+- [ ] Confirm Sellbook email registration displays the managed Turnstile challenge and completes when passed.
+- [ ] Confirm existing email/password sign-in works with a valid challenge.
+- [ ] Confirm password-recovery email requests and confirmation-email resends include a valid challenge.
+- [ ] Confirm the account security email-code request and resend display the challenge in a visible overlay.
+- [ ] Confirm Google sign-in continues to work without a broken or hidden CAPTCHA.
+- [ ] Confirm a failed or expired challenge does not submit the related authentication request.
+
 ## Operational notes
 
 - The seller map updates through Supabase Realtime, with a periodic refresh fallback.
