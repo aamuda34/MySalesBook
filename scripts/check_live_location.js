@@ -29,6 +29,11 @@ check(
   seller.includes("requestEpoch !== sellerSessionEpoch || requestedUserId !== userId")
 );
 check(
+  "older overlapping seller refresh requests are discarded",
+  seller.includes("const requestId = ++locationRefreshRequestId;") &&
+    seller.includes("requestId !== locationRefreshRequestId")
+);
+check(
   "future-dated or old GPS timestamps are not treated as live",
   seller.includes("age >= -30000 && age <= 90000")
 );
