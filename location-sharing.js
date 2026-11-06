@@ -10,6 +10,7 @@
   let map = null;
   let shopMarker = null;
   let buyerMarkers = new Map();
+  let focusedLocationId = null;
   let currentShop = null;
   let currentRows = [];
   let refreshTimer = null;
@@ -155,10 +156,18 @@
         const label = row.buyer_type === "guest" ? "Guest buyer" : "Buybook customer";
         marker.bindPopup("<strong>" + label + "</strong><br>Updated " + esc(relativeTime(row.updated_at)));
       });
-      const points = [[Number(currentShop.latitude), Number(currentShop.longitude)]]
-        .concat(freshRows.map((row) => [Number(row.latitude), Number(row.longitude)]));
-      if (points.length > 1) map.fitBounds(L.latLngBounds(points).pad(0.18), { maxZoom: 15 });
-      else map.setView(points[0], 14);
+      const focusedRow = focusedLocationId
+        ? freshRows.find((row) => String(row.id) === String(focusedLocationId))
+        : null;
+      if (focusedRow) {
+        map.setView([Number(focusedRow.latitude), Number(focusedRow.longitude)], Math.max(map.getZoom(), 16));
+      } else {
+        focusedLocationId = null;
+        const points = [[Number(currentShop.latitude), Number(currentShop.longitude)]]
+          .concat(freshRows.map((row) => [Number(row.latitude), Number(row.longitude)]));
+        if (points.length > 1) map.fitBounds(L.latLngBounds(points).pad(0.18), { maxZoom: 15 });
+        else map.setView(points[0], 14);
+      }
     }
   }
 
@@ -194,6 +203,7 @@
     userId = user && !user.is_anonymous ? user.id : null;
     currentShop = null;
     currentRows = [];
+    focusedLocationId = null;
     if (map) {
       map.remove();
       map = null;
@@ -269,6 +279,7 @@
       cardMessage("This customer’s location signal is paused. The last precise position is not shown as live.");
       return;
     }
+    focusedLocationId = String(row.id);
     map.setView([Number(row.latitude), Number(row.longitude)], 17);
     const marker = buyerMarkers.get(String(row.id));
     if (marker) marker.openPopup();
