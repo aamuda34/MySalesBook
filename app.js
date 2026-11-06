@@ -4372,6 +4372,61 @@ function passwordPolicyError(password) {
   if(!/[^A-Za-z0-9\s]/.test(password))return 'Add at least one symbol, such as ! or #.';
   return '';
 }
+const SELLBOOK_AUTH_TURNSTILE_SITE_KEY='0x4AAAAAAF11p80pOUEc98LD';
+let sellbookTurnstileScriptPromise=null;
+function loadSellbookTurnstile(){
+  if(window.turnstile&&typeof window.turnstile.render==='function')return Promise.resolve();
+  if(sellbookTurnstileScriptPromise)return sellbookTurnstileScriptPromise;
+  sellbookTurnstileScriptPromise=new Promise((resolve,reject)=>{
+    const existing=document.getElementById('sellbook-turnstile-script');
+    const script=existing||document.createElement('script');
+    const timeout=setTimeout(()=>reject(Error('The security check could not load. Check your connection and try again.')),15000);
+    const finish=error=>{clearTimeout(timeout);if(error)reject(error);else resolve();};
+    script.addEventListener('load',()=>finish(
+      window.turnstile&&typeof window.turnstile.render==='function'?null:Error('The security check did not initialise. Please try again.')
+    ),{once:true});
+    script.addEventListener('error',()=>finish(Error('The security check could not load. Check your connection and try again.')),{once:true});
+    if(!existing){
+      script.id='sellbook-turnstile-script';
+      script.src='https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';
+      script.async=true;script.defer=true;document.head.appendChild(script);
+    }
+  }).catch(error=>{sellbookTurnstileScriptPromise=null;throw error;});
+  return sellbookTurnstileScriptPromise;
+}
+async function requestSellbookAuthCaptcha(containerId='sellbook-auth-captcha',action='sellbook_auth'){
+  const container=document.getElementById(containerId);
+  if(!container)throw Error('The security check is unavailable. Refresh Sellbook and try again.');
+  container.hidden=false;
+  container.setAttribute('aria-live','polite');
+  container.textContent='Loading a quick security check…';
+  try{await loadSellbookTurnstile();}
+  catch(error){container.hidden=true;container.textContent='';throw error;}
+  container.textContent='';
+  container.scrollIntoView?.({behavior:'smooth',block:'center'});
+  return new Promise((resolve,reject)=>{
+    let settled=false,widgetId=null;
+    const timeout=setTimeout(()=>finish(Error('The security check timed out. Please try again.')),120000);
+    const finish=(error,token)=>{
+      if(settled)return;
+      settled=true;clearTimeout(timeout);
+      if(widgetId!==null&&window.turnstile){try{window.turnstile.remove(widgetId);}catch(_){}}
+      container.hidden=true;container.textContent='';
+      if(error)reject(error);else resolve(token);
+    };
+    try{
+      widgetId=window.turnstile.render(container,{
+        sitekey:SELLBOOK_AUTH_TURNSTILE_SITE_KEY,
+        action,
+        callback:token=>finish(null,token),
+        'expired-callback':()=>finish(Error('The security check expired. Please try again.')),
+        'error-callback':()=>finish(Error('The security check could not be completed. Check your connection and try again.')),
+        'timeout-callback':()=>finish(Error('The security check timed out. Please try again.'))
+      });
+    }catch(_){finish(Error('The security check could not start. Refresh Sellbook and try again.'));}
+  });
+}
+
 function friendlyAuthError(error) {
   const code=String(error?.code||error?.name||'').toLowerCase();
   const message=String(error?.message||'').toLowerCase();
@@ -4574,7 +4629,8 @@ async function requestAccountActionEmailOtp(action){
     }
     if(accountEmailOtpState?.client){try{await accountEmailOtpState.client.auth.signOut({scope:'local'});}catch(_){}}
     otpClient=createAccountStepUpClient();
-    const {error}=await otpClient.auth.signInWithOtp({email,options:{shouldCreateUser:false}});
+    const captchaToken=await requestSellbookAuthCaptcha('sellbook-otp-captcha','sellbook_account_otp');
+    const {error}=await otpClient.auth.signInWithOtp({email,options:{shouldCreateUser:false,captchaToken}});
     if(error)throw error;
     startAccountOtpResendCooldown(60);
     accountEmailOtpState={action,client:otpClient,userId:current.user.id,email,targetSessionId:current.sessionId};
@@ -4640,7 +4696,8 @@ document.getElementById('resendAccountEmailOtpButton')?.addEventListener('click'
   try{
     const current=await getSellbookAccountSession();
     if(current.user.id!==state.userId||current.sessionId!==state.targetSessionId)throw Error('Your Sellbook session changed. Cancel and start verification again.');
-    const {error}=await state.client.auth.signInWithOtp({email:state.email,options:{shouldCreateUser:false}});
+    const captchaToken=await requestSellbookAuthCaptcha('sellbook-otp-captcha','sellbook_account_otp');
+    const {error}=await state.client.auth.signInWithOtp({email:state.email,options:{shouldCreateUser:false,captchaToken}});
     if(error)throw error;
     startAccountOtpResendCooldown(60);
     document.getElementById('accountEmailOtp').value='';notifyStatus(message,'A new verification code has been sent. Use the latest code.','success');
@@ -4932,7 +4989,8 @@ document.getElementById('emailAuthForm').addEventListener('submit',async event=>
   try{
     if(emailAuthMode==='signup'){
       cloudMessage('Creating your Sellbook account securely…');
-      const {data,error}=await supabaseClient.auth.signUp({email,password,options:{emailRedirectTo:window.location.origin+window.location.pathname+window.location.search}});
+      const captchaToken=await requestSellbookAuthCaptcha('sellbook-auth-captcha','sellbook_signup');
+      const {data,error}=await supabaseClient.auth.signUp({email,password,options:{emailRedirectTo:window.location.origin+window.location.pathname+window.location.search,captchaToken}});
       if(error)throw error;
       if(!data.user||(Array.isArray(data.user.identities)&&data.user.identities.length===0)){
         passwordInput.value='';confirmInput.value='';
@@ -4961,7 +5019,8 @@ document.getElementById('emailAuthForm').addEventListener('submit',async event=>
       await handleCloudAuthChange();
     }else{
       cloudMessage('Signing in securely…');
-      const {data,error}=await supabaseClient.auth.signInWithPassword({email,password});
+      const captchaToken=await requestSellbookAuthCaptcha('sellbook-auth-captcha','sellbook_password_signin');
+      const {data,error}=await supabaseClient.auth.signInWithPassword({email,password,options:{captchaToken}});
       if(error)throw error;
       if(!data.session?.user)throw new Error('The account service did not return a valid sign-in session. Please try again.');
       pendingLoginSuccessUserId=data.session.user.id;
@@ -5000,7 +5059,8 @@ document.getElementById('resendConfirmationBtn').addEventListener('click',async(
   if(button.disabled)return;
   button.disabled=true;button.setAttribute('aria-busy','true');button.textContent='Sending…';
   try{
-    const {error}=await supabaseClient.auth.resend({type:'signup',email,options:{emailRedirectTo:window.location.origin+window.location.pathname+window.location.search}});
+    const captchaToken=await requestSellbookAuthCaptcha('sellbook-auth-captcha','sellbook_confirmation_resend');
+    const {error}=await supabaseClient.auth.resend({type:'signup',email,options:{emailRedirectTo:window.location.origin+window.location.pathname+window.location.search,captchaToken}});
     if(error)throw error;
     notifyStatus(status,'A new confirmation link has been requested. Use the latest email and check your spam folder.','success');
     startSignupResendCooldown(60);
@@ -5051,8 +5111,10 @@ accountRecoveryRequestForm?.addEventListener('submit', async event => {
   submit.setAttribute('aria-busy', 'true');
   submit.textContent = 'Sending recovery link…';
   try {
+    const captchaToken=await requestSellbookAuthCaptcha('sellbook-auth-captcha','sellbook_password_recovery');
     const { error } = await supabaseClient.auth.resetPasswordForEmail(email, {
-      redirectTo: window.location.origin + window.location.pathname + window.location.search
+      redirectTo: window.location.origin + window.location.pathname + window.location.search,
+      captchaToken
     });
     if (error) throw error;
     cloudMessage('If an account matches that email address, a recovery link will be sent. Check your inbox and spam folder.');
