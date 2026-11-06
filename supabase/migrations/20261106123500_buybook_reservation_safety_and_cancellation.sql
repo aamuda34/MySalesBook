@@ -121,7 +121,7 @@ RETURNS uuid
 LANGUAGE plpgsql
 SECURITY INVOKER
 SET search_path = public
-AS $
+AS $function$
 BEGIN
   RETURN public.create_marketplace_reservation_v2(
     p_product_id,
@@ -130,7 +130,7 @@ BEGIN
     gen_random_uuid()
   );
 END;
-$;
+$function$;
 
 REVOKE ALL ON FUNCTION public.create_marketplace_reservation(uuid, integer, text)
   FROM PUBLIC, anon;
@@ -233,7 +233,12 @@ BEGIN
         'Reservation cancelled',
         'A buyer has cancelled a pending reservation. Open Sellbook → Connect to Buybook to review it.'
       )
-    ON CONFLICT (reservation_id, kind) DO NOTHING;
+    ON CONFLICT (reservation_id, kind) DO UPDATE
+      SET created_by = EXCLUDED.created_by,
+          recipient_id = EXCLUDED.recipient_id,
+          title = EXCLUDED.title,
+          body = EXCLUDED.body,
+          created_at = now();
   END IF;
   RETURN NEW;
 END;
