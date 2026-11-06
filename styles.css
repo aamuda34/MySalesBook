@@ -5372,3 +5372,8 @@ body.admin-conversation-open #adminBottomNav{display:none!important}
  .security-pin-identity{gap:10px;padding:10px 12px}
  .security-pin-avatar{width:52px;height:52px;flex-basis:52px}
 }
+
+/* Managed anti-abuse challenges for Supabase email authentication. */
+.auth-captcha{display:flex;justify-content:center;align-items:center;min-height:0;margin:12px auto;max-width:100%;overflow:visible}
+.auth-captcha[hidden]{display:none!important}
+#sellbook-otp-captcha{margin:12px auto}
