@@ -5373,7 +5373,11 @@ body.admin-conversation-open #adminBottomNav{display:none!important}
  .security-pin-avatar{width:52px;height:52px;flex-basis:52px}
 }
 
+
 /* Managed anti-abuse challenges for Supabase email authentication. */
 .auth-captcha{display:flex;justify-content:center;align-items:center;min-height:0;margin:12px auto;max-width:100%;overflow:visible}
-.auth-captcha[hidden]{display:none!important}
-#sellbook-otp-captcha{margin:12px auto}
+.auth-captcha[hidden],.auth-captcha-overlay[hidden]{display:none!important}
+.auth-captcha-overlay{position:fixed;inset:0;z-index:10050;display:flex;align-items:center;justify-content:center;padding:18px;background:rgba(15,25,18,.55);backdrop-filter:blur(2px)}
+.auth-captcha-overlay>div{max-width:100%}
+#sellbook-otp-captcha{background:#fff;border:1px solid #dce6dd;border-radius:16px;box-shadow:0 16px 50px rgba(0,0,0,.22)}
+#sellbook-otp-captcha>div{margin:auto}
