@@ -105,12 +105,14 @@
         const age = Date.now() - new Date(row.updated_at).getTime();
         const fresh = age <= 90000;
         const point = { lat: Number(row.latitude), lng: Number(row.longitude) };
-        const distance = shopPoint ? distanceMetres(shopPoint, point) : null;
+        const distance = fresh && shopPoint ? distanceMetres(shopPoint, point) : null;
         const distanceLabel = distance == null ? "" : (distance < 1000
           ? Math.round(distance) + " m from your shop"
           : (distance / 1000).toFixed(1) + " km from your shop");
-        const accuracy = row.accuracy_m == null ? "" : "GPS ±" + Math.round(Number(row.accuracy_m)) + " m";
-        const details = [fresh ? "Live" : "Signal paused", relativeTime(row.updated_at), distanceLabel, accuracy].filter(Boolean).join(" · ");
+        const accuracy = fresh && row.accuracy_m != null ? "GPS ±" + Math.round(Number(row.accuracy_m)) + " m" : "";
+        const details = fresh
+          ? ["Live", relativeTime(row.updated_at), distanceLabel, accuracy].filter(Boolean).join(" · ")
+          : ["Signal paused", "Last update " + relativeTime(row.updated_at)].join(" · ");
         return '<button type="button" class="sellbook-location-row" data-focus-location="' + esc(row.id) + '"' +
           (fresh ? "" : ' aria-disabled="true"') + '><span class="sellbook-location-avatar" aria-hidden="true">●</span>' +
           '<span class="sellbook-location-row-copy"><strong>' +
