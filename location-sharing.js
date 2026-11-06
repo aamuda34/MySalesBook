@@ -119,16 +119,22 @@
         const details = fresh
           ? ["Live", relativeTime(row.updated_at), distanceLabel, accuracy].filter(Boolean).join(" · ")
           : ["Signal paused", "Last update " + relativeTime(row.updated_at)].join(" · ");
+        const canFocus = fresh && Boolean(window.L);
         return '<button type="button" class="sellbook-location-row" data-focus-location="' + esc(row.id) + '"' +
-          (fresh ? "" : ' aria-disabled="true"') + '><span class="sellbook-location-avatar" aria-hidden="true">●</span>' +
+          (canFocus ? "" : ' disabled aria-disabled="true"') + '><span class="sellbook-location-avatar" aria-hidden="true">●</span>' +
           '<span class="sellbook-location-row-copy"><strong>' +
           (row.buyer_type === "guest" ? "Guest buyer" : "Buybook customer") +
-          '</strong><small>' + esc(details) + '</small></span><span class="sellbook-location-row-action">View map ›</span></button>';
+          '</strong><small>' + esc(details) + '</small></span><span class="sellbook-location-row-action">' +
+          (window.L ? "View map ›" : "Map unavailable") + '</span></button>';
       }).join("");
     }
 
-    if (mapWrap) mapWrap.hidden = !shopHasPin(currentShop);
-    if (shopHasPin(currentShop)) {
+    const mapAvailable = shopHasPin(currentShop) && Boolean(window.L);
+    if (mapWrap) mapWrap.hidden = !mapAvailable;
+    if (shopHasPin(currentShop) && !window.L) {
+      cardMessage("The map service is unavailable right now. Customer location freshness and distance remain visible below; refresh Home to retry the map.", "error");
+    }
+    if (mapAvailable) {
       initialiseMap();
       const liveIds = new Set(freshRows.map((row) => String(row.id)));
       buyerMarkers.forEach((marker, id) => {
