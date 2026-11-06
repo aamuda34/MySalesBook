@@ -11,6 +11,8 @@
 <link rel="dns-prefetch" href="//ueyqrbyqicfpvnznnyxj.supabase.co">
 <title>Sellbook — Made Business Simple.</title>
 <link rel="stylesheet" href="./styles.css">
+<link rel="stylesheet" href="./location-sharing.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
 
 <link rel="manifest" href="./manifest.webmanifest">
 <link rel="icon" href="./icons/icon.svg" type="image/svg+xml">
@@ -155,6 +157,16 @@
     <span class="home-sales-subs-value" id="reservationCountHome">—</span>
    </button>
   </div>
+ </section>
+ <section id="sellbook-live-location-card" class="sellbook-live-location-card" aria-labelledby="sellbook-live-location-title" hidden>
+  <div class="sellbook-live-location-heading"><h2 id="sellbook-live-location-title">Customers locating your shop</h2><span id="sellbook-location-count" class="sellbook-live-location-count">0</span></div>
+  <p id="sellbook-location-message" class="sellbook-live-location-message" role="status" aria-live="polite">Customers who choose Locate shop in Buybook will appear only here.</p>
+  <div id="sellbook-location-map-wrap" class="sellbook-location-map-wrap" hidden>
+   <div id="sellbook-location-map" class="sellbook-location-map" role="region" aria-label="Live map showing customers locating your shop"></div>
+   <div class="sellbook-location-map-note">Blue markers show customers sharing a live position. Your shop pin is green. Exact customer locations are private to this shop.</div>
+  </div>
+  <div id="sellbook-location-list" class="sellbook-location-list" aria-live="polite"></div>
+  <p class="sellbook-location-message">Live updates work while the buyer's device and Buybook are connected. Sharing expires automatically after 30 minutes or stops immediately when the buyer taps Stop sharing.</p>
  </section>
  <button type="button" class="recent-sales-strip" id="recentSalesPreview" data-open-page="sales-history" aria-label="Open recent sales history"><span class="recent-sales-check" aria-hidden="true">✓</span><span class="recent-sales-strip-content"><strong>Recent sales</strong><span id="recentSalesPreviewText">No sales recorded yet.</span></span><span class="recent-sales-history">History</span><span class="recent-sales-chevron" aria-hidden="true">›</span></button>
  <div class="quick-actions" aria-label="Quick access">
@@ -1152,6 +1164,7 @@
 </dialog>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="supabase-config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin="anonymous"></script>
 <script src="./app.js"></script>
 
 
@@ -1213,6 +1226,7 @@ body.expenses-history-page-open .products-page-header,body.expense-details-page-
 .profit-history-explanation{margin:7px 0 14px;color:var(--muted);font-size:12px;line-height:1.5}
 </style>
 <script src="./stock-history-tabs.js"></script>
+<script src="./location-sharing.js"></script>
 
 </body>
 </html>
