@@ -13,6 +13,7 @@
   let focusedLocationId = null;
   let currentShop = null;
   let currentRows = [];
+  let sellerSessionEpoch = 0;
   let refreshTimer = null;
 
   const esc = (value) => String(value == null ? "" : value).replace(/[&<>"']/g, (c) => ({
@@ -32,9 +33,19 @@
     return 6371000 * 2 * Math.atan2(Math.sqrt(x), Math.sqrt(1 - x));
   }
 
+  function isFreshLocationTimestamp(value) {
+    const timestamp = new Date(value).getTime();
+    if (!Number.isFinite(timestamp)) return false;
+    const age = Date.now() - timestamp;
+    // Supabase timestamps are server-generated. Treat materially future-dated
+    // values as clock skew rather than displaying them as live.
+    return age >= -30000 && age <= 90000;
+  }
+
   function relativeTime(value) {
-    const seconds = Math.max(0, Math.floor((Date.now() - new Date(value).getTime()) / 1000));
-    if (!Number.isFinite(seconds)) return "time unavailable";
+    const timestamp = new Date(value).getTime();
+    if (!Number.isFinite(timestamp) || Date.now() - timestamp < -30000) return "time unavailable";
+    const seconds = Math.max(0, Math.floor((Date.now() - timestamp) / 1000));
     if (seconds < 10) return "just now";
     if (seconds < 60) return seconds + " seconds ago";
     const minutes = Math.floor(seconds / 60);
@@ -93,7 +104,7 @@
     if (!list || !currentShop) return;
     const validRows = currentRows.filter((row) =>
       row.status === "active" && new Date(row.expires_at).getTime() > Date.now());
-    const freshRows = validRows.filter((row) => Date.now() - new Date(row.updated_at).getTime() <= 90000);
+    const freshRows = validRows.filter((row) => isFreshLocationTimestamp(row.updated_at));
     if (badge) badge.textContent = String(freshRows.length);
 
     const shopPoint = shopHasPin(currentShop)
@@ -108,8 +119,7 @@
         ? freshRows.length + (freshRows.length === 1 ? " customer is sharing a live location with your shop." : " customers are sharing live locations with your shop.")
         : "Location updates are paused or stale. Buyers may have closed Buybook or lost GPS/network signal.");
       list.innerHTML = validRows.map((row) => {
-        const age = Date.now() - new Date(row.updated_at).getTime();
-        const fresh = age <= 90000;
+        const fresh = isFreshLocationTimestamp(row.updated_at);
         const point = { lat: Number(row.latitude), lng: Number(row.longitude) };
         const distance = fresh && shopPoint ? distanceMetres(shopPoint, point) : null;
         const distanceLabel = distance == null ? "" : (distance < 1000
@@ -179,14 +189,21 @@
 
   async function refreshSessions() {
     if (!client || !userId || !currentShop || !currentShop.is_connected || !currentShop.is_active) return;
+    const requestedUserId = userId;
+    const requestEpoch = sellerSessionEpoch;
+    if (!client || !requestedUserId || !currentShop || !currentShop.is_connected || !currentShop.is_active) return;
     const { data, error } = await client.from("marketplace_location_sessions")
       .select("id,buyer_id,buyer_type,latitude,longitude,accuracy_m,heading_deg,speed_mps,started_at,updated_at,expires_at,status")
-      .eq("owner_id", userId)
+      .eq("owner_id", requestedUserId)
       .eq("status", "active")
       .gt("expires_at", new Date().toISOString())
       .order("updated_at", { ascending: false })
       .limit(50);
+    if (requestEpoch !== sellerSessionEpoch || requestedUserId !== userId) return;
     if (error) {
+      // Recompute freshness from the cached server timestamps even when the
+      // network is down, so markers cannot remain live indefinitely.
+      renderRows();
       cardMessage("Live customer locations are temporarily unavailable. Check your connection and retry.", "error");
       console.warn("Sellbook could not load Buybook location sessions", error);
       return;
@@ -205,8 +222,10 @@
   async function setSeller(user) {
     const card = $("sellbook-live-location-card");
     if (!card) return;
+    const requestEpoch = ++sellerSessionEpoch;
     stopChannel();
     userId = user && !user.is_anonymous ? user.id : null;
+    const requestedUserId = userId;
     currentShop = null;
     currentRows = [];
     focusedLocationId = null;
@@ -224,7 +243,8 @@
     cardMessage("Checking your Buybook shop connection…");
     const { data, error } = await client.from("marketplace_shops")
       .select("owner_id,name,is_connected,is_active,latitude,longitude")
-      .eq("owner_id", userId).maybeSingle();
+      .eq("owner_id", requestedUserId).maybeSingle();
+    if (requestEpoch !== sellerSessionEpoch || requestedUserId !== userId) return;
     if (error) {
       cardMessage("Your shop connection could not be checked. Please retry.", "error");
       return;
@@ -244,12 +264,13 @@
       initialiseMap();
     }
     await refreshSessions();
-    channel = client.channel("sellbook-shop-location-" + userId)
+    if (requestEpoch !== sellerSessionEpoch || requestedUserId !== userId) return;
+    channel = client.channel("sellbook-shop-location-" + requestedUserId)
       .on("postgres_changes", {
         event: "*",
         schema: "public",
         table: "marketplace_location_sessions",
-        filter: "owner_id=eq." + userId
+        filter: "owner_id=eq." + requestedUserId
       }, () => {
         refreshSessions().catch((e) => console.warn("Sellbook live location refresh failed", e));
       })
@@ -257,9 +278,10 @@
         event: "INSERT",
         schema: "public",
         table: "app_notifications",
-        filter: "recipient_id=eq." + userId
+        filter: "recipient_id=eq." + requestedUserId
       }, (payload) => {
-        if (payload.new && payload.new.kind === "buyer_locating_shop") {
+        if (requestEpoch !== sellerSessionEpoch || requestedUserId !== userId) return;
+        if (payload.new && payload.new.recipient_id === requestedUserId && payload.new.kind === "buyer_locating_shop") {
           notify("A customer is sharing their live location with your shop.");
           if (typeof updateUnreadBadges === "function") updateUnreadBadges().catch(() => {});
           if (typeof currentPage === "function" && currentPage() === "notifications") {
@@ -268,6 +290,7 @@
         }
       })
       .subscribe((status) => {
+        if (requestEpoch !== sellerSessionEpoch || requestedUserId !== userId) return;
         if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
           cardMessage("Live updates are temporarily disconnected. The map will refresh when the connection returns.", "error");
         }
@@ -281,7 +304,7 @@
     const button = event.target.closest("[data-focus-location]");
     if (!button || !map) return;
     const row = currentRows.find((item) => String(item.id) === String(button.dataset.focusLocation));
-    if (!row || Date.now() - new Date(row.updated_at).getTime() > 90000) {
+    if (!row || !isFreshLocationTimestamp(row.updated_at)) {
       cardMessage("This customer’s location signal is paused. The last precise position is not shown as live.");
       return;
     }
