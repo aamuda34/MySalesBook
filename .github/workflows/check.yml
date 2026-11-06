@@ -1,7 +1,7 @@
 name: Check Sellbook
 on:
   push:
-    branches: [main, account-offline-upgrade]
+    branches: [main, account-offline-upgrade, "sellbook-live-location-v1"]
   pull_request:
     branches: [main]
 jobs:
@@ -17,6 +17,8 @@ jobs:
           python-version: '3.x'
       - name: Check app assets, JavaScript syntax and DOM IDs
         run: python scripts/check_inline_js.py
+      - name: Check live location module syntax
+        run: node --check location-sharing.js
       - name: Check public release assets and browser secret boundaries
         run: node scripts/check_public_release.js
       - name: Check Sellbook brand name and tagline consistency
