@@ -3,7 +3,7 @@
   "use strict";
 
   const $ = (id) => document.getElementById(id);
-  const TILE_URL = "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
+  const TILE_URL = window.SELLBOOK_MAP_TILE_URL || "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
   let client = null;
   let userId = null;
   let channel = null;
