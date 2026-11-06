@@ -3008,6 +3008,10 @@ document.getElementById('userNotificationsList')?.addEventListener('click',async
   await loadReservationsPage();
   if(marketplaceReservationsCache.some(r=>String(r.id)===String(item.reservation_id)))showReservationDetails(item.reservation_id);
   else showToast('The reservation linked to this notification is no longer available.','error');
+ }else if(item.kind==='buyer_locating_shop'){
+  showPage('home');
+  const locationCard=document.getElementById('sellbook-live-location-card');
+  if(locationCard)locationCard.scrollIntoView({behavior:'smooth',block:'start'});
  }
 });
 document.querySelectorAll('[data-open-support-direct]').forEach(b=>b.addEventListener('click',()=>{if(sellbookIsAdmin){showPage('admin');showAdminPanel('support');void loadAdminUsers();}else showPage('support');}));
