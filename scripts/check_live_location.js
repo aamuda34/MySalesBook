@@ -77,6 +77,17 @@ check(
 );
 
 check(
+  "anonymous guest inactivity is refreshed on location start, updates and stop",
+  (guestActivityMigration.match(/last_seen_at = greatest\(guest_account\.last_seen_at, excluded\.last_seen_at\)/g) || []).length >= 3
+);
+check(
+  "anonymous location RPC permissions remain limited to authenticated sessions",
+  guestActivityMigration.includes("to authenticated") &&
+    guestActivityMigration.includes("revoke all on function public.start_marketplace_location") &&
+    guestActivityMigration.includes("revoke all on function public.update_marketplace_location") &&
+    guestActivityMigration.includes("revoke all on function public.stop_marketplace_location")
+);
+check(
   "shop-disconnect trigger scrubs coordinates and stops active sessions",
   disconnectMigration.includes("status = 'stopped'") &&
     disconnectMigration.includes("latitude = 0") &&
