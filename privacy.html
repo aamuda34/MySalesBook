@@ -43,6 +43,10 @@
 <p>Depending on the activity, processing may be necessary to provide the service requested by the user, comply with a legal obligation, pursue legitimate interests such as account security and service reliability, or rely on consent for an optional activity. Where consent is the basis, it may be withdrawn for future processing, subject to other lawful grounds.</p>
 </section>
 <section class="card">
+<h2>Account security and automated abuse checks</h2>
+<p>Sellbook may display a Cloudflare Turnstile security check when a user creates an email account, signs in with email and password, requests a password-recovery email, resends an account-confirmation email, or requests an account-verification code. The check is used to reduce automated abuse and protect the shared authentication service. Cloudflare processes technical challenge and request information needed to provide this security check. The check does not grant access to business records or a buyer's live location; normal account and shop permissions still apply.</p>
+</section>
+<section class="card">
 <h2>Marketplace images and automated review</h2>
 <p>When a seller chooses to connect a shop to Buybook, the uploaded shop-front photograph is submitted to an automated image-classification check to determine whether it clearly depicts the outside front or entrance of a physical shop. The current classifier runs through Cloudflare Workers AI using the <code>@cf/moondream/moondream3.1-9B-A2B</code> model. The result may approve or reject the shop-front image; an inconclusive result does not approve the shop.</p>
 <p>Automated image review can make mistakes. A seller who believes a photo was rejected incorrectly can contact Sellbook Support and request a review. The shop-front image may be publicly accessible when used for a connected Buybook shop. Do not upload images containing people, identity documents, private interiors or unrelated personal information.</p>
