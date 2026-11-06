@@ -29,6 +29,6 @@ assert.ok(privacy.includes('Sellbook · Made Business Simple.'), 'privacy page m
 assert.ok(terms.includes('Sellbook · Made Business Simple.'), 'terms page must use the current brand identity');
 assert.ok(!privacy.includes('My Sales Book'), 'privacy page must not expose the retired product name');
 assert.ok(!terms.includes('My Sales Book'), 'terms page must not expose the retired product name');
-assert.ok(sw.includes("const CACHE_NAME = 'sellbook-shell-v140';"), 'offline shell must be versioned for the current app assets');
+assert.ok(sw.includes("const CACHE_NAME = 'sellbook-shell-v141';"), 'offline shell must be versioned for the current app assets');
 
 console.log('Sellbook brand name and tagline checks passed.');
