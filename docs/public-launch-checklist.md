@@ -19,6 +19,8 @@ This checklist is the release gate for unrestricted public registration. A succe
 
 ## Live Android acceptance test
 
+With two accounts, verify that each seller and buyer can access only the records and live location sessions they are authorised to see.
+
 Use two separate ordinary seller accounts on two separate devices or isolated browser profiles. Do not use the administrator account for the seller workflow.
 
 1. Register by email, confirm the email, sign in with email, sign in with Google, sign out and recover a password.
@@ -40,6 +42,8 @@ The live database contains historical identity-tier migrations that were superse
 ## Legal and operator launch gate
 
 ### Completed operator and preparation work
+
+The operator's legal identity, registered business name, proprietor and publication-authorised service address have been recorded. This does not replace the independent legal opinion and regulatory determinations listed below.
 
 - [x] Record the registered business name as ADEYIMIKA INTEGRATED ENTERPRISES, a CAC-registered Business Name (not a limited company).
 - [x] Record the proprietor and individual service operator as ADEYIMIKA AMUDA, matching the CAC proprietor details supplied.
