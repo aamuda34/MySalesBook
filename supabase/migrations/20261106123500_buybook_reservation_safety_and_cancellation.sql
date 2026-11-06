@@ -110,6 +110,56 @@ REVOKE ALL ON FUNCTION public.create_marketplace_reservation_v2(uuid, integer, t
 GRANT EXECUTE ON FUNCTION public.create_marketplace_reservation_v2(uuid, integer, text, uuid)
   TO authenticated;
 
+-- Keep older Buybook clients safe during rollout: the legacy RPC delegates to
+-- the same validated/idempotent implementation with a one-time request key.
+CREATE OR REPLACE FUNCTION public.create_marketplace_reservation(
+  p_product_id uuid,
+  p_quantity integer,
+  p_buyer_note text DEFAULT ''
+)
+RETURNS uuid
+LANGUAGE plpgsql
+SECURITY INVOKER
+SET search_path = public
+AS $
+BEGIN
+  RETURN public.create_marketplace_reservation_v2(
+    p_product_id,
+    p_quantity,
+    p_buyer_note,
+    gen_random_uuid()
+  );
+END;
+$;
+
+REVOKE ALL ON FUNCTION public.create_marketplace_reservation(uuid, integer, text)
+  FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.create_marketplace_reservation(uuid, integer, text)
+  TO authenticated;
+
+-- Direct table writes must not bypass the same out-of-stock rule as the RPC.
+DROP POLICY IF EXISTS marketplace_reservation_items_buyer_insert
+  ON public.marketplace_reservation_items;
+
+CREATE POLICY marketplace_reservation_items_buyer_insert
+ON public.marketplace_reservation_items
+FOR INSERT
+TO authenticated
+WITH CHECK (
+  (SELECT public.is_marketplace_registered_user())
+  AND EXISTS (
+    SELECT 1
+      FROM public.marketplace_reservations AS r
+      JOIN public.marketplace_listings AS l
+        ON l.product_id = marketplace_reservation_items.product_id
+       AND l.owner_id = r.owner_id
+       AND l.is_active = true
+       AND lower(coalesce(l.stock_status, '')) <> 'out_of_stock'
+     WHERE r.id = marketplace_reservation_items.reservation_id
+       AND r.buyer_id = (SELECT auth.uid())
+  )
+);
+
 -- Buyers may change a reservation only from pending to cancelled.
 DROP POLICY IF EXISTS marketplace_reservations_buyer_cancel
   ON public.marketplace_reservations;
