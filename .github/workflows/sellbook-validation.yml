@@ -70,6 +70,17 @@ jobs:
           grep -q 'separate staging Supabase project' supabase/functions/sellbook-identity/README.md
           grep -q 'duplicate_reference' supabase/functions/sellbook-identity/index.ts
 
+      - name: Check Buybook shop-front verification function syntax and allowed origins
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s supabase/functions/verify-buybook-shop-front/index.ts
+          npx --yes esbuild@0.25.0 supabase/functions/verify-buybook-shop-front/index.ts --bundle --format=esm --external:jsr:* --external:npm:* --outfile=/tmp/buybook-shop-front-check.js
+          grep -Fq '"https://my-sales-book.vercel.app"' supabase/functions/verify-buybook-shop-front/index.ts
+          grep -Fq '"https://sellbook-backup.pages.dev"' supabase/functions/verify-buybook-shop-front/index.ts
+          grep -Fq 'if (origin && !APP_ORIGINS.has(origin))' supabase/functions/verify-buybook-shop-front/index.ts
+          grep -Fq 'headers.set("Access-Control-Allow-Origin", origin)' supabase/functions/verify-buybook-shop-front/index.ts
+
       - name: Verify privacy-minimised identity schema
         shell: bash
         run: |
