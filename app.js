@@ -1257,6 +1257,30 @@ document.getElementById('securityPinCancel')?.addEventListener('click',()=>{
  recheckSellbookPinStatus();
 });
 
+let sellbookPolicyAcceptanceWrite = null;
+async function persistPendingSellbookPolicyAcceptance(user){
+  let pending;
+  try{pending=JSON.parse(sessionStorage.getItem('sellbook-policy-acceptance-pending-v1')||'null');}catch(_){pending=null;}
+  if(!pending||!user?.id)return true;
+  if(pending.application!=='sellbook'||pending.privacy_policy_version!=='2026-11-06'||pending.terms_version!=='2026-11-05'||!pending.id)return false;
+  if(sellbookPolicyAcceptanceWrite)return sellbookPolicyAcceptanceWrite;
+  sellbookPolicyAcceptanceWrite=(async()=>{
+    const {error}=await supabaseClient.from('policy_acceptances').insert({
+      id:pending.id,user_id:user.id,application:'sellbook',
+      privacy_policy_version:pending.privacy_policy_version,
+      terms_version:pending.terms_version,accepted_at:pending.accepted_at,
+      acceptance_method:'google_oauth'
+    });
+    if(error&&error.code!=='23505')throw error;
+    sessionStorage.removeItem('sellbook-policy-acceptance-pending-v1');
+    return true;
+  })().catch(error=>{
+    console.warn('Sellbook could not save the policy acceptance record:',error);
+    return false;
+  }).finally(()=>{sellbookPolicyAcceptanceWrite=null;});
+  return sellbookPolicyAcceptanceWrite;
+}
+
 async function handleCloudAuthChange() {
   if(sessionStorage.getItem(SECURITY_OAUTH_PENDING_KEY)&&!securityOauthFinalizing)return;
 
@@ -1284,6 +1308,19 @@ async function handleCloudAuthChange() {
     if (error) throw error;
     const user = data.session?.user || null;
     activeUser = user;
+    if(user&&sessionStorage.getItem('sellbook-policy-acceptance-pending-v1')){
+      const recorded=await persistPendingSellbookPolicyAcceptance(user);
+      if(!recorded){
+        await supabaseClient.auth.signOut({scope:'local'}).catch(()=>{});
+        cloudUser=null;
+        document.getElementById('appWorkspace')?.classList.add('hidden');
+        document.getElementById('accountCard')?.classList.remove('hidden');
+        cloudMessage('We could not save your agreement record. Please reconnect and accept the terms again before continuing.','error');
+        coreWorkspaceLoaded=true;
+        finishStartup();
+        return;
+      }
+    }
     // Only a deliberate Google sign-in callback may request a login-success notice.
     // A restored Supabase session during a normal page refresh is not a new login.
     if(user&&pendingGoogleLoginSuccess){
@@ -4834,6 +4871,14 @@ async function refreshAccountStatus(){
 }
 let googleSignInInProgress = false;
 document.getElementById('googleSignIn').addEventListener('click', async () => {
+  const policyConsent=document.getElementById('googlePolicyConsent');
+  const policyMessage=document.getElementById('accountMessage');
+  if(!policyConsent?.checked){
+    notifyStatus(policyMessage,'Please accept the Terms of Use and acknowledge the Privacy Notice before continuing.','error');
+    policyConsent?.focus();
+    return;
+  }
+
   const button = document.getElementById('googleSignIn');
   const message = document.getElementById('accountMessage');
   if (googleSignInInProgress) return;
@@ -4855,6 +4900,15 @@ document.getElementById('googleSignIn').addEventListener('click', async () => {
   notifyStatus(message,'Opening secure Google sign-in. Please wait…','info');
 
   try {
+    // Preserve explicit policy acceptance across Google's redirect.
+    sessionStorage.setItem('sellbook-policy-acceptance-pending-v1',JSON.stringify({
+      id: crypto.randomUUID(),
+      application: 'sellbook',
+      privacy_policy_version: '2026-11-06',
+      terms_version: '2026-11-05',
+      accepted_at: new Date().toISOString(),
+      acceptance_method: 'google_oauth'
+    }));
     // Preserve the user's explicit sign-in intent across Google's redirect.
     sessionStorage.setItem(GOOGLE_LOGIN_INTENT_KEY,String(Date.now()));
     const { error } = await supabaseClient.auth.signInWithOAuth({
@@ -4870,7 +4924,7 @@ document.getElementById('googleSignIn').addEventListener('click', async () => {
     // Supabase redirects the browser to Google. Keep the button locked during navigation
     // so repeated taps cannot start overlapping OAuth requests.
   } catch (error) {
-    try{sessionStorage.removeItem(GOOGLE_LOGIN_INTENT_KEY);}catch(_){}
+    try{sessionStorage.removeItem(GOOGLE_LOGIN_INTENT_KEY);sessionStorage.removeItem('sellbook-policy-acceptance-pending-v1');}catch(_){}
     console.error('Google sign-in could not be started:', error);
     notifyStatus(message,'Google sign-in could not be started. Check your connection and try again.','error');
     googleSignInInProgress = false;
@@ -4946,6 +5000,10 @@ document.getElementById('toggleEmailAuth').addEventListener('click',()=>{
   emailAuthMode=emailAuthMode==='signin'?'signup':'signin';
   const confirmWrap=document.getElementById('authPasswordConfirmField');
   const confirmInput=document.getElementById('authPasswordConfirm');
+  const legalConsent=document.getElementById('emailSignupLegalConsent');
+  const legalCheckbox=document.getElementById('emailPolicyConsent');
+  legalConsent?.classList.toggle('hidden',emailAuthMode!=='signup');
+  if(legalCheckbox){legalCheckbox.required=emailAuthMode==='signup';if(emailAuthMode!=='signup')legalCheckbox.checked=false;}
   confirmWrap.classList.toggle('hidden',emailAuthMode!=='signup');
   confirmInput.disabled=emailAuthMode!=='signup';
   confirmInput.required=emailAuthMode==='signup';
@@ -4981,6 +5039,8 @@ document.getElementById('emailAuthForm').addEventListener('submit',async event=>
   if(!password){passwordInput.reportValidity();return;}
   if(!navigator.onLine)return cloudMessage('Internet is required for email sign-in and account creation. Connect and try again.');
   if(emailAuthMode==='signup'){
+    const legalCheckbox=document.getElementById('emailPolicyConsent');
+    if(!legalCheckbox?.checked){cloudMessage('Please accept the Terms of Use and acknowledge the Privacy Notice before creating your account.');legalCheckbox?.focus();return;}
     const policyError=passwordPolicyError(password);
     if(policyError){cloudMessage(policyError);passwordInput.focus();return;}
     if(password!==confirmInput.value){cloudMessage('The passwords do not match. Check both fields and try again.');confirmInput.focus();return;}
@@ -4993,7 +5053,18 @@ document.getElementById('emailAuthForm').addEventListener('submit',async event=>
     if(emailAuthMode==='signup'){
       cloudMessage('Creating your Sellbook account securely…');
       const captchaToken=await requestSellbookAuthCaptcha('sellbook-auth-captcha','sellbook_signup');
-      const {data,error}=await supabaseClient.auth.signUp({email,password,options:{emailRedirectTo:window.location.origin+window.location.pathname+window.location.search,captchaToken}});
+      const policyAcceptanceId=crypto.randomUUID();
+      const policyAcceptedAt=new Date().toISOString();
+      const {data,error}=await supabaseClient.auth.signUp({email,password,options:{
+        emailRedirectTo:window.location.origin+window.location.pathname+window.location.search,
+        captchaToken,
+        data:{
+          sellbook_policy_acceptance_id:policyAcceptanceId,
+          sellbook_privacy_policy_version:'2026-11-06',
+          sellbook_terms_version:'2026-11-05',
+          sellbook_policy_accepted_at:policyAcceptedAt
+        }
+      }});
       if(error)throw error;
       if(!data.user||(Array.isArray(data.user.identities)&&data.user.identities.length===0)){
         passwordInput.value='';confirmInput.value='';
