@@ -17,6 +17,7 @@ for (const id of [
   'authCardTitle','accountStatus','authSignInChoices','googleSignIn','openEmailSignIn',
   'emailAuthPanel','backToAuthOptions','emailAuthForm','authEmail','authPassword',
   'authPasswordConfirm','toggleEmailAuth','resendConfirmationBtn','emailPasswordRecovery',
+  'googlePolicyConsent','emailSignupLegalConsent','emailPolicyConsent',
   'openPasswordRecovery','accountRecoveryRequestForm','recoveryEmail','recoveryEmailSubmit',
   'cancelPasswordRecovery','recoveryPasswordForm','recoveryPassword','recoveryPasswordHint','accountMessage'
 ]) {
@@ -25,6 +26,16 @@ for (const id of [
 
 assert.ok(account.includes('src="./icons/icon.svg"'), 'Sign-in must use the existing Sellbook brand asset.');
 assert.ok(account.includes('Continue with Google'), 'Google sign-in must remain available.');
+assert.ok(account.includes('Terms of Use') && account.includes('Privacy Notice'), 'The sign-up agreement must provide optional links to both legal documents.');
+assert.ok(account.includes('id="googleLegalConsent"') && account.includes('id="emailSignupLegalConsent"'), 'Google and email registration must have a compact legal-consent control.');
+assert.ok(account.includes('id="googlePolicyConsent"') && account.includes('id="emailPolicyConsent"'), 'Registration consent controls must be explicit and accessible.');
+assert.ok(app.includes("if(!policyConsent?.checked)"), 'Google registration must not continue without legal acceptance.');
+assert.ok(app.includes("if(!legalCheckbox?.checked)"), 'Email registration must not continue without legal acceptance.');
+assert.ok(app.includes("sellbook-policy-acceptance-pending-v1"), 'Google OAuth acceptance must survive the redirect securely.');
+assert.ok(app.includes("persistPendingSellbookPolicyAcceptance"), 'Google OAuth acceptance must be saved after the callback.');
+assert.ok(app.includes("sellbook_privacy_policy_version:'2026-11-06'"), 'Email registration must attach the privacy policy version to the new account.');
+assert.ok(app.includes("sellbook_terms_version:'2026-11-05'"), 'Email registration must attach the terms version to the new account.');
+assert.ok(css.includes('.signup-legal-consent'), 'Legal-consent controls must use the compact accessible style.');
 assert.ok(account.includes('id="openEmailSignIn"'), 'Email sign-in must be reachable from the sign-in options.');
 assert.ok(!account.includes('style="display:none!important"'), 'Email authentication must not be disabled inline.');
 assert.ok(account.includes('autocomplete="email"'), 'Email field must use email autocomplete.');
