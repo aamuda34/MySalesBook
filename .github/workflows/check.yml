@@ -1,7 +1,7 @@
 name: Check Sellbook
 on:
   push:
-    branches: [main, account-offline-upgrade]
+    branches: [main, account-offline-upgrade, "sellbook-live-location-v1"]
   pull_request:
     branches: [main]
 jobs:
@@ -17,6 +17,8 @@ jobs:
           python-version: '3.x'
       - name: Check app assets, JavaScript syntax and DOM IDs
         run: python scripts/check_inline_js.py
+      - name: Check live location module syntax
+        run: node --check location-sharing.js
       - name: Check public release assets and browser secret boundaries
         run: node scripts/check_public_release.js
       - name: Check Sellbook brand name and tagline consistency
@@ -41,3 +43,19 @@ jobs:
         run: node scripts/check_getting_started.js
       - name: Test admin console navigation, search and security wiring
         run: node scripts/check_admin_console.js
+      - name: Test live-location isolation, freshness and CAPTCHA wiring
+        run: node scripts/check_live_location.js
+      - name: Check live-location disconnect cleanup migration
+        shell: bash
+        run: |
+          set -euo pipefail
+          migration="supabase/migrations/20261106091212_stop_location_sessions_when_shop_disconnects.sql"
+          test -s "$migration"
+          grep -q "security definer" "$migration"
+          grep -q "set search_path to ''" "$migration"
+          grep -q "after update of is_connected, is_active" "$migration"
+          grep -q "status = 'stopped'" "$migration"
+          grep -q "latitude = 0" "$migration"
+          grep -q "longitude = 0" "$migration"
+          grep -qi "revoke all on function public.stop_marketplace_location_sessions_when_shop_disconnects()" "$migration"
+          grep -qi "from public, anon, authenticated" "$migration"

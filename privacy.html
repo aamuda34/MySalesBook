@@ -11,7 +11,7 @@
 </style>
 </head>
 <body>
-<header><h1>Privacy Notice</h1><p>Sellbook · Made Business Simple.</p><p class="meta">Effective date: 5 November 2026 · Last updated: 5 November 2026</p></header>
+<header><h1>Privacy Notice</h1><p>Sellbook · Made Business Simple.</p><p class="meta">Effective date: 6 November 2026 · Last updated: 6 November 2026</p></header>
 <main>
 <section class="card">
 <p><strong>This notice explains what Sellbook collects, why it is used, where it is stored, and the choices available to users.</strong> It applies to the Sellbook business-management service and the optional Buybook shop, subscription, messaging and reservation features connected to it.</p>
@@ -28,9 +28,11 @@
 <h2>Information Sellbook handles</h2>
 <ul>
 <li><strong>Account and authentication:</strong> email address, authentication identifier, sign-in provider details and account security state.</li>
+<li><strong>Policy acknowledgement records:</strong> when you create an account or continue with Google, we record the app, the versions of the Terms and Privacy Notice acknowledged, the time of acceptance and the sign-up method. This documents the version shown to you; it is not blanket consent for unrelated optional processing.</li>
 <li><strong>Business records:</strong> product names and categories, cost and selling prices, stock, stock changes, sales, expenses, notes, reports and business-profile details.</li>
 <li><strong>Images:</strong> product and business images uploaded by a seller. Private Sellbook product images are stored in an account-scoped area. Images deliberately published for a Buybook listing or shop-front are publicly accessible so buyers can view the listing.</li>
 <li><strong>Buybook activity, when enabled:</strong> shop details, public listings, subscriptions, reservation details, buyer/seller messages and related status updates.</li>
+<li><strong>Optional live shop location:</strong> when a buyer taps Locate seller in Buybook, grants device location permission and starts sharing, Buybook temporarily sends GPS coordinates and available accuracy/movement data for the selected shop session. A session is associated with the selected shop owner and may use a temporary anonymous account for a guest buyer.</li>
 <li><strong>Support and feedback:</strong> messages, feedback, replies and the information needed to respond to a request.</li>
 <li><strong>Historical service activity:</strong> Sellbook retains a limited set of pseudonymous visit/session keys and visit dates created while browser visit collection was active. New browser visit tracking is currently paused, so the app does not collect new visit records through that feature.</li>
 <li><strong>Device and offline data:</strong> records cached on the device and pending changes waiting to synchronise. Anyone with access to an unlocked device or browser profile may be able to see local records.</li>
@@ -40,6 +42,10 @@
 <h2>Why information is used</h2>
 <p>Information is used to create and secure accounts; provide product, stock, sales, expense, report, backup and synchronisation features; operate optional Buybook listings, subscriptions, messages and reservations; answer support requests; prevent abuse; maintain service reliability; and meet applicable legal obligations.</p>
 <p>Depending on the activity, processing may be necessary to provide the service requested by the user, comply with a legal obligation, pursue legitimate interests such as account security and service reliability, or rely on consent for an optional activity. Where consent is the basis, it may be withdrawn for future processing, subject to other lawful grounds.</p>
+</section>
+<section class="card">
+<h2>Account security and automated abuse checks</h2>
+<p>Sellbook may display a Cloudflare Turnstile security check when a user creates an email account, signs in with email and password, requests a password-recovery email, resends an account-confirmation email, or requests an account-verification code. The check is used to reduce automated abuse and protect the shared authentication service. Cloudflare processes technical challenge and request information needed to provide this security check. The check does not grant access to business records or a buyer's live location; normal account and shop permissions still apply.</p>
 </section>
 <section class="card">
 <h2>Marketplace images and automated review</h2>
@@ -52,6 +58,14 @@
 <p>Signed-in cloud records, authentication data and uploaded files are handled by Supabase. The configured database is hosted in the EU West (Ireland) region. The web app is hosted through Vercel and uses Cloudflare infrastructure for delivery, backup deployment and the optional shop-front image-classification service. Google may process authentication information when a user chooses Google sign-in.</p>
 <p>These service providers process information as needed to provide their services. Depending on the service and infrastructure location, information may be processed outside Nigeria. Before unrestricted launch, the operator must review the providers' applicable data-processing terms and confirm the safeguards required for any international transfer.</p>
 <p>Buybook listing and shop-front images are made public when the seller chooses to publish a connected shop. Public listings may be viewed by anyone. Private Sellbook product images and private business records are not intended to be publicly available.</p>
+</section>
+<section class="card">
+<h2>Optional live location sharing</h2>
+<p>Buybook's Locate seller feature is optional. It does not start when a buyer merely browses a product, opens a shop page or views an ordinary map. The buyer must tap Locate seller, review the notice, tap Start sharing live location and grant location permission in the device browser. The buyer can stop sharing from Buybook at any time.</p>
+<p>During an active session, the service receives the buyer's current latitude and longitude and, when the device supplies them, GPS accuracy, heading and speed. The session is linked to the one shop the buyer selected (and to the product when started from a product page). Only the authenticated owner of that connected shop and the buyer's own session can read the live location. Other shops, sellers, buyers and public visitors cannot search for or view that location. The seller receives a notification that a buyer is locating the shop; the notification itself does not contain GPS coordinates.</p>
+<p>Live updates are intended to work while Buybook remains open and the phone has GPS and internet access. Mobile browsers and installed web apps may pause GPS updates when the app is backgrounded, the screen is locked, battery-saving is enabled or connectivity is lost. Sellbook indicates when a signal is no longer current; it must not be treated as guaranteed background tracking or emergency location service.</p>
+<p>A session expires after 30 minutes and is also closed after three minutes without a fresh update. Tapping Stop sharing clears the precise coordinates immediately. Stopped and expired session rows are retained for up to seven days for operational cleanup and then deleted. For a guest buyer, Buybook also creates a temporary anonymous authentication record so the location session can be securely identified and stopped. Guest records created by this feature are scheduled for deletion after 30 days without further location use, provided no active session remains. This does not create a registered Buybook account or grant reservation, messaging or follow-shop privileges. A buyer can also revoke browser location permission in the device or browser settings.</p>
+<p>Buybook and Sellbook display maps using Leaflet and OpenStreetMap map tiles. The map service may receive ordinary tile requests that reveal the approximate map area being viewed; the buyer's exact GPS coordinates are not intentionally sent to OpenStreetMap as a location-tracking feed. OpenStreetMap tile availability is subject to its usage policy.</p>
 </section>
 <section class="card">
 <h2>How long information is kept</h2>
