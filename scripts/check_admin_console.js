@@ -24,5 +24,5 @@ assert.match(app,/adminSupportBadge/,'Unread support count must be shown in admi
 assert.match(css,/body\.admin-mode #adminBottomNav/,'Admin bottom navigation must be displayed in admin mode');
 assert.match(css,/body\.admin-mode>\.seller-welcome-header/,'Seller header must be hidden from admin');
 assert.match(css,/body\.admin-mode #appWorkspace>nav/,'Seller navigation must be hidden from admin');
-assert.match(sw,/sellbook-shell-v141/,'PWA shell cache version must be updated');
+assert.match(sw,/sellbook-shell-v142/,'PWA shell cache version must be updated');
 console.log('Dedicated admin workspace checks passed.');
