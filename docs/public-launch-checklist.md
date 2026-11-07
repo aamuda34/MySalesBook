@@ -1,11 +1,17 @@
 # Sellbook public launch checklist
 
-Last reviewed: 5 November 2026
+Last reviewed: 7 November 2026
 
 This checklist is the release gate for unrestricted public registration. A successful deployment or automated source check does not replace live end-to-end acceptance or professional legal/regulatory sign-off.
 
 ## Technical release
 
+
+- [x] New-account UI requires a simple affirmative checkbox before Sellbook email registration or Google account continuation; the Privacy Notice and Terms open in optional separate links.
+- [x] A shared `policy_acceptances` table records the accepted app, policy versions, acceptance time and method. Row-level security limits user reads and inserts to their own account; rows are append-only for the user.
+- [x] Email-based Sellbook registration copies the accepted policy versions from account-creation metadata through a private database trigger. Google OAuth records acceptance after the OAuth callback.
+- [x] Buybook uses the same acceptance register with its own Terms version and Privacy Notice version.
+- [ ] Complete a real email signup and a real Google signup in each app; verify the correct policy versions and acceptance methods are recorded against each test account and that a declined checkbox blocks the registration flow.
 - [x] Main branch has automated checks for JavaScript/HTML integrity, authentication UI, backups, offline synchronisation, account deletion, reversible product archiving, sale reversals and admin routing.
 - [x] Public application tables inspected in Supabase have row-level security enabled.
 - [x] Inspected public SECURITY DEFINER functions have a fixed search_path; none were executable by the anonymous role in the review performed.
