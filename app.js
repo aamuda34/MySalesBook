@@ -1604,6 +1604,7 @@ const BUYBOOK_SHOP_FRONT_MAX_BYTES=5*1024*1024;
 let buybookShopLocation=null;
 let buybookConnectionLoadSequence=0;
 let buybookShopFrontImageFile=null;
+let buybookShopFrontSelectionVersion=0;
 let buybookShopFrontPreviewUrl=null;
 let buybookSavedShopFrontUrl=null;
 let buybookSavedShopFrontPath=null;
@@ -1773,10 +1774,28 @@ async function prepareBuybookShopFrontImage(file){
  }
 }
 document.getElementById('buybookShopFrontFile')?.addEventListener('change',event=>{
- const file=event.currentTarget.files?.[0]||null;
+ const input=event.currentTarget;
+ const file=input.files?.[0]||null;
+ buybookShopFrontSelectionVersion++;
  buybookShopFrontImageFile=file;
  if(!file){
   setBuybookShopFrontPreview(buybookSavedShopFrontUrl,{saved:!!buybookSavedShopFrontUrl});
+  return;
+ }
+ if(!['image/jpeg','image/png','image/webp'].includes(String(file.type||'').toLowerCase())){
+  buybookShopFrontImageFile=null;
+  input.value='';
+  setBuybookShopFrontPreview(buybookSavedShopFrontUrl,{saved:!!buybookSavedShopFrontUrl});
+  setBuybookShopFrontStatus('That photo format is not supported. Choose a JPG, PNG or WebP image.','error');
+  showToast('Shop photo not accepted. Choose a JPG, PNG or WebP image.','error');
+  return;
+ }
+ if(file.size>BUYBOOK_SHOP_FRONT_MAX_BYTES){
+  buybookShopFrontImageFile=null;
+  input.value='';
+  setBuybookShopFrontPreview(buybookSavedShopFrontUrl,{saved:!!buybookSavedShopFrontUrl});
+  setBuybookShopFrontStatus('This photo is larger than 5 MB. Choose a smaller photo.','error');
+  showToast('Shop photo is too large. Choose a photo under 5 MB.','error');
   return;
  }
  const previewUrl=URL.createObjectURL(file);
@@ -1786,6 +1805,7 @@ document.getElementById('buybookShopFrontChooseButton')?.addEventListener('click
  document.getElementById('buybookShopFrontFile')?.click();
 });
 document.getElementById('buybookShopFrontRemoveButton')?.addEventListener('click',()=>{
+ buybookShopFrontSelectionVersion++;
  buybookShopFrontImageFile=null;
  buybookSavedShopFrontUrl=null;
  buybookSavedShopFrontPath=null;
@@ -1803,6 +1823,8 @@ async function loadBuybookConnection(options={}){
  const submitButton=document.getElementById('buybookConnectButton');
  const disconnect=document.getElementById('buybookDisconnectButton');
  const requestId=++buybookConnectionLoadSequence;
+ const shopFrontSelectionAtRequestStart=buybookShopFrontSelectionVersion;
+ const shopFrontSelectionUnchanged=()=>shopFrontSelectionAtRequestStart===buybookShopFrontSelectionVersion;
  const requestedUserId=cloudUser?.id||null,requestEpoch=accountSessionEpoch;
  const current=()=>requestId===buybookConnectionLoadSequence&&(!requestedUserId||accountRequestIsCurrent(requestedUserId,requestEpoch));
  const setStatus=(connected,loading=false)=>{
@@ -1862,9 +1884,13 @@ async function loadBuybookConnection(options={}){
    writeField('buybookPhone',data.phone);
    buybookSavedShopFrontUrl=data.shop_front_image_url||null;
    buybookSavedShopFrontPath=data.shop_front_image_path||null;
-   buybookShopFrontImageFile=null;
    const hasSavedShopFront=!!(buybookSavedShopFrontUrl&&buybookSavedShopFrontPath);
-   setBuybookShopFrontPreview(hasSavedShopFront?buybookSavedShopFrontUrl:null,{saved:hasSavedShopFront,confirmed:!!data.shop_front_confirmed_at});
+   // A profile request may finish after the seller has selected a new photo.
+   // Never clear that newer selection or replace its preview with the old one.
+   if(shopFrontSelectionUnchanged()){
+    buybookShopFrontImageFile=null;
+    setBuybookShopFrontPreview(hasSavedShopFront?buybookSavedShopFrontUrl:null,{saved:hasSavedShopFront,confirmed:!!data.shop_front_confirmed_at});
+   }
    writeField('buybookAddress',data.address);
    writeField('buybookCity',data.city);
    writeField('buybookState',data.state);
@@ -1886,8 +1912,11 @@ async function loadBuybookConnection(options={}){
   }else{
    writeField('buybookShopName',db.profile?.businessName||cloudUser.user_metadata?.business_name||cloudUser.user_metadata?.full_name||'');
    ['buybookDescription','buybookPhone','buybookAddress','buybookCity','buybookState','buybookLatitude','buybookLongitude'].forEach(id=>writeField(id,''));
-   buybookSavedShopFrontUrl=null;buybookSavedShopFrontPath=null;buybookShopFrontImageFile=null;
-   setBuybookShopFrontPreview(null,{confirmed:false});
+   buybookSavedShopFrontUrl=null;buybookSavedShopFrontPath=null;
+   if(shopFrontSelectionUnchanged()){
+    buybookShopFrontImageFile=null;
+    setBuybookShopFrontPreview(null,{confirmed:false});
+   }
    buybookShopLocation=null;
    document.getElementById('buybookLocationMapLink')?.classList.add('hidden');
    document.getElementById('buybookOverviewMapLink')?.classList.add('hidden');
