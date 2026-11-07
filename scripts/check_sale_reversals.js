@@ -86,7 +86,7 @@ assert.ok(app.includes('reversed_at:(row.reversedAt||row.reversed_at)'),'Account
 assert.ok(app.includes('stock_returned:!!(row.stockReturned||row.stock_returned)'),'Account backups preserve stock-return status.');
 assert.ok(app.includes('data-confirm-sale-reversal')&&app.includes('data-cancel-sale-reversal'),'The details page provides explicit confirm and cancel actions.');
 assert.ok(html.includes('id="saleDetailsContent"'),'The existing sale details page is used; no extra navigation destination is added.');
-assert.ok(sw.includes('sellbook-shell-v144'),'The PWA cache version is refreshed for the new UI.');
+assert.ok(sw.includes('sellbook-shell-v145'),'The PWA cache version is refreshed for the new UI.');
 console.log('PASS: dashboards, reports, history, CSV exports, backups and PWA shell handle reversed sales consistently.');
 
 // Platform-wide admin figures must agree with individual business reports.

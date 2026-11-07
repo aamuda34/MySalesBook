@@ -45,6 +45,9 @@ jobs:
 
       - name: Test Buybook shop-front selection race protection
         run: node scripts/check_buybook_shop_front_selection.js
+ 
+      - name: Test permission and authentication error messages
+        run: node scripts/check_friendly_error_messages.js
 
       - name: Validate web app manifest JSON
         run: node -e "JSON.parse(require('node:fs').readFileSync('manifest.webmanifest', 'utf8')); console.log('Manifest JSON is valid')"
