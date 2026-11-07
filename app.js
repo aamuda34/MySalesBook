@@ -1068,6 +1068,9 @@ function lockSellbookForPin(message){
 }
 async function recheckSellbookPinStatus(){
  if(!cloudUser||!supabaseClient||securityPinGateVisible||securityPinStatusCheckInFlight)return;
+ // Check before the online guard: a background timeout must remain effective
+ // even when the seller returns without an internet connection.
+ if(lockSellbookIfBackgroundTimeoutExpired(cloudUser.id))return false;
  if(securityPinExpiresAt&&Date.now()>=securityPinExpiresAt){
   lockSellbookForPin('Your security PIN session has expired. Enter your PIN again.');
   return;
@@ -1220,6 +1223,9 @@ function hideSecurityPinGate(){
 }
 async function ensureSellbookPinAccess(){
  if(!cloudUser||!supabaseClient)throw Error('Sign in before verifying your Sellbook PIN.');
+ // Also enforce an elapsed background timeout on a cold app launch, where
+ // the previous document's JavaScript timer no longer exists.
+ if(lockSellbookIfBackgroundTimeoutExpired(cloudUser.id))return false;
  if(sessionStorage.getItem('sellbook-pin-reset-after-auth')==='yes'){
   showSecurityPinGate('verify','Verify your registered email address to reset your Sellbook PIN.');
   if(!accountEmailOtpState&&!accountEmailOtpBusy){
