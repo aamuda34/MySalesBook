@@ -278,7 +278,8 @@ function friendlyToastMessage(message){
  ];
  for(const [pattern,replacement] of rules)if(pattern.test(value))return replacement;
  if(/failed to fetch|network request failed|networkerror|load failed|connection (?:was )?lost|timed? ?out|internet is unavailable/i.test(lower))return 'Could not connect. Check your internet connection and try again.';
- if(/row-level security|permission denied|not authorized|unauthorized|jwt expired|invalid jwt|invalid refresh token|authentication required/i.test(lower))return 'Sellbook could not complete that action. Sign in again or contact Sellbook Support for help.';
+ if(/row-level security|permission denied|not authorized|insufficient privilege|accessdenied|access denied/i.test(lower))return 'Sellbook could not complete this request because a permission check failed. Please try again, and contact Sellbook Support if it continues.';
+ if(/unauthorized|jwt expired|invalid jwt|invalid refresh token|authentication required|session (?:has )?expired/i.test(lower))return 'Sellbook could not complete that action. Sign in again or contact Sellbook Support for help.';
  if(/duplicate key|unique constraint/i.test(lower))return 'This information already exists. Check the details and try again.';
  if(/foreign key|violates.*constraint|sqlstate|relation .* does not exist|column .* does not exist|postgrest|postgresql|supabase|http [45]\d\d|status code [45]\d\d/i.test(lower))return 'Sellbook could not complete that action. Please try again. If the problem continues, contact Sellbook Support.';
  if(value.length>180||/\b(?:error|exception|stack trace|failed)\b.*\b(?:api|database|request|response|server|token|query)\b/i.test(value))return 'Sellbook could not complete that action. Please try again. If the problem continues, contact Sellbook Support.';
