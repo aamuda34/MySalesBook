@@ -1814,6 +1814,13 @@ document.getElementById('buybookShopFrontRemoveButton')?.addEventListener('click
  setBuybookShopFrontPreview(null);
 });
 
+function shouldHydrateBuybookShopFrontFromProfile(selectionVersionAtRequestStart,selectedFileAtRequestStart){
+ // Hydrate saved profile photos only when the request began with no pending file
+ // and the user has not selected or removed a photo while it was in flight.
+ return !selectedFileAtRequestStart &&
+  !buybookShopFrontImageFile &&
+  selectionVersionAtRequestStart===buybookShopFrontSelectionVersion;
+}
 async function loadBuybookConnection(options={}){
  const overviewStatus=document.getElementById('buybookConnectionStatus');
  const setupStatus=document.getElementById('buybookSetupConnectionStatus');
@@ -1824,7 +1831,7 @@ async function loadBuybookConnection(options={}){
  const disconnect=document.getElementById('buybookDisconnectButton');
  const requestId=++buybookConnectionLoadSequence;
  const shopFrontSelectionAtRequestStart=buybookShopFrontSelectionVersion;
- const shopFrontSelectionUnchanged=()=>shopFrontSelectionAtRequestStart===buybookShopFrontSelectionVersion;
+ const shopFrontFileAtRequestStart=buybookShopFrontImageFile;
  const requestedUserId=cloudUser?.id||null,requestEpoch=accountSessionEpoch;
  const current=()=>requestId===buybookConnectionLoadSequence&&(!requestedUserId||accountRequestIsCurrent(requestedUserId,requestEpoch));
  const setStatus=(connected,loading=false)=>{
@@ -1887,8 +1894,7 @@ async function loadBuybookConnection(options={}){
    const hasSavedShopFront=!!(buybookSavedShopFrontUrl&&buybookSavedShopFrontPath);
    // A profile request may finish after the seller has selected a new photo.
    // Never clear that newer selection or replace its preview with the old one.
-   if(shopFrontSelectionUnchanged()){
-    buybookShopFrontImageFile=null;
+   if(shouldHydrateBuybookShopFrontFromProfile(shopFrontSelectionAtRequestStart,shopFrontFileAtRequestStart)){
     setBuybookShopFrontPreview(hasSavedShopFront?buybookSavedShopFrontUrl:null,{saved:hasSavedShopFront,confirmed:!!data.shop_front_confirmed_at});
    }
    writeField('buybookAddress',data.address);
@@ -1913,8 +1919,7 @@ async function loadBuybookConnection(options={}){
    writeField('buybookShopName',db.profile?.businessName||cloudUser.user_metadata?.business_name||cloudUser.user_metadata?.full_name||'');
    ['buybookDescription','buybookPhone','buybookAddress','buybookCity','buybookState','buybookLatitude','buybookLongitude'].forEach(id=>writeField(id,''));
    buybookSavedShopFrontUrl=null;buybookSavedShopFrontPath=null;
-   if(shopFrontSelectionUnchanged()){
-    buybookShopFrontImageFile=null;
+   if(shouldHydrateBuybookShopFrontFromProfile(shopFrontSelectionAtRequestStart,shopFrontFileAtRequestStart)){
     setBuybookShopFrontPreview(null,{confirmed:false});
    }
    buybookShopLocation=null;
