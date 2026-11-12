@@ -1,0 +1,313 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#452265">
+  <meta name="description" content="Explore local shops and products, check listed details and connect with sellers before you go.">
+  <meta name="color-scheme" content="light">
+  <title>Buybook — Check Before You Go</title>
+  <link rel="icon" type="image/svg+xml" href="/static/icons/buybook.svg">
+  <link rel="manifest" href="/static/manifest.webmanifest">
+  <link rel="stylesheet" href="/static/css/app.css">
+  <link rel="stylesheet" href="/static/css/location-sharing.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+</head>
+<body>
+  <div id="offline-banner" class="offline-banner" role="status" hidden>You are offline. Saved app pages remain available; live listings and account actions need internet.</div>
+  <div id="location-sharing-banner" class="location-sharing-banner" role="status" hidden><span id="location-sharing-label"></span><button type="button" data-stop-location-sharing>Stop sharing</button></div>
+
+  <header class="app-header">
+    <a class="brand" href="/" aria-label="Buybook home" data-go-home>
+      <span class="brand-mark" aria-hidden="true"><img src="/static/icons/buybook.svg" alt="" width="42" height="42" decoding="async"></span>
+      <span class="brand-copy"><strong>Buybook</strong><small>Check Before You Go.</small></span>
+    </a>
+    <div class="header-actions">
+      <button class="icon-button" id="notifications-button" type="button" aria-label="Notifications" title="Notifications">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/></svg>
+        <span id="notifications-badge" class="count-badge" hidden></span>
+      </button>
+      <button class="button button-secondary header-signin-button" id="header-signin-button" type="button" data-open-signin>Sign in</button>
+      <button class="avatar-button" id="profile-button" type="button" aria-label="Open your account" hidden><span id="header-avatar">B</span></button>
+    </div>
+  </header>
+
+  <div id="global-feedback" class="global-feedback" role="status" aria-live="polite" hidden></div>
+
+  <main id="app-main" class="app-main" tabindex="-1">
+    <section id="screen-home" class="screen is-active" aria-labelledby="home-title">
+      <div class="hero">
+        <p class="eyebrow">CHECK BEFORE YOU GO</p>
+        <h1 id="home-title">Find what you need.</h1>
+        <p>Explore products and shops. Compare listed prices before you visit.</p>
+        <form id="home-search" class="search-form">
+          <label class="sr-only" for="home-query">Search products or shops</label>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.8" cy="10.8" r="6.8"/><path d="m16 16 5 5"/></svg>
+          <input id="home-query" type="search" maxlength="100" placeholder="Search products or shops" autocomplete="off">
+          <button class="button button-primary" type="submit">Search</button>
+        </form>
+        <p class="hero-note">Create an account to follow shops, message sellers and reserve products. <button class="hero-signup-link" type="button" data-open-signup>Sign up</button></p>
+      </div>
+
+      <section class="content-section" aria-labelledby="home-categories-title">
+        <div class="section-heading"><div><p class="eyebrow">START HERE</p><h2 id="home-categories-title">Browse categories</h2></div><button class="text-button" type="button" data-screen-link="explore">All categories</button></div>
+        <div id="home-categories" class="home-category-grid" aria-label="Popular product categories"></div>
+      </section>
+
+      <section class="content-section" aria-labelledby="home-products-title">
+        <div class="section-heading"><div><p class="eyebrow">NEW FROM LOCAL SHOPS</p><h2 id="home-products-title">Recently updated products</h2></div><button class="text-button" type="button" data-screen-link="explore">See all</button></div>
+        <div id="home-products" class="product-grid" aria-live="polite"><div class="loading-card">Loading products…</div></div>
+      </section>
+
+      <section class="content-section" aria-labelledby="home-shops-title">
+        <div class="section-heading"><div><p class="eyebrow">MEET LOCAL SELLERS</p><h2 id="home-shops-title">Shops to discover</h2></div><button class="text-button" type="button" data-screen-link="explore" data-scroll-target="explore-shops">See all</button></div>
+        <div id="home-shops" class="shop-grid" aria-live="polite"><div class="loading-card">Loading shops…</div></div>
+      </section>
+    </section>
+
+    <section id="screen-explore" class="screen" aria-labelledby="explore-title" hidden>
+      <div class="page-heading"><p class="eyebrow">FIND PRODUCTS AND SHOPS</p><h1 id="explore-title">Explore</h1><p>Search products and shops, then compare prices and locations.</p></div>
+      <form id="explore-search" class="filter-panel">
+        <label for="explore-query">Search products or shops</label>
+        <input id="explore-query" type="search" maxlength="100" placeholder="e.g. rice, phone or shop name" autocomplete="off">
+        <div class="filter-row">
+          <div class="filter-field"><label for="explore-location">City or state</label><input id="explore-location" type="search" maxlength="80" placeholder="e.g. Iwo, Osun"></div>
+          <div class="filter-field"><label for="explore-sort">Sort products by</label><select id="explore-sort"><option value="updated">Recently updated</option><option value="nearest" disabled>Nearest to you</option><option value="name">Product name</option><option value="price-low">Price: low to high</option><option value="price-high">Price: high to low</option></select></div>
+        </div>
+        <p id="distance-location-status" class="distance-privacy-note" role="status" aria-live="polite" hidden></p>
+        <a id="distance-location-settings" class="text-button" href="intent:#Intent;action=android.settings.LOCATION_SOURCE_SETTINGS;end" hidden>Turn on phone Location</a>
+        <button class="button button-secondary" type="button" id="clear-filters">Clear filters</button>
+      </form>
+      <div class="filter-subheading">Product categories</div>
+      <div class="category-list category-list-compact" id="explore-categories" aria-label="Filter by product category"></div>
+      <p id="explore-summary" class="catalog-summary" role="status" aria-live="polite">Browse products and connected shops.</p>
+      <div class="results-heading"><h2>Products</h2><span id="product-count" class="muted-text">Loading…</span><button id="refresh-products" class="icon-button small-icon" type="button" aria-label="Refresh products" title="Refresh products"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 7v5h-5M4 17v-5h5M5.6 9A7 7 0 0 1 18 6l2 6M4 12l2 6a7 7 0 0 0 12.4-3"/></svg></button></div>
+      <div id="explore-products" class="product-grid" aria-live="polite"><div class="loading-card">Loading products…</div></div>
+
+      <section id="explore-shops" class="content-section explore-shop-section" aria-labelledby="explore-shops-title">
+        <div class="section-heading">
+          <div><p class="eyebrow">CONNECTED LOCAL SHOPS</p><h2 id="explore-shops-title">Shops</h2></div>
+          <span id="shop-count" class="muted-text">Loading…</span>
+        </div>
+        <div id="explore-shops-list" class="shop-grid" aria-live="polite"><div class="loading-card">Loading shops…</div></div>
+      </section>
+    </section>
+
+    <section id="screen-product" class="screen detail-screen" aria-labelledby="product-detail-title" hidden>
+      <button class="back-button" type="button" data-back><span aria-hidden="true">←</span> Back</button>
+      <div id="product-detail-content"></div>
+    </section>
+
+    <section id="screen-shop" class="screen detail-screen" aria-labelledby="shop-detail-title" hidden>
+      <button class="back-button" type="button" data-back><span aria-hidden="true">←</span> Back</button>
+      <div id="shop-detail-content"></div>
+    </section>
+
+    <section id="screen-locate" class="screen detail-screen location-screen" aria-labelledby="locate-title" hidden>
+      <button class="back-button" type="button" data-back><span aria-hidden="true">←</span> Back</button>
+      <p class="eyebrow">SHOP DIRECTIONS</p>
+      <h1 id="locate-title">Find this shop</h1>
+      <p id="locate-status" class="locate-simple-status" role="status" aria-live="polite">Loading the seller's saved shop location…</p>
+      <div class="locate-simple-map-card">
+        <div id="locate-map" class="location-map" role="region" aria-label="Map showing the seller’s saved shop pin">
+          <div class="location-map-placeholder"><strong>Loading shop pin…</strong></div>
+        </div>
+        <div class="locate-simple-map-caption"><span class="map-legend-shop"></span><span id="locate-shop-label">Shop location</span></div>
+      </div>
+      <p id="location-shop-pin-note" class="location-shop-pin-note">This is the shop pin saved by the seller, not a verified entrance.</p>
+      <section class="buybook-route-card" aria-label="Shop route">
+        <p class="location-route-intro">Your location is requested only when you tap the button. It is not shared with the seller.</p>
+        <button type="button" id="location-get-route" class="button button-primary">Get route from my location</button>
+        <div id="location-route-results" hidden>
+          <div class="buybook-route-summary"><div><span class="route-kicker">ROUTE DISTANCE (EST.)</span><strong id="location-route-distance">—</strong></div><div><span class="route-kicker">TRAVEL TIME (EST.)</span><strong id="location-route-eta">—</strong></div></div>
+          <div class="location-route-modes" role="group" aria-label="Travel mode"><button type="button" class="route-mode is-selected" data-route-mode="foot" aria-pressed="true">Walking</button><button type="button" class="route-mode" data-route-mode="car" aria-pressed="false">Driving</button></div>
+          <p id="location-route-state" class="route-state" role="status">Route not requested</p>
+          <p id="location-route-accuracy" class="location-route-accuracy"></p>
+          <details class="buybook-route-steps-details"><summary>Step-by-step directions</summary><ol id="location-route-steps" class="buybook-route-steps"><li>Directions will appear after you request a route.</li></ol></details>
+          <p id="location-route-note" class="location-route-note"></p>
+          <button type="button" id="location-map-recenter" class="button button-secondary">Show full route</button>
+          <a id="locate-directions" class="buybook-external-directions" href="#" target="_blank" rel="noopener noreferrer" hidden>Open in Google Maps</a>
+        </div>
+      </section>
+      <details class="locate-live-sharing">
+        <summary>Share my live location with this shop (optional)</summary>
+        <p>Only share if you want the shop owner to see your live position while you travel. This is not needed to get directions.</p>
+        <button type="button" id="locate-start" class="button button-secondary">Start live location sharing</button>
+        <button type="button" id="locate-stop" class="button button-secondary" data-stop-location-sharing hidden>Stop sharing</button>
+      </details>
+      <p class="location-privacy-note"><a href="/static/privacy.html" target="_blank" rel="noopener noreferrer">Read the Buybook privacy notice</a>.</p>
+    </section>
+
+    <section id="screen-reservations" class="screen" aria-labelledby="reservations-title" hidden>
+      <div class="page-heading"><p class="eyebrow">YOUR PURCHASE PLANS</p><h1 id="reservations-title">Reservations</h1><p>Follow the status of products you have requested to reserve.</p></div>
+      <div class="filter-chips" role="group" aria-label="Filter reservations">
+        <button class="filter-chip is-selected" type="button" data-reservation-filter="all">All</button>
+        <button class="filter-chip" type="button" data-reservation-filter="pending">Pending</button>
+        <button class="filter-chip" type="button" data-reservation-filter="approved">Approved</button>
+        <button class="filter-chip" type="button" data-reservation-filter="collected">Collected</button>
+        <button class="filter-chip" type="button" data-reservation-filter="closed">Closed</button>
+      </div>
+      <div id="reservations-list" class="stack-list" aria-live="polite"><div class="empty-state">Sign in to view your reservations.</div></div>
+    </section>
+
+    <section id="screen-reservation" class="screen detail-screen" aria-labelledby="reservation-detail-title" hidden>
+      <button class="back-button" type="button" data-back>← Back to reservations</button>
+      <div id="reservation-detail-content"></div>
+    </section>
+
+    <section id="screen-messages" class="screen" aria-labelledby="messages-title" hidden>
+      <div class="page-heading"><p class="eyebrow">KEEP IN TOUCH</p><h1 id="messages-title">Messages</h1><p>Talk directly with shops you follow, or reply to buyers who follow your shop.</p></div>
+      <div class="message-tools">
+        <label class="message-search" for="conversation-search">
+          <span class="sr-only">Search conversations</span>
+          <input id="conversation-search" type="search" placeholder="Search conversations…" autocomplete="off">
+        </label>
+        <div class="message-filter-tabs" role="group" aria-label="Filter conversations">
+          <button class="filter-chip is-selected" type="button" data-conversation-filter="all" aria-pressed="true">All</button>
+          <button class="filter-chip" type="button" data-conversation-filter="unread" aria-pressed="false">Unread</button>
+        </div>
+      </div>
+      <div id="conversations-list" class="stack-list" aria-live="polite"><div class="empty-state">Sign in to view your messages.</div></div>
+    </section>
+
+    <section id="screen-chat" class="screen detail-screen chat-screen" aria-labelledby="chat-title" hidden>
+      <button class="back-button" type="button" data-back>← Back to messages</button>
+      <div class="chat-heading">
+        <div class="chat-avatar" id="chat-avatar">S</div>
+        <div class="chat-heading-copy"><h1 id="chat-title">Conversation</h1><p id="chat-subtitle" class="muted-text"></p></div>
+        <details class="chat-options">
+          <summary aria-label="Conversation options">More</summary>
+          <div class="chat-options-menu">
+            <button type="button" id="message-block-button">Block participant</button>
+            <button type="button" id="message-report-button">Report conversation</button>
+          </div>
+        </details>
+      </div>
+      <div id="chat-messages" class="chat-messages" aria-live="polite"></div>
+      <form id="send-message-form" class="chat-composer">
+        <input id="message-attachment" type="file" accept="image/jpeg,image/png,image/webp" hidden>
+        <div class="chat-composer-tools">
+          <button class="chat-attach-button" id="message-attach-trigger" type="button" aria-label="Attach one photo">Photo</button>
+          <span id="message-attachment-status" class="message-attachment-status" hidden></span>
+          <button class="text-button" id="message-attachment-remove" type="button" aria-label="Remove attached photo" hidden>Remove</button>
+        </div>
+        <div class="chat-composer-row">
+          <label class="sr-only" for="message-body">Write a message</label>
+          <textarea id="message-body" rows="1" maxlength="2000" placeholder="Write a message…"></textarea>
+          <button class="button button-primary" id="message-send" type="submit">Send</button>
+        </div>
+      </form>
+      <p id="message-feedback" class="form-feedback" role="status" aria-live="polite"></p>
+    </section>
+
+    <section id="screen-me" class="screen" aria-labelledby="me-title" hidden>
+      <div class="page-heading"><p class="eyebrow">YOUR BUYBOOK</p><h1 id="me-title">Me</h1><p>Your account, followed shops and Sellbook connection.</p></div>
+      <div id="me-profile" class="profile-card"><div class="empty-state">Loading account…</div></div>
+      <section id="me-following-section" class="content-section" aria-labelledby="following-title">
+        <div class="section-heading"><div><p class="eyebrow">YOUR FAVOURITE SHOPS</p><h2 id="following-title">Shops you follow</h2></div></div>
+        <div id="following-shops" class="stack-list" aria-live="polite"><div class="empty-state">Sign in to see the shops you follow.</div></div>
+      </section>
+      <section id="me-sellbook-section" class="content-section" aria-labelledby="sellbook-title">
+        <div class="section-heading"><div><p class="eyebrow">YOUR BUSINESS</p><h2 id="sellbook-title">Sellbook connection</h2></div></div>
+        <div id="sellbook-connection" class="connection-card"><p>Products from connected Sellbook shops appear automatically on Buybook.</p><a class="button button-secondary" href="https://my-sales-book.vercel.app/" target="_blank" rel="noopener noreferrer">Open Sellbook</a></div>
+      </section>
+      <section class="content-section" aria-labelledby="help-title">
+        <div class="section-heading"><div><p class="eyebrow">NEED HELP?</p><h2 id="help-title">Help and information</h2></div></div>
+        <div class="settings-list">
+          <a href="mailto:sellbook.support@gmail.com?subject=Buybook%20support">Contact support <span>→</span></a>
+          <a href="/static/privacy.html" target="_blank" rel="noopener noreferrer">Privacy policy <span>→</span></a>
+          <a href="/static/terms.html" target="_blank" rel="noopener noreferrer">Terms of use <span>→</span></a>
+        </div>
+      </section>
+      <section id="me-signout-section" class="content-section" aria-labelledby="signout-title" hidden>
+        <div class="section-heading"><div><p class="eyebrow">ACCOUNT</p><h2 id="signout-title">Sign out</h2></div></div>
+        <div class="settings-list"><button type="button" id="sign-out-button">Sign out <span>→</span></button></div>
+      </section>
+    </section>
+
+    <section id="screen-notifications" class="screen detail-screen" aria-labelledby="notifications-title" hidden>
+      <button class="back-button" type="button" data-back>← Back</button>
+      <div class="page-heading"><p class="eyebrow">STAY UP TO DATE</p><h1 id="notifications-title">Notifications</h1><p>Reservation updates and important Buybook notices.</p></div>
+      <div class="filter-chips" role="group" aria-label="Filter notifications">
+        <button class="filter-chip is-selected" type="button" data-notification-filter="all">All</button>
+        <button class="filter-chip" type="button" data-notification-filter="message">Messages</button>
+        <button class="filter-chip" type="button" data-notification-filter="reservation">Reservations</button>
+        <button class="filter-chip" type="button" data-notification-filter="update">Updates</button>
+        <button class="filter-chip" type="button" data-notification-filter="announcement">Announcements</button>
+        <button class="filter-chip" type="button" data-notification-filter="support">Support</button>
+        <button class="filter-chip" type="button" data-notification-filter="maintenance">Maintenance</button>
+      </div>
+      <div id="notifications-list" class="stack-list" aria-live="polite"><div class="empty-state">Sign in to view notifications.</div></div>
+    </section>
+
+    <section id="screen-signin" class="screen signin-screen" aria-labelledby="signin-title" hidden>
+      <button class="back-button" type="button" data-back>← Back</button>
+      <div class="signin-card">
+        <span class="brand-mark large-mark" aria-hidden="true"><img src="/static/icons/buybook.svg" alt="" width="56" height="56" decoding="async"></span>
+        <p class="eyebrow">WELCOME TO BUYBOOK</p>
+        <h1 id="signin-title">Sign in to Buybook</h1>
+        <p id="signin-description">Welcome back. Sign in to follow shops, message sellers and reserve products.</p>
+        <div class="signup-legal-consent" id="buybook-legal-consent">
+          <label class="signup-legal-label" for="buybook-policy-consent">
+            <input id="buybook-policy-consent" type="checkbox" required>
+            <span>By continuing, I agree to the <a href="/static/terms.html" target="_blank" rel="noopener noreferrer">Terms of Use</a> and acknowledge the <a href="/static/privacy.html" target="_blank" rel="noopener noreferrer">Privacy Notice</a>.</span>
+          </label>
+        </div>
+        <button class="button button-primary google-button" id="google-signin" type="button"><span aria-hidden="true">G</span> Continue with Google</button>
+        <p id="signin-alternate" class="signin-alternate">New to Buybook? <button type="button" class="text-button" data-auth-mode="signup">Sign up</button></p>
+        <p id="signin-feedback" class="form-feedback" role="status" aria-live="polite"></p>
+      </div>
+    </section>
+  </main>
+
+  <nav class="bottom-nav" aria-label="Main navigation">
+    <button class="nav-item is-active" type="button" data-nav-screen="home" aria-current="page"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1z"/></svg><span>Home</span></button>
+    <button class="nav-item" type="button" data-nav-screen="explore"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.8" cy="10.8" r="6.8"/><path d="m16 16 5 5"/></svg><span>Explore</span></button>
+    <button class="nav-item" type="button" data-nav-screen="reservations"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h10l2 2v16H5V5zM8 9h8M8 13h8M8 17h5"/></svg><span>Reservations</span></button>
+    <button class="nav-item" type="button" data-nav-screen="messages"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11.5a7.5 7.5 0 0 1-7.5 7.5H5l-2 2v-9.5A7.5 7.5 0 0 1 10.5 4H12a8 8 0 0 1 8 7.5zM7 10h9M7 14h6"/></svg><span>Messages</span><span id="messages-badge" class="nav-badge" hidden></span></button>
+    <button class="nav-item" type="button" data-nav-screen="me"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg><span>Me</span></button>
+  </nav>
+
+  <dialog id="reserve-dialog" class="reserve-dialog" aria-labelledby="reserve-title">
+    <form id="reserve-form">
+      <div class="dialog-heading"><div><p class="eyebrow">REQUEST A RESERVATION</p><h2 id="reserve-title">Reserve this product</h2></div><button type="button" class="icon-button" id="reserve-close" aria-label="Close reservation form">×</button></div>
+      <p id="reserve-product-name" class="muted-text"></p>
+      <label for="reserve-quantity">Quantity</label><input id="reserve-quantity" type="number" min="1" max="1000" step="1" value="1" required inputmode="numeric">
+      <label for="reserve-note">Note to shop (optional)</label><textarea id="reserve-note" maxlength="500" rows="3" placeholder="Any details the shop should know?"></textarea>
+      <p class="muted-text">Payment is made in person at the shop. This is a reservation request, not a confirmed purchase.</p>
+      <p id="reserve-feedback" class="form-feedback" role="status" aria-live="polite"></p>
+      <div class="dialog-actions"><button type="button" class="button button-secondary" id="reserve-cancel">Cancel</button><button type="submit" class="button button-primary" id="reserve-submit">Send request</button></div>
+    </form>
+  </dialog>
+
+  <dialog id="message-report-dialog" class="reserve-dialog message-report-dialog" aria-labelledby="message-report-title">
+    <form id="message-report-form">
+      <div class="dialog-heading">
+        <div><p class="eyebrow">KEEP BUYBOOK SAFE</p><h2 id="message-report-title">Report conversation</h2></div>
+        <button type="button" class="icon-button" id="message-report-cancel" aria-label="Close report form">×</button>
+      </div>
+      <p class="muted-text">Tell Buybook support what happened. Reports are private and reviewed by an authorised administrator.</p>
+      <label for="message-report-reason">Reason</label>
+      <select id="message-report-reason" required>
+        <option value="spam">Spam or unwanted messages</option>
+        <option value="harassment">Harassment or threats</option>
+        <option value="scam">Scam or suspicious activity</option>
+        <option value="inappropriate">Inappropriate content</option>
+        <option value="other">Other concern</option>
+      </select>
+      <label for="message-report-details">Details (optional)</label>
+      <textarea id="message-report-details" rows="4" maxlength="500" placeholder="Add a short explanation (up to 500 characters)."></textarea>
+      <p id="message-report-feedback" class="form-feedback" role="status" aria-live="polite"></p>
+      <div class="dialog-actions">
+        <button type="button" class="button button-secondary" id="message-report-cancel-bottom">Cancel</button>
+        <button type="submit" class="button button-primary" id="message-report-submit">Submit report</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.0"></script>
+  <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin="anonymous" defer></script>
+<script src="/static/js/location-sharing.js" defer></script>
+<script src="/static/js/app.js" defer></script>
+</body>
+</html>
