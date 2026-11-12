@@ -934,7 +934,7 @@
     <div class="buybook-overview-detail"><span>Town or city</span><strong id="buybookOverviewCity">—</strong></div>
     <div class="buybook-overview-detail"><span>State</span><strong id="buybookOverviewState">—</strong></div>
     <div class="buybook-overview-detail buybook-overview-description"><span>About the shop</span><p id="buybookOverviewDescription">Not provided</p></div>
-    <div class="buybook-overview-detail buybook-overview-location"><span>Exact shop location</span><div><strong id="buybookOverviewLocationStatus">GPS location saved</strong><a id="buybookOverviewMapLink" href="#" target="_blank" rel="noopener noreferrer">View shop location on map</a></div></div>
+    <div class="buybook-overview-detail buybook-overview-location"><span>Shop map pin</span><div><strong id="buybookOverviewLocationStatus">GPS location saved</strong><a id="buybookOverviewMapLink" href="#" target="_blank" rel="noopener noreferrer">View shop location on map</a></div></div>
    </div>
    <div class="buybook-overview-footer">
     <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 4.5 6v5.2c0 4.5 3.1 8.2 7.5 9.8 4.4-1.6 7.5-5.3 7.5-9.8V6L12 3Z"/><path d="m9 12 2 2 4-4"/></svg>
@@ -1018,23 +1018,27 @@
    <section class="settings-form-group buybook-location-section" aria-labelledby="buybookLocationHeading">
     <div class="settings-form-heading">
      <h3 id="buybookLocationHeading">Shop location</h3>
-     <p>Capture the location while you are at your shop so buyers can find it.</p>
+     <p>Capture GPS at your shop, then check the map pin is on the entrance buyers should reach.</p>
     </div>
     <div class="buybook-location-card">
      <div class="buybook-location-icon" aria-hidden="true">
       <svg viewBox="0 0 24 24"><path d="M20 10c0 5-8 11-8 11S4 15 4 10a8 8 0 1 1 16 0Z"/><circle cx="12" cy="10" r="2.5"/></svg>
      </div>
      <div class="buybook-location-copy">
-      <strong>Shop GPS pin</strong>
-      <p id="buybookLocationStatus" class="settings-inline-status" role="status" aria-live="polite">Location not captured yet. This step is required to connect your shop.</p>
-      <a id="buybookLocationMapLink" class="buybook-location-map-link hidden" href="#" target="_blank" rel="noopener noreferrer">View saved location on map</a>
+      <strong>Shop entrance pin</strong>
+      <p id="buybookLocationStatus" class="settings-inline-status" role="status" aria-live="polite">Capture several GPS readings, then check the pin on the map.</p>
+      <a id="buybookLocationMapLink" class="buybook-location-map-link hidden" href="#" target="_blank" rel="noopener noreferrer">Open this pin in Google Maps</a>
      </div>
     </div>
     <button type="button" id="captureBuybookLocationButton" class="secondary-button buybook-capture-location">
      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2v3m0 14v3M2 12h3m14 0h3"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
-     <span>Use my current location</span>
+     <span>Capture GPS location</span>
     </button>
-    <p class="settings-help-text">Allow location access and wait for an accurate GPS pin.</p>
+    <div id="buybookShopLocationMapWrap" class="buybook-shop-location-map-wrap">
+     <div id="buybookShopLocationMap" class="buybook-shop-location-map" role="region" aria-label="Map preview of the shop entrance pin"></div>
+     <p class="settings-help-text">Drag the pin or tap the map to place it on your actual shop entrance. A manually moved pin has no GPS accuracy reading.</p>
+    </div>
+    <label class="buybook-location-confirm"><input type="checkbox" id="buybookLocationConfirm"> <span>I checked the map and confirm this pin marks my shop entrance.</span></label>
     <input type="hidden" id="buybookLatitude">
     <input type="hidden" id="buybookLongitude">
    </section>
