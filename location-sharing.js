@@ -9,6 +9,7 @@
   let channel = null;
   let map = null;
   let shopMarker = null;
+  let shopAccuracyCircle = null;
   let buyerMarkers = new Map();
   let buyerAccuracyCircles = new Map();
   let focusedLocationId = null;
@@ -95,7 +96,17 @@
     });
     if (shopMarker) shopMarker.setLatLng([Number(currentShop.latitude), Number(currentShop.longitude)]);
     else shopMarker = L.marker([Number(currentShop.latitude), Number(currentShop.longitude)], { icon: shopIcon }).addTo(map);
-    shopMarker.bindPopup(esc(currentShop.name || "Your shop"));
+    shopMarker.bindPopup(esc(currentShop.name || "Your shop") + (currentShop.location_confirmed_at ? " · seller-confirmed pin" : " · entrance not confirmed"));
+    const shopAccuracy=Number(currentShop.location_accuracy_m);
+    if(Number.isFinite(shopAccuracy)&&shopAccuracy>0&&shopAccuracy<=10000){
+      if(shopAccuracyCircle)shopAccuracyCircle.setLatLng([Number(currentShop.latitude),Number(currentShop.longitude)]).setRadius(shopAccuracy);
+      else shopAccuracyCircle=L.circle([Number(currentShop.latitude),Number(currentShop.longitude)],{
+        radius:shopAccuracy,color:'#14532d',weight:1,opacity:.5,fillColor:'#14532d',fillOpacity:.07,interactive:false
+      }).addTo(map);
+    }else if(shopAccuracyCircle){
+      map.removeLayer(shopAccuracyCircle);
+      shopAccuracyCircle=null;
+    }
     window.setTimeout(() => map && map.invalidateSize(), 150);
   }
 
@@ -153,8 +164,8 @@
     const mapNote=$("sellbook-location-map-note");
     if(mapNote){
       mapNote.textContent=(currentShop.location_confirmed_at
-        ?"Shop pin is seller-confirmed by the shop owner. Blue circles show device-reported GPS accuracy; distances are straight-line, not road distance."
-        :"Caution: the saved shop pin has not been confirmed as the entrance. Customer distances are hidden until the seller confirms it. Blue circles show reported GPS accuracy.")+
+        ?"Green circle shows the shop pin’s recorded GPS accuracy; blue circles show buyer GPS accuracy. Distances are straight-line, not road distance."
+        :"Caution: the saved shop pin has not been confirmed as the entrance. Customer distances are hidden. Circles show device-reported GPS accuracy.")+
         " Old or low-accuracy buyer readings are not plotted as precise positions.";
     }
     if (mapAvailable) {
@@ -272,6 +283,7 @@
       map.remove();
       map = null;
       shopMarker = null;
+      shopAccuracyCircle = null;
       buyerMarkers.clear();
       buyerAccuracyCircles.clear();
     }
