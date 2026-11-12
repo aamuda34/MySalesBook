@@ -374,6 +374,7 @@ document.querySelector('[data-toast-close]')?.addEventListener('click',dismissTo
 let localSnapshot = null;
 let authTransition = false;
 let authTransitionPending = false;
+let staleCloudLoadRetries = 0;
 let pendingLoginSuccessUserId=null;
 function showPendingLoginSuccess(userId,refreshSucceeded=true){
  if(!userId)return false;
@@ -1488,7 +1489,22 @@ async function handleCloudAuthChange() {
       }
       try {
         const loaded=await cloudLoadAll();
-        if(loaded===false){coreWorkspaceLoaded=true;finishStartup();return;}
+        if(loaded===false){
+          coreWorkspaceLoaded=true;
+          finishStartup();
+          // A concurrent auth/session event can invalidate an otherwise valid
+          // cloud load. Retry once instead of leaving both the PIN page and
+          // workspace hidden (the blank-screen failure seen on mobile).
+          if(staleCloudLoadRetries<1){staleCloudLoadRetries++;authTransitionPending=true;}
+          else{
+            staleCloudLoadRetries=0;
+            document.getElementById('appWorkspace').classList.add('hidden');
+            document.getElementById('accountCard').classList.remove('hidden');
+            cloudMessage('Your session changed while Sellbook was opening. Please refresh the page and try again.','error');
+          }
+          return;
+        }
+        staleCloudLoadRetries=0;
         coreWorkspaceLoaded = true;
         finishStartup();
         showPendingLoginSuccess(user.id);
@@ -1592,6 +1608,10 @@ async function handleCloudAuthChange() {
     authTransition = false;
     if(authTransitionPending){
       authTransitionPending=false;
+      // Keep a visible startup state while the follow-up auth/load pass runs.
+      document.body.classList.add('auth-initializing');
+      const loading=document.getElementById('authLoading');
+      if(loading)loading.style.display='';
       setTimeout(()=>handleCloudAuthChange(),0);
     }
     // Refresh Me-panel identity after the persisted auth session has been restored.
