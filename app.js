@@ -1284,6 +1284,16 @@ document.getElementById('securityPinForm')?.addEventListener('submit',async even
   document.getElementById('securityPinForm').reset();
   clearPersistedSecurityPinLock();
   hideSecurityPinGate();
+  // Move directly from the verified PIN screen to a visible startup state.
+  // Never leave the user staring at an empty page while cloud records load.
+  document.body.classList.add('auth-initializing');
+  const startupLoading=document.getElementById('authLoading');
+  if(startupLoading){
+   startupLoading.style.display='flex';
+   const heading=startupLoading.querySelector('strong'),detail=startupLoading.querySelector('.muted');
+   if(heading)heading.textContent='Opening your business book…';
+   if(detail)detail.textContent='Checking your saved sign-in and records.';
+  }
   await handleCloudAuthChange();
  }catch(error){
   notifyStatus(status,'PIN operation failed: '+(error.message||'Please try again.'),'error');
