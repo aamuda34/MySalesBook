@@ -10,6 +10,7 @@
   let map = null;
   let shopMarker = null;
   let buyerMarkers = new Map();
+  let buyerAccuracyCircles = new Map();
   let focusedLocationId = null;
   let currentShop = null;
   let currentRows = [];
@@ -108,7 +109,7 @@
     const freshRows = validRows.filter((row) => isFreshLocationTimestamp(row.updated_at));
     if (badge) badge.textContent = String(freshRows.length);
 
-    const shopPoint = shopHasPin(currentShop)
+    const shopPoint = shopHasPin(currentShop) && Boolean(currentShop.location_confirmed_at)
       ? { lat: Number(currentShop.latitude), lng: Number(currentShop.longitude) }
       : null;
 
@@ -122,15 +123,19 @@
       list.innerHTML = validRows.map((row) => {
         const fresh = isFreshLocationTimestamp(row.updated_at);
         const point = { lat: Number(row.latitude), lng: Number(row.longitude) };
-        const distance = fresh && shopPoint ? distanceMetres(shopPoint, point) : null;
-        const distanceLabel = distance == null ? "" : (distance < 1000
-          ? "about " + Math.round(distance) + " m straight-line"
-          : "about " + (distance / 1000).toFixed(1) + " km straight-line");
-        const accuracy = fresh && row.accuracy_m != null ? "GPS ±" + Math.round(Number(row.accuracy_m)) + " m" : "";
+        const reportedAccuracy = Number(row.accuracy_m);
+        const usefulAccuracy = Number.isFinite(reportedAccuracy) && reportedAccuracy > 0 && reportedAccuracy <= 100;
+        const distance = fresh && shopPoint && usefulAccuracy ? distanceMetres(shopPoint, point) : null;
+        const distanceLabel = distance == null
+          ? (!shopPoint ? "distance hidden until the shop entrance pin is confirmed" : (usefulAccuracy ? "" : "distance unavailable · GPS accuracy too low or unknown"))
+          : (distance < 1000 ? "about " + Math.round(distance) + " m straight-line" : "about " + (distance / 1000).toFixed(1) + " km straight-line");
+        const accuracy = fresh
+          ? (usefulAccuracy ? "GPS ±" + Math.round(reportedAccuracy) + " m" : (Number.isFinite(reportedAccuracy) && reportedAccuracy > 0 ? "GPS accuracy low · ±" + Math.round(reportedAccuracy) + " m" : "GPS accuracy unavailable"))
+          : "";
         const details = fresh
           ? ["Live", relativeTime(row.updated_at), distanceLabel, accuracy].filter(Boolean).join(" · ")
           : ["Signal paused", "Last update " + relativeTime(row.updated_at)].join(" · ");
-        const canFocus = fresh && Boolean(window.L);
+        const canFocus = fresh && usefulAccuracy && Boolean(window.L);
         return '<button type="button" class="sellbook-location-row" data-focus-location="' + esc(row.id) + '"' +
           (canFocus ? "" : ' disabled aria-disabled="true"') + '><span class="sellbook-location-avatar" aria-hidden="true">●</span>' +
           '<span class="sellbook-location-row-copy"><strong>' +
@@ -145,17 +150,41 @@
     if (shopHasPin(currentShop) && !window.L) {
       cardMessage("The map service is unavailable right now. Customer location freshness and distance remain visible below; refresh Home to retry the map.", "error");
     }
+    const mapNote=$("sellbook-location-map-note");
+    if(mapNote){
+      mapNote.textContent=(currentShop.location_confirmed_at
+        ?"Shop pin is seller-confirmed by the shop owner. Blue circles show device-reported GPS accuracy; distances are straight-line, not road distance."
+        :"Caution: the saved shop pin has not been confirmed as the entrance. Customer distances are hidden until the seller confirms it. Blue circles show reported GPS accuracy.")+
+        " Old or low-accuracy buyer readings are not plotted as precise positions.";
+    }
     if (mapAvailable) {
       initialiseMap();
       const liveIds = new Set(freshRows.map((row) => String(row.id)));
+      const mappableIds = new Set(freshRows.filter(row => Number.isFinite(Number(row.accuracy_m)) && Number(row.accuracy_m) > 0 && Number(row.accuracy_m) <= 100).map(row => String(row.id)));
       buyerMarkers.forEach((marker, id) => {
         if (!liveIds.has(id)) {
           if (map) map.removeLayer(marker);
           buyerMarkers.delete(id);
         }
       });
+      buyerAccuracyCircles.forEach((circle,id)=>{
+        if(!mappableIds.has(id)){
+          if(map)map.removeLayer(circle);
+          buyerAccuracyCircles.delete(id);
+        }
+      });
       freshRows.forEach((row) => {
         const id = String(row.id);
+        const accuracy = Number(row.accuracy_m);
+        if(!Number.isFinite(accuracy)||accuracy<=0||accuracy>100){
+          const oldMarker=buyerMarkers.get(id);
+          const oldCircle=buyerAccuracyCircles.get(id);
+          if(oldMarker&&map)map.removeLayer(oldMarker);
+          if(oldCircle&&map)map.removeLayer(oldCircle);
+          buyerMarkers.delete(id);
+          buyerAccuracyCircles.delete(id);
+          return;
+        }
         const coords = [Number(row.latitude), Number(row.longitude)];
         let marker = buyerMarkers.get(id);
         if (!marker) {
@@ -171,7 +200,12 @@
           marker.setLatLng(coords);
         }
         const label = row.buyer_type === "guest" ? "Guest buyer" : "Buybook customer";
-        marker.bindPopup("<strong>" + label + "</strong><br>Updated " + esc(relativeTime(row.updated_at)));
+        marker.bindPopup("<strong>" + label + "</strong><br>Updated " + esc(relativeTime(row.updated_at)) + "<br>GPS accuracy ±" + Math.round(accuracy) + " m");
+        let circle=buyerAccuracyCircles.get(id);
+        if(!circle){
+          circle=L.circle(coords,{radius:accuracy,color:'#2872de',weight:1,opacity:.42,fillColor:'#2872de',fillOpacity:.08,interactive:false}).addTo(map);
+          buyerAccuracyCircles.set(id,circle);
+        }else circle.setLatLng(coords).setRadius(accuracy);
       });
       const focusedRow = focusedLocationId
         ? freshRows.find((row) => String(row.id) === String(focusedLocationId))
@@ -180,8 +214,9 @@
         map.setView([Number(focusedRow.latitude), Number(focusedRow.longitude)], Math.max(map.getZoom(), 16));
       } else {
         focusedLocationId = null;
+        const accurateRows=freshRows.filter(row=>Number.isFinite(Number(row.accuracy_m))&&Number(row.accuracy_m)>0&&Number(row.accuracy_m)<=100);
         const points = [[Number(currentShop.latitude), Number(currentShop.longitude)]]
-          .concat(freshRows.map((row) => [Number(row.latitude), Number(row.longitude)]));
+          .concat(accurateRows.map((row) => [Number(row.latitude), Number(row.longitude)]));
         if (points.length > 1) map.fitBounds(L.latLngBounds(points).pad(0.18), { maxZoom: 15 });
         else map.setView(points[0], 14);
       }
@@ -238,6 +273,7 @@
       map = null;
       shopMarker = null;
       buyerMarkers.clear();
+      buyerAccuracyCircles.clear();
     }
     if (!userId) {
       card.hidden = true;
@@ -246,7 +282,7 @@
     card.hidden = false;
     cardMessage("Checking your Buybook shop connection…");
     const { data, error } = await client.from("marketplace_shops")
-      .select("owner_id,name,is_connected,is_active,latitude,longitude")
+      .select("owner_id,name,is_connected,is_active,latitude,longitude,location_accuracy_m,location_captured_at,location_confirmed_at,location_source")
       .eq("owner_id", requestedUserId).maybeSingle();
     if (requestEpoch !== sellerSessionEpoch || requestedUserId !== userId) return;
     if (error) {
@@ -264,7 +300,9 @@
       cardMessage("Your shop is connected, but its map pin is missing. Update the shop location in Connect to Buybook.");
       $("sellbook-location-map-wrap").hidden = true;
     } else {
-      cardMessage("Customers who choose Locate shop in Buybook will appear only here, for your shop.");
+      cardMessage(currentShop.location_confirmed_at
+        ? "Customers who choose Locate shop in Buybook appear only here. Buyer distances are straight-line estimates."
+        : "Customers who choose Locate shop in Buybook appear only here. Your saved pin is not yet confirmed as the entrance, so buyer distances are hidden.");
       initialiseMap();
     }
     await refreshSessions();
