@@ -70,9 +70,19 @@
     el.dataset.kind = kind || "info";
   }
 
+  function isLocationPageVisible() {
+    const page = $("approaching-customers");
+    return Boolean(page && !page.classList.contains("hidden"));
+  }
+
+  function setHomeApproachingCount(value) {
+    const count = $("sellbook-approaching-count");
+    if (count) count.textContent = String(value);
+  }
+
   function initialiseMap() {
     const node = $("sellbook-location-map");
-    if (!node || !shopHasPin(currentShop)) return;
+    if (!node || !shopHasPin(currentShop) || !isLocationPageVisible()) return;
     if (!window.L) {
       $("sellbook-location-map-wrap").hidden = true;
       cardMessage("The map service is unavailable right now. Location notifications and session checks will continue; refresh Home to retry the map.", "error");
@@ -119,6 +129,7 @@
       row.status === "active" && new Date(row.expires_at).getTime() > Date.now());
     const freshRows = validRows.filter((row) => isFreshLocationTimestamp(row.updated_at));
     if (badge) badge.textContent = String(freshRows.length);
+    setHomeApproachingCount(freshRows.length);
 
     const shopPoint = shopHasPin(currentShop) && Boolean(currentShop.location_confirmed_at)
       ? { lat: Number(currentShop.latitude), lng: Number(currentShop.longitude) }
@@ -168,8 +179,9 @@
         :"Caution: the saved shop pin has not been confirmed as the entrance. Customer distances are hidden. Circles show device-reported GPS accuracy.")+
         " Old or low-accuracy buyer readings are not plotted as precise positions.";
     }
-    if (mapAvailable) {
+    if (mapAvailable && isLocationPageVisible()) {
       initialiseMap();
+      if (!map) return;
       const liveIds = new Set(freshRows.map((row) => String(row.id)));
       const mappableIds = new Set(freshRows.filter(row => Number.isFinite(Number(row.accuracy_m)) && Number(row.accuracy_m) > 0 && Number(row.accuracy_m) <= 100).map(row => String(row.id)));
       buyerMarkers.forEach((marker, id) => {
@@ -279,6 +291,8 @@
     currentShop = null;
     currentRows = [];
     focusedLocationId = null;
+    setHomeApproachingCount("0");
+    if ($("sellbook-location-list")) $("sellbook-location-list").innerHTML = "";
     if (map) {
       map.remove();
       map = null;
@@ -315,7 +329,6 @@
       cardMessage(currentShop.location_confirmed_at
         ? "Customers who choose Locate shop in Buybook appear only here. Buyer distances are straight-line estimates."
         : "Customers who choose Locate shop in Buybook appear only here. Your saved pin is not yet confirmed as the entrance, so buyer distances are hidden.");
-      initialiseMap();
     }
     await refreshSessions();
     if (requestEpoch !== sellerSessionEpoch || requestedUserId !== userId) return;
@@ -353,6 +366,14 @@
       if (document.visibilityState === "visible") refreshSessions().catch((e) => console.warn("Sellbook location refresh failed", e));
     }, 25000);
   }
+
+  document.addEventListener("sellbook-page-shown", (event) => {
+    if (event.detail && event.detail.page === "approaching-customers") {
+      renderRows();
+      if (map) window.setTimeout(() => map && map.invalidateSize(true), 180);
+      refreshSessions().catch((error) => console.warn("Sellbook live location page refresh failed", error));
+    }
+  });
 
   document.addEventListener("click", (event) => {
     const button = event.target.closest("[data-focus-location]");
