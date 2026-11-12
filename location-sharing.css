@@ -4,3 +4,6 @@
 .buybook-shop-location-map-wrap .settings-help-text{margin:8px 12px 12px}
 .buybook-location-confirm{display:flex;align-items:flex-start;gap:10px;margin:13px 0;padding:12px;border:1px solid var(--border);border-radius:12px;background:var(--surface,#fff);font-size:.86rem;line-height:1.45;color:var(--text,#173b2c)}
 .buybook-location-confirm input{flex:0 0 auto;width:18px;height:18px;margin:1px 0 0;accent-color:var(--green,#14532d)}
+
+.sellbook-location-map-note{line-height:1.5}
+.sellbook-location-map-note a{color:var(--green,#14532d);font-weight:650}
