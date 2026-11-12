@@ -2058,7 +2058,7 @@ async function loadBuybookConnection(options={}){
    if(pageTitle)pageTitle.textContent=isConnected?'Shop settings':(buybookShopSetupExists?'Review shop details':'Set up your Buybook shop');
    if(pageIntro)pageIntro.textContent=isConnected
     ?'Update the shop information and location buyers see on Buybook.'
-    :(buybookShopSetupExists?'Check your saved details and reconnect your shop to Buybook.':'Add your shop details and capture its exact location so buyers can find you.');
+    :(buybookShopSetupExists?'Check your saved details and reconnect your shop to Buybook.':'Add your shop details and confirm your shop entrance pin so buyers can find you.');
    if(submitButton)submitButton.textContent=isConnected?'Save shop details':(buybookShopSetupExists?'Reconnect and list my products':'Connect and list my products');
    disconnect?.classList.toggle('hidden',!isConnected);
   }
