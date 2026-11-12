@@ -5153,6 +5153,7 @@ async function refreshAccountStatus(){
     return;
   }
   const user=data.session?.user||null;
+  const workspaceRecoveryActive=!!document.getElementById('workspaceLoadRecovery')&&!document.getElementById('workspaceLoadRecovery').classList.contains('hidden');
   const registeredEmail=document.getElementById('accountEmailAddress');
   const emailVerifyButton=document.getElementById('changeEmailVerifyButton');
   const pinChangeButton=document.getElementById('changeSecurityPinButton');
@@ -5168,7 +5169,7 @@ async function refreshAccountStatus(){
   document.getElementById('accountRecoveryRequestForm').classList.toggle('hidden',!!user||authScreenMode!=='recovery');
   document.getElementById('accountManagePanel').classList.toggle('hidden',!user);
   document.getElementById('securityPinGate')?.classList.toggle('hidden',!securityPinGateVisible);
-  document.getElementById('accountCard').classList.toggle('hidden',!!user&&(securityPinGateVisible||(workspaceReady&&!recoveryMode)));
+  document.getElementById('accountCard').classList.toggle('hidden',workspaceRecoveryActive||!!user&&(securityPinGateVisible||(workspaceReady&&!recoveryMode)));
   document.getElementById('settingsAccountStatus').textContent=user?'Signed in as '+(user.email||'your account')+'.':'Not signed in.';
   document.getElementById('settingsAccountMessage').textContent=document.getElementById('accountMessage').textContent||'';
   if(recoveryMode){
@@ -5183,7 +5184,7 @@ async function refreshAccountStatus(){
   importButton.classList.toggle('hidden',!user||!hasLocal||alreadyImported);
   document.getElementById('appWorkspace').classList.toggle('hidden',!user||!workspaceReady||securityPinGateVisible||recoveryMode);
   document.getElementById('securityPinGate')?.classList.toggle('hidden',!securityPinGateVisible);
-  document.getElementById('accountCard').classList.toggle('hidden',!!user&&(securityPinGateVisible||(workspaceReady&&!recoveryMode)));
+  document.getElementById('accountCard').classList.toggle('hidden',workspaceRecoveryActive||!!user&&(securityPinGateVisible||(workspaceReady&&!recoveryMode)));
   if(user&&workspaceReady){
     document.getElementById('settingsAccountStatus').textContent='Signed in as '+(user.email||'your account')+'.';
     document.getElementById('settingsAccountMessage').textContent=document.getElementById('accountMessage').textContent||'';
