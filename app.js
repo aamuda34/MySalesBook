@@ -1374,6 +1374,49 @@ async function persistPendingSellbookPolicyAcceptance(user){
   return sellbookPolicyAcceptanceWrite;
 }
 
+function showWorkspaceLoadRecovery(message='Check your internet connection, then try again.') {
+  const recovery=document.getElementById('workspaceLoadRecovery');
+  if(!recovery)return;
+  document.getElementById('appWorkspace')?.classList.add('hidden');
+  document.getElementById('accountCard')?.classList.add('hidden');
+  hideSecurityPinGate();
+  const status=document.getElementById('workspaceLoadRecoveryStatus');
+  if(status)status.textContent=message;
+  recovery.classList.remove('hidden');
+  document.body.classList.remove('auth-initializing');
+  const loading=document.getElementById('authLoading');
+  if(loading)loading.style.display='none';
+}
+function hideWorkspaceLoadRecovery() {
+  document.getElementById('workspaceLoadRecovery')?.classList.add('hidden');
+}
+document.getElementById('retryWorkspaceLoad')?.addEventListener('click',async()=>{
+  const button=document.getElementById('retryWorkspaceLoad');
+  const status=document.getElementById('workspaceLoadRecoveryStatus');
+  if(button?.disabled)return;
+  if(button){button.disabled=true;button.textContent='Trying again…';}
+  if(status)status.textContent='Reconnecting securely and loading your saved records…';
+  hideWorkspaceLoadRecovery();
+  document.body.classList.add('auth-initializing');
+  const loading=document.getElementById('authLoading');
+  if(loading){loading.style.display='flex';const h=loading.querySelector('strong'),d=loading.querySelector('.muted');if(h)h.textContent='Opening your business book…';if(d)d.textContent='Checking your saved sign-in and records.';}
+  try{await handleCloudAuthChange();}
+  finally{if(button){button.disabled=false;button.textContent='Try again';}}
+});
+document.getElementById('returnToWorkspaceSignIn')?.addEventListener('click',async()=>{
+  const button=document.getElementById('returnToWorkspaceSignIn');
+  if(button)button.disabled=true;
+  try{
+    const {error}=await supabaseClient.auth.signOut({scope:'local'});
+    if(error)throw error;
+    hideWorkspaceLoadRecovery();
+    await handleCloudAuthChange();
+  }catch(error){
+    const status=document.getElementById('workspaceLoadRecoveryStatus');
+    if(status)status.textContent='Could not return to sign in. Check your connection and try again.';
+  }finally{if(button)button.disabled=false;}
+});
+
 async function handleCloudAuthChange() {
   if(sessionStorage.getItem(SECURITY_OAUTH_PENDING_KEY)&&!securityOauthFinalizing)return;
 
@@ -1384,11 +1427,19 @@ async function handleCloudAuthChange() {
   let pinCheckCompleted = false;
   // Never leave the full-screen startup indicator spinning indefinitely on a slow connection.
   const loadingWatchdog = setTimeout(() => {
-    document.body.classList.remove('auth-initializing');
-    const loading = document.getElementById('authLoading');
-    if (loading) loading.style.display = 'none';
-    if (!coreWorkspaceLoaded && cloudUser) {
-      cloudMessage('Still connecting to your cloud records. Your saved copy remains available while Sellbook retries.');
+    if (!coreWorkspaceLoaded) {
+      // A slow mobile/cloud request must never hide both the loading screen
+      // and the workspace. Keep a visible, truthful loading state until the
+      // request succeeds or the explicit recovery screen is shown.
+      document.body.classList.add('auth-initializing');
+      const loading = document.getElementById('authLoading');
+      if (loading) {
+        loading.style.display = 'flex';
+        const heading = loading.querySelector('strong');
+        const detail = loading.querySelector('.muted');
+        if (heading) heading.textContent = 'Still opening your business book…';
+        if (detail) detail.textContent = 'This is taking longer than usual. Your records are being checked securely.';
+      }
     }
   }, 10000);
   const finishStartup = () => {
@@ -1498,9 +1549,7 @@ async function handleCloudAuthChange() {
           if(staleCloudLoadRetries<1){staleCloudLoadRetries++;authTransitionPending=true;}
           else{
             staleCloudLoadRetries=0;
-            document.getElementById('appWorkspace').classList.add('hidden');
-            document.getElementById('accountCard').classList.remove('hidden');
-            cloudMessage('Your session changed while Sellbook was opening. Please refresh the page and try again.','error');
+            showWorkspaceLoadRecovery('Your sign-in session changed while records were loading. Tap Try again to reopen Sellbook securely.');
           }
           return;
         }
@@ -1581,8 +1630,7 @@ async function handleCloudAuthChange() {
         refreshAccountStatus().catch(error => console.warn('Account status refresh failed:', error));
       } else {
         workspaceReady = false;
-        document.getElementById('appWorkspace').classList.add('hidden');
-        cloudMessage('Could not reach the cloud and no saved copy exists on this device. Connect to the internet to load your account for the first time.');
+        showWorkspaceLoadRecovery('Sellbook could not reach your saved business records. Check your internet connection and tap Try again. Your cloud records have not been deleted.');
         if(pageReloadRefreshPending){
           pageReloadRefreshPending=false;
           showToast('Could not refresh this page. Check your internet connection and try again.','error');
