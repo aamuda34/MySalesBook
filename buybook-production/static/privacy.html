@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#40215f">
+  <title>Buybook — Privacy notice</title>
+  <style>
+    :root{color-scheme:light;--ink:#251936;--muted:#6f657b;--line:#e7e0ee;--purple:#452568;--soft:#f5f0fa}
+    *{box-sizing:border-box}
+    body{margin:0;background:#fbf9fd;color:var(--ink);font:16px/1.65 system-ui,-apple-system,Segoe UI,sans-serif}
+    main{width:min(760px,100% - 28px);margin:24px auto 48px}
+    header{padding:22px 20px;border-radius:20px;background:var(--purple);color:#fff}
+    header p{margin:4px 0 0;color:#e8dcf5;font-size:.88rem}
+    h1{margin:0;font-size:1.55rem;line-height:1.25}
+    h2{margin:25px 0 7px;font-size:1.08rem}
+    p{margin:8px 0;color:#42384d}
+    .card{margin-top:12px;padding:18px 18px 20px;border:1px solid var(--line);border-radius:16px;background:#fff}
+    .note{padding:12px 14px;border-radius:12px;background:var(--soft);color:#4a3264}
+    a{color:var(--purple);text-underline-offset:3px}
+    .back{display:inline-block;margin:0 0 14px;font-weight:700}
+    footer{margin-top:22px;color:var(--muted);font-size:.85rem}
+  </style>
+</head>
+<body>
+<main>
+  <a class="back" href="/">← Back to Buybook</a>
+  <header>
+    <h1>Buybook Privacy Notice</h1>
+    <p>How marketplace information and optional live shop location are used.</p>
+  </header>
+
+  <section class="card">
+    <p><strong>Effective date: 6 November 2026</strong></p>
+    <p>Buybook helps buyers discover shops and products connected from Sellbook. This notice explains the information used to provide the marketplace and, in particular, the optional Locate seller feature.</p>
+
+    <h2>Information used by Buybook</h2>
+    <p>Buybook processes account details when you sign in, public shop and product details supplied by sellers through Sellbook, and marketplace activity such as shops you follow, reservations, messages and related notifications. You can browse public listings without registering. Following, messaging and reserving still require a registered Buybook account.</p>
+    <p>When you create or continue with a Buybook account, we record the current Terms and Privacy Notice versions you acknowledged, the time and the sign-up method. This account-linked record documents the version shown to you; it is not blanket consent for unrelated optional activities such as live-location sharing.</p>
+
+    <h2>Shop directions and optional live sharing</h2>
+    <p>Browsing Buybook and opening a shop location shows the shop pin saved by the seller. Buybook does not request your device location just to display that pin. Map tiles are loaded from OpenStreetMap’s public tile service, which can receive the map area requested and your network address. When you tap <strong>Get route from my location</strong>, Buybook requests a one-time GPS reading and sends that reading together with the selected shop pin to the community routing service at routing.openstreetmap.de to calculate a route. That provider states that route requests are recorded in its server logs and limits usage to one request per second. The route is an estimate; device GPS, the seller’s saved pin and map/road data can be inaccurate or incomplete. Buybook shows the reported GPS accuracy and labels straight-line fallback distances when a road route cannot be calculated. This one-time route request is not live sharing and does not make your coordinates visible to the seller. The optional <strong>Open in Google Maps</strong> link is shown after you request a route; Google Maps then applies its own location and privacy practices.</p>
+    <p>Live sharing is separate and optional. It begins only after you expand the live-sharing option, tap <strong>Start live location sharing</strong> and allow location access. While sharing is active, Buybook receives your current latitude and longitude and, when supplied by your device, GPS accuracy, heading and speed. This is linked to the one shop you selected (and the product when you started from a product page). The notification sent to the seller does not contain your coordinates. You may stop sharing at any time.</p>
+
+    <h2>Who can see your location</h2>
+    <p>Only the authenticated owner of the selected, connected shop can view your fresh live position in Sellbook. Your own session is also limited to you. Other shop owners, other buyers and public visitors cannot search for or view the session. The seller sees a minimal buyer label, not your account name, email address or phone number on the location map.</p>
+    <p class="note">Your location is not broadcast to all sellers. It is restricted to the one shop you chose when you started sharing.</p>
+
+    <h2>How long live location remains available</h2>
+    <p>A live session expires after 30 minutes and is ended after three minutes without a fresh GPS update. Tapping <strong>Stop sharing</strong> clears the precise coordinates immediately. Stopped or expired session rows are retained for up to seven days for operational cleanup and then deleted.</p>
+    <p>For a guest buyer, Buybook creates a temporary anonymous authentication record to request the selected shop's private coordinates and, only if the buyer chooses live sharing, securely identify and stop that session. It does not create a registered Buybook account or grant follow-shop, messaging or reservation privileges. A route preview alone does not create a live-location session or notify the seller. Anonymous location accounts created by this feature are scheduled for deletion after 30 days without further location use, provided no active session remains.</p>
+
+    <h2>Guest security checks</h2>
+    <p>When a guest needs a temporary Buybook authentication record to start location sharing, Buybook may display a Cloudflare Turnstile security check to reduce automated abuse. Cloudflare processes technical challenge information needed to assess the request. This check is used for abuse prevention; it does not grant a seller access to your location until you explicitly start sharing for the selected shop.</p>
+
+    <h2>Device and background limitations</h2>
+    <p>Live GPS requires a secure HTTPS connection, device location services, browser permission and an internet connection. Mobile browsers and installed web apps can pause location updates when Buybook is backgrounded, the screen is locked, battery saving is active or the network is unavailable. Sellbook marks old updates as stale; Buybook is not an emergency tracking service and does not promise continuous background tracking.</p>
+
+    <h2>Maps, route calculation and external directions</h2>
+    <p>Buybook uses Leaflet with OpenStreetMap map tiles. The tile provider receives ordinary tile requests that reveal the approximate map area being viewed.</p>
+    <p>When you open Locate seller and request a road route, Buybook sends your current GPS coordinate and the selected shop's saved coordinate to the FOSSGIS-operated OpenStreetMap routing service to calculate the walking or driving route, distance and directions. This request is separate from live-location sharing, and the routing service may keep request logs under its own privacy and usage policies. See <a href="https://routing.openstreetmap.de/about.html" target="_blank" rel="noopener noreferrer">the routing service information and privacy details</a>. Buybook requests a route only after you tap Get route, and recalculates it if you change travel mode. Changing the map view does not request your GPS again.</p>
+    <p>The Open turn-by-turn directions link opens Google Maps. Google Maps is an external service and its own privacy terms apply when you use that link.</p>
+
+    <h2>Payments and contact</h2>
+    <p>Buybook does not process online payments in this release. Buyers arrange payment and collection directly with the shop.</p>
+    <p>For privacy or account questions, contact <a href="mailto:sellbook.support@gmail.com">sellbook.support@gmail.com</a>.</p>
+  </section>
+  <footer>Buybook · Check Before You Go.</footer>
+</main>
+</body>
+</html>
