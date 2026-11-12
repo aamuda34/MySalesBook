@@ -1600,7 +1600,11 @@ async function handleCloudAuthChange() {
     if (currentPage() === 'me') render();
   }
 }
-const BUYBOOK_SHOP_LOCATION_MAX_ACCURACY_METERS=75;
+const BUYBOOK_SHOP_LOCATION_MAX_ACCURACY_METERS=35;
+let buybookLocationMap=null;
+let buybookLocationMarker=null;
+let buybookLocationAccuracyCircle=null;
+let buybookLocationConfirmed=false;
 const BUYBOOK_SHOP_FRONT_MAX_BYTES=5*1024*1024;
 let buybookShopLocation=null;
 let buybookConnectionLoadSequence=0;
@@ -1630,32 +1634,87 @@ function setBuybookLocationMessage(message,type='info'){
  status.classList.toggle('is-error',type==='error');
  status.classList.toggle('is-success',type==='success');
 }
+function buybookLocationDistanceMetres(a,b){
+ if(!a||!b)return Infinity;
+ const rad=value=>value*Math.PI/180;
+ const dLat=rad(b.latitude-a.latitude),dLng=rad(b.longitude-a.longitude);
+ const lat1=rad(a.latitude),lat2=rad(b.latitude);
+ const x=Math.sin(dLat/2)**2+Math.cos(lat1)*Math.cos(lat2)*Math.sin(dLng/2)**2;
+ return 6371000*2*Math.atan2(Math.sqrt(x),Math.sqrt(1-x));
+}
+function updateBuybookMapPin(latitude,longitude,options={}){
+ const node=document.getElementById('buybookShopLocationMap');
+ if(!node||!window.L)return;
+ if(!buybookLocationMap){
+  buybookLocationMap=L.map(node,{zoomControl:true,scrollWheelZoom:false}).setView([latitude,longitude],18);
+  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{
+   maxZoom:19,
+   attribution:'&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors'
+  }).addTo(buybookLocationMap);
+  buybookLocationMarker=L.marker([latitude,longitude],{draggable:true,autoPan:true})
+   .addTo(buybookLocationMap).bindPopup('Shop entrance pin');
+  buybookLocationMarker.on('dragend',()=>{
+   const p=buybookLocationMarker.getLatLng();
+   applyBuybookShopLocation({latitude:p.lat,longitude:p.lng,accuracy:null,capturedAt:null,source:'manual-map-pin'},{manual:true});
+  });
+  buybookLocationMap.on('click',event=>{
+   applyBuybookShopLocation({latitude:event.latlng.lat,longitude:event.latlng.lng,accuracy:null,capturedAt:null,source:'manual-map-pin'},{manual:true});
+  });
+ }else{
+  buybookLocationMarker.setLatLng([latitude,longitude]);
+  if(!options.keepView)buybookLocationMap.setView([latitude,longitude],Math.max(17,buybookLocationMap.getZoom()));
+ }
+ if(options.accuracy!==null&&Number.isFinite(Number(options.accuracy))&&Number(options.accuracy)>0){
+  if(buybookLocationAccuracyCircle)buybookLocationAccuracyCircle.setLatLng([latitude,longitude]).setRadius(Number(options.accuracy));
+  else buybookLocationAccuracyCircle=L.circle([latitude,longitude],{radius:Number(options.accuracy),color:'#2868d7',weight:1,opacity:.55,fillColor:'#2868d7',fillOpacity:.10,interactive:false}).addTo(buybookLocationMap);
+ }else if(buybookLocationAccuracyCircle){
+  buybookLocationMap.removeLayer(buybookLocationAccuracyCircle);
+  buybookLocationAccuracyCircle=null;
+ }
+ window.setTimeout(()=>buybookLocationMap&&buybookLocationMap.invalidateSize(true),180);
+}
 function applyBuybookShopLocation(location,options={}){
  const latitude=Number(location?.latitude),longitude=Number(location?.longitude);
  if(!Number.isFinite(latitude)||!Number.isFinite(longitude)||latitude < -90||latitude > 90||longitude < -180||longitude > 180){
   buybookShopLocation=null;
+  buybookLocationConfirmed=false;
   document.getElementById('buybookLatitude').value='';
   document.getElementById('buybookLongitude').value='';
   document.getElementById('buybookLocationMapLink')?.classList.add('hidden');
+  const confirmation=document.getElementById('buybookLocationConfirm');
+  if(confirmation)confirmation.checked=false;
   setBuybookLocationMessage('Location not captured yet. This step is required to connect your shop.');
   return false;
  }
- const accuracy=Number.isFinite(Number(location.accuracy))&&location.accuracy!==null?Number(location.accuracy):null;
- buybookShopLocation={latitude,longitude,accuracy,capturedAt:location.capturedAt||new Date().toISOString(),source:location.source||'device-gps'};
+ const accuracy=location.accuracy!==null&&location.accuracy!==undefined&&Number.isFinite(Number(location.accuracy))?Number(location.accuracy):null;
+ const source=location.source||'legacy-saved-location';
+ const capturedAt=location.capturedAt===null?null:(location.capturedAt||null);
+ buybookShopLocation={latitude,longitude,accuracy,capturedAt,source};
+ buybookLocationConfirmed=Boolean(options.confirmed);
+ const confirmation=document.getElementById('buybookLocationConfirm');
+ if(confirmation)confirmation.checked=buybookLocationConfirmed;
  document.getElementById('buybookLatitude').value=String(latitude);
  document.getElementById('buybookLongitude').value=String(longitude);
+ updateBuybookMapPin(latitude,longitude,{accuracy,keepView:options.keepView});
  const link=document.getElementById('buybookLocationMapLink');
  if(link){
   link.href='https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(latitude+','+longitude);
   link.classList.remove('hidden');
  }
- const status=options.saved
-  ?'Shop location is saved. Capture it again if your shop has moved.'
-  :'Location captured successfully'+(accuracy!==null?' · GPS accuracy ±'+Math.round(accuracy)+' m':'')+'.';
- setBuybookLocationMessage(status,'success');
+ let status;
+ if(options.saved){
+  status=options.confirmed
+   ?(source==='manual-map-pin'?'Saved pin was manually placed and seller-confirmed. GPS accuracy is not available for a moved pin.':'Saved pin was confirmed by the seller'+(accuracy!==null?' · device GPS was ±'+Math.round(accuracy)+' m when captured':' · GPS accuracy was not recorded')+'.')
+   :'Existing shop pin loaded. Its entrance confirmation and GPS accuracy are not recorded. Review it on the map.';
+ }else if(source==='manual-map-pin'){
+  status='Pin moved on the map. GPS accuracy does not apply to a manually placed pin. Review the entrance and confirm below.';
+ }else{
+  status='GPS pin captured · device-reported accuracy ±'+Math.round(accuracy||0)+' m. Check the map and confirm the shop entrance below.';
+ }
+ setBuybookLocationMessage(status,options.saved&&options.confirmed?'success':'info');
  const captureButton=document.getElementById('captureBuybookLocationButton');
  const label=captureButton?.querySelector('span');
- if(label)label.textContent=options.saved?'Update shop location':'Update shop location';
+ if(label)label.textContent='Capture GPS location again';
  return true;
 }
 function getBuybookLocationForSave(){
@@ -1664,46 +1723,72 @@ function getBuybookLocationForSave(){
  if(!latitudeText||!longitudeText)return null;
  const latitude=Number(latitudeText),longitude=Number(longitudeText);
  if(!Number.isFinite(latitude)||!Number.isFinite(longitude)||latitude < -90||latitude > 90||longitude < -180||longitude > 180)return null;
- return {latitude,longitude,accuracy:buybookShopLocation?.accuracy??null,capturedAt:buybookShopLocation?.capturedAt||null};
+ if(!buybookShopLocation||latitude!==buybookShopLocation.latitude||longitude!==buybookShopLocation.longitude)return null;
+ const confirmation=document.getElementById('buybookLocationConfirm');
+ if(!confirmation?.checked)return null;
+ return {latitude,longitude,accuracy:buybookShopLocation.accuracy,capturedAt:buybookShopLocation.capturedAt,
+  source:buybookShopLocation.source||'legacy-saved-location',confirmedAt:new Date().toISOString()};
 }
 
 document.getElementById('captureBuybookLocationButton')?.addEventListener('click',()=>{
- const button=document.getElementById('captureBuybookLocationButton');
- const label=button?.querySelector('span');
- if(!window.isSecureContext){
-  setBuybookLocationMessage('Location access requires a secure connection. Open Sellbook using its HTTPS address and try again.','error');
-  return;
- }
- if(!navigator.geolocation){
-  setBuybookLocationMessage('This browser cannot access GPS location. Try opening Sellbook in an up-to-date browser on your phone.','error');
-  return;
- }
+ const button=document.getElementById('captureBuybookLocationButton'),label=button?.querySelector('span');
+ if(!window.isSecureContext){setBuybookLocationMessage('Location access requires a secure HTTPS connection.','error');return;}
+ if(!navigator.geolocation){setBuybookLocationMessage('This browser cannot access GPS. Try an up-to-date phone browser.','error');return;}
  if(button?.disabled)return;
  if(button)button.disabled=true;
- if(label)label.textContent='Finding your shop…';
- setBuybookLocationMessage('Finding your shop location. Stay at the shop and keep precise location turned on…');
- navigator.geolocation.getCurrentPosition(position=>{
-  const latitude=Number(position.coords.latitude);
-  const longitude=Number(position.coords.longitude);
-  const accuracy=Number(position.coords.accuracy);
-  if(!Number.isFinite(latitude)||!Number.isFinite(longitude)||!Number.isFinite(accuracy)||accuracy<=0){
-   setBuybookLocationMessage('Your phone did not return a usable GPS reading. Turn on location services and try again.','error');
-  }else if(accuracy>BUYBOOK_SHOP_LOCATION_MAX_ACCURACY_METERS){
-   setBuybookLocationMessage('GPS accuracy is currently about ±'+Math.round(accuracy)+' m. Sellbook needs accuracy of '+BUYBOOK_SHOP_LOCATION_MAX_ACCURACY_METERS+' m or better. Move closer to an open area, turn on precise location and try again.','error');
-  }else{
-   applyBuybookShopLocation({latitude,longitude,accuracy,capturedAt:new Date().toISOString(),source:'device-gps'});
+ if(label)label.textContent='Checking GPS…';
+ let watchId=null,finished=false;
+ const samples=[];
+ const finish=(message,type='error',location=null)=>{
+  if(finished)return;
+  finished=true;
+  if(watchId!==null)navigator.geolocation.clearWatch(watchId);
+  window.clearTimeout(deadline);
+  if(location)applyBuybookShopLocation(location);
+  else setBuybookLocationMessage(message,type);
+  if(button)button.disabled=false;
+  if(label)label.textContent='Capture GPS location again';
+ };
+ const stable=points=>{
+  for(let i=0;i<points.length;i++)for(let j=i+1;j<points.length;j++){
+   if(buybookLocationDistanceMetres(points[i],points[j])>25)return false;
   }
-  if(button)button.disabled=false;
-  if(label)label.textContent='Update shop location';
+  return true;
+ };
+ const deadline=window.setTimeout(()=>{
+  finish('GPS readings were not stable enough to trust. Move to an open area and try again, or place the pin manually and confirm it.','error');
+ },25000);
+ setBuybookLocationMessage('Checking several GPS readings for stability. Stay still at your shop…');
+ watchId=navigator.geolocation.watchPosition(position=>{
+  const latitude=Number(position.coords.latitude),longitude=Number(position.coords.longitude),accuracy=Number(position.coords.accuracy);
+  if(!Number.isFinite(latitude)||!Number.isFinite(longitude)||!Number.isFinite(accuracy)||accuracy<=0)return;
+  if(accuracy>BUYBOOK_SHOP_LOCATION_MAX_ACCURACY_METERS){
+   setBuybookLocationMessage('GPS is currently ±'+Math.round(accuracy)+' m. Waiting for ±'+BUYBOOK_SHOP_LOCATION_MAX_ACCURACY_METERS+' m or better…');
+   return;
+  }
+  const timestamp=position.timestamp||Date.now();
+  if(samples.length&&timestamp===samples[samples.length-1].timestamp)return;
+  samples.push({latitude,longitude,accuracy,capturedAt:new Date(timestamp).toISOString(),source:'device-gps',timestamp});
+  if(samples.length>6)samples.shift();
+  setBuybookLocationMessage('Checking GPS stability… '+samples.length+' of 3 good readings.');
+  const latest=samples.slice(-3);
+  if(latest.length===3&&stable(latest)){
+   const best=latest.slice().sort((a,b)=>a.accuracy-b.accuracy)[0];
+   finish('GPS readings are stable. Check the pin and confirm it marks your shop entrance.','info',best);
+  }
  },error=>{
-  let message='Sellbook could not get your shop location. Turn on your phone location and try again.';
-  if(error?.code===1)message='Location permission was denied. Allow location access for Sellbook in your browser settings, then try again.';
+  let message='Sellbook could not read your GPS. Turn on location services and try again.';
+  if(error?.code===1)message='Location permission was denied. Allow location access in your browser settings, then try again.';
   else if(error?.code===2)message='Your phone could not determine its location. Turn on GPS or precise location and try again.';
-  else if(error?.code===3)message='Finding your location took too long. Move closer to a window or open area and try again.';
-  setBuybookLocationMessage(message,'error');
-  if(button)button.disabled=false;
-  if(label)label.textContent='Try capturing location again';
- },{enableHighAccuracy:true,maximumAge:0,timeout:25000});
+  else if(error?.code===3)message='GPS took too long. Move to an open area and try again.';
+  finish(message,'error');
+ },{enableHighAccuracy:true,maximumAge:0,timeout:22000});
+});
+document.getElementById('buybookLocationConfirm')?.addEventListener('change',event=>{
+ if(!buybookShopLocation){event.target.checked=false;setBuybookLocationMessage('Capture or place a shop pin before confirming it.','error');return;}
+ if(event.target.checked){
+  setBuybookLocationMessage('You confirm this pin marks your physical shop entrance. This is your own confirmation, not an independent inspection.','success');
+ }else setBuybookLocationMessage('Check the pin and confirm the shop entrance before saving.');
 });
 
 
@@ -1877,7 +1962,7 @@ async function loadBuybookConnection(options={}){
  showLoading();
  try{
   const {data,error}=await supabaseClient.from('marketplace_shops')
-   .select('name,description,phone,address,city,state,is_connected,is_active,latitude,longitude,shop_front_image_url,shop_front_image_path,shop_front_confirmed_at')
+   .select('name,description,phone,address,city,state,is_connected,is_active,latitude,longitude,location_accuracy_m,location_captured_at,location_confirmed_at,location_source,shop_front_image_url,shop_front_image_path,shop_front_confirmed_at')
    .eq('owner_id',requestedUserId).maybeSingle();
   if(!current())return;
   if(error)throw error;
@@ -1904,8 +1989,13 @@ async function loadBuybookConnection(options={}){
    const hasCoordinates=data.latitude!==null&&data.latitude!==undefined&&data.longitude!==null&&data.longitude!==undefined&&Number.isFinite(Number(data.latitude))&&Number.isFinite(Number(data.longitude))&&Number(data.latitude)>=-90&&Number(data.latitude)<=90&&Number(data.longitude)>=-180&&Number(data.longitude)<=180;
    if(hasCoordinates){
     const latitude=Number(data.latitude),longitude=Number(data.longitude);
-    applyBuybookShopLocation({latitude,longitude,accuracy:null,source:'saved-shop-location'},{saved:true});
-    writeText('buybookOverviewLocationStatus','GPS location saved','Not provided');
+    applyBuybookShopLocation({latitude,longitude,accuracy:data.location_accuracy_m??null,capturedAt:data.location_captured_at||null,source:data.location_source||'legacy-saved-location'},{saved:true,confirmed:!!data.location_confirmed_at});
+    const locationLabel=!data.location_confirmed_at
+     ?'Saved pin · entrance confirmation and GPS accuracy not recorded'
+     :(data.location_source==='manual-map-pin'
+       ?'Seller-confirmed pin · manually placed; GPS accuracy unavailable'
+       :'Seller-confirmed pin'+(data.location_accuracy_m?' · GPS ±'+Math.round(Number(data.location_accuracy_m))+' m when captured':' · GPS accuracy not recorded'));
+    writeText('buybookOverviewLocationStatus',locationLabel,'Not provided');
     const mapLink=document.getElementById('buybookOverviewMapLink');
     if(mapLink){mapLink.href=mapUrl(latitude,longitude);mapLink.classList.remove('hidden');}
    }else{
@@ -2036,9 +2126,15 @@ document.getElementById('buybookConnectionForm')?.addEventListener('submit',asyn
   document.getElementById('buybookShopFrontChooseButton')?.focus();
   return;
  }
+ const locationConfirmation=document.getElementById('buybookLocationConfirm');
+ if(!locationConfirmation?.checked){
+  notifyStatus(message,'Check the map pin and confirm that it marks your shop entrance before saving.','error');
+  locationConfirmation?.focus();
+  return;
+ }
  const location=getBuybookLocationForSave();
  if(!location){
-  notifyStatus(message,'Capture your shop location before connecting.','error');
+  notifyStatus(message,'Capture or place your shop pin again, then confirm it before saving.','error');
   document.getElementById('captureBuybookLocationButton')?.focus();
   return;
  }
@@ -2100,6 +2196,10 @@ document.getElementById('buybookConnectionForm')?.addEventListener('submit',asyn
    country:'Nigeria',
    latitude:location.latitude,
    longitude:location.longitude,
+   location_accuracy_m:location.accuracy,
+   location_captured_at:location.capturedAt,
+   location_confirmed_at:location.confirmedAt,
+   location_source:location.source,
    is_connected:true,
    is_active:true
   };
