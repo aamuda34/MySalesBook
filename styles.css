@@ -5391,3 +5391,16 @@ body.admin-conversation-open #adminBottomNav{display:none!important}
 .signup-legal-label a{color:var(--green);font-weight:700;text-underline-offset:2px}
 .signup-legal-label a:focus-visible{outline:2px solid var(--green);outline-offset:3px;border-radius:2px}
 .signup-legal-consent.hidden{display:none}
+
+
+/* Visible recovery screen for authenticated users whose cloud workspace cannot load. */
+body:has(#workspaceLoadRecovery:not(.hidden)) #authPage{display:flex!important}
+#authPage #workspaceLoadRecovery{display:block;width:100%;max-width:420px;margin:auto;padding:clamp(24px,6vw,34px);border:1px solid #dfe8e0;border-radius:20px;background:#fff;color:#17231c;box-shadow:0 12px 35px rgba(21,54,34,.08);text-align:center;box-sizing:border-box}
+#authPage #workspaceLoadRecovery.hidden{display:none!important}
+#authPage #workspaceLoadRecovery .auth-brand-lockup{justify-content:center;margin:0 auto 28px}
+#authPage #workspaceLoadRecovery .workspace-load-recovery-icon{display:grid;place-items:center;width:42px;height:42px;margin:0 auto 14px;border-radius:50%;background:#fff2e5;color:#9a5b12;font-size:23px;font-weight:850}
+#authPage #workspaceLoadRecovery h2{margin:0 0 10px;color:#17231c;font-size:22px;line-height:1.25}
+#authPage #workspaceLoadRecovery p{margin:0 0 12px;color:#58665d;font-size:13px;line-height:1.55}
+#authPage #workspaceLoadRecovery #retryWorkspaceLoad{width:100%;min-height:48px;margin:12px 0 4px}
+#authPage #workspaceLoadRecovery #returnToWorkspaceSignIn{display:block;width:100%;min-height:42px;margin:4px 0 0}
+#authPage #workspaceLoadRecovery button:disabled{opacity:.65;cursor:wait}
