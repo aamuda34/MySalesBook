@@ -223,9 +223,9 @@
     <span class="home-board-metric-label"><span class="home-sales-subs-label">Net profit</span><span class="home-board-metric-chevron" aria-hidden="true">›</span></span>
     <span class="home-sales-subs-value" id="todayNet">₦0</span>
    </button>
-   <button type="button" class="home-board-metric" data-open-page="products" aria-label="Open products">
-    <span class="home-board-metric-label"><span class="home-sales-subs-label">Products</span><span class="home-board-metric-chevron" aria-hidden="true">›</span></span>
-    <span class="home-sales-subs-value" id="homeProductCount">0</span>
+   <button type="button" class="home-board-metric home-board-approaching-customers" data-open-page="approaching-customers" aria-label="Open approaching customers map">
+    <span class="home-board-metric-label"><span class="home-sales-subs-label">Approaching customers</span><span class="home-board-metric-chevron" aria-hidden="true">›</span></span>
+    <span class="home-sales-subs-value" id="sellbook-approaching-count">—</span>
    </button>
    <button type="button" class="home-board-metric home-board-metric-right" data-open-page="reservations" aria-label="Open reservations">
     <span class="home-board-metric-label"><span class="home-sales-subs-label">Reservations</span><span class="unread-badge home-reservation-unread-badge hidden" id="homeReservationBadge" aria-label="New reservations">0</span><span class="home-board-metric-chevron" aria-hidden="true">›</span></span>
@@ -233,16 +233,7 @@
    </button>
   </div>
  </section>
- <section id="sellbook-live-location-card" class="sellbook-live-location-card" aria-labelledby="sellbook-live-location-title" hidden>
-  <div class="sellbook-live-location-heading"><h2 id="sellbook-live-location-title">Customers locating your shop</h2><span id="sellbook-location-count" class="sellbook-live-location-count">0</span></div>
-  <p id="sellbook-location-message" class="sellbook-live-location-message" role="status" aria-live="polite">Customers who choose Locate shop in Buybook will appear only here.</p>
-  <div id="sellbook-location-map-wrap" class="sellbook-location-map-wrap" hidden>
-   <div id="sellbook-location-map" class="sellbook-location-map" role="region" aria-label="Live map showing customers locating your shop"></div>
-   id="sellbook-location-map-note" <div class="sellbook-location-map-note">Blue markers show customers sharing a device-reported live position. Your shop pin is green. Distance is straight-line, not road distance. Exact customer locations are private to this shop. Map data © OpenStreetMap; <a href="https://www.openstreetmap.org/fixthemap" target="_blank" rel="noopener noreferrer">report a map issue</a>.</div>
-  </div>
-  <div id="sellbook-location-list" class="sellbook-location-list" aria-live="polite"></div>
-  <p class="sellbook-location-message">Live updates work while the buyer's device and Buybook are connected. Sharing expires automatically after 30 minutes or stops immediately when the buyer taps Stop sharing.</p>
- </section>
+ 
  <button type="button" class="recent-sales-strip" id="recentSalesPreview" data-open-page="sales-history" aria-label="Open recent sales history"><span class="recent-sales-check" aria-hidden="true">✓</span><span class="recent-sales-strip-content"><strong>Recent sales</strong><span id="recentSalesPreviewText">No sales recorded yet.</span></span><span class="recent-sales-history">History</span><span class="recent-sales-chevron" aria-hidden="true">›</span></button>
  <div class="quick-actions" aria-label="Quick access">
   <button type="button" data-open-page="sales"><span class="quick-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5.5" width="17" height="15" rx=".5"/><path d="M7 3v5M12 3v5M17 3v5M4 9.5h16M7.5 14h3M7.5 17h1"/></svg></span><strong>Sales</strong></button>
@@ -765,6 +756,23 @@
  </div>
  <div class="profit-history-list-heading"><h2>Daily breakdown</h2></div>
  <div id="profitHistoryList" class="profit-history-list"><div class="empty">Profit history will appear here when you record sales or expenses.</div></div>
+</section>
+<section id="approaching-customers" class="page hidden">
+ <div class="products-page-header">
+  <button type="button" class="products-back-button" data-app-back="home" aria-label="Back to Home" title="Back to Home"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6M9 12h11"/></svg></button>
+  <h1>Approaching customers</h1>
+ </div>
+ <p class="page-intro approaching-customers-intro">See customers who choose Locate shop in Buybook and share their live location with your shop.</p>
+ <section id="sellbook-live-location-card" class="sellbook-live-location-card" aria-labelledby="sellbook-live-location-title">
+  <div class="sellbook-live-location-heading"><h2 id="sellbook-live-location-title">Customers locating your shop</h2><span id="sellbook-location-count" class="sellbook-live-location-count">0</span></div>
+  <p id="sellbook-location-message" class="sellbook-live-location-message" role="status" aria-live="polite">Customers who choose Locate shop in Buybook will appear only here.</p>
+  <div id="sellbook-location-map-wrap" class="sellbook-location-map-wrap" hidden>
+   <div id="sellbook-location-map" class="sellbook-location-map" role="region" aria-label="Live map showing customers locating your shop"></div>
+   <div id="sellbook-location-map-note" class="sellbook-location-map-note">Blue markers show customers sharing a device-reported live position. Your shop pin is green. Distance is straight-line, not road distance. Exact customer locations are private to this shop. Map data © OpenStreetMap; <a href="https://www.openstreetmap.org/fixthemap" target="_blank" rel="noopener noreferrer">report a map issue</a>.</div>
+  </div>
+  <div id="sellbook-location-list" class="sellbook-location-list" aria-live="polite"></div>
+  <p class="sellbook-location-message">Live updates work while the buyer's device and Buybook are connected. Sharing expires automatically after 30 minutes or stops immediately when the buyer taps Stop sharing.</p>
+ </section>
 </section>
 <section id="quick-guide" class="page hidden">
  <div class="products-page-header">
