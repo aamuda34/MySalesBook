@@ -56,17 +56,27 @@
   const reason=event.reason?.message||event.reason||'An asynchronous startup operation failed';
   showSellbookStartupDiagnostic(reason);
  });
+ let lastScreenSeenAt=Date.now();
+ let initializingSince=0;
  const check=()=>{
   const body=document.body;
   if(!body||shown)return;
   const visible=(id)=>{const el=document.getElementById(id);return !!el&&!el.classList.contains('hidden');};
   const initializing=body.classList.contains('auth-initializing');
   const app=visible('appWorkspace'),pin=visible('securityPinGate'),account=visible('accountCard'),recovery=visible('workspaceLoadRecovery');
-  if(!initializing&&!app&&!pin&&!account&&!recovery){
-   showSellbookStartupDiagnostic('The startup process finished without displaying the sign-in page, PIN screen, recovery screen, or business workspace.');
+  if(app||pin||account||recovery){lastScreenSeenAt=Date.now();initializingSince=0;return;}
+  if(initializing){
+   if(!initializingSince)initializingSince=Date.now();
+   if(Date.now()-initializingSince>30000){
+    showSellbookStartupDiagnostic('Sellbook remained on its startup screen for more than 30 seconds without opening the business workspace.');
+   }
+   return;
+  }
+  if(Date.now()-lastScreenSeenAt>8000){
+   showSellbookStartupDiagnostic('Sellbook stopped without displaying the sign-in page, PIN screen, recovery screen, or business workspace.');
   }
  };
- window.setTimeout(check,18000);
+ window.setInterval(check,2000);
 })();
 </script>
 <a class="skip-link" href="#mainContent">Skip to main content</a>
