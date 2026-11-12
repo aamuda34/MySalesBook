@@ -136,6 +136,15 @@
  <button type="button" id="securityPinSwitchAccount" class="security-pin-switch-account">Switch account</button>
  <p id="securityPinMessage" class="muted" role="status" aria-live="polite"></p>
 </section>
+<section id="workspaceLoadRecovery" class="card workspace-load-recovery hidden" role="alert" aria-labelledby="workspaceLoadRecoveryTitle">
+ <div class="auth-brand-lockup"><img src="./icons/icon.svg" alt="" width="48" height="48"><span class="auth-brand-wordmark"><strong>Sellbook</strong><small>Made Business Simple.</small></span></div>
+ <div class="workspace-load-recovery-icon" aria-hidden="true">!</div>
+ <h2 id="workspaceLoadRecoveryTitle">Your records could not be opened</h2>
+ <p>Your PIN was accepted, but Sellbook could not finish loading your business records. Your saved cloud records have not been deleted.</p>
+ <p id="workspaceLoadRecoveryStatus" class="muted" role="status" aria-live="polite">Check your internet connection, then try again.</p>
+ <button type="button" class="primary" id="retryWorkspaceLoad">Try again</button>
+ <button type="button" class="auth-text-button" id="returnToWorkspaceSignIn">Return to sign in</button>
+</section>
 </section>
 <div id="appWorkspace" class="hidden">
 <nav aria-label="Main navigation">
