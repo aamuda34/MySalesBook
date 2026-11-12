@@ -169,7 +169,178 @@
   <p id="sellbook-location-message" class="sellbook-live-location-message" role="status" aria-live="polite">Customers who choose Locate shop in Buybook will appear only here.</p>
   <div id="sellbook-location-map-wrap" class="sellbook-location-map-wrap" hidden>
    <div id="sellbook-location-map" class="sellbook-location-map" role="region" aria-label="Live map showing customers locating your shop"></div>
-   <div class="sellbook-location-map-note">Blue markers show customers sharing a device-reported live position. Your shop pin is green. Distance is straight-line, not road distance. Exact customer locations are private to this shop. Map data © OpenStreetMap; <a href="https://www.openstreetmap.org/fixthemap" target="_blank" rel="noopener noreferrer">report a map issue</a>.</div>
+   <!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#14532d">
+<meta name="description" content="Sellbook — Made Business Simple. Record sales, manage products and stock, track expenses and review business performance in one place.">
+<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+<link rel="dns-prefetch" href="//cdn.jsdelivr.net">
+<link rel="preconnect" href="https://ueyqrbyqicfpvnznnyxj.supabase.co" crossorigin>
+<link rel="dns-prefetch" href="//ueyqrbyqicfpvnznnyxj.supabase.co">
+<title>Sellbook — Made Business Simple.</title>
+<link rel="stylesheet" href="./styles.css">
+<link rel="stylesheet" href="./location-sharing.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+
+<link rel="manifest" href="./manifest.webmanifest">
+<link rel="icon" href="./icons/icon.svg" type="image/svg+xml">
+
+</head>
+<body class="auth-initializing">
+<a class="skip-link" href="#mainContent">Skip to main content</a>
+<header class="seller-welcome-header"><div class="header-brand">
+<img id="headerBusinessLogo" class="brand-logo" alt="Business logo"><div id="brandMark" class="brand-mark">SB</div>
+<div class="brand-copy"><h1 id="businessTitle">Hi, Seller</h1><p id="businessSubtitle" class="seller-greeting-subtitle"></p></div>
+<div class="header-actions" aria-label="Notifications and support">
+<button type="button" class="header-icon-button support-header-button" data-open-support-direct aria-label="Contact Sellbook Support" title="Contact Sellbook Support"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 13v-2a8 8 0 0 1 16 0v2"/><rect x="3" y="12" width="4" height="7" rx="2"/><rect x="17" y="12" width="4" height="7" rx="2"/><path d="M19 19a4 4 0 0 1-4 3h-2"/></svg><span class="unread-badge hidden support-unread-badge" id="supportBadge" aria-label="Unread Sellbook Support messages">0</span></button>
+<button type="button" class="header-connect-action" id="buybookHeaderConnectButton" data-open-page="settings-buybook" aria-label="Connect to Buybook" title="Connect to Buybook"><span class="header-connect-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M10 13.5a4 4 0 0 0 5.7 0l2.8-2.8a4 4 0 0 0-5.7-5.7l-1.6 1.6"/><path d="M14 10.5a4 4 0 0 0-5.7 0l-2.8 2.8a4 4 0 0 0 5.7 5.7l1.6-1.6"/></svg></span><span class="header-connect-caption" id="buybookHeaderConnectLabel" aria-live="polite">Connect to Buybook</span></button>
+<button type="button" class="header-icon-button" data-open-page="notifications" aria-label="Notifications" title="Notifications"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 9a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/></svg><span class="unread-badge hidden" id="notificationBadge" aria-label="Unread notifications">0</span></button>
+</div></div></header>
+<main id="mainContent">
+<section id="authPage" class="auth-page" aria-label="Sellbook authentication">
+<div id="authLoading" role="status" aria-live="polite"><span class="auth-loading-spinner" aria-hidden="true"></span><strong>Opening your business book…</strong><span class="muted">Checking your saved sign-in and records.</span></div>
+<section class="card auth-card" id="accountCard">
+<div class="auth-brand-lockup"><img src="./icons/icon.svg" alt="" width="52" height="52"><span class="auth-brand-wordmark"><strong>Sellbook</strong><small>Made Business Simple.</small></span></div>
+<h2 id="authCardTitle">Welcome back</h2>
+<p id="accountStatus" class="muted auth-account-status">Checking your secure sign-in status…</p>
+<div id="authSignInChoices" class="auth-signin-choices">
+<div class="signup-legal-consent" id="googleLegalConsent">
+<label class="signup-legal-label" for="googlePolicyConsent"><input id="googlePolicyConsent" type="checkbox" required><span>By continuing, I agree to the <a href="./terms.html" target="_blank" rel="noopener noreferrer">Terms of Use</a> and acknowledge the <a href="./privacy.html" target="_blank" rel="noopener noreferrer">Privacy Notice</a>.</span></label>
+</div>
+<button type="button" class="primary auth-google-button" id="googleSignIn"><svg class="auth-google-mark" viewBox="0 0 48 48" aria-hidden="true"><path fill="#4285F4" d="M43.6 24.5c0-1.4-.1-2.8-.4-4.1H24v7.8h11a9.4 9.4 0 0 1-4.1 6.2v5.1h6.6c3.9-3.6 6.1-8.8 6.1-15Z"/><path fill="#34A853" d="M24 44c5.5 0 10.1-1.8 13.5-4.9l-6.6-5.1c-1.8 1.2-4.1 2-6.9 2-5.3 0-9.8-3.6-11.4-8.4H5.8v5.3A20.4 20.4 0 0 0 24 44Z"/><path fill="#FBBC05" d="M12.6 27.6a12.2 12.2 0 0 1 0-7.2v-5.3H5.8a20.1 20.1 0 0 0 0 17.8l6.8-5.3Z"/><path fill="#EA4335" d="M24 12.1c3 0 5.6 1 7.7 3.1l5.8-5.8A19.5 19.5 0 0 0 24 4 20.4 20.4 0 0 0 5.8 15.1l6.8 5.3c1.6-4.8 6.1-8.3 11.4-8.3Z"/></svg><span id="googleSignInLabel">Continue with Google</span></button>
+<div class="auth-divider" aria-hidden="true"><span>OR</span></div>
+<button type="button" class="auth-email-entry" id="openEmailSignIn">Sign in with email</button>
+<button type="button" class="auth-text-button" id="openPasswordRecovery">Forgot your password?</button>
+<p class="auth-privacy-note"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="4.5" y="10" width="15" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/><path d="M12 14v3"/></svg><span>Your business records stay private to your account.</span></p>
+</div>
+<div id="emailAuthPanel" class="auth-email-panel hidden" aria-hidden="true">
+<button type="button" class="auth-back-link" id="backToAuthOptions"><span aria-hidden="true">‹</span> All sign-in options</button>
+<h3 id="emailAuthHeading">Sign in with email</h3>
+<p id="emailAuthDescription" class="auth-form-description">Use the email address and password linked to your Sellbook account.</p>
+<form id="emailAuthForm" novalidate>
+<label for="authEmail">Email address</label>
+<input id="authEmail" type="email" inputmode="email" autocomplete="email" autocapitalize="none" autocorrect="off" spellcheck="false" placeholder="you@example.com" maxlength="254" required>
+<label for="authPassword">Password</label>
+<div class="auth-password-field">
+<input id="authPassword" type="password" autocomplete="current-password" placeholder="Enter your password" aria-describedby="authPasswordHint" required>
+<button type="button" class="auth-password-toggle" data-password-toggle="authPassword" aria-label="Show password" aria-pressed="false">Show</button>
+</div>
+<div id="authPasswordConfirmField" class="hidden">
+<label for="authPasswordConfirm">Confirm password</label>
+<div class="auth-password-field">
+<input id="authPasswordConfirm" type="password" autocomplete="new-password" placeholder="Enter your password again" disabled>
+<button type="button" class="auth-password-toggle" data-password-toggle="authPasswordConfirm" aria-label="Show confirmation password" aria-pressed="false">Show</button>
+</div>
+</div>
+<small id="authPasswordHint" class="auth-field-hint" aria-live="polite">Enter your account password.</small>
+<div class="signup-legal-consent hidden" id="emailSignupLegalConsent">
+<label class="signup-legal-label" for="emailPolicyConsent"><input id="emailPolicyConsent" type="checkbox" required><span>I agree to the <a href="./terms.html" target="_blank" rel="noopener noreferrer">Terms of Use</a> and acknowledge the <a href="./privacy.html" target="_blank" rel="noopener noreferrer">Privacy Notice</a>.</span></label>
+</div>
+<button type="submit" class="primary auth-email-submit" id="emailAuthSubmit">Sign in with email</button>
+</form>
+<div id="emailConfirmationPanel" class="auth-email-confirmation hidden" aria-hidden="true">
+<div class="auth-confirmation-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m4 7 8 6 8-6"/></svg></div>
+<h4>Check your email</h4>
+<p>We sent a confirmation link to <strong id="confirmationEmailAddress"></strong>. Open the link to verify your email address and finish setting up your Sellbook account.</p>
+<p class="auth-confirmation-help">Can't find it? Check your spam or promotions folder. You can request another link below.</p>
+<button type="button" class="auth-resend-button" id="resendConfirmationBtn">Resend confirmation email</button>
+<p id="emailConfirmationMessage" class="auth-confirmation-status" role="status" aria-live="polite"></p>
+<div class="auth-confirmation-actions">
+<button type="button" id="confirmationReturnToSignIn">I've confirmed my email — sign in</button>
+<button type="button" id="editConfirmationEmailBtn">Use a different email</button>
+</div>
+</div>
+<div class="auth-email-links" id="emailAuthLinks"><button type="button" id="toggleEmailAuth">New to Sellbook? Create an account</button><button type="button" id="emailPasswordRecovery">Forgot password?</button></div>
+</div>
+<form id="accountRecoveryRequestForm" class="auth-recovery-request hidden" novalidate>
+<div class="auth-recovery-heading"><span class="auth-recovery-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3 4.5 6v5.2c0 4.5 3.1 8.2 7.5 9.8 4.4-1.6 7.5-5.3 7.5-9.8V6L12 3Z"/><path d="m9 12 2 2 4-4"/></svg></span><h3>Reset your password</h3><p>Enter the email address linked to your Sellbook account. We'll send a secure recovery link if an account matches.</p></div>
+<label for="recoveryEmail">Account email address</label><input id="recoveryEmail" type="email" inputmode="email" autocomplete="email" autocapitalize="none" autocorrect="off" spellcheck="false" placeholder="you@example.com" maxlength="254" required>
+<button type="submit" class="primary auth-recovery-submit" id="recoveryEmailSubmit">Send recovery link</button>
+<button type="button" class="auth-text-button auth-back-button" id="cancelPasswordRecovery">Back to sign in</button>
+</form>
+<form id="recoveryPasswordForm" class="auth-new-password-form hidden" novalidate>
+<div class="auth-recovery-heading"><span class="auth-recovery-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3 4.5 6v5.2c0 4.5 3.1 8.2 7.5 9.8 4.4-1.6 7.5-5.3 7.5-9.8V6L12 3Z"/><path d="m9 12 2 2 4-4"/></svg></span><h3>Choose a new password</h3><p>Create a new password for your Sellbook account. Your business records remain protected.</p></div>
+<label for="recoveryPassword">New password</label>
+<div class="auth-password-field">
+<input id="recoveryPassword" type="password" autocomplete="new-password" placeholder="Enter your new password" aria-describedby="recoveryPasswordHint" required>
+<button type="button" class="auth-password-toggle" data-password-toggle="recoveryPassword" aria-label="Show new password" aria-pressed="false">Show</button>
+</div>
+<small id="recoveryPasswordHint" class="auth-field-hint" aria-live="polite">Use at least 8 characters, including uppercase and lowercase letters, a number and a symbol.</small>
+<label for="recoveryPasswordConfirm">Confirm new password</label>
+<div class="auth-password-field">
+<input id="recoveryPasswordConfirm" type="password" autocomplete="new-password" placeholder="Enter your new password again" required>
+<button type="button" class="auth-password-toggle" data-password-toggle="recoveryPasswordConfirm" aria-label="Show password confirmation" aria-pressed="false">Show</button>
+</div>
+<button type="submit" class="primary auth-recovery-submit" id="recoveryPasswordSubmit">Update password</button>
+<button type="button" class="auth-text-button auth-back-button" id="cancelPasswordUpdate">Back to sign in</button>
+</form>
+<div id="sellbook-auth-captcha" class="auth-captcha" aria-label="Security check" hidden></div><p id="accountMessage" class="muted auth-message" role="status" aria-live="polite"></p></section>
+<section id="securityPinGate" class="card security-pin-gate hidden" aria-labelledby="securityPinTitle">
+ <div class="auth-brand-lockup auth-pin-brand-lockup"><img src="./icons/icon.svg" alt="" width="48" height="48"><span class="auth-brand-wordmark"><strong>Sellbook</strong><small>Made Business Simple.</small></span></div>
+ <div id="securityPinIdentity" class="security-pin-identity" hidden aria-live="polite">
+  <div class="security-pin-avatar">
+   <img id="securityPinAvatarImage" alt="" referrerpolicy="no-referrer" hidden>
+   <span id="securityPinAvatarFallback" aria-hidden="true">S</span>
+  </div>
+  <div class="security-pin-identity-copy">
+   <span class="security-pin-identity-label">Welcome back</span>
+   <strong id="securityPinFirstName">Your account</strong>
+  </div>
+ </div>
+ <div class="security-pin-icon" aria-hidden="true">●</div>
+ <h2 id="securityPinTitle">Enter your Sellbook PIN</h2>
+ <p id="securityPinSubtitle" class="muted">Your business records are locked until you verify your six-digit PIN.</p>
+ <form id="securityPinForm" novalidate>
+  <label for="securityPinInput">Six-digit PIN</label>
+  <input id="securityPinInput" type="password" inputmode="numeric" pattern="[0-9]{6}" minlength="6" maxlength="6" autocomplete="current-password" required>
+  <div id="securityPinConfirmWrap" class="hidden">
+   <label for="securityPinConfirm">Confirm six-digit PIN</label>
+   <input id="securityPinConfirm" type="password" inputmode="numeric" pattern="[0-9]{6}" minlength="6" maxlength="6" autocomplete="new-password">
+  </div>
+  <button type="submit" id="securityPinSubmit" class="primary">Unlock Sellbook</button>
+ </form>
+ <button type="button" id="securityPinCancel" class="security-pin-cancel hidden">Cancel PIN change</button>
+ <button type="button" id="securityPinForgot" class="security-pin-forgot">Forgot your PIN? Sign in again to reset it.</button>
+ <button type="button" id="securityPinSwitchAccount" class="security-pin-switch-account">Switch account</button>
+ <p id="securityPinMessage" class="muted" role="status" aria-live="polite"></p>
+</section>
+</section>
+<div id="appWorkspace" class="hidden">
+<nav aria-label="Main navigation">
+<button class="active" data-page="home"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1z"/></svg></span><span>Home</span></button>
+<button data-page="messenger" aria-label="Messenger" title="Messenger"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M21 11.5a8.4 8.4 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.4 8.4 0 0 1-3.8-.9L3 21l1.9-5.7a8.4 8.4 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.4 8.4 0 0 1 3.8-.9h.5a8.5 8.5 0 0 1 8 8z"/></svg></span><span>Messages</span><span class="unread-badge nav-unread-badge hidden" id="messageBadge" aria-label="Unread messages">0</span></button>
+<button data-page="me"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg></span><span>Me</span></button>
+</nav>
+<button type="button" id="quickSaleFab" class="quick-sale-fab" aria-label="Record a sale" title="Record a sale">+</button>
+
+<section id="home" class="page">
+ <div class="home-sync-notice hidden" id="homeSyncNotice" role="status" aria-live="polite" data-state="pending"><span class="home-sync-indicator" aria-hidden="true"></span><span class="home-sync-copy" id="homeSyncNoticeText"></span><button type="button" class="home-sync-action" data-open-page="settings-sync" id="homeSyncNoticeAction" hidden>Review</button></div>
+ <section class="home-sales-board" aria-label="Today's business summary">
+  <div class="home-sales-board-top"><div class="home-sales-primary"><div class="home-sales-label"><button type="button" class="home-sales-open" data-open-sales-period="today" aria-label="View today's sales"><span aria-hidden="true">✓</span><span>Sales today</span></button> <button type="button" class="sales-visibility-toggle" id="salesVisibilityToggle" onclick="toggleSalesVisibility()" aria-label="Hide sales amount" title="Hide sales amount"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12Z"></path><circle cx="12" cy="12" r="3"></circle></svg></button></div><button type="button" class="home-sales-amount" id="todaySales" data-open-sales-period="today" aria-label="View today's sales">₦0</button></div><button type="button" class="home-add-sales" id="homeAddSalesButton" onclick="openEntryForm('sale')">＋ Add sale</button></div>
+  <div class="home-sales-board-bottom" aria-label="Business overview">
+   <button type="button" class="home-board-metric" data-open-page="profit-history" aria-label="Open profit history">
+    <span class="home-board-metric-label"><span class="home-sales-subs-label">Net profit</span><span class="home-board-metric-chevron" aria-hidden="true">›</span></span>
+    <span class="home-sales-subs-value" id="todayNet">₦0</span>
+   </button>
+   <button type="button" class="home-board-metric" data-open-page="products" aria-label="Open products">
+    <span class="home-board-metric-label"><span class="home-sales-subs-label">Products</span><span class="home-board-metric-chevron" aria-hidden="true">›</span></span>
+    <span class="home-sales-subs-value" id="homeProductCount">0</span>
+   </button>
+   <button type="button" class="home-board-metric home-board-metric-right" data-open-page="reservations" aria-label="Open reservations">
+    <span class="home-board-metric-label"><span class="home-sales-subs-label">Reservations</span><span class="unread-badge home-reservation-unread-badge hidden" id="homeReservationBadge" aria-label="New reservations">0</span><span class="home-board-metric-chevron" aria-hidden="true">›</span></span>
+    <span class="home-sales-subs-value" id="reservationCountHome">—</span>
+   </button>
+  </div>
+ </section>
+ <section id="sellbook-live-location-card" class="sellbook-live-location-card" aria-labelledby="sellbook-live-location-title" hidden>
+  <div class="sellbook-live-location-heading"><h2 id="sellbook-live-location-title">Customers locating your shop</h2><span id="sellbook-location-count" class="sellbook-live-location-count">0</span></div>
+  <p id="sellbook-location-message" class="sellbook-live-location-message" role="status" aria-live="polite">Customers who choose Locate shop in Buybook will appear only here.</p>
+  <div id="sellbook-location-map-wrap" class="sellbook-location-map-wrap" hidden>
+   <div id="sellbook-location-map" class="sellbook-location-map" role="region" aria-label="Live map showing customers locating your shop"></div>
+   id="sellbook-location-map-note" <div class="sellbook-location-map-note">Blue markers show customers sharing a device-reported live position. Your shop pin is green. Distance is straight-line, not road distance. Exact customer locations are private to this shop. Map data © OpenStreetMap; <a href="https://www.openstreetmap.org/fixthemap" target="_blank" rel="noopener noreferrer">report a map issue</a>.</div>
   </div>
   <div id="sellbook-location-list" class="sellbook-location-list" aria-live="polite"></div>
   <p class="sellbook-location-message">Live updates work while the buyer's device and Buybook are connected. Sharing expires automatically after 30 minutes or stops immediately when the buyer taps Stop sharing.</p>
