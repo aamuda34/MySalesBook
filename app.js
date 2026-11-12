@@ -1693,12 +1693,19 @@ function applyBuybookShopLocation(location,options={}){
  const source=location.source||'legacy-saved-location';
  const capturedAt=location.capturedAt===null?null:(location.capturedAt||null);
  buybookShopLocation={latitude,longitude,accuracy,capturedAt,source};
+ updateBuybookMapPin(latitude,longitude,{accuracy,keepView:options.keepView});
+ if(!buybookLocationMap||!buybookLocationMarker){
+  buybookLocationConfirmed=false;
+  const confirmation=document.getElementById('buybookLocationConfirm');
+  if(confirmation)confirmation.checked=false;
+  setBuybookLocationMessage('GPS coordinates were captured, but the map could not load. The shop entrance cannot be checked or saved yet. Reload Sellbook and try again.','error');
+  return false;
+ }
  buybookLocationConfirmed=Boolean(options.confirmed);
  const confirmation=document.getElementById('buybookLocationConfirm');
  if(confirmation)confirmation.checked=buybookLocationConfirmed;
  document.getElementById('buybookLatitude').value=String(latitude);
  document.getElementById('buybookLongitude').value=String(longitude);
- updateBuybookMapPin(latitude,longitude,{accuracy,keepView:options.keepView});
  const link=document.getElementById('buybookLocationMapLink');
  if(link){
   link.href='https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(latitude+','+longitude);
