@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">Buybook location pin and open book</title>
+  <desc id="desc">A purple location pin containing a white open book. Two thin purple lines run from the top to the bottom of the outer page edges. Two white bookmark ribbons are tucked inside the lower part of the book and emerge from beneath the pages near the spine.</desc>
+  <path d="M256 7C142 7 49 99 49 214c0 113 96 216 207 291 111-75 207-178 207-291C463 99 370 7 256 7Z" fill="#573BA2"/>
+  <path d="M236 284 C236 297 235 308 232 319 C230 328 226 336 222 343 L229 346 C233 338 237 330 240 321 C244 309 245 297 245 284Z" fill="#FFFFFF"/>
+  <path d="M276 284 C276 297 277 308 280 319 C282 328 286 336 290 343 L283 346 C279 338 275 330 272 321 C268 309 267 297 267 284Z" fill="#FFFFFF"/>
+  <path d="M168 102 194 90 256 117 322 90 348 102 256 140Z" fill="#FFFFFF"/>
+  <path d="M143 116 244 160 244 319 143 270Z" fill="#FFFFFF"/>
+  <path d="M369 116 270 160 270 319 369 270Z" fill="#FFFFFF"/>
+  <path d="M244 160H270V319H244Z" fill="#573BA2"/>
+  <path d="M151 116V270" stroke="#573BA2" stroke-width="3.2" stroke-linecap="butt"/>
+  <path d="M361 116V270" stroke="#573BA2" stroke-width="3.2" stroke-linecap="butt"/>
+</svg>
