@@ -5404,3 +5404,14 @@ body:has(#workspaceLoadRecovery:not(.hidden)) #authPage{display:flex!important}
 #authPage #workspaceLoadRecovery #retryWorkspaceLoad{width:100%;min-height:48px;margin:12px 0 4px}
 #authPage #workspaceLoadRecovery #returnToWorkspaceSignIn{display:block;width:100%;min-height:42px;margin:4px 0 0}
 #authPage #workspaceLoadRecovery button:disabled{opacity:.65;cursor:wait}
+
+
+/* Focused live customer-location page. The dashboard shows only its count and entry point. */
+body.approaching-customers-page-open>.seller-welcome-header{display:none!important}
+body.approaching-customers-page-open #appWorkspace>nav,body.approaching-customers-page-open #quickSaleFab{display:none!important}
+body.approaching-customers-page-open #appWorkspace>main{padding-top:0!important}
+body.approaching-customers-page-open #approaching-customers{max-width:760px;margin:0 auto;padding:14px 14px 28px!important}
+body.approaching-customers-page-open #approaching-customers .products-page-header{margin-top:-14px}
+body.approaching-customers-page-open .approaching-customers-intro{margin:0 0 12px;line-height:1.5}
+body.approaching-customers-page-open .sellbook-live-location-card{margin-top:0}
+.home-board-approaching-customers .home-sales-subs-label{max-width:100%;white-space:normal;line-height:1.15}
