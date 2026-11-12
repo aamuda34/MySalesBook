@@ -1,0 +1,49 @@
+name: Build downloadable Claude audit handover
+on:
+  push:
+    branches:
+      - claude-audit-handover-20261112
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  package-source:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out audit handover branch
+        uses: actions/checkout@v4
+        with:
+          ref: claude-audit-handover-20261112
+          persist-credentials: false
+      - name: Check for accidentally included environment files
+        shell: bash
+        run: |
+          set -euo pipefail
+          if find . -type f \( -name '.env' -o -name '.env.*' -o -name '*.pem' -o -name '*.p12' -o -name '*.key' \) -not -path './.git/*' -print -quit | grep -q .; then
+            echo "Potential environment or private-key file detected. Refusing to package."
+            find . -type f \( -name '.env' -o -name '.env.*' -o -name '*.pem' -o -name '*.p12' -o -name '*.key' \) -not -path './.git/*' -print
+            exit 1
+          fi
+      - name: Create ZIP
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/claude-handover
+          zip -qr /tmp/claude-handover/Sellbook-Buybook-Claude-Audit.zip . \
+            -x './.git/*' \
+            -x './node_modules/*' \
+            -x './**/node_modules/*' \
+            -x './.vercel/*' \
+            -x './**/.vercel/*' \
+            -x './*.log' \
+            -x './**/*.log'
+          unzip -t /tmp/claude-handover/Sellbook-Buybook-Claude-Audit.zip
+          echo "ZIP size:"
+          ls -lh /tmp/claude-handover/Sellbook-Buybook-Claude-Audit.zip
+      - name: Upload downloadable ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: sellbook-buybook-claude-audit
+          path: /tmp/claude-handover/Sellbook-Buybook-Claude-Audit.zip
+          if-no-files-found: error
+          retention-days: 7
