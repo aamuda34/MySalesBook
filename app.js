@@ -1605,6 +1605,7 @@ let buybookLocationMap=null;
 let buybookLocationMarker=null;
 let buybookLocationAccuracyCircle=null;
 let buybookLocationConfirmed=false;
+let buybookLocationTilesLoaded=false;
 const BUYBOOK_SHOP_FRONT_MAX_BYTES=5*1024*1024;
 let buybookShopLocation=null;
 let buybookConnectionLoadSequence=0;
@@ -1647,10 +1648,12 @@ function updateBuybookMapPin(latitude,longitude,options={}){
  if(!node||!window.L)return;
  if(!buybookLocationMap){
   buybookLocationMap=L.map(node,{zoomControl:true,scrollWheelZoom:false}).setView([latitude,longitude],18);
-  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{
+  const tileLayer=L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{
    maxZoom:19,
    attribution:'&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors'
-  }).addTo(buybookLocationMap);
+  });
+  tileLayer.on('tileload',()=>{buybookLocationTilesLoaded=true;});
+  tileLayer.addTo(buybookLocationMap);
   buybookLocationMarker=L.marker([latitude,longitude],{draggable:true,autoPan:true})
    .addTo(buybookLocationMap).bindPopup('Shop entrance pin');
   buybookLocationMarker.on('dragend',()=>{
@@ -1718,6 +1721,7 @@ function applyBuybookShopLocation(location,options={}){
  return true;
 }
 function getBuybookLocationForSave(){
+ if(!buybookLocationMap||!buybookLocationMarker||!buybookLocationTilesLoaded)return null;
  const latitudeText=String(document.getElementById('buybookLatitude')?.value??'').trim();
  const longitudeText=String(document.getElementById('buybookLongitude')?.value??'').trim();
  if(!latitudeText||!longitudeText)return null;
@@ -1783,6 +1787,16 @@ document.getElementById('captureBuybookLocationButton')?.addEventListener('click
   else if(error?.code===3)message='GPS took too long. Move to an open area and try again.';
   finish(message,'error');
  },{enableHighAccuracy:true,maximumAge:0,timeout:22000});
+});
+document.addEventListener('click',event=>{
+ if(event.target.closest('[data-open-page="settings-buybook-setup"]')){
+  window.setTimeout(()=>{
+   if(buybookLocationMap){
+    buybookLocationMap.invalidateSize(true);
+    if(buybookLocationMarker)buybookLocationMap.panTo(buybookLocationMarker.getLatLng());
+   }
+  },280);
+ }
 });
 document.getElementById('buybookLocationConfirm')?.addEventListener('change',event=>{
  if(!buybookShopLocation){event.target.checked=false;setBuybookLocationMessage('Capture or place a shop pin before confirming it.','error');return;}
@@ -2124,6 +2138,11 @@ document.getElementById('buybookConnectionForm')?.addEventListener('submit',asyn
  if(!hasShopFront){
   notifyStatus(message,'Add a clear photo of the front of your shop. Sellbook will check it automatically.','error');
   document.getElementById('buybookShopFrontChooseButton')?.focus();
+  return;
+ }
+ if(!buybookLocationMap||!buybookLocationMarker||!buybookLocationTilesLoaded){
+  notifyStatus(message,'The map could not load fully. Check your internet connection, reopen this page and confirm the shop pin on the map.','error');
+  document.getElementById('buybookShopLocationMap')?.focus();
   return;
  }
  const locationConfirmation=document.getElementById('buybookLocationConfirm');
