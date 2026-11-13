@@ -2060,9 +2060,7 @@ async function loadBuybookConnection(options={}){
  if(overviewMessage)overviewMessage.textContent='';
  showLoading();
  try{
-  const {data,error}=await supabaseClient.from('marketplace_shops')
-   .select('name,description,phone,address,city,state,is_connected,is_active,latitude,longitude,location_accuracy_m,location_captured_at,location_confirmed_at,location_source,shop_front_image_url,shop_front_image_path,shop_front_confirmed_at')
-   .eq('owner_id',requestedUserId).maybeSingle();
+  const {data,error}=await supabaseClient.rpc('get_my_marketplace_shop');
   if(!current())return;
   if(error)throw error;
   buybookShopRecordCache=data||null;
@@ -2529,8 +2527,8 @@ async function cloudLoadAll() {
   setTimeout(async () => {
     if (!cloudUser || cloudUser.id !== user.id || !navigator.onLine) return;
     try {
-      const {data:shop}=await supabaseClient.from('marketplace_shops').select('is_connected,is_active').eq('owner_id',user.id).maybeSingle();
-      if(!shop?.is_connected||!shop?.is_active) return;
+      const {data:shop,error:shopError}=await supabaseClient.rpc('get_my_marketplace_shop');
+      if(shopError||!shop?.is_connected||!shop?.is_active) return;
       const imageProducts=products.filter(product=>product.imagePath);
       // Fetch listing image states in batches instead of making one database
       // request per product (an N+1 request pattern).
