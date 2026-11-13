@@ -13,42 +13,8 @@ ALTER DEFAULT PRIVILEGES FOR ROLE supabase_admin IN SCHEMA public
 ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public
   REVOKE MAINTAIN, TRUNCATE, REFERENCES, TRIGGER ON TABLES FROM anon, authenticated;
 
--- Remove table-wide and any pre-existing column-level reads on shop records.
-REVOKE SELECT ON TABLE public.marketplace_shops FROM anon, authenticated;
-DO $revoke_shop_columns$
-DECLARE
-  item record;
-BEGIN
-  FOR item IN
-    SELECT column_name
-    FROM information_schema.columns
-    WHERE table_schema = 'public'
-      AND table_name = 'marketplace_shops'
-  LOOP
-    EXECUTE format(
-      'REVOKE SELECT (%I) ON TABLE public.marketplace_shops FROM anon, authenticated',
-      item.column_name
-    );
-  END LOOP;
-END
-$revoke_shop_columns$;
-
--- Browser clients can read only catalogue-safe columns from the base table.
--- Exact address, coordinates, location accuracy, confirmation metadata and
--- storage paths are never directly selectable through the Data API.
-GRANT SELECT (
-  owner_id,
-  name,
-  description,
-  phone,
-  city,
-  state,
-  country,
-  shop_front_image_url,
-  is_connected,
-  is_active
-) ON TABLE public.marketplace_shops TO anon, authenticated;
-
+-- Column-level read lockdown is intentionally staged after the new clients
+-- using the public view and owner/route RPCs have been deployed.
 -- Stable public catalogue projection. security_invoker ensures the underlying
 -- marketplace_shops RLS policy and the caller's narrow column grants apply.
 CREATE OR REPLACE VIEW public.marketplace_shops_public
