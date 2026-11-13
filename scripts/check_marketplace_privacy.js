@@ -21,6 +21,10 @@ const lockdown = fs.readFileSync(
   'supabase/migrations/20261113013000_restrict_marketplace_shop_sensitive_column_reads.sql',
   'utf8'
 );
+const auditHardening = fs.readFileSync(
+  'supabase/migrations/20261113090000_bind_shop_photo_approval_to_storage_object_and_fix_reservation_read_state.sql',
+  'utf8'
+);
 
 assert.equal(
   (app.match(/rpc\('get_my_marketplace_shop'\)/g) || []).length,
@@ -137,3 +141,20 @@ assert.ok(
   identityHardening.includes("RETURN false"),
   'Administrator accounts without a registered PIN must fail the privileged PIN gate.'
 );
+
+assert.ok(
+  auditHardening.includes('storage_object_id') &&
+  auditHardening.includes('v_current_object_id IS DISTINCT FROM v_verified_object_id'),
+  'An approved shop-front must remain bound to the same Storage object.'
+);
+assert.ok(
+  auditHardening.includes('consume_buybook_shop_front_check') &&
+  auditHardening.includes('v_attempt_count <= 8'),
+  'Shop-front AI verification must have a server-enforced daily per-user limit.'
+);
+assert.ok(
+  auditHardening.includes('DELETE FROM public.app_notifications') &&
+  !auditHardening.includes('ON CONFLICT (reservation_id, kind) DO UPDATE'),
+  'Replacing a reservation notification must create a fresh unread event.'
+);
+
