@@ -95,6 +95,14 @@ assert.ok(
   'Reservation RPC must use an empty search path.'
 );
 
+assert.ok(
+  /if\s*\(buybookShopFrontImageFile\)\s*\{[\s\S]*?functions\.invoke\(['"]verify-buybook-shop-front['"]/.test(app),
+  'Only a newly uploaded shop-front photo should trigger another AI verification request.'
+);
+assert.ok(
+  app.includes("else if(!previousShopFrontPath||shopFrontPath!==previousShopFrontPath)"),
+  'A saved shop-front photo may be reused only when it is the same previously approved path.'
+);
 console.log('PASS: marketplace location privacy, narrow public shop fields, owner-only shop settings and browser-role privilege hardening.');
 
 assert.ok(
