@@ -23,7 +23,7 @@ assert.ok(
   'Seller shop setup must continue to save the seller-owned shop record.'
 );
 assert.ok(
-  migration.includes('REVOKE TRUNCATE, REFERENCES, TRIGGER') &&
+  migration.includes('REVOKE MAINTAIN, TRUNCATE, REFERENCES, TRIGGER') &&
   migration.includes('ON ALL TABLES IN SCHEMA public'),
   'Browser roles must not retain table-wide destructive/DDL-adjacent privileges.'
 );
