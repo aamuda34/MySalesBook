@@ -2306,8 +2306,28 @@ document.getElementById('buybookConnectionForm')?.addEventListener('submit',asyn
    is_active:true
   };
   notifyStatus(message,'Finishing your Buybook connection…','info');
-  const {error}=await supabaseClient.from('marketplace_shops').upsert(shop,{onConflict:'owner_id'});
-  if(error)throw error;
+  // Do not use upsert here. PostgreSQL requires table-level SELECT for the
+  // ON CONFLICT DO UPDATE path, but the marketplace shop table intentionally
+  // exposes only a narrow set of public columns to browser roles. Read the
+  // private owner record through its SECURITY DEFINER RPC, then use the
+  // separately-granted owner INSERT or UPDATE operation.
+  const {data:existingShop,error:existingShopError}=await supabaseClient.rpc('get_my_marketplace_shop');
+  if(existingShopError)throw existingShopError;
+  let shopWriteError=null;
+  if(existingShop){
+   const {error:updateError}=await supabaseClient.from('marketplace_shops').update(shop).eq('owner_id',user.id);
+   shopWriteError=updateError;
+  }else{
+   const {error:insertError}=await supabaseClient.from('marketplace_shops').insert(shop);
+   shopWriteError=insertError;
+   // A second device may have created the row between the owner-scoped read
+   // and INSERT. Retry as an owner-scoped UPDATE without broad SELECT grants.
+   if(shopWriteError?.code==='23505'){
+    const {error:retryError}=await supabaseClient.from('marketplace_shops').update(shop).eq('owner_id',user.id);
+    shopWriteError=retryError;
+   }
+  }
+  if(shopWriteError)throw shopWriteError;
   shopSaved=true;
   document.getElementById('buybookPhone').value=whatsapp;
 
