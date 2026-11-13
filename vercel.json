@@ -22,6 +22,10 @@
         {
           "key": "Permissions-Policy",
           "value": "camera=(self), geolocation=(self), microphone=(), payment=(), usb=()"
+        },
+        {
+          "key": "Content-Security-Policy",
+          "value": "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self' https://*.supabase.co https://accounts.google.com; script-src 'self' https://cdn.jsdelivr.net https://challenges.cloudflare.com 'unsafe-hashes' 'sha256-qNoBcctpV+aevdy3eIADEw9KWfkwR94KbYVkayEeMR8=' 'sha256-FsgM2iebYplrWbpnTKtWOG5pkChaoGsQ7wbTKb5aOPM=' 'sha256-+4DUC3DYxOeaikKMI6c7VEdPIr/nLrbqunPTx3Q0Bac=' 'sha256-ex0w7ri3D9BiTHChNBHUngpOuhiHkkUCwXdMF6R59Dw=' 'sha256-kjFGhnPBECvAg3UlDXmlVvcA7myxFK3/uFuF/wtWgOg=' 'sha256-v1eAJV2coYIP3ZEcXqptuE3aMzs/nj+mm9xfrUTFAmk=' 'sha256-BiS/OKBQ18enFbQM4xIHwp3KUtsg8ana7ewFyyj0NGE='; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; img-src 'self' data: blob: https://*.supabase.co https://tile.openstreetmap.org https://*.tile.openstreetmap.org https://*.googleusercontent.com; font-src 'self' data: https://cdn.jsdelivr.net; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://challenges.cloudflare.com https://www.google.com https://*.googleapis.com https://tile.openstreetmap.org https://*.tile.openstreetmap.org; frame-src 'self' https://challenges.cloudflare.com https://accounts.google.com https://*.supabase.co; manifest-src 'self'; worker-src 'self' blob:; upgrade-insecure-requests"
         }
       ]
     }
