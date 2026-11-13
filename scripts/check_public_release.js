@@ -65,6 +65,22 @@ for (const section of [
 }
 assert.ok(privacy.includes('./terms.html') && terms.includes('./privacy.html'), 'The legal pages must link to one another.');
 
+const deletionFunction = read('supabase/functions/delete-my-account/index.ts');
+const deletionMigration = read('supabase/migrations/20261113110000_assert_account_deletion_authorized.sql');
+assert.ok(app.includes("supabaseClient.functions.invoke('delete-my-account'"), 'Permanent account deletion must use server-side storage cleanup.');
+for (const bucket of ['product-images', 'marketplace-product-images', 'marketplace-shop-fronts', 'buybook-message-attachments']) {
+  assert.ok(deletionFunction.includes('"'+bucket+'"'), 'Account deletion must clean the '+bucket+' storage bucket.');
+}
+assert.ok(deletionFunction.includes('marketplace_messages') && deletionFunction.includes('attachment_path'), 'Account deletion must include message attachments.');
+assert.ok(deletionFunction.includes('auth.getUser(token)') && deletionFunction.includes('rpc("delete_my_account")'), 'Server cleanup must validate the caller and preserve the PIN-gated database deletion RPC.');
+assert.ok(deletionFunction.includes('rpc("assert_account_deletion_authorized")'), 'Server cleanup must verify the one-shot PIN authorization before deleting any stored files.');
+assert.ok(deletionMigration.includes('SECURITY DEFINER') && deletionMigration.includes('private.sellbook_security_action_grants') && deletionMigration.includes('GRANT EXECUTE ON FUNCTION public.assert_account_deletion_authorized() TO authenticated'), 'The account-deletion preflight RPC must check the current user and session without exposing private security state.');
+const vercelConfig = JSON.parse(read('vercel.json'));
+const globalHeaders = vercelConfig.headers.find((entry) => entry.source === '/(.*)')?.headers || [];
+const csp = globalHeaders.find((entry) => entry.key.toLowerCase() === 'content-security-policy')?.value || '';
+assert.ok(csp.includes("default-src 'self'") && csp.includes("object-src 'none'") && csp.includes("frame-ancestors 'none'"), 'Sellbook must ship a restrictive Content Security Policy.');
+assert.ok(csp.includes("'unsafe-hashes'") && csp.includes("'sha256-qNoBcctpV+aevdy3eIADEw9KWfkwR94KbYVkayEeMR8='"), 'Sellbook CSP must hash-allow only the existing inline click handlers rather than enabling unsafe inline scripts.');
+assert.ok(!/script-src[^;]*'unsafe-inline'/.test(csp), 'Sellbook must not enable unrestricted inline JavaScript.');
 const checklist = read('docs/public-launch-checklist.md');
 assert.ok(checklist.includes("operator's legal identity"), 'The release checklist must keep the known legal-operator blocker visible.');
 assert.ok(checklist.includes('With two accounts'), 'The release checklist must require cross-account isolation testing.');
