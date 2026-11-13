@@ -4,6 +4,14 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 
 const app = fs.readFileSync('app.js', 'utf8');
+const abuseLimits = fs.readFileSync(
+  'supabase/migrations/20261113014000_marketplace_abuse_limits.sql',
+  'utf8'
+);
+const identityHardening = fs.readFileSync(
+  'supabase/migrations/20261113015000_document_marketplace_user_gate_and_require_admin_pin.sql',
+  'utf8'
+);
 const migration = fs.readFileSync(
   'supabase/migrations/20261113012000_harden_marketplace_shop_location_read_access.sql',
   'utf8'
@@ -76,3 +84,36 @@ assert.ok(
 );
 
 console.log('PASS: marketplace location privacy, narrow public shop fields, owner-only shop settings and browser-role privilege hardening.');
+
+assert.ok(
+  abuseLimits.includes("SECURITY DEFINER") &&
+  abuseLimits.includes("marketplace-reservation-buyer:") &&
+  abuseLimits.includes("marketplace-reservation-shop:") &&
+  abuseLimits.includes("v_buyer_pending >= 5") &&
+  abuseLimits.includes("v_shop_pending >= 3"),
+  'Reservations must be serialized and capped at five pending per buyer and three per shop.'
+);
+assert.ok(
+  abuseLimits.includes("marketplace_messages_insert_rate_limit") &&
+  abuseLimits.includes("marketplace_store_subscriptions_insert_rate_limit") &&
+  abuseLimits.includes("v_limit := 30") &&
+  abuseLimits.includes("v_limit := 20"),
+  'Message sending and shop follows must have database-enforced hourly rate limits.'
+);
+assert.ok(
+  abuseLimits.includes("private.marketplace_action_rate_limits") &&
+  abuseLimits.includes("ENABLE ROW LEVEL SECURITY") &&
+  abuseLimits.includes("REVOKE ALL ON TABLE private.marketplace_action_rate_limits"),
+  'Rate-limit counters must remain private and not be readable or editable by clients.'
+);
+assert.ok(
+  identityHardening.includes("CREATE OR REPLACE FUNCTION public.is_marketplace_registered_user()") &&
+  identityHardening.includes("coalesce(auth.jwt() ->> 'is_anonymous', 'false') <> 'true'"),
+  'The guest-versus-registered-user gate must be committed explicitly in migrations.'
+);
+assert.ok(
+  identityHardening.includes("FROM private.sellbook_admins AS a") &&
+  identityHardening.includes("FROM private.user_app_pins AS p") &&
+  identityHardening.includes("RETURN false"),
+  'Administrator accounts without a registered PIN must fail the privileged PIN gate.'
+);
