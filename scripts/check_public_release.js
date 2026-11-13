@@ -66,7 +66,7 @@ for (const section of [
 assert.ok(privacy.includes('./terms.html') && terms.includes('./privacy.html'), 'The legal pages must link to one another.');
 
 const deletionFunction = read('supabase/functions/delete-my-account/index.ts');
-const deletionMigration = read('supabase/migrations/20261113110000_assert_account_deletion_authorized.sql');
+const deletionMigration = read('supabase/migrations/20261113102118_assert_account_deletion_authorized.sql');
 assert.ok(app.includes("supabaseClient.functions.invoke('delete-my-account'"), 'Permanent account deletion must use server-side storage cleanup.');
 for (const bucket of ['product-images', 'marketplace-product-images', 'marketplace-shop-fronts', 'buybook-message-attachments']) {
   assert.ok(deletionFunction.includes('"'+bucket+'"'), 'Account deletion must clean the '+bucket+' storage bucket.');
