@@ -307,9 +307,11 @@
     }
     card.hidden = false;
     cardMessage("Checking your Buybook shop connection…");
-    const { data, error } = await client.from("marketplace_shops")
-      .select("owner_id,name,is_connected,is_active,latitude,longitude,location_accuracy_m,location_captured_at,location_confirmed_at,location_source")
-      .eq("owner_id", requestedUserId).maybeSingle();
+    // Shop coordinates and private location metadata are no longer readable
+    // through the public Data API table grants. Read the seller's own shop only
+    // through the SECURITY DEFINER owner-scoped RPC.
+    const { data, error } = await client.rpc("get_my_marketplace_shop");
+
     if (requestEpoch !== sellerSessionEpoch || requestedUserId !== userId) return;
     if (error) {
       cardMessage("Your shop connection could not be checked. Please retry.", "error");
