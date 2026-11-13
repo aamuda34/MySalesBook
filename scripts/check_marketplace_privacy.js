@@ -158,3 +158,32 @@ assert.ok(
   'Replacing a reservation notification must create a fresh unread event.'
 );
 
+
+const shopFrontVerification = fs.readFileSync(
+  "supabase/functions/verify-buybook-shop-front/index.ts",
+  "utf8"
+);
+assert.ok(
+  shopFrontVerification.includes("await userClient.auth.getUser(token)"),
+  "Seller shop-front verification must validate the caller with Supabase Auth before using service-role access."
+);
+assert.ok(
+  shopFrontVerification.includes('keyFromEnv("SUPABASE_PUBLISHABLE_KEYS", "SUPABASE_ANON_KEY")'),
+  "Shop-front verification must use a publishable key to validate the signed-in session."
+);
+assert.ok(
+  shopFrontVerification.includes("user.is_anonymous === true") &&
+  !shopFrontVerification.includes("function subject("),
+  "Shop-front verification must reject anonymous and unverified-token identities rather than trusting a decoded JWT subject."
+);
+assert.ok(
+  shopFrontVerification.includes("segments.every((segment) => segment.length > 0 && segment !== \".\" && segment !== \"..\")") &&
+  shopFrontVerification.includes('path.includes("\\\\")'),
+  "Shop-front verification must reject empty, traversal and backslash path segments."
+);
+console.log("Shop-front verification authentication and storage-path checks passed.");
+
+assert.ok(
+  shopFrontVerification.includes('authorization.match(/^Bearer\\s+(.+)$/i)?.[1]'),
+  "The bearer token must be parsed with a whitespace matcher, not a literal backslash."
+);
