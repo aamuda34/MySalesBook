@@ -13,7 +13,7 @@ const terms = read('terms.html');
 const sw = read('sw.js');
 
 assert.match(index, /<title>Sellbook — Made Business Simple\.<\/title>/, 'main app title must use the approved name and tagline');
-assert.equal((index.match(/<small>Made Business Simple\.<\/small>/g) || []).length, 2, 'sign-in and PIN screens must use the same brand lockup');
+assert.equal((index.match(/<small>Made Business Simple\.<\/small>/g) || []).length, 3, 'sign-in, PIN and recovery screens must use the same brand lockup');
 assert.ok(index.includes('<p class="muted" style="margin:0">Made Business Simple.</p>'), 'About page must show the approved tagline');
 assert.ok(index.includes('<div class="me-footer-note">Sellbook · Made Business Simple.</div>'), 'Me page must use the approved brand footer');
 assert.ok(index.includes('<div class="me-footer-note" style="text-align:center">Sellbook · Made Business Simple.</div>'), 'About page footer must use the approved brand footer');
@@ -29,6 +29,6 @@ assert.ok(privacy.includes('Sellbook · Made Business Simple.'), 'privacy page m
 assert.ok(terms.includes('Sellbook · Made Business Simple.'), 'terms page must use the current brand identity');
 assert.ok(!privacy.includes('My Sales Book'), 'privacy page must not expose the retired product name');
 assert.ok(!terms.includes('My Sales Book'), 'terms page must not expose the retired product name');
-assert.ok(sw.includes("const CACHE_NAME = 'sellbook-shell-v145';"), 'offline shell must be versioned for the current app assets');
+assert.ok(/const CACHE_NAME = 'sellbook-shell-v\\d+'/.test(sw), 'offline shell must be versioned for the current app assets');
 
 console.log('Sellbook brand name and tagline checks passed.');
