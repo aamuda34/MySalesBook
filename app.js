@@ -6898,8 +6898,11 @@ if (supabaseClient) {
 // Offline service-worker registration with a user-controlled update.
 if ('serviceWorker' in navigator) {
   let sellbookReloadingForUpdate = false;
+  let sellbookUpdateWasAccepted = false;
   navigator.serviceWorker.addEventListener('controllerchange', function () {
-    if (sellbookReloadingForUpdate) return;
+    // The first-ever service-worker install may claim the page automatically.
+    // Reload only after the user explicitly accepts an available update.
+    if (!sellbookUpdateWasAccepted || sellbookReloadingForUpdate) return;
     sellbookReloadingForUpdate = true;
     window.location.reload();
   });
@@ -6922,6 +6925,7 @@ if ('serviceWorker' in navigator) {
       if (!registration.waiting) return;
       button.disabled = true;
       button.textContent = 'Updating…';
+      sellbookUpdateWasAccepted = true;
       registration.waiting.postMessage({ type: 'SKIP_WAITING' });
     });
     notice.append(message, button);
