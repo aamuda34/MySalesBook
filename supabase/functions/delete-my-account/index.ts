@@ -131,8 +131,8 @@ async function removeObjects(
   bucket: string,
   paths: string[],
 ): Promise<void> {
-  for (let offset = 0; offset < paths.length; offset += 100) {
-    const { error } = await admin.storage.from(bucket).remove(paths.slice(offset, offset + 100));
+  for (let offset = 0; offset < paths.length; offset += 1000) {
+    const { error } = await admin.storage.from(bucket).remove(paths.slice(offset, offset + 1000));
     if (error) throw new Error("Could not finish removing stored files in " + bucket + ". Retry account deletion or contact Sellbook Support.");
   }
 }
