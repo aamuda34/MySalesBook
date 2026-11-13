@@ -2273,16 +2273,22 @@ document.getElementById('buybookConnectionForm')?.addEventListener('submit',asyn
    throw new Error('Choose a photo of the front of your shop.');
   }
 
-  notifyStatus(message,'Checking that the photo shows the front of a shop…','info');
-  const {data:photoCheck,error:photoCheckError}=await supabaseClient.functions.invoke('verify-buybook-shop-front',{
-   body:{storage_path:shopFrontPath}
-  });
-  if(photoCheckError)throw new Error('Sellbook could not check this photo. Please try again. '+(photoCheckError.message||''));
-  if(photoCheck?.status!=='approved'||!photoCheck?.verified_at){
-   throw new Error(photoCheck?.message||'This photo does not clearly show a shop front. Take a clear photo of your shop entrance and try again.');
+  if(buybookShopFrontImageFile){
+   // Only a newly uploaded image needs another AI check. A location/name edit
+   // can safely reuse the same approved file; the database also verifies its object ID.
+   notifyStatus(message,'Checking that the photo shows the front of a shop…','info');
+   const {data:photoCheck,error:photoCheckError}=await supabaseClient.functions.invoke('verify-buybook-shop-front',{
+    body:{storage_path:shopFrontPath}
+   });
+   if(photoCheckError)throw new Error('Sellbook could not check this photo. Please try again. '+(photoCheckError.message||''));
+   if(photoCheck?.status!=='approved'||!photoCheck?.verified_at){
+    throw new Error(photoCheck?.message||'This photo does not clearly show a shop front. Take a clear photo of your shop entrance and try again.');
+   }
+   shopFrontVerifiedAt=photoCheck.verified_at;
+   setBuybookShopFrontStatus('Shop-front photo checked successfully.','success');
+  }else if(!previousShopFrontPath||shopFrontPath!==previousShopFrontPath){
+   throw new Error('Your saved shop-front photo could not be matched to its approved upload. Choose the photo again to verify it.');
   }
-  shopFrontVerifiedAt=photoCheck.verified_at;
-  setBuybookShopFrontStatus('Shop-front photo checked successfully.','success');
 
   const shop={
    owner_id:user.id,
