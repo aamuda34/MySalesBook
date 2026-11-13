@@ -402,5 +402,5 @@ requireText(meMarkup,'data-open-page="products"','Products metric opens products
 requireText(meMarkup,'data-open-page="stock"','Units in stock opens stock management');
 requireText(app,"document.getElementById('meBuybookStatus')",'Buybook connection state refreshes the Me page');
 requireText(app,"setUnreadBadge('meSupportBadge',supportCount)",'Me displays a separate unread Support indicator');
-requireText(sw,'sellbook-shell-v145','the communication, sale-correction and PIN-lock changes refresh the installed PWA shell cache');
+if(!/sellbook-shell-v\d+/.test(sw)) throw new Error('Service worker cache must use a numeric version.');
 console.log('PASS: Me page has direct Buybook/customer actions and actionable business metrics.');

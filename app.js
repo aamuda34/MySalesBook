@@ -2060,9 +2060,7 @@ async function loadBuybookConnection(options={}){
  if(overviewMessage)overviewMessage.textContent='';
  showLoading();
  try{
-  const {data,error}=await supabaseClient.from('marketplace_shops')
-   .select('name,description,phone,address,city,state,is_connected,is_active,latitude,longitude,location_accuracy_m,location_captured_at,location_confirmed_at,location_source,shop_front_image_url,shop_front_image_path,shop_front_confirmed_at')
-   .eq('owner_id',requestedUserId).maybeSingle();
+  const {data,error}=await supabaseClient.rpc('get_my_marketplace_shop');
   if(!current())return;
   if(error)throw error;
   buybookShopRecordCache=data||null;
@@ -2529,8 +2527,8 @@ async function cloudLoadAll() {
   setTimeout(async () => {
     if (!cloudUser || cloudUser.id !== user.id || !navigator.onLine) return;
     try {
-      const {data:shop}=await supabaseClient.from('marketplace_shops').select('is_connected,is_active').eq('owner_id',user.id).maybeSingle();
-      if(!shop?.is_connected||!shop?.is_active) return;
+      const {data:shop,error:shopError}=await supabaseClient.rpc('get_my_marketplace_shop');
+      if(shopError||!shop?.is_connected||!shop?.is_active) return;
       const imageProducts=products.filter(product=>product.imagePath);
       // Fetch listing image states in batches instead of making one database
       // request per product (an N+1 request pattern).
@@ -3445,7 +3443,7 @@ function renderHomePanelSummary(){
  const salesAmount=document.getElementById('todaySales');
  if(salesAmount)salesAmount.dataset.actualAmount=money(salesToday);
  document.querySelectorAll('#todayNet').forEach(amount=>{amount.dataset.actualAmount=money(grossToday-expensesToday);});
- const homeProductCount=document.getElementById('homeProductCount');
+ const homeProductCount=document.getElementById('productCountHome');
  if(homeProductCount)homeProductCount.textContent=String(getActiveProducts().length);
  setSalesAmountVisibility();
 
@@ -6897,10 +6895,58 @@ if (supabaseClient) {
   refreshAccountStatus();
 }
 
-// Offline service-worker registration.
+// Offline service-worker registration with a user-controlled update.
 if ('serviceWorker' in navigator) {
+  let sellbookReloadingForUpdate = false;
+  let sellbookUpdateWasAccepted = false;
+  navigator.serviceWorker.addEventListener('controllerchange', function () {
+    // The first-ever service-worker install may claim the page automatically.
+    // Reload only after the user explicitly accepts an available update.
+    if (!sellbookUpdateWasAccepted || sellbookReloadingForUpdate) return;
+    sellbookReloadingForUpdate = true;
+    window.location.reload();
+  });
+
+  function showSellbookUpdateNotice(registration) {
+    if (!registration.waiting || !navigator.serviceWorker.controller ||
+        document.getElementById('sellbookUpdateNotice')) return;
+    const notice = document.createElement('div');
+    notice.id = 'sellbookUpdateNotice';
+    notice.setAttribute('role', 'status');
+    notice.setAttribute('aria-live', 'polite');
+    notice.style.cssText = 'position:fixed;z-index:99990;left:12px;right:12px;bottom:calc(76px + env(safe-area-inset-bottom,0px));display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 14px;border:1px solid #d7e2d8;border-radius:13px;background:#fff;color:#173b25;box-shadow:0 8px 28px rgba(20,50,30,.16);font:600 13px/1.4 system-ui,sans-serif;';
+    const message = document.createElement('span');
+    message.textContent = 'A Sellbook update is ready.';
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.textContent = 'Refresh';
+    button.style.cssText = 'min-height:40px;padding:0 16px;border:0;border-radius:9px;background:#14532d;color:#fff;font:700 13px system-ui,sans-serif;';
+    button.addEventListener('click', function () {
+      if (!registration.waiting) return;
+      button.disabled = true;
+      button.textContent = 'Updating…';
+      sellbookUpdateWasAccepted = true;
+      registration.waiting.postMessage({ type: 'SKIP_WAITING' });
+    });
+    notice.append(message, button);
+    document.body.append(notice);
+  }
+
   window.addEventListener('load', function () {
     navigator.serviceWorker.register('./sw.js')
+      .then(function (registration) {
+        if (registration.waiting) showSellbookUpdateNotice(registration);
+        registration.addEventListener('updatefound', function () {
+          const installing = registration.installing;
+          if (!installing) return;
+          installing.addEventListener('statechange', function () {
+            if (installing.state === 'installed' && navigator.serviceWorker.controller) {
+              showSellbookUpdateNotice(registration);
+            }
+          });
+        });
+        registration.update().catch(function () {});
+      })
       .catch(function (error) {
         console.warn('Offline app setup could not start:', error);
       });

@@ -1,12 +1,13 @@
 'use strict';
 
-const CACHE_NAME = 'sellbook-shell-v157';
+const CACHE_NAME = 'sellbook-shell-v159';
 // These files are required for the signed-in app shell to start offline.
 const CORE_SHELL = [
   './',
   './index.html',
   './styles.css',
   './app.js',
+  './startup-diagnostic.js',
   './stock-history-tabs.js',
   './location-sharing.js',
   './location-sharing.css',
@@ -32,8 +33,12 @@ self.addEventListener('install', event => {
         console.warn('Optional offline resource was not cached:', path, error);
       })
     ));
-    await self.skipWaiting();
+    // Wait for the user to choose when the new version should take over.
   })());
+});
+
+self.addEventListener('message', event => {
+  if (event.data && event.data.type === 'SKIP_WAITING') self.skipWaiting();
 });
 
 self.addEventListener('activate', event => {
