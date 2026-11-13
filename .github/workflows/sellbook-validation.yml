@@ -147,8 +147,8 @@ jobs:
           grep -q 'auth.getUser(token)' supabase/functions/delete-my-account/index.ts
           grep -q 'rpc("assert_account_deletion_authorized")' supabase/functions/delete-my-account/index.ts
           grep -q 'rpc("delete_my_account")' supabase/functions/delete-my-account/index.ts
-          test -s supabase/migrations/20261113110000_assert_account_deletion_authorized.sql
-          grep -q 'private.sellbook_security_action_grants' supabase/migrations/20261113110000_assert_account_deletion_authorized.sql
+          test -s supabase/migrations/20261113102118_assert_account_deletion_authorized.sql
+          grep -q 'private.sellbook_security_action_grants' supabase/migrations/20261113102118_assert_account_deletion_authorized.sql
           grep -q 'verify_app_pin_for_account_deletion' supabase/migrations/20261103062107_secure_account_action_email_and_pin_verification.sql
           grep -q "action='delete_account'" supabase/migrations/20261103062107_secure_account_action_email_and_pin_verification.sql
           grep -q 'Enter and confirm your six-digit Sellbook PIN' supabase/migrations/20261103062107_secure_account_action_email_and_pin_verification.sql
