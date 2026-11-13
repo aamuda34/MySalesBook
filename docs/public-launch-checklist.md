@@ -1,8 +1,21 @@
 # Sellbook public launch checklist
 
-Last reviewed: 7 November 2026
+Last reviewed: 13 November 2026
 
 This checklist is the release gate for unrestricted public registration. A successful deployment or automated source check does not replace live end-to-end acceptance or professional legal/regulatory sign-off.
+
+## Production verification update — 13 November 2026
+
+The following checks were performed against the live production services after the security rollout. They are evidence of configuration and source state, not a substitute for the live user-acceptance tests below.
+
+- Production Vercel deployment for commit `da6718dce6690f680b4d417b0da700e49da09010` reported `READY`; the primary application domain returned HTTP 200.
+- A live Supabase audit confirmed row-level security on all 24 public tables reviewed. The anonymous database role had no public-table INSERT, UPDATE, DELETE or TRUNCATE privileges. Anonymous reads remain limited to intentionally public marketplace discovery data; shop GPS coordinates, precise location metadata and private owner details are not exposed through direct table reads.
+- The current Sellbook client reads its own private Buybook shop profile through the owner-scoped `get_my_marketplace_shop()` RPC. Direct reads of restricted location columns are intentionally denied.
+- The Cloudflare `sellbook-shopfront-check` Worker settings were read back after updating them: query-string redaction is enabled; persistent and invocation logging are disabled; tracing is disabled. The authenticated image-classification smoke test remains open below.
+- Supabase logs showed no PostgreSQL ERROR/FATAL/PANIC events in the 60 minutes before this review, and no 5xx responses in the Supabase API, Edge Function, Auth or Storage streams in the preceding 24-hour log window. Earlier permission-denied records came from requests attempting to select restricted `marketplace_shops` location columns during the rollout; PostgreSQL denied those requests rather than returning the protected fields. The reviewed current Sellbook read path uses the owner-scoped RPC.
+- Supabase's leaked-password protection remains disabled by the proprietor's explicit decision because of the current budget constraint. This is a consciously accepted residual risk, not a completed security control.
+
+These checks do not prove successful registration, consent rejection, shop-front classification, offline recovery, backup restoration, or cross-account isolation on real devices. Those tests remain mandatory below.
 
 ## Technical release
 
