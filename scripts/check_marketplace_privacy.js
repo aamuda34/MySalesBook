@@ -8,6 +8,10 @@ const migration = fs.readFileSync(
   'supabase/migrations/20261113012000_harden_marketplace_shop_location_read_access.sql',
   'utf8'
 );
+const lockdown = fs.readFileSync(
+  'supabase/migrations/20261113013000_restrict_marketplace_shop_sensitive_column_reads.sql',
+  'utf8'
+);
 
 assert.equal(
   (app.match(/rpc\('get_my_marketplace_shop'\)/g) || []).length,
@@ -33,15 +37,15 @@ assert.ok(
   'Least-privilege table defaults must cover both project table-owner roles.'
 );
 assert.ok(
-  migration.includes('REVOKE SELECT ON TABLE public.marketplace_shops FROM anon, authenticated'),
-  'Direct browser SELECT on the private shop table must be removed.'
+  lockdown.includes('REVOKE SELECT ON TABLE public.marketplace_shops FROM anon, authenticated'),
+  'The staged final lockdown must remove direct browser SELECT on the private shop table.'
 );
 assert.ok(
-  migration.includes('GRANT SELECT (') &&
-  migration.includes('shop_front_image_url') &&
-  migration.includes('is_connected') &&
-  migration.includes('is_active'),
-  'Only the intended catalogue-safe columns may remain directly readable.'
+  lockdown.includes('GRANT SELECT (') &&
+  lockdown.includes('shop_front_image_url') &&
+  lockdown.includes('is_connected') &&
+  lockdown.includes('is_active'),
+  'Only the intended catalogue-safe columns may remain directly readable after client rollout.'
 );
 assert.ok(
   migration.includes('WITH (security_invoker = true, security_barrier = true)') &&
