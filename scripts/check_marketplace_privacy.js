@@ -4,6 +4,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 
 const app = fs.readFileSync('app.js', 'utf8');
+const locationSharing = fs.readFileSync('location-sharing.js', 'utf8');
 const abuseLimits = fs.readFileSync(
   'supabase/migrations/20261113014000_marketplace_abuse_limits.sql',
   'utf8'
@@ -36,6 +37,14 @@ assert.ok(
   app.includes(".from('marketplace_shops').insert(shop)") &&
   !/\.from\(['"]marketplace_shops['"]\)\.upsert\(/.test(app),
   'Seller shop setup must use the owner-scoped read RPC plus separate INSERT/UPDATE operations; ON CONFLICT upsert requires a broad SELECT grant and breaks private-column lockdown.'
+);
+assert.ok(
+  !/\.from\(['"]marketplace_shops['"]\)\s*\.select\(/.test(locationSharing),
+  'Live-location seller setup must not directly SELECT private shop columns.'
+);
+assert.ok(
+  /client\.rpc\(["']get_my_marketplace_shop["']\)/.test(locationSharing),
+  'Live-location seller setup must use the owner-scoped shop RPC.'
 );
 assert.ok(
   migration.includes('REVOKE MAINTAIN, TRUNCATE, REFERENCES, TRIGGER') &&
