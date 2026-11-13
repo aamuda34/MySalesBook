@@ -229,8 +229,8 @@ reservation_notification_migration = Path("supabase/migrations/20261101201144_ma
 reservation_notification_function = Path("supabase/functions/notify-reservation-decision/index.ts").read_text(encoding="utf-8")
 if "app_notifications_reservation_kind_uidx" not in reservation_notification_migration or "reservation_id, kind" not in reservation_notification_migration:
     raise SystemExit("Reservation notification idempotency index is missing.")
-if 'onConflict: "reservation_id,kind"' not in reservation_notification_function or "ignoreDuplicates: true" not in reservation_notification_function:
-    raise SystemExit("Reservation notification function must safely ignore duplicate retries.")
+if 'notification_source: "reservation_status_trigger"' not in reservation_notification_function or 'app_notifications").upsert(' in reservation_notification_function:
+    raise SystemExit("Reservation notification function must use the transactional database trigger rather than create a duplicate notification.")
 print("Retry-safe reservation notification checks passed.")
 
 # Buybook activity and notification failure recovery must remain complete.
@@ -243,7 +243,7 @@ failed_buybook_recovery = [label for label, passed in buybook_recovery_checks.it
 if failed_buybook_recovery:
     raise SystemExit("Buybook activity/recovery checks failed: " + "; ".join(failed_buybook_recovery))
 print(f"Buybook activity and notification recovery checks passed ({len(buybook_recovery_checks)} checks).")
-if 'replace(/^Bearer\\s+/i, "")' not in reservation_notification_function:
+if 'authorization.match(/^Bearer\\s+(.+)$/i)?.[1]' not in reservation_notification_function:
     raise SystemExit("Reservation notification must correctly extract the bearer token.")
 print("Reservation notification authentication parsing check passed.")
 cache_match = re.search(r"const CACHE_NAME = 'sellbook-shell-v(\d+)';", service_worker)
