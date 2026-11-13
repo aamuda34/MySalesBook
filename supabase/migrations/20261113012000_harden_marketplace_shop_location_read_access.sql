@@ -3,15 +3,15 @@
 BEGIN;
 
 -- TRUNCATE bypasses RLS. Browser roles must never be able to truncate app tables.
-REVOKE TRUNCATE, REFERENCES, TRIGGER
+REVOKE MAINTAIN, TRUNCATE, REFERENCES, TRIGGER
   ON ALL TABLES IN SCHEMA public
   FROM anon, authenticated;
 
 -- Keep the same least-privilege rule for tables created by either project owner.
 ALTER DEFAULT PRIVILEGES FOR ROLE supabase_admin IN SCHEMA public
-  REVOKE TRUNCATE, REFERENCES, TRIGGER ON TABLES FROM anon, authenticated;
+  REVOKE MAINTAIN, TRUNCATE, REFERENCES, TRIGGER ON TABLES FROM anon, authenticated;
 ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public
-  REVOKE TRUNCATE, REFERENCES, TRIGGER ON TABLES FROM anon, authenticated;
+  REVOKE MAINTAIN, TRUNCATE, REFERENCES, TRIGGER ON TABLES FROM anon, authenticated;
 
 -- Remove table-wide and any pre-existing column-level reads on shop records.
 REVOKE SELECT ON TABLE public.marketplace_shops FROM anon, authenticated;
