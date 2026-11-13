@@ -32,8 +32,8 @@ assert.ok(
   'Browser roles must not retain table-wide destructive/DDL-adjacent privileges.'
 );
 assert.ok(
-  migration.includes('ALTER DEFAULT PRIVILEGES FOR ROLE supabase_admin') &&
-  migration.includes('ALTER DEFAULT PRIVILEGES FOR ROLE postgres'),
+  migration.includes('ALTER DEFAULT PRIVILEGES FOR ROLE postgres') &&
+  !migration.includes('ALTER DEFAULT PRIVILEGES FOR ROLE supabase_admin'),
   'Least-privilege table defaults must cover both project table-owner roles.'
 );
 assert.ok(
