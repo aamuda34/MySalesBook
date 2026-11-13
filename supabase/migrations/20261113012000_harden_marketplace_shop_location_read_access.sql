@@ -8,8 +8,9 @@ REVOKE MAINTAIN, TRUNCATE, REFERENCES, TRIGGER
   FROM anon, authenticated;
 
 -- Keep the same least-privilege rule for tables created by either project owner.
-ALTER DEFAULT PRIVILEGES FOR ROLE supabase_admin IN SCHEMA public
-  REVOKE MAINTAIN, TRUNCATE, REFERENCES, TRIGGER ON TABLES FROM anon, authenticated;
+-- Supabase's platform-owned supabase_admin defaults cannot be changed by
+-- the project's postgres migration role. Table creation must remain migration-led;
+-- the new project-owned postgres defaults below are hardened here.
 ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public
   REVOKE MAINTAIN, TRUNCATE, REFERENCES, TRIGGER ON TABLES FROM anon, authenticated;
 
