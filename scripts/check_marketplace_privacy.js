@@ -31,8 +31,11 @@ assert.ok(
   'Sellbook must not directly SELECT private marketplace shop columns.'
 );
 assert.ok(
-  /\.from\(['"]marketplace_shops['"]\)\.upsert\(/.test(app),
-  'Seller shop setup must continue to save the seller-owned shop record.'
+  app.includes("const {data:existingShop,error:existingShopError}=await supabaseClient.rpc('get_my_marketplace_shop')") &&
+  app.includes(".from('marketplace_shops').update(shop).eq('owner_id',user.id)") &&
+  app.includes(".from('marketplace_shops').insert(shop)") &&
+  !/\.from\(['"]marketplace_shops['"]\)\.upsert\(/.test(app),
+  'Seller shop setup must use the owner-scoped read RPC plus separate INSERT/UPDATE operations; ON CONFLICT upsert requires a broad SELECT grant and breaks private-column lockdown.'
 );
 assert.ok(
   migration.includes('REVOKE MAINTAIN, TRUNCATE, REFERENCES, TRIGGER') &&
