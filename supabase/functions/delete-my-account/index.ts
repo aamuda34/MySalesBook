@@ -85,8 +85,9 @@ async function listFilesRecursively(
 async function collectConversationAttachments(
   admin: ReturnType<typeof createClient>,
   userId: string,
+  ownedFolderPaths: string[] = [],
 ): Promise<string[]> {
-  const candidates = new Set<string>();
+  const candidates = new Set<string>(ownedFolderPaths.filter(validRelativePath));
   let offset = 0;
   for (let page = 0; page < 100; page++) {
     const { data, error } = await admin.from("marketplace_messages")
@@ -178,16 +179,19 @@ Deno.serve(async (request: Request) => {
     const byBucket = new Map<string, Set<string>>();
     for (const bucket of BUCKETS) byBucket.set(bucket, new Set());
 
-    // Remove every file owned in the user's own folder, including nested folders.
+    // Remove every owned file except message attachments, which need an
+    // additional reference check before they can be deleted.
     for (const bucket of BUCKETS) {
+      if (bucket === "buybook-message-attachments") continue;
       const files = await listFilesRecursively(admin, bucket, user.id);
       for (const path of files) byBucket.get(bucket)!.add(path);
     }
 
-    // Message attachments can be stored under the shop owner's or buyer's
-    // directory. Include every attachment in conversations involving this
-    // account, but retain any object that is still referenced by another user.
-    const conversationAttachments = await collectConversationAttachments(admin, user.id);
+    // Include both files stored in this user's message folder and files used
+    // in conversations involving this account. A shared attachment is kept
+    // even when its object happens to be inside the deleting user's folder.
+    const ownMessageFiles = await listFilesRecursively(admin, "buybook-message-attachments", user.id);
+    const conversationAttachments = await collectConversationAttachments(admin, user.id, ownMessageFiles);
     for (const path of conversationAttachments) byBucket.get("buybook-message-attachments")!.add(path);
 
     for (const bucket of BUCKETS) {
