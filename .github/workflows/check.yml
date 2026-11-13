@@ -1,7 +1,7 @@
 name: Check Sellbook
 on:
   push:
-    branches: [main, account-offline-upgrade, "sellbook-live-location-v1"]
+    branches: [main, account-offline-upgrade, "sellbook-live-location-v1", "launch-readiness-fixes-2026-11-13"]
   pull_request:
     branches: [main]
 jobs:
