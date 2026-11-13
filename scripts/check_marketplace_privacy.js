@@ -23,7 +23,7 @@ const lockdown = fs.readFileSync(
 
 assert.equal(
   (app.match(/rpc\('get_my_marketplace_shop'\)/g) || []).length,
-  2,
+  3,
   'Sellbook reads private shop settings only through the owner-scoped RPC.'
 );
 assert.ok(
