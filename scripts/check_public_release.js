@@ -74,6 +74,12 @@ for (const bucket of ['product-images', 'marketplace-product-images', 'marketpla
 assert.ok(deletionFunction.includes('marketplace_messages') && deletionFunction.includes('attachment_path'), 'Account deletion must include message attachments.');
 assert.ok(deletionFunction.includes('auth.getUser(token)') && deletionFunction.includes('rpc("delete_my_account")'), 'Server cleanup must validate the caller and preserve the PIN-gated database deletion RPC.');
 assert.ok(deletionFunction.includes('rpc("assert_account_deletion_authorized")'), 'Server cleanup must verify the one-shot PIN authorization before deleting any stored files.');
+assert.ok(
+  deletionFunction.includes('if (bucket === "buybook-message-attachments") continue;') &&
+  deletionFunction.includes('const ownMessageFiles = await listFilesRecursively(admin, "buybook-message-attachments", user.id);') &&
+  deletionFunction.includes('collectConversationAttachments(admin, user.id, ownMessageFiles)'),
+  'Message attachments in the deleting user folder must also pass the shared-reference check before removal.'
+);
 assert.ok(deletionMigration.includes('SECURITY DEFINER') && deletionMigration.includes('private.sellbook_security_action_grants') && deletionMigration.includes('GRANT EXECUTE ON FUNCTION public.assert_account_deletion_authorized() TO authenticated'), 'The account-deletion preflight RPC must check the current user and session without exposing private security state.');
 const vercelConfig = JSON.parse(read('vercel.json'));
 const globalHeaders = vercelConfig.headers.find((entry) => entry.source === '/(.*)')?.headers || [];
