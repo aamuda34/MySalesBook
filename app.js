@@ -3445,7 +3445,7 @@ function renderHomePanelSummary(){
  const salesAmount=document.getElementById('todaySales');
  if(salesAmount)salesAmount.dataset.actualAmount=money(salesToday);
  document.querySelectorAll('#todayNet').forEach(amount=>{amount.dataset.actualAmount=money(grossToday-expensesToday);});
- const homeProductCount=document.getElementById('homeProductCount');
+ const homeProductCount=document.getElementById('productCountHome');
  if(homeProductCount)homeProductCount.textContent=String(getActiveProducts().length);
  setSalesAmountVisibility();
 
