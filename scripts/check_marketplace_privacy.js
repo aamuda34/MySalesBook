@@ -182,3 +182,8 @@ assert.ok(
   "Shop-front verification must reject empty, traversal and backslash path segments."
 );
 console.log("Shop-front verification authentication and storage-path checks passed.");
+
+assert.ok(
+  shopFrontVerification.includes('authorization.match(/^Bearer\\s+(.+)$/i)?.[1]'),
+  "The bearer token must be parsed with a whitespace matcher, not a literal backslash."
+);
