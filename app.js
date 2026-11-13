@@ -5615,32 +5615,11 @@ document.getElementById('recoveryPasswordForm').addEventListener('submit', async
 
 async function finishVerifiedAccountDeletion(user){
   if(!pendingDeleteAccountUserId||pendingDeleteAccountUserId!==user.id)throw Error('The account selected for deletion changed. Start again.');
-  const buckets=['marketplace-product-images','product-images'];
-  const pathsByBucket={};
-  for(const bucket of buckets){
-    const paths=[];let offset=0;
-    for(let page=0;page<100;page++){
-      const {data:files,error:listError}=await supabaseClient.storage.from(bucket).list(user.id,{limit:1000,offset,sortBy:{column:'name',order:'asc'}});
-      if(listError)throw Error('Could not list your '+bucket+' files. Your account records have not been deleted.');
-      const pageFiles=files||[];
-      paths.push(...pageFiles.filter(file=>file?.id&&file?.name).map(file=>user.id+'/'+file.name));
-      if(pageFiles.length<1000)break;
-      offset+=pageFiles.length;
-      if(page===99)throw Error('This account has too many stored photos to safely finish deletion in one attempt. Contact Sellbook support.');
-    }
-    pathsByBucket[bucket]=paths;
-  }
-  for(const bucket of buckets){
-    const paths=pathsByBucket[bucket];
-    for(let offset=0;offset<paths.length;offset+=100){
-      const {error:removeError}=await supabaseClient.storage.from(bucket).remove(paths.slice(offset,offset+100));
-      if(removeError)throw Error('Could not finish removing your '+bucket+' files. Your account and business records remain, but some photos may already have been removed. Retry deletion or contact Sellbook support.');
-    }
-  }
   const latest=await requireCloudUser();
   if(latest.id!==user.id)throw Error('Your signed-in account changed. No account records were deleted.');
-  const {error}=await supabaseClient.rpc('delete_my_account');
-  if(error)throw error;
+  notifyStatus('deleteAccountPinMessage','Removing your saved files and cloud records securely…','info');
+  const {data,error}=await supabaseClient.functions.invoke('delete-my-account',{body:{}});
+  if(error||data?.success!==true)throw Error(data?.message||error?.message||'Sellbook could not finish deleting this account. Your account records were not deleted. Please try again or contact Sellbook Support.');
   localStorage.removeItem(cloudCacheKey(user.id));localStorage.removeItem(cloudQueueKey(user.id));
   localStorage.removeItem('my-sales-book-imported-v1:'+user.id);
   cloudUser=null;cloudReady=false;workspaceReady=false;pendingDeleteAccountUserId=null;
@@ -5648,7 +5627,7 @@ async function finishVerifiedAccountDeletion(user){
   await supabaseClient.auth.signOut({scope:'local'}).catch(()=>{});
   document.getElementById('appWorkspace').classList.add('hidden');
   await refreshAccountStatus();
-  cloudMessage('Account and cloud business records were deleted. Any separate local-device backup was not deleted.');
+  cloudMessage('Account, cloud business records, product photos, shop-front photos and message attachments were deleted. Any separate local-device backup was not deleted.');
 }
 document.getElementById('deleteAccountBtn').addEventListener('click',async()=>{
   const first=prompt('Deleting your account permanently deletes your cloud products, sales, expenses and product photos. This cannot be undone. Type DELETE to continue.');
