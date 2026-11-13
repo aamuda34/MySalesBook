@@ -78,6 +78,8 @@ assert.ok(
   deletionFunction.includes('if (bucket === "buybook-message-attachments") continue;') &&
   deletionFunction.includes('const ownMessageFiles = await listFilesRecursively(admin, "buybook-message-attachments", user.id);') &&
   deletionFunction.includes('collectConversationAttachments(admin, user.id, ownMessageFiles)'),
+  deletionFunction.includes('offset += 1000') &&
+  deletionFunction.includes('paths.slice(offset, offset + 1000)')
   'Message attachments in the deleting user folder must also pass the shared-reference check before removal.'
 );
 assert.ok(deletionMigration.includes('SECURITY DEFINER') && deletionMigration.includes('private.sellbook_security_action_grants') && deletionMigration.includes('GRANT EXECUTE ON FUNCTION public.assert_account_deletion_authorized() TO authenticated'), 'The account-deletion preflight RPC must check the current user and session without exposing private security state.');
