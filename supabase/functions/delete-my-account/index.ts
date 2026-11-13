@@ -163,6 +163,13 @@ Deno.serve(async (request: Request) => {
   const user = userData?.user;
   if (authError || !user) return respond(401, { message: "Your sign-in session has expired. Sign in again." });
 
+  // Check the one-shot PIN authorization before removing any files. This
+  // RPC is read-only; delete_my_account consumes the grant after cleanup.
+  const { data: deletionAuthorized, error: authorizationError } = await userClient.rpc("assert_account_deletion_authorized");
+  if (authorizationError || deletionAuthorized !== true) {
+    return respond(403, { message: "Your account-deletion PIN confirmation has expired. Enter your six-digit PIN again." });
+  }
+
   const admin = createClient(url, serviceRoleKey, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
