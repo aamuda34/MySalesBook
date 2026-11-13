@@ -6897,10 +6897,54 @@ if (supabaseClient) {
   refreshAccountStatus();
 }
 
-// Offline service-worker registration.
+// Offline service-worker registration with a user-controlled update.
 if ('serviceWorker' in navigator) {
+  let sellbookReloadingForUpdate = false;
+  navigator.serviceWorker.addEventListener('controllerchange', function () {
+    if (sellbookReloadingForUpdate) return;
+    sellbookReloadingForUpdate = true;
+    window.location.reload();
+  });
+
+  function showSellbookUpdateNotice(registration) {
+    if (!registration.waiting || !navigator.serviceWorker.controller ||
+        document.getElementById('sellbookUpdateNotice')) return;
+    const notice = document.createElement('div');
+    notice.id = 'sellbookUpdateNotice';
+    notice.setAttribute('role', 'status');
+    notice.setAttribute('aria-live', 'polite');
+    notice.style.cssText = 'position:fixed;z-index:99990;left:12px;right:12px;bottom:calc(76px + env(safe-area-inset-bottom,0px));display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 14px;border:1px solid #d7e2d8;border-radius:13px;background:#fff;color:#173b25;box-shadow:0 8px 28px rgba(20,50,30,.16);font:600 13px/1.4 system-ui,sans-serif;';
+    const message = document.createElement('span');
+    message.textContent = 'A Sellbook update is ready.';
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.textContent = 'Refresh';
+    button.style.cssText = 'min-height:40px;padding:0 16px;border:0;border-radius:9px;background:#14532d;color:#fff;font:700 13px system-ui,sans-serif;';
+    button.addEventListener('click', function () {
+      if (!registration.waiting) return;
+      button.disabled = true;
+      button.textContent = 'Updating…';
+      registration.waiting.postMessage({ type: 'SKIP_WAITING' });
+    });
+    notice.append(message, button);
+    document.body.append(notice);
+  }
+
   window.addEventListener('load', function () {
     navigator.serviceWorker.register('./sw.js')
+      .then(function (registration) {
+        if (registration.waiting) showSellbookUpdateNotice(registration);
+        registration.addEventListener('updatefound', function () {
+          const installing = registration.installing;
+          if (!installing) return;
+          installing.addEventListener('statechange', function () {
+            if (installing.state === 'installed' && navigator.serviceWorker.controller) {
+              showSellbookUpdateNotice(registration);
+            }
+          });
+        });
+        registration.update().catch(function () {});
+      })
       .catch(function (error) {
         console.warn('Offline app setup could not start:', error);
       });
