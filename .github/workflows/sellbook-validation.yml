@@ -52,6 +52,9 @@ jobs:
       - name: Validate web app manifest JSON
         run: node -e "JSON.parse(require('node:fs').readFileSync('manifest.webmanifest', 'utf8')); console.log('Manifest JSON is valid')"
 
+      - name: Run full pre-APK product and safety regression audit
+        run: node scripts/check_preapk_audit.js
+
       - name: Check beginner flows, policy consistency and PIN return lock
         shell: bash
         run: |
