@@ -149,6 +149,10 @@ assert(manifest.name === 'Sellbook' &&
   'PWA manifest retains Sellbook identity and required app icons');
 assert(/const CACHE_NAME = 'sellbook-shell-v166'/.test(sw),
   'Service-worker shell version is bumped for the product stock status release');
+assert(sw.includes('CORE_SHELL.map(path => new Request(path, { cache: \'reload\' }))') &&
+       sw.includes('cache.addAll(requests)') &&
+       sw.includes('cache.add(new Request(path, { cache: \'reload\' }))'),
+  'Service-worker installation refreshes core and optional shell files instead of reusing stale browser cache entries');
 assert(css.includes('.home-sales-board-bottom.one-metric'),
   'Home metrics layout remains balanced when Buybook is disconnected');
 
