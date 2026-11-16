@@ -3593,10 +3593,18 @@ function render(){
   document.getElementById('productList').innerHTML=filteredProducts.length?filteredProducts.map(p=>{
     const displayImage=typeof p.image==='string'&&p.image.startsWith('data:image/')?p.image:(p.offlineImage||p.image);
     const photo=typeof displayImage==='string'&&(displayImage.startsWith('data:image/')||displayImage.startsWith('https://'))?`<img class="product-photo" src="${displayImage}" alt="${esc(p.name)} photo" loading="lazy" decoding="async" fetchpriority="low">`:'<div class="product-photo" aria-label="No product photo"></div>';
-    const lowStock=Number(p.stock)<=Number(lowStockThreshold);
+    const stockValue=Number(p.stock);
+    const stockCount=Number.isFinite(stockValue)?Math.max(0,stockValue):0;
+    const stockStatus=isProductArchived(p)
+      ?' · Archived'
+      :stockCount===0
+        ?' · <span class="out-of-stock-badge">Out of stock</span>'
+        :stockCount<=Number(lowStockThreshold)
+          ?' · <span class="low-stock-badge">Low stock</span>'
+          :'';
     return `<button type="button" class="item product-summary-item product-open-button" data-product-open="${p.id}" aria-label="View ${esc(p.name)}"><span class="item-product">${photo}<span class="item-product-details">
     <span class="row product-summary-top"><strong>${esc(p.name)}</strong><strong>${money(p.price)}</strong></span>
-    <span class="muted">Stock: <strong>${p.stock} units</strong>${isProductArchived(p)?' · Archived':lowStock?' · Low stock':''}</span>
+    <span class="muted">Stock: <strong>${stockCount} units</strong>${stockStatus}</span>
     </span></span></button>`;
   }).join(''):statusProducts.length?'<div class="empty">No products match your search or category.</div>':(statusFilter?.value==='archived'?'<div class="empty">No archived products. Products you archive will appear here.</div>':'<div class="empty">No products yet. Add your first product to get started.</div>');
 
