@@ -68,6 +68,7 @@ jobs:
           grep -q "fetch('./terms.html'" app.js
           grep -q 'entryKey={products:' app.js
           grep -q 'because you left the app' app.js
+          grep -q '\[hidden\]{display:none!important}' styles.css
           grep -q "showSecurityPinGate('verify','Sellbook is locked because you left the app" app.js
           grep -q "sellbook-shell-v164" sw.js
           grep -q "'./privacy.html'" sw.js
