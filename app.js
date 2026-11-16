@@ -2012,9 +2012,17 @@ async function loadBuybookConnection(options={}){
   if(headerLabel)headerLabel.textContent=caption;
   if(headerButton){const accessible=loading?'Checking Buybook connection':connected?'Connected to Buybook':'Connect to Buybook';headerButton.setAttribute('aria-label',accessible);headerButton.title=accessible;}
   const approachingMetric=document.querySelector('#home .home-board-approaching-customers');
+  const reservationsMetric=document.querySelector('#home .home-board-metric-right[data-open-page="reservations"]');
+  const marketplaceSection=document.querySelector('#home .home-marketplace-section');
   const homeMetrics=document.querySelector('#home .home-sales-board-bottom');
+  const meReservations=document.querySelector('#me [data-open-page="reservations"]');
+  const meSubscribers=document.querySelector('#me [data-open-page="subscribers"]');
   if(approachingMetric)approachingMetric.hidden=loading||!connected;
-  if(homeMetrics)homeMetrics.classList.toggle('two-metrics',loading||!connected);
+  if(reservationsMetric)reservationsMetric.hidden=loading||!connected;
+  if(marketplaceSection)marketplaceSection.hidden=loading||!connected;
+  if(meReservations)meReservations.hidden=loading||!connected;
+  if(meSubscribers)meSubscribers.hidden=loading||!connected;
+  if(homeMetrics)homeMetrics.classList.toggle('one-metric',loading||!connected);
   const label=connected?'Connected to Buybook':'Not connected to Buybook';
   [overviewStatus,setupStatus].forEach(el=>{if(el)el.textContent=loading?'Checking Buybook connection…':label;});
   const meStatus=document.getElementById('meBuybookStatus');if(meStatus)meStatus.textContent=loading?'Checking Buybook connection…':label;
