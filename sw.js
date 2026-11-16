@@ -1,6 +1,6 @@
 'use strict';
 
-const CACHE_NAME = 'sellbook-shell-v163';
+const CACHE_NAME = 'sellbook-shell-v164';
 // These files are required for the signed-in app shell to start offline.
 const CORE_SHELL = [
   './',
@@ -12,13 +12,13 @@ const CORE_SHELL = [
   './location-sharing.js',
   './location-sharing.css',
   './supabase-config.js',
-  './manifest.webmanifest'
+  './manifest.webmanifest',
+  './privacy.html',
+  './terms.html'
 ];
 // Optional pages and artwork must never prevent the core app from being cached.
 const OPTIONAL_SHELL = [
-  './icons/icon.svg',
-  './privacy.html',
-  './terms.html'
+  './icons/icon.svg'
 ];
 
 self.addEventListener('install', event => {
