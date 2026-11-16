@@ -152,5 +152,19 @@ assert(/const CACHE_NAME = 'sellbook-shell-v165'/.test(sw),
 assert(css.includes('.home-sales-board-bottom.one-metric'),
   'Home metrics layout remains balanced when Buybook is disconnected');
 
+
+ 
+// Product stock labels: zero stock is different from low stock, and archived
+// products keep their archived label instead of being shown as available.
+assert(app.includes('stockValue=Number(p.stock)') &&
+       app.includes('stockCount===0') &&
+       app.includes('out-of-stock-badge') &&
+       app.includes('low-stock-badge') &&
+       app.includes("isProductArchived(p)"),
+  'Product list distinguishes out-of-stock, low-stock and archived products');
+assert(css.includes('.out-of-stock-badge{') &&
+       css.includes('body.dark .out-of-stock-badge{'),
+  'Out-of-stock status badge has readable light- and dark-mode styling');
+
 if (process.exitCode) process.exit(process.exitCode);
 console.log('All pre-APK audit checks passed.');
