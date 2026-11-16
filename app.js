@@ -963,6 +963,14 @@ function clearSecurityPinAwayAt(userId=cloudUser?.id){
 }
 function lockSellbookAfterBackground(userId=cloudUser?.id){
  if(!userId)return false;
+ // A confirmed manual reload is not leaving the app. Consume that exemption
+ // here as well as in the UI resume path so startup checks cannot race it.
+ if(securityPinReloadExemptionAvailable){
+  securityPinReloadExemptionAvailable=false;
+  clearPendingSecurityPinLock(userId);
+  clearSecurityPinAwayAt(userId);
+  return false;
+ }
  const awayAt=readSecurityPinAwayAt(userId);
  const awayInMemory=securityPinBackgroundAwayUserId===String(userId);
  if(!awayAt&&!awayInMemory)return false;
@@ -999,8 +1007,8 @@ function hasPersistedSecurityPinLock(userId=cloudUser?.id){
  if(securityPinReloadExemptionAvailable){
   securityPinReloadExemptionAvailable=false;
   clearPendingSecurityPinLock(userId);
-  // A confirmed manual refresh is not an app exit and must not consume the
-  // one-minute background allowance or introduce a new PIN prompt.
+  // A confirmed manual refresh is not an app exit and must not introduce a
+  // new PIN prompt.
   clearSecurityPinAwayAt(userId);
  }
  try{
@@ -3466,7 +3474,8 @@ function renderGettingStarted(){
  card.classList.toggle('hidden',!visible);card.setAttribute('aria-hidden',String(!visible));
  if(!visible)return;
  for(const step of steps){
-  const button=card.querySelector('[data-open-page="'+step.key+'"]'),marker=card.querySelector('[data-step-status="'+step.key+'"]');
+  const entryKey={products:'product',sales:'sale',expenses:'expense'}[step.key];
+  const button=card.querySelector('[data-open-entry="'+entryKey+'"]'),marker=card.querySelector('[data-step-status="'+step.key+'"]');
   const state=document.getElementById('gettingStarted'+step.key.charAt(0).toUpperCase()+step.key.slice(1)+'State');
   if(button)button.hidden=step.done;
   if(marker)marker.textContent=step.done?'✓':String(steps.findIndex(x=>x.key===step.key)+1);
