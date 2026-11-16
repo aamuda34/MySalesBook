@@ -67,6 +67,11 @@ jobs:
           grep -q 'Sellbook supports two restore modes' index.html
           grep -q 'home-marketplace-section.*hidden' index.html
           grep -q 'home-board-metric-right.*hidden' index.html
+          grep -q 'Cost price is what you paid for one item' index.html
+          grep -q 'How many purchase units did you buy?' index.html
+          grep -q 'How many individual items are in one purchase unit?' index.html
+          grep -q 'one carton contains 12 bottles' index.html
+          grep -q 'Shop subscribers' index.html
           grep -q 'reservationsMetric.hidden=loading||!connected' app.js
           grep -q "fetch('./privacy.html'" app.js
           grep -q "fetch('./terms.html'" app.js
