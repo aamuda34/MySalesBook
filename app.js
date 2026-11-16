@@ -986,6 +986,10 @@ function startSecurityPinBackgroundLock(){
  const userId=cloudUser.id;
  securityPinBackgroundAwayUserId=String(userId);
  saveSecurityPinAwayAt(userId);
+ // Cover private records in the Android app switcher preview immediately.
+ // The away marker is committed only when Sellbook is resumed; a confirmed
+ // manual refresh clears it before the new page restores the workspace.
+ showSecurityPinGate('verify','Sellbook is locked because you left the app. Enter your six-digit PIN to continue.');
 }
 function resumeSecurityPinAfterBackground(){
  if(!cloudUser)return false;
@@ -1053,8 +1057,7 @@ function lockSellbookForPin(message){
 }
 async function recheckSellbookPinStatus(){
  if(!cloudUser||!supabaseClient||securityPinGateVisible||securityPinStatusCheckInFlight)return;
- // Check before the online guard: a background timeout must remain effective
- // even when the seller returns without an internet connection.
+ // Check before the online guard: the return lock must also work offline.
  if(lockSellbookAfterBackground(cloudUser.id))return false;
  if(securityPinExpiresAt&&Date.now()>=securityPinExpiresAt){
   lockSellbookForPin('Your security PIN session has expired. Enter your PIN again.');
@@ -1208,8 +1211,8 @@ function hideSecurityPinGate(){
 }
 async function ensureSellbookPinAccess(){
  if(!cloudUser||!supabaseClient)throw Error('Sign in before verifying your Sellbook PIN.');
- // Also enforce an elapsed background timeout on a cold app launch, where
- // the previous document's JavaScript timer no longer exists.
+ // Enforce a pending background lock on a cold app launch, where the previous
+ // document's JavaScript event handlers no longer exist.
  if(lockSellbookAfterBackground(cloudUser.id))return false;
  if(sessionStorage.getItem('sellbook-pin-reset-after-auth')==='yes'){
   showSecurityPinGate('verify','Verify your registered email address to reset your Sellbook PIN.');
