@@ -64,10 +64,15 @@ jobs:
           grep -q 'data-open-entry="expense"' index.html
           grep -q 'When signed in:' index.html
           grep -q 'Device-only mode:' index.html
+          grep -q 'Sellbook supports two restore modes' index.html
+          grep -q 'home-marketplace-section.*hidden' index.html
+          grep -q 'home-board-metric-right.*hidden' index.html
+          grep -q 'reservationsMetric.hidden=loading||!connected' app.js
           grep -q "fetch('./privacy.html'" app.js
           grep -q "fetch('./terms.html'" app.js
-          grep -q 'entryKey={products:' app.js
+          grep -q "entryKey={products:'product',sales:'sale',expenses:'expense'}" app.js
           grep -q 'because you left the app' app.js
+          grep -q 'securityPinReloadExemptionAvailable' app.js
           grep -q "showSecurityPinGate('verify','Sellbook is locked because you left the app" app.js
           grep -q "sellbook-shell-v164" sw.js
           grep -q "'./privacy.html'" sw.js
