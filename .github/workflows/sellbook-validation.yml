@@ -59,6 +59,8 @@ jobs:
           grep -q 'data-open-entry="sale"' index.html
           grep -q 'data-open-entry="product"' index.html
           grep -q 'data-open-entry="expense"' index.html
+          grep -q 'data-open-entry="product"' index.html
+          grep -q 'data-open-entry="sale"' index.html
           grep -q 'Sellbook supports two restore modes' index.html
           grep -q "fetch('./privacy.html'" app.js
           grep -q "fetch('./terms.html'" app.js
