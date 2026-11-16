@@ -52,6 +52,22 @@ jobs:
       - name: Validate web app manifest JSON
         run: node -e "JSON.parse(require('node:fs').readFileSync('manifest.webmanifest', 'utf8')); console.log('Manifest JSON is valid')"
 
+      - name: Check beginner flows, policy consistency and PIN return lock
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -q 'data-open-entry="sale"' index.html
+          grep -q 'data-open-entry="product"' index.html
+          grep -q 'data-open-entry="expense"' index.html
+          grep -q 'Sellbook supports two restore modes' index.html
+          grep -q "fetch('./privacy.html'" app.js
+          grep -q "fetch('./terms.html'" app.js
+          grep -q 'because you left the app' app.js
+          grep -q "sellbook-shell-v164" sw.js
+          grep -q "'./privacy.html'" sw.js
+          grep -q "'./terms.html'" sw.js
+          ! grep -q 'Effective 23 October 2026' index.html
+
       - name: Check identity verification function syntax
         shell: bash
         run: |
