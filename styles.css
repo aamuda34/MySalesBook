@@ -5415,3 +5415,4 @@ body.approaching-customers-page-open #approaching-customers .products-page-heade
 body.approaching-customers-page-open .approaching-customers-intro{margin:0 0 12px;line-height:1.5}
 body.approaching-customers-page-open .sellbook-live-location-card{margin-top:0}
 .home-board-approaching-customers .home-sales-subs-label{max-width:100%;white-space:normal;line-height:1.15}
+#home .home-sales-board-bottom.two-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}
