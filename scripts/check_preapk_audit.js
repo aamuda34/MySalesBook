@@ -147,8 +147,8 @@ assert(manifest.name === 'Sellbook' &&
        manifest.icons.some(icon => icon.sizes === '192x192') &&
        manifest.icons.some(icon => icon.sizes === '512x512'),
   'PWA manifest retains Sellbook identity and required app icons');
-assert(/const CACHE_NAME = 'sellbook-shell-v165'/.test(sw),
-  'Service-worker shell version is updated for this release');
+assert(/const CACHE_NAME = 'sellbook-shell-v166'/.test(sw),
+  'Service-worker shell version is bumped for the product stock status release');
 assert(css.includes('.home-sales-board-bottom.one-metric'),
   'Home metrics layout remains balanced when Buybook is disconnected');
 
