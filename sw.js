@@ -1,6 +1,6 @@
 'use strict';
 
-const CACHE_NAME = 'sellbook-shell-v165';
+const CACHE_NAME = 'sellbook-shell-v166';
 // These files are required for the signed-in app shell to start offline.
 const CORE_SHELL = [
   './',
@@ -24,12 +24,14 @@ const OPTIONAL_SHELL = [
 self.addEventListener('install', event => {
   event.waitUntil((async () => {
     const cache = await caches.open(CACHE_NAME);
-    // Fail installation if a core file is unavailable: activating an incomplete
-    // shell would make the app harder to recover when the device goes offline.
-    await cache.addAll(CORE_SHELL);
+    // Reload the core shell during installation so a fresh worker cannot inherit
+    // an older browser HTTP-cache copy of index.html, app.js or styles.css.
+    // Fail installation if a core file is unavailable, preserving offline recovery.
+    const requests = CORE_SHELL.map(path => new Request(path, { cache: 'reload' }));
+    await cache.addAll(requests);
     // A missing legal page or icon is non-critical and must not block offline use.
     await Promise.all(OPTIONAL_SHELL.map(path =>
-      cache.add(path).catch(error => {
+      cache.add(new Request(path, { cache: 'reload' })).catch(error => {
         console.warn('Optional offline resource was not cached:', path, error);
       })
     ));
